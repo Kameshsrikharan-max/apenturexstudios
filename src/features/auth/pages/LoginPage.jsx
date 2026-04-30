@@ -1,63 +1,99 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button, Input, Space, Typography, Card, message, ConfigProvider } from "antd";
+import { motion, AnimatePresence, useSpring, useMotionValue, useTransform } from "framer-motion";
+import { Button, Input, Space, Typography, Card, message, ConfigProvider, Row, Col } from "antd";
 import { 
-  LockOutlined, 
   CameraOutlined, 
   ScanOutlined, 
   UserOutlined,
   LoadingOutlined,
-  EyeInvisibleOutlined,
-  EyeTwoTone
+  GoogleOutlined,
+  TwitterOutlined,
+  FacebookOutlined
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
-export default function UltraModernPhotoLog({ onLogin, onSignUp }) {
+
+const quotes = [
+  "Photography is the story I fail to put into words.",
+  "Your first 10,000 photographs are your worst.",
+  "Skill in photography is acquired by practice, not purchase.",
+  "Focus on what's important, capture the good times.",
+  "A camera is a save button for the mind's eye."
+];
+
+export default function ApertureXEliteLog({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
   const [identifier, setIdentifier] = useState(""); 
-  const [password, setPassword] = useState("");
-
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  
   const timesFont = { fontFamily: "'Times New Roman', Times, serif" };
+
+  // --- LOGIC: QUOTE ROTATION ---
+  useEffect(() => {
+    const quoteInterval = setInterval(() => {
+      setQuoteIndex((prev) => (prev + 1) % quotes.length);
+    }, 4000);
+    return () => clearInterval(quoteInterval);
+  }, []);
+
+
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  
+  const springX = useSpring(mouseX, { stiffness: 60, damping: 30 });
+  const springY = useSpring(mouseY, { stiffness: 60, damping: 30 });
+
+  // Transforms mouse movement into slight 3D rotation for the form box
+  const rotateX = useTransform(mouseY, [-300, 300], [10, -10]);
+  const rotateY = useTransform(mouseX, [-300, 300], [-10, 10]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
-      setMousePos({
-        x: (e.clientX - window.innerWidth / 2) / 60,
-        y: (e.clientY - window.innerHeight / 2) / 60,
-      });
+      const x = e.clientX - window.innerWidth / 2;
+      const y = e.clientY - window.innerHeight / 2;
+      mouseX.set(x / 20);
+      mouseY.set(y / 20);
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
+  }, [mouseX, mouseY]);
 
+  
   const triggerAdvancedSequence = () => {
-    if (!identifier || !password) {
-      return msgApi.warning("Please enter your credentials.");
-    }
-    
+    if (!identifier) return msgApi.warning("Access denied: Identification missing.");
     setIsAnimating(true);
     
-    // Sequence: Shutter closes -> Background appears -> Text animates -> Callback
-    setTimeout(() => setShowWelcome(true), 1000);
+    
+    setTimeout(() => setShowWelcome(true), 1200);
     
     setTimeout(() => {
       setIsAnimating(false);
       setShowWelcome(false);
-      if (onLogin) onLogin({ identifier, password });
-    }, 5000);
+      if (onLogin) onLogin({ identifier });
+    }, 4500);
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
+  
+  const formBoxVariants = {
+    hidden: { opacity: 0, scale: 0.8, y: 50, rotateX: -15 },
     visible: { 
-      opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.5 }
+      opacity: 1, 
+      scale: 1, 
+      y: 0, 
+      rotateX: 0,
+      transition: { 
+        type: "spring", stiffness: 50, damping: 15, duration: 1,
+        staggerChildren: 0.12, delayChildren: 0.4
+      } 
     }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
 
   const letterVariant = {
@@ -66,97 +102,68 @@ export default function UltraModernPhotoLog({ onLogin, onSignUp }) {
   };
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#38BDF8', borderRadius: 20 } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: '#38BDF8', borderRadius: 24 } }}>
       <div style={{ 
         ...timesFont, 
-        overflow: "hidden", 
-        height: "100vh", 
-        width: "100vw", 
-        position: "fixed", 
-        top: 0,
-        left: 0,
-        backgroundColor: "#000"
+        overflow: "hidden", height: "100vh", width: "100vw", 
+        position: "fixed", top: 0, left: 0, backgroundColor: "#020617",
+        perspective: "1200px"
       }}>
         {contextHolder}
 
+        {/*PAGE 1*/}
         <motion.div
-          animate={{ x: -mousePos.x, y: -mousePos.y, scale: 1.05 }}
-          transition={{ type: "tween", ease: "linear", duration: 0.1 }}
           style={{
-            position: "absolute",
-            inset: "-10%",
-            backgroundImage: `url('https://images.unsplash.com/photo-1554048612-b6a482bc67e5?q=80&w=2070')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "brightness(0.3) contrast(1.1)",
-            zIndex: 1
+            position: "absolute", inset: "-10%",
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=2070')`,
+            backgroundSize: "cover", backgroundPosition: "center",
+            filter: "brightness(1.2)",
+            x: springX, y: springY, scale: 1.05, zIndex: 1
           }}
         />
-
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 2,
-          opacity: 0.03,
-          pointerEvents: "none",
-          background: `url('https://grainy-gradients.vercel.app/noise.svg')`, 
-        }} />
 
       
         <AnimatePresence>
           {isAnimating && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
-                background: "#000",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center"
-              }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#000", display: "flex", justifyContent: "center", alignItems: "center" }}
             >
+              {/* PAGE 2*/}
               {showWelcome && (
                 <motion.div 
-                  initial={{ scale: 1.2, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
+                  initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 2.5 }}
                   style={{
-                    position: "absolute",
-                    inset: 0,
+                    position: "absolute", inset: 0,
                     backgroundImage: `url('https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=2071')`, 
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    filter: "brightness(0.4)",
-                    zIndex: -1
+                    backgroundSize: "cover", backgroundPosition: "center",
+                    filter: "brightness(0.5)", zIndex: -1
                   }}
                 />
               )}
 
-              {!showWelcome && (
-                <motion.div 
-                  initial={{ scale: 5 }}
-                  animate={{ scale: 0, rotate: 180 }}
+              
+              {!showWelcome && [...Array(12)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ rotate: i * 30, scale: 6 }}
+                  animate={{ scale: 0 }}
                   transition={{ duration: 1.2, ease: [0.76, 0, 0.24, 1] }}
                   style={{
-                    width: '300vw',
-                    height: '300vh',
-                    border: '150vw solid #38BDF8',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    zIndex: 10
+                    position: "absolute", width: "150vw", height: "150vh",
+                    background: i % 2 === 0 ? "#38BDF8" : "#fff", 
+                    clipPath: "polygon(50% 50%, 100% 0, 100% 25%)",
+                    originX: "50%", originY: "50%", opacity: 0.95
                   }}
                 />
-              )}
+              ))}
 
+              {/*Page 2*/}
               {showWelcome && (
-                <motion.div variants={containerVariants} initial="hidden" animate="visible" style={{ textAlign: "center", zIndex: 11 }}>
-                  <motion.div variants={letterVariant}>
-                    <Text style={{ color: "#38BDF8", letterSpacing: "15px", fontSize: "14px", textTransform: "uppercase", display: 'block', marginBottom: '20px' }}>
+                <motion.div initial="hidden" animate="visible" style={{ textAlign: "center", zIndex: 11 }}>
+                   <motion.div variants={letterVariant}>
+                    <Text style={{ color: "#38BDF8", letterSpacing: "15px", fontSize: "12px", textTransform: "uppercase", display: 'block', marginBottom: '20px' }}>
                       Capturing Moments, Creating Memories
                     </Text>
                   </motion.div>
@@ -175,108 +182,167 @@ export default function UltraModernPhotoLog({ onLogin, onSignUp }) {
           )}
         </AnimatePresence>
 
-        {/* LOGIN */}
-        <div style={{ position: "relative", zIndex: 10, height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.8 }}>
-            <Card
-              bordered={false}
-              style={{
-                width: "90vw",
-                maxWidth: "420px",
-                background: "rgba(0, 0, 0, 0.2)", 
-                backdropFilter: "blur(15px)",
-                WebkitBackdropFilter: "blur(15px)",
-                borderRadius: "40px", 
-                border: "1px solid rgba(255,255,255,0.1)",
-                padding: "20px"
-              }}
-            >
-              <div style={{ textAlign: "center", marginBottom: "35px" }}>
-                <motion.div
-                   initial={{ y: -40, opacity: 0 }}
-                   animate={{ y: 0, opacity: 1 }}
-                   transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-                >
-                  <CameraOutlined style={{ color: "#38BDF8", fontSize: "48px", filter: "drop-shadow(0 0 10px rgba(56, 189, 248, 0.4))" }} />
-                </motion.div>
-                
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-                  <Title level={2} style={{ ...timesFont, color: "#fff", margin: "15px 0 5px", letterSpacing: "8px", fontWeight: 100 }}>
-                    A <span style={{ color: "#38BDF8" }}>X</span> S
-                  </Title>
-                  <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "4px", textTransform: "uppercase" }}>
-                    Aperture X Studios
-                  </Text>
-                </motion.div>
-              </div>
-
-              <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                {/* Email */}
-                <div>
-                  <Text style={{ color: "#38BDF8", fontSize: "10px", fontWeight: "bold", marginLeft: "5px", letterSpacing: "1px" }}>EMAIL OR PHONE</Text>
-                  <Input 
-                    variant="borderless"
-                    prefix={<UserOutlined style={{ color: "rgba(255,255,255,0.4)", marginRight: "10px" }} />}
-                    placeholder="EMAIL OR PHONE"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "12px 5px", borderRadius: 0 }}
-                  />
-                </div>
-
-                {/* PASSWORD */}
-                <div>
-                  <Text style={{ color: "#38BDF8", fontSize: "10px", fontWeight: "bold", marginLeft: "5px", letterSpacing: "1px" }}>PASSWORD</Text>
-                  <Input.Password
-                    variant="borderless"
-                    prefix={<LockOutlined style={{ color: "rgba(255,255,255,0.4)", marginRight: "10px" }} />}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    iconRender={visible => (visible ? <EyeTwoTone twoToneColor="#38BDF8" /> : <EyeInvisibleOutlined style={{color: 'rgba(255,255,255,0.4)'}} />)}
-                    style={{ borderBottom: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "12px 5px", borderRadius: 0 }}
-                  />
-                </div>
-
-                <Button
-                  block
-                  onClick={triggerAdvancedSequence}
-                  icon={isAnimating ? <LoadingOutlined /> : <ScanOutlined />}
-                  style={{
-                    height: "55px",
-                    background: "#38BDF8",
-                    color: "#000",
-                    border: "none",
-                    borderRadius: "28px", 
-                    fontSize: "14px",
-                    letterSpacing: "3px",
-                    fontWeight: "bold",
-                    marginTop: "25px",
-                    boxShadow: "0 10px 25px rgba(56, 189, 248, 0.3)"
-                  }}
-                >
-                  {isAnimating ? "AUTHENTICATING..." : "LOG IN"}
-                </Button>
-
-                <div style={{ textAlign: "center", marginTop: "10px" }}>
-                  <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Access needed? </Text>
-                  <Button type="link" onClick={onSignUp} style={{ color: "#38BDF8", padding: 0, fontWeight: "bold", fontSize: "12px" }}>
-                    SIGN UP
-                  </Button>
-                </div>
+        {/* MAIN INTERFACE*/}
+        <Row style={{ height: "100vh", position: "relative", zIndex: 10 }}>
+          
+          {/* Left Panel: Static content with Rotating Quotes */}
+          <Col xs={0} md={12} style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8%" }}>
+            <motion.div initial={{ opacity: 0, x: -60 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1 }}>
+              <Space align="center" style={{ marginBottom: "20px" }}>
+                <CameraOutlined style={{ fontSize: "40px", color: "#38BDF8" }} />
+                <Title level={4} style={{ color: "#fff", margin: 0, letterSpacing: "8px", fontWeight: 200, ...timesFont }}>APERTURE X Studios</Title>
               </Space>
-            </Card>
-          </motion.div>
-        </div>
+              
+              <Title style={{ color: "#fff", fontSize: "min(4.5rem, 5.5vw)", margin: 0, lineHeight: 1.1, fontWeight: 100, ...timesFont }}>
+                Elevate your <br />
+                <span style={{ fontWeight: 600, color: "#38BDF8" }}>visual</span> craft
+              </Title>
+
+    
+              <div style={{ height: "60px", marginTop: "30px" }}>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={quoteIndex}
+                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: "18px", fontStyle: "italic", fontWeight: 300 }}>
+                      "{quotes[quoteIndex]}"
+                    </Text>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </Col>
+
+        
+          <Col xs={24} md={12} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+            <motion.div 
+              style={{ rotateX, rotateY }}
+              variants={formBoxVariants}
+              initial="hidden"
+              animate="visible"
+              whileHover={{ scale: 1.02 }}
+            >
+              <Card
+                variant="borderless"
+                className="glass-card"
+                style={{
+                  width: "90vw", 
+                  maxWidth: "400px",
+                  background: "rgba(0, 0, 0, 0.7)",
+                  backdropFilter: "blur(10px) saturate(100%)",
+                  borderRadius: "40px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  padding: "20px",
+                  boxShadow: "0 40px 100px rgba(0,0,0,0.9)"
+                }}
+              >
+                <motion.div variants={itemVariants} style={{ textAlign: "center", marginBottom: "35px" }}>
+                   <Title level={3} style={{ color: "#fff", margin: 0, fontWeight: 100, letterSpacing: "8px", ...timesFont }}>
+                    LOG<span style={{ color: "#38BDF8" }}>I</span>N
+                  </Title>
+                  <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "3px" }}>Welcome Back</Text>
+                </motion.div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                  <motion.div variants={itemVariants}>
+                    <Text className="label-text">Email or Number</Text>
+                    <Input 
+                      placeholder="Email or Number" 
+                      prefix={<UserOutlined style={{ color: "#38BDF8", marginRight: "10px" }} />}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      className="creative-input"
+                    />
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <Button 
+                      block 
+                      onClick={triggerAdvancedSequence}
+                      icon={isAnimating ? <LoadingOutlined /> : <ScanOutlined />}
+                      className="submit-button-innovative"
+                    >
+                      {isAnimating ? "WELCOME TO ..." : "LOG IN"}
+                    </Button>
+                  </motion.div>
+
+                  <motion.div variants={itemVariants} style={{ textAlign: "center", marginTop: "10px" }}>
+                    <Text style={{ color: "rgba(255,255,255,0.3)", fontSize: "9px", letterSpacing: "2px" }}>OR CONNECT VIA</Text>
+                    <div style={{ display: "flex", justifyContent: "center", gap: "30px", marginTop: "20px" }}>
+                      <TwitterOutlined className="social-icon" />
+                      <FacebookOutlined className="social-icon" />
+                      <GoogleOutlined className="social-icon" />
+                    </div>
+                  </motion.div>
+                  
+                  <motion.div variants={itemVariants} style={{ textAlign: "center" }}>
+                    <Button type="link" onClick={onSignUp} className="signup-link">
+                      Dont' have an account? <span style={{ color: "#38BDF8" }}>Sign Up</span>
+                    </Button>
+                  </motion.div>
+                </div>
+              </Card>
+            </motion.div>
+          </Col>
+        </Row>
 
         <style>{`
-          body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+          .glass-card { transition: border 0.4s ease; }
+          .glass-card:hover { border-color: rgba(56, 189, 248, 0.5) !important; }
+          
+          .creative-input {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 20px !important;
+            padding: 14px 20px !important;
+            color: #fff !important;
+          }
+          .creative-input:focus {
+            background: rgba(255, 255, 255, 0.12) !important;
+            border-color: #38BDF8 !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2) !important;
+          }
+          .label-text {
+            color: rgba(255,255,255,0.5);
+            margin-left: 8px;
+            margin-bottom: 8px;
+            display: block;
+            font-size: 10px;
+            letter-spacing: 2px;
+          }
+          .submit-button-innovative {
+            height: 60px !important;
+            background: linear-gradient(135deg, #38BDF8, #0ea5e9) !important;
+            color: #000 !important;
+            border: none !important;
+            border-radius: 20px !important;
+            font-weight: 800 !important;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 30px rgba(56, 189, 248, 0.4) !important;
+          }
+          .submit-button-innovative:hover {
+            transform: translateY(-4px);
+            filter: brightness(1.1);
+          }
+          .social-icon {
+            font-size: 22px;
+            color: rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: all 0.3s;
+          }
+          .social-icon:hover {
+            color: #38BDF8;
+            transform: translateY(-5px) scale(1.2);
+          }
+          .signup-link {
+            color: rgba(255,255,255,0.5) !important;
+            font-size: 13px !important;
+          }
           .ant-input { color: #fff !important; }
-          .ant-input::placeholder { color: rgba(255,255,255,0.2) !important; font-size: 11px; letter-spacing: 1px; }
-          .ant-input-password { background: transparent !important; }
-          .ant-input-affix-wrapper { background: transparent !important; border-bottom: 1px solid rgba(255,255,255,0.2) !important; }
-          .ant-input-affix-wrapper-focused { border-bottom: 1px solid #38BDF8 !important; box-shadow: none !important; }
-          .ant-btn-primary:hover { background: #7DD3FC !important; }
+          .ant-input::placeholder { color: rgba(255,255,255,0.2) !important; }
+          .ant-input-affix-wrapper { background: transparent !important; border: none !important; }
         `}</style>
       </div>
     </ConfigProvider>
