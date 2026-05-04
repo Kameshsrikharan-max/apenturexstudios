@@ -13,7 +13,6 @@ import {
 
 const { Title, Text } = Typography;
 
-
 const quotes = [
   "Photography is the story I fail to put into words.",
   "Your first 10,000 photographs are your worst.",
@@ -22,7 +21,7 @@ const quotes = [
   "A camera is a save button for the mind's eye."
 ];
 
-export default function ApertureXEliteLog({ onLogin, onSignUp }) {
+export default function LoginPage({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
   const [isAnimating, setIsAnimating] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -39,14 +38,12 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
     return () => clearInterval(quoteInterval);
   }, []);
 
-
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   
   const springX = useSpring(mouseX, { stiffness: 60, damping: 30 });
   const springY = useSpring(mouseY, { stiffness: 60, damping: 30 });
 
-  // Transforms mouse movement into slight 3D rotation for the form box
   const rotateX = useTransform(mouseY, [-300, 300], [10, -10]);
   const rotateY = useTransform(mouseX, [-300, 300], [-10, 10]);
 
@@ -61,22 +58,19 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
-  
   const triggerAdvancedSequence = () => {
     if (!identifier) return msgApi.warning("Access denied: Identification missing.");
     setIsAnimating(true);
-    
     
     setTimeout(() => setShowWelcome(true), 1200);
     
     setTimeout(() => {
       setIsAnimating(false);
       setShowWelcome(false);
-      if (onLogin) onLogin({ identifier });
+      if (onLogin) onLogin({ identifier }); // Triggers the navigation to /dashboard
     }, 4500);
   };
 
-  
   const formBoxVariants = {
     hidden: { opacity: 0, scale: 0.8, y: 50, rotateX: -15 },
     visible: { 
@@ -111,7 +105,7 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
       }}>
         {contextHolder}
 
-        {/*PAGE 1*/}
+        {/* BACKGROUND IMAGE WITH PARALLAX */}
         <motion.div
           style={{
             position: "absolute", inset: "-10%",
@@ -122,14 +116,12 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
           }}
         />
 
-      
         <AnimatePresence>
           {isAnimating && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#000", display: "flex", justifyContent: "center", alignItems: "center" }}
             >
-              {/* PAGE 2*/}
               {showWelcome && (
                 <motion.div 
                   initial={{ scale: 1.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -143,7 +135,6 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
                 />
               )}
 
-              
               {!showWelcome && [...Array(12)].map((_, i) => (
                 <motion.div
                   key={i}
@@ -159,10 +150,9 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
                 />
               ))}
 
-              {/*Page 2*/}
               {showWelcome && (
                 <motion.div initial="hidden" animate="visible" style={{ textAlign: "center", zIndex: 11 }}>
-                   <motion.div variants={letterVariant}>
+                  <motion.div variants={letterVariant}>
                     <Text style={{ color: "#38BDF8", letterSpacing: "15px", fontSize: "12px", textTransform: "uppercase", display: 'block', marginBottom: '20px' }}>
                       Capturing Moments, Creating Memories
                     </Text>
@@ -182,10 +172,7 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
           )}
         </AnimatePresence>
 
-        {/* MAIN INTERFACE*/}
         <Row style={{ height: "100vh", position: "relative", zIndex: 10 }}>
-          
-          {/* Left Panel: Static content with Rotating Quotes */}
           <Col xs={0} md={12} style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 8%" }}>
             <motion.div initial={{ opacity: 0, x: -60 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1 }}>
               <Space align="center" style={{ marginBottom: "20px" }}>
@@ -198,7 +185,6 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
                 <span style={{ fontWeight: 600, color: "#38BDF8" }}>visual</span> craft
               </Title>
 
-    
               <div style={{ height: "60px", marginTop: "30px" }}>
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -215,7 +201,6 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
             </motion.div>
           </Col>
 
-        
           <Col xs={24} md={12} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
             <motion.div 
               style={{ rotateX, rotateY }}
@@ -239,7 +224,7 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
                 }}
               >
                 <motion.div variants={itemVariants} style={{ textAlign: "center", marginBottom: "35px" }}>
-                   <Title level={3} style={{ color: "#fff", margin: 0, fontWeight: 100, letterSpacing: "8px", ...timesFont }}>
+                  <Title level={3} style={{ color: "#fff", margin: 0, fontWeight: 100, letterSpacing: "8px", ...timesFont }}>
                     LOG<span style={{ color: "#38BDF8" }}>I</span>N
                   </Title>
                   <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "3px" }}>Welcome Back</Text>
@@ -279,7 +264,7 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
                   
                   <motion.div variants={itemVariants} style={{ textAlign: "center" }}>
                     <Button type="link" onClick={onSignUp} className="signup-link">
-                      Dont' have an account? <span style={{ color: "#38BDF8" }}>Sign Up</span>
+                      Don't have an account? <span style={{ color: "#38BDF8" }}>Sign Up</span>
                     </Button>
                   </motion.div>
                 </div>
@@ -291,7 +276,6 @@ export default function ApertureXEliteLog({ onLogin, onSignUp }) {
         <style>{`
           .glass-card { transition: border 0.4s ease; }
           .glass-card:hover { border-color: rgba(56, 189, 248, 0.5) !important; }
-          
           .creative-input {
             background: rgba(255, 255, 255, 0.08) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;

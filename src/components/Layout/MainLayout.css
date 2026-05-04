@@ -1,0 +1,12 @@
+.main-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #0c0c0e;
+}
+
+.main-content-area {
+  margin-left: 292px;           /* Sidebar width + gap */
+  flex: 1;
+  min-height: 100vh;
+  width: 100%;
+}
