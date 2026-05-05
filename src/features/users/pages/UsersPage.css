@@ -1,0 +1,80 @@
+/* Glassmorphism Header Profile */
+.profile-badge-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    padding: 4px 12px;
+    border-radius: 50px;
+    border: 1px solid rgb(8, 139, 245);
+}
+
+.profile-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.user-name-header { font-size: 12px; font-weight: 600; color: #fff; }
+.user-role-header { font-size: 10px; color: #3b82f6; }
+
+/* Tabs Styling */
+.user-tabs-glass {
+    padding: 0 20px;
+    border-bottom: 1px solid rgb(8, 139, 245);
+}
+
+.user-tabs-glass .ant-tabs-tab-btn {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.user-tabs-glass .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #3b82f6 !important;
+}
+
+/* User Panel & Table */
+.user-panel-container {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgb(8, 139, 245);
+}
+
+.user-toolbar-inline {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.icon-btn-glass { color: rgb(255, 255, 255) !important; }
+
+.invite-btn-styled {
+    background: #3b82f6 !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgb(8, 139, 245);
+}
+
+/* Custom Scrollbar */
+.user-table-custom .ant-table-content::-webkit-scrollbar {
+    height: 8px;
+}
+
+.user-table-custom .ant-table-content::-webkit-scrollbar-track {
+    background: rgb(8, 139, 245);
+    border-radius: 10px;
+}
+
+.user-table-custom .ant-table-content::-webkit-scrollbar-thumb {
+    background: rgb(255, 253, 253);
+    border-radius: 10px;
+}
+
+/* Specific Tags */
+.signup-tag-outline {
+    background: transparent !important;
+    border: 1px solid rgba(34, 197, 94, 0.3) !important;
+    color: #22c55e !important;
+}
+
+.footer-copyright {
+    text-align: center;
+    padding: 20px;
+    color: rgb(255, 247, 247);
+}

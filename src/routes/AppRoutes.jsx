@@ -6,12 +6,13 @@ import { useEffect } from "react";
 import LoginPage from "../features/auth/pages/LoginPage";
 import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import ReviewPage from "../features/review/pages/ReviewPage";
+import UsersPage from "../features/users/pages/UsersPage";   // ← New Import
 
 export default function AppRoutes({ isAuthenticated, onLogin, user }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Only redirect to dashboard when user logs in (from login page)
+  // Redirect to dashboard after login
   useEffect(() => {
     if (isAuthenticated && location.pathname === "/") {
       navigate("/dashboard", { replace: true });
@@ -45,6 +46,16 @@ export default function AppRoutes({ isAuthenticated, onLogin, user }) {
         element={
           isAuthenticated ? 
             <ReviewPage user={user} /> : 
+            <Navigate to="/" replace />
+        } 
+      />
+
+      {/* New Users Route */}
+      <Route 
+        path="/users" 
+        element={
+          isAuthenticated ? 
+            <UsersPage user={user} /> : 
             <Navigate to="/" replace />
         } 
       />

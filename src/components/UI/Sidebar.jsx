@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Layout, Menu, Typography } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -11,6 +11,7 @@ import {
   CameraOutlined
 } from "@ant-design/icons";
 
+import CalendarModal from "../UI/CalendarModal"; // ✅ import
 import "./Sidebar.css";
 
 const { Sider } = Layout;
@@ -20,7 +21,8 @@ const Sidebar = ({ dark = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Map menu keys to routes
+  const [calendarOpen, setCalendarOpen] = useState(false); // ✅ state
+
   const menuItems = [
     {
       key: "dashboard",
@@ -43,8 +45,7 @@ const Sidebar = ({ dark = false }) => {
     {
       key: "events",
       icon: <CalendarOutlined />,
-      label: "Events",
-      path: "/events"
+      label: "Calendar" // renamed
     },
     {
       key: "enquiry",
@@ -61,13 +62,17 @@ const Sidebar = ({ dark = false }) => {
   ];
 
   const handleMenuClick = ({ key }) => {
+    if (key === "events") {
+      setCalendarOpen(true); // ✅ open modal instead of routing
+      return;
+    }
+
     const item = menuItems.find(item => item.key === key);
-    if (item) {
+    if (item?.path) {
       navigate(item.path);
     }
   };
 
-  // Get current selected key based on URL
   const getSelectedKey = () => {
     const currentPath = location.pathname;
     const activeItem = menuItems.find(item => item.path === currentPath);
@@ -75,43 +80,51 @@ const Sidebar = ({ dark = false }) => {
   };
 
   return (
-    <Sider
-      width={260}
-      className={dark ? "studio-sidebar studio-sidebar-dark" : "studio-sidebar"}
-    >
-      <div className="studio-sidebar-brand">
-        <div className="studio-brand-mark">
-          <CameraOutlined />
+    <>
+      <Sider
+        width={260}
+        className={dark ? "studio-sidebar studio-sidebar-dark" : "studio-sidebar"}
+      >
+        <div className="studio-sidebar-brand">
+          <div className="studio-brand-mark">
+            <CameraOutlined />
+          </div>
+
+          <div>
+            <Text strong className="studio-brand-title">
+              AXS
+            </Text>
+            <Text className="studio-brand-subtitle">
+              Apenture X Studios
+            </Text>
+          </div>
         </div>
 
-        <div>
-          <Text strong className="studio-brand-title">
-            AXS
-          </Text>
-          <Text className="studio-brand-subtitle">
-            Apenture X Studios
+        <Menu
+          mode="inline"
+          selectedKeys={getSelectedKey()}
+          onClick={handleMenuClick}
+          className="studio-sidebar-menu"
+          items={menuItems.map(item => ({
+            key: item.key,
+            icon: item.icon,
+            label: item.label,
+          }))}
+        />
+
+        <div className="studio-sidebar-footer">
+          <Text type="secondary" className="studio-version">
+            Version 2.0
           </Text>
         </div>
-      </div>
+      </Sider>
 
-      <Menu
-        mode="inline"
-        selectedKeys={getSelectedKey()}
-        onClick={handleMenuClick}
-        className="studio-sidebar-menu"
-        items={menuItems.map(item => ({
-          key: item.key,
-          icon: item.icon,
-          label: item.label,
-        }))}
+      {/* ✅ CALENDAR MODAL */}
+      <CalendarModal
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
       />
-
-      <div className="studio-sidebar-footer">
-        <Text type="secondary" className="studio-version">
-          Version 2.0
-        </Text>
-      </div>
-    </Sider>
+    </>
   );
 };
 

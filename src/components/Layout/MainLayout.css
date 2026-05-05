@@ -1,12 +1,65 @@
-.main-layout {
-  display: flex;
-  min-height: 100vh;
-  background: #0c0c0e;
+:root {
+  --bg-deep: #060b13;
+  --bg-card: rgba(15, 23, 42, 0.6);
+  --accent-blue: #0ea5e9;
+  --glass-border: rgba(255, 255, 255, 0.08);
 }
 
-.main-content-area {
-  margin-left: 292px;           /* Sidebar width + gap */
-  flex: 1;
+.app-container {
   min-height: 100vh;
-  width: 100%;
+  background-color: var(--bg-deep) !important;
+  display: flex;
+}
+
+.app-shell {
+  background: transparent !important;
+  margin-left: 280px; /* Space for the floating sidebar */
+  padding: 20px 30px;
+}
+
+/* Glass Header */
+.app-header {
+  background: rgba(15, 23, 42, 0.4) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  height: 80px !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 25px !important;
+  margin-bottom: 30px;
+}
+
+.header-search {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important;
+  width: 400px;
+  color: white !important;
+}
+
+.user-dropdown {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 15px;
+  border-radius: 100px;
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name { color: #fff; font-size: 14px; font-weight: 600; line-height: 1.2; }
+.user-role { color: #64748b; font-size: 11px; }
+
+/* Aurora Backgrounds */
+.app-content-area {
+  position: relative;
+  overflow: visible;
 }
