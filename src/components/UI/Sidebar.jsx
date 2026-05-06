@@ -8,10 +8,10 @@ import {
   CalendarOutlined,
   MailOutlined,
   ShopOutlined,
-  CameraOutlined
+  CameraOutlined,
 } from "@ant-design/icons";
 
-import CalendarModal from "../UI/CalendarModal"; // ✅ import
+import CalendarModal from "../UI/CalendarModal";
 import "./Sidebar.css";
 
 const { Sider } = Layout;
@@ -21,61 +21,63 @@ const Sidebar = ({ dark = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [calendarOpen, setCalendarOpen] = useState(false); // ✅ state
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const menuItems = [
     {
       key: "dashboard",
       icon: <DashboardOutlined />,
       label: "Dashboard",
-      path: "/dashboard"
+      path: "/dashboard",
     },
     {
       key: "review",
       icon: <StarOutlined />,
       label: "Review",
-      path: "/review"
+      path: "/review",
     },
     {
       key: "users",
       icon: <UserOutlined />,
       label: "Users",
-      path: "/users"
+      path: "/users",
     },
     {
       key: "events",
       icon: <CalendarOutlined />,
-      label: "Calendar" // renamed
+      label: "Calendar",        
     },
     {
       key: "enquiry",
       icon: <MailOutlined />,
       label: "Enquiry",
-      path: "/enquiry"
+      path: "/enquiry",
     },
     {
       key: "studio",
       icon: <ShopOutlined />,
       label: "My Studio",
-      path: "/studio"
-    }
+      path: "/studio",
+    },
   ];
 
   const handleMenuClick = ({ key }) => {
     if (key === "events") {
-      setCalendarOpen(true); // ✅ open modal instead of routing
+      setCalendarOpen(true);
       return;
     }
 
-    const item = menuItems.find(item => item.key === key);
+    const item = menuItems.find((item) => item.key === key);
     if (item?.path) {
       navigate(item.path);
     }
   };
 
+  // Improved selected key logic
   const getSelectedKey = () => {
     const currentPath = location.pathname;
-    const activeItem = menuItems.find(item => item.path === currentPath);
+
+    const activeItem = menuItems.find((item) => item.path === currentPath);
     return activeItem ? [activeItem.key] : ["dashboard"];
   };
 
@@ -105,7 +107,7 @@ const Sidebar = ({ dark = false }) => {
           selectedKeys={getSelectedKey()}
           onClick={handleMenuClick}
           className="studio-sidebar-menu"
-          items={menuItems.map(item => ({
+          items={menuItems.map((item) => ({
             key: item.key,
             icon: item.icon,
             label: item.label,
@@ -119,7 +121,6 @@ const Sidebar = ({ dark = false }) => {
         </div>
       </Sider>
 
-      {/* ✅ CALENDAR MODAL */}
       <CalendarModal
         open={calendarOpen}
         onClose={() => setCalendarOpen(false)}

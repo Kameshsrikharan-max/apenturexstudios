@@ -67,7 +67,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
     setTimeout(() => {
       setIsAnimating(false);
       setShowWelcome(false);
-      if (onLogin) onLogin({ identifier }); // Triggers the navigation to /dashboard
+      if (onLogin) onLogin({ identifier }); 
     }, 4500);
   };
 
@@ -105,7 +105,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
       }}>
         {contextHolder}
 
-        {/* BACKGROUND IMAGE WITH PARALLAX */}
+        {/* BACKGROUND IMAGE*/}
         <motion.div
           style={{
             position: "absolute", inset: "-10%",
