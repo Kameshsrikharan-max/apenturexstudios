@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Layout, Menu, Typography } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -9,19 +9,17 @@ import {
   MailOutlined,
   ShopOutlined,
   CameraOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 
-import CalendarModal from "../UI/CalendarModal";
 import "./Sidebar.css";
 
 const { Sider } = Layout;
 const { Text } = Typography;
 
-const Sidebar = ({ dark = false }) => {
+const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const menuItems = [
     {
@@ -45,7 +43,7 @@ const Sidebar = ({ dark = false }) => {
     {
       key: "events",
       icon: <CalendarOutlined />,
-      label: "Calendar",        
+      label: "Calendar",
     },
     {
       key: "enquiry",
@@ -63,30 +61,43 @@ const Sidebar = ({ dark = false }) => {
 
   const handleMenuClick = ({ key }) => {
     if (key === "events") {
-      setCalendarOpen(true);
+      onCalendarOpen?.();
+      onClose?.();
       return;
     }
 
-    const item = menuItems.find((item) => item.key === key);
+    const item = menuItems.find((menuItem) => menuItem.key === key);
+
     if (item?.path) {
       navigate(item.path);
+      onClose?.();
     }
   };
 
-  // Improved selected key logic
   const getSelectedKey = () => {
-    const currentPath = location.pathname;
-
-    const activeItem = menuItems.find((item) => item.path === currentPath);
+    const activeItem = menuItems.find((item) => item.path === location.pathname);
     return activeItem ? [activeItem.key] : ["dashboard"];
   };
 
   return (
     <>
+      <div
+        className={`sidebar-backdrop ${open ? "sidebar-backdrop-open" : ""}`}
+        onClick={onClose}
+      />
+
       <Sider
         width={260}
-        className={dark ? "studio-sidebar studio-sidebar-dark" : "studio-sidebar"}
+        className={[
+          "studio-sidebar",
+          dark ? "studio-sidebar-dark" : "studio-sidebar-light",
+          open ? "studio-sidebar-open" : "",
+        ].join(" ")}
       >
+        <button type="button" className="sidebar-close" onClick={onClose}>
+          <CloseOutlined />
+        </button>
+
         <div className="studio-sidebar-brand">
           <div className="studio-brand-mark">
             <CameraOutlined />
@@ -115,16 +126,9 @@ const Sidebar = ({ dark = false }) => {
         />
 
         <div className="studio-sidebar-footer">
-          <Text type="secondary" className="studio-version">
-            Version 2.0
-          </Text>
+          <Text className="studio-version">Version 2.0</Text>
         </div>
       </Sider>
-
-      <CalendarModal
-        open={calendarOpen}
-        onClose={() => setCalendarOpen(false)}
-      />
     </>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import AppRoutes from './routes/AppRoutes';
+import React, { useState } from "react";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -12,8 +12,8 @@ function App() {
   };
 
   return (
-    <AppRoutes 
-      isAuthenticated={isAuthenticated} 
+    <AppRoutes
+      isAuthenticated={isAuthenticated}
       onLogin={handleLoginSuccess}
       user={user}
     />

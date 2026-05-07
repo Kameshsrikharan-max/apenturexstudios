@@ -1,19 +1,37 @@
-
-import { Routes, Route, useNavigate, Navigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  Navigate,
+  useLocation,
+  Outlet,
+} from "react-router-dom";
 import { useEffect } from "react";
-
 
 import LoginPage from "../features/auth/pages/LoginPage";
 import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import ReviewPage from "../features/review/pages/ReviewPage";
 import UsersPage from "../features/users/pages/UsersPage";
-import EnquiryPage from "../features/enquiry/pages/EnquiryPage";   // ← New Import
+import EnquiryPage from "../features/enquiry/pages/EnquiryPage";
+
+import MainLayout from "../components/Layout/MainLayout";
+
+function ProtectedLayout({ isAuthenticated, user }) {
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <MainLayout user={user}>
+      <Outlet />
+    </MainLayout>
+  );
+}
 
 export default function AppRoutes({ isAuthenticated, onLogin, user }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  
   useEffect(() => {
     if (isAuthenticated && location.pathname === "/") {
       navigate("/dashboard", { replace: true });
@@ -22,58 +40,31 @@ export default function AppRoutes({ isAuthenticated, onLogin, user }) {
 
   return (
     <Routes>
-      
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
-          !isAuthenticated ? 
-            <LoginPage onLogin={onLogin} /> : 
+          !isAuthenticated ? (
+            <LoginPage onLogin={onLogin} />
+          ) : (
             <Navigate to="/dashboard" replace />
-        } 
+          )
+        }
       />
 
-      
-      <Route 
-        path="/dashboard" 
+      <Route
         element={
-          isAuthenticated ? 
-            <DashboardPage user={user} /> : 
-            <Navigate to="/" replace />
-        } 
-      />
+          <ProtectedLayout isAuthenticated={isAuthenticated} user={user} />
+        }
+      >
+        <Route path="/dashboard" element={<DashboardPage user={user} />} />
+        <Route path="/review" element={<ReviewPage user={user} />} />
+        <Route path="/users" element={<UsersPage user={user} />} />
+        <Route path="/enquiry" element={<EnquiryPage user={user} />} />
+      </Route>
 
-      <Route 
-        path="/review" 
-        element={
-          isAuthenticated ? 
-            <ReviewPage user={user} /> : 
-            <Navigate to="/" replace />
-        } 
-      />
-
-      <Route 
-        path="/users" 
-        element={
-          isAuthenticated ? 
-            <UsersPage user={user} /> : 
-            <Navigate to="/" replace />
-        } 
-      />
-
-    
-      <Route 
-        path="/enquiry" 
-        element={
-          isAuthenticated ? 
-            <EnquiryPage user={user} /> : 
-            <Navigate to="/" replace />
-        } 
-      />
-
-    
-      <Route 
-        path="*" 
-        element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />} 
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />}
       />
     </Routes>
   );

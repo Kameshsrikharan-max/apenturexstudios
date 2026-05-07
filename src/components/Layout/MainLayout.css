@@ -1,65 +1,75 @@
-:root {
-  --bg-deep: #060b13;
-  --bg-card: rgba(15, 23, 42, 0.6);
-  --accent-blue: #0ea5e9;
-  --glass-border: rgba(255, 255, 255, 0.08);
-}
-
-.app-container {
+.site-layout {
   min-height: 100vh;
-  background-color: var(--bg-deep) !important;
-  display: flex;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-.app-shell {
-  background: transparent !important;
-  margin-left: 280px; /* Space for the floating sidebar */
-  padding: 20px 30px;
+.site-dark {
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at 82% 20%, rgba(14, 165, 233, 0.18), transparent 30%),
+    linear-gradient(rgba(6, 12, 22, 0.88), rgba(8, 13, 24, 0.94)),
+    url("https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=2200&q=85");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
-/* Glass Header */
-.app-header {
-  background: rgba(15, 23, 42, 0.4) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  height: 80px !important;
+.site-light {
+  color: #082f49;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.22), transparent 28%),
+    linear-gradient(180deg, #eff9ff 0%, #dff3ff 48%, #f8fbff 100%);
+}
+
+.site-content {
+  min-height: calc(100vh - 78px);
+  padding: 34px 6%;
+}
+
+.site-footer {
+  padding: 30px 6%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 25px !important;
-  margin-bottom: 30px;
+  gap: 24px;
+  flex-wrap: wrap;
+  color: #dbeafe;
+  background:
+    radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.34), transparent 30%),
+    linear-gradient(135deg, #031633 0%, #063b8f 55%, #0759c9 100%);
 }
 
-.header-search {
-  background: rgba(0, 0, 0, 0.2) !important;
-  border: 1px solid var(--glass-border) !important;
-  border-radius: 12px !important;
-  width: 400px;
-  color: white !important;
+.site-footer h3 {
+  margin: 0 0 6px;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 900;
 }
 
-.user-dropdown {
+.site-footer p {
+  margin: 0;
+  max-width: 560px;
+  line-height: 1.6;
+}
+
+.site-footer-tags {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 6px 15px;
-  border-radius: 100px;
-  border: 1px solid var(--glass-border);
-  cursor: pointer;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.user-info {
-  display: flex;
-  flex-direction: column;
+.site-footer-tags span {
+  padding: 8px 13px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  font-weight: 800;
 }
 
-.user-name { color: #fff; font-size: 14px; font-weight: 600; line-height: 1.2; }
-.user-role { color: #64748b; font-size: 11px; }
-
-/* Aurora Backgrounds */
-.app-content-area {
-  position: relative;
-  overflow: visible;
+@media (max-width: 760px) {
+  .site-content {
+    padding: 22px 16px;
+  }
 }

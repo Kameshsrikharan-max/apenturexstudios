@@ -1,62 +1,62 @@
-import React from "react";
+import React, { useState } from "react";
+import { ConfigProvider } from "antd";
+import Navbar from "./Navbar";
 import Sidebar from "../UI/Sidebar";
-import { Layout, Input, Button, Avatar, Badge, Space } from "antd";
-import { 
-  SearchOutlined, 
-  SunOutlined, 
-  BellOutlined, 
-  DownOutlined 
-} from "@ant-design/icons";
+import CalendarModal from "../UI/CalendarModal";
 import "./MainLayout.css";
 
-const { Header, Content } = Layout;
-
 const MainLayout = ({ children, user }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
+
   return (
-    <Layout className="app-container">
-      {/* Sidebar is common to all pages */}
-      <Sidebar />
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: "#38bdf8",
+          borderRadius: 16,
+          colorBgContainer: darkMode ? "#0f172a" : "#ffffff",
+          colorText: darkMode ? "#f8fafc" : "#082f49",
+          colorTextSecondary: darkMode ? "#bfdbfe" : "#475569",
+          fontFamily:
+            "Inter, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+        },
+      }}
+    >
+      <div className={`site-layout ${darkMode ? "site-dark" : "site-light"}`}>
+        <Navbar
+          user={user}
+          darkMode={darkMode}
+          onToggleTheme={() => setDarkMode((value) => !value)}
+          onSidebarOpen={() => setSidebarOpen(true)}
+          onCalendarOpen={() => setCalendarOpen(true)}
+        />
 
-      <Layout className="app-shell">
-        <Header className="app-header">
-          <div className="header-left">
-            <div className="brand-icon">
-              <img src="/dashboard-logo.png" alt="logo" />
-            </div>
-            <h2 className="page-title">Dashboard</h2>
+        <Sidebar
+          dark={darkMode}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onCalendarOpen={() => setCalendarOpen(true)}
+        />
+
+        <main className="site-content">{children}</main>
+
+        <footer className="site-footer">
+          <div>
+            <h3>Apenture X Studios</h3>
+            <p>Creative blue admin experience for dashboard, reviews, users, and enquiries.</p>
           </div>
 
-          <div className="header-center">
-            <Input 
-              placeholder="Search users, events, studios..." 
-              prefix={<SearchOutlined />} 
-              className="header-search"
-            />
-          </div>
+         
+        </footer>
 
-          <div className="header-right">
-            <Space size="large">
-              <Button type="text" icon={<SunOutlined />} className="icon-btn" />
-              <Badge dot color="#1890ff">
-                <Button type="text" icon={<BellOutlined />} className="icon-btn" />
-              </Badge>
-              <div className="user-dropdown">
-                <Avatar src={user?.avatar} icon="K" className="user-avatar" />
-                <div className="user-info">
-                  <span className="user-name">{user?.name || "Kamesh Srikharan.T"}</span>
-                  <span className="user-role">Studio Admin</span>
-                </div>
-                <DownOutlined className="dropdown-arrow" />
-              </div>
-            </Space>
-          </div>
-        </Header>
-
-        <Content className="app-content-area">
-          {children}
-        </Content>
-      </Layout>
-    </Layout>
+        <CalendarModal
+          open={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+        />
+      </div>
+    </ConfigProvider>
   );
 };
 
