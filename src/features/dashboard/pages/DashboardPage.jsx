@@ -17,7 +17,6 @@ import {
   Input,
   Drawer,
   Segmented,
-  Calendar,
   FloatButton,
 } from "antd";
 import {
@@ -305,7 +304,11 @@ const DashboardPage = () => {
       dataIndex: "priority",
       key: "priority",
       render: (priority) => (
-        <Tag color={priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"}>
+        <Tag
+          color={
+            priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"
+          }
+        >
           {priority}
         </Tag>
       ),
@@ -500,37 +503,27 @@ const DashboardPage = () => {
           </Col>
         </Row>
 
-        <Row gutter={[24, 24]} style={{ marginTop: 32 }}>
-          <Col xs={24} xl={15}>
-            <Card
-              title={
-                <Space>
-                  <HistoryOutlined />
-                  User Records
-                </Space>
-              }
-              extra={
-                <Button type="text" icon={<ArrowRightOutlined />}>
-                  View All
-                </Button>
-              }
-              className="dashboard-panel"
-            >
-              <Table
-                columns={userColumns}
-                dataSource={filteredUsers}
-                pagination={false}
-                scroll={{ x: 760 }}
-              />
-            </Card>
-          </Col>
-
-          <Col xs={24} xl={9}>
-            <Card title="Mini Calendar" className="dashboard-panel calendar-panel">
-              <Calendar fullscreen={false} />
-            </Card>
-          </Col>
-        </Row>
+        <Card
+          title={
+            <Space>
+              <HistoryOutlined />
+              User Records
+            </Space>
+          }
+          extra={
+            <Button type="text" icon={<ArrowRightOutlined />}>
+              View All
+            </Button>
+          }
+          className="dashboard-panel"
+        >
+          <Table
+            columns={userColumns}
+            dataSource={filteredUsers}
+            pagination={false}
+            scroll={{ x: 760 }}
+          />
+        </Card>
 
         <Card
           title={

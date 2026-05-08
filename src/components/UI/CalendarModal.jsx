@@ -24,31 +24,6 @@ const COLORS = [
   { value: "gold", label: "Solar Gold" },
 ];
 
-const TAMIL_MONTHS = [
-  { name: "சித்திரை", english: "Chithirai", start: "04-14" },
-  { name: "வைகாசி", english: "Vaikasi", start: "05-15" },
-  { name: "ஆனி", english: "Aani", start: "06-15" },
-  { name: "ஆடி", english: "Aadi", start: "07-16" },
-  { name: "ஆவணி", english: "Avani", start: "08-17" },
-  { name: "புரட்டாசி", english: "Purattasi", start: "09-17" },
-  { name: "ஐப்பசி", english: "Aippasi", start: "10-17" },
-  { name: "கார்த்திகை", english: "Karthigai", start: "11-16" },
-  { name: "மார்கழி", english: "Margazhi", start: "12-16" },
-  { name: "தை", english: "Thai", start: "01-14" },
-  { name: "மாசி", english: "Masi", start: "02-13" },
-  { name: "பங்குனி", english: "Panguni", start: "03-14" },
-];
-
-const TAMIL_FESTIVALS = {
-  "01-14": "பொங்கல்",
-  "01-15": "மாட்டு பொங்கல்",
-  "01-16": "காணும் பொங்கல்",
-  "04-14": "தமிழ் புத்தாண்டு",
-  "08-15": "சுதந்திர தினம்",
-  "10-02": "காந்தி ஜெயந்தி",
-  "12-25": "கிறிஸ்துமஸ்",
-};
-
 const getSavedEvents = () => {
   try {
     const saved = localStorage.getItem("calendarEvents");
@@ -56,42 +31,6 @@ const getSavedEvents = () => {
   } catch {
     return {};
   }
-};
-
-const getTamilInfo = (dateString) => {
-  if (!dateString) return null;
-
-  const date = dayjs(dateString);
-  const year = date.year();
-  const starts = [];
-
-  [year - 1, year, year + 1].forEach((itemYear) => {
-    TAMIL_MONTHS.forEach((month) => {
-      starts.push({
-        ...month,
-        date: dayjs(`${itemYear}-${month.start}`),
-      });
-    });
-  });
-
-  starts.sort((a, b) => a.date.valueOf() - b.date.valueOf());
-
-  const currentTamilMonth = [...starts]
-    .reverse()
-    .find((month) => !month.date.isAfter(date, "day"));
-
-  if (!currentTamilMonth) return null;
-
-  const tamilDay = date.diff(currentTamilMonth.date, "day") + 1;
-  const festival = TAMIL_FESTIVALS[date.format("MM-DD")] || "";
-
-  return {
-    month: currentTamilMonth.name,
-    monthEnglish: currentTamilMonth.english,
-    day: tamilDay,
-    label: `${currentTamilMonth.name} ${tamilDay}`,
-    festival,
-  };
 };
 
 const CalendarModal = ({ open, onClose }) => {
@@ -104,7 +43,6 @@ const CalendarModal = ({ open, onClose }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const [viewMode, setViewMode] = useState("day");
-  const [calendarMode, setCalendarMode] = useState("both");
   const [selectedWeek, setSelectedWeek] = useState(1);
 
   const [title, setTitle] = useState("");
@@ -155,10 +93,6 @@ const CalendarModal = ({ open, onClose }) => {
 
   const selectedEvents = selectedDate ? events[selectedDate] || [] : [];
   const selectedWeekInfo = weeks.find((week) => week.value === selectedWeek);
-  const selectedTamilInfo = getTamilInfo(selectedDate);
-
-  const shouldShowEnglish = calendarMode === "english" || calendarMode === "both";
-  const shouldShowTamil = calendarMode === "tamil" || calendarMode === "both";
 
   const selectedWeekEvents = useMemo(() => {
     if (!selectedWeekInfo) return [];
@@ -197,21 +131,6 @@ const CalendarModal = ({ open, onClose }) => {
 
     return result;
   }, [events, monthKey]);
-
-  const tamilMonthText = useMemo(() => {
-    const firstDate = currentMonth.startOf("month").format("YYYY-MM-DD");
-    const lastDate = currentMonth.endOf("month").format("YYYY-MM-DD");
-    const firstTamil = getTamilInfo(firstDate);
-    const lastTamil = getTamilInfo(lastDate);
-
-    if (!firstTamil || !lastTamil) return "";
-
-    if (firstTamil.month === lastTamil.month) {
-      return firstTamil.month;
-    }
-
-    return `${firstTamil.month} - ${lastTamil.month}`;
-  }, [currentMonth]);
 
   const getFullDate = (date) => {
     return `${monthKey}-${String(date).padStart(2, "0")}`;
@@ -322,8 +241,8 @@ const CalendarModal = ({ open, onClose }) => {
         open={open}
         onCancel={onClose}
         footer={null}
-        width={960}
-        centered
+        width="100vw"
+        style={{ top: 0, paddingBottom: 0 }}
         className="calendar-modal"
       >
         <div className="calendar-root">
@@ -333,42 +252,7 @@ const CalendarModal = ({ open, onClose }) => {
                 <CalendarOutlined /> AXS Calendar
               </span>
 
-              <h2>
-                {shouldShowEnglish && currentMonth.format("MMMM YYYY")}
-                {shouldShowTamil && (
-                  <small className="tamil-month-note">{tamilMonthText}</small>
-                )}
-              </h2>
-            </div>
-
-            <div className="mini-grid">
-              {[...Array(currentMonth.daysInMonth())].map((_, index) => {
-                const day = index + 1;
-                const fullDate = getFullDate(day);
-                const count = events[fullDate]?.length || 0;
-                const tamilInfo = getTamilInfo(fullDate);
-
-                return (
-                  <button
-                    key={fullDate}
-                    type="button"
-                    className={`mini-day ${
-                      fullDate === today ? "mini-today" : ""
-                    } ${fullDate === selectedDate ? "mini-selected" : ""}`}
-                    onClick={() => openEventList(day)}
-                  >
-                    <span>{day}</span>
-
-                    {shouldShowTamil && tamilInfo && (
-                      <small className="mini-tamil-day">{tamilInfo.day}</small>
-                    )}
-
-                    <strong className="mini-hover-count">
-                      {count} event{count === 1 ? "" : "s"}
-                    </strong>
-                  </button>
-                );
-              })}
+              <h2>{currentMonth.format("MMMM YYYY")}</h2>
             </div>
 
             <div className="event-list">
@@ -380,29 +264,18 @@ const CalendarModal = ({ open, onClose }) => {
 
               {Object.keys(events)
                 .sort()
-                .map((date) => {
-                  const tamilInfo = getTamilInfo(date);
+                .map((date) => (
+                  <div key={date} className="event-group">
+                    <strong>{dayjs(date).format("MMM D, YYYY")}</strong>
 
-                  return (
-                    <div key={date} className="event-group">
-                      <strong>
-                        {shouldShowEnglish && dayjs(date).format("MMM D, YYYY")}
-                        {shouldShowTamil && tamilInfo && (
-                          <small className="event-group-tamil">
-                            {tamilInfo.label}
-                          </small>
-                        )}
-                      </strong>
-
-                      {events[date].map((event, index) => (
-                        <div key={index} className={`event-item ${event.color}`}>
-                          <span className="event-dot" />
-                          <span>{event.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
+                    {events[date].map((event, index) => (
+                      <div key={index} className={`event-item ${event.color}`}>
+                        <span className="event-dot" />
+                        <span>{event.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
             </div>
           </aside>
 
@@ -443,16 +316,6 @@ const CalendarModal = ({ open, onClose }) => {
                   className="mode-switch"
                 />
 
-                <Select
-                  value={calendarMode}
-                  onChange={setCalendarMode}
-                  className="calendar-type-select"
-                >
-                  <Option value="english">Eng</Option>
-                  <Option value="tamil">Tam</Option>
-                  <Option value="both">Both</Option>
-                </Select>
-
                 {viewMode === "week" && (
                   <Select
                     value={selectedWeek}
@@ -471,14 +334,8 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
 
               <div className="month-title">
-                {shouldShowEnglish && <span>{currentMonth.format("YYYY")}</span>}
-
-                <h2>
-                  {shouldShowEnglish && currentMonth.format("MMMM")}
-                  {shouldShowTamil && (
-                    <small className="month-title-tamil">{tamilMonthText}</small>
-                  )}
-                </h2>
+                <span>{currentMonth.format("YYYY")}</span>
+                <h2>{currentMonth.format("MMMM")}</h2>
               </div>
             </div>
 
@@ -491,7 +348,6 @@ const CalendarModal = ({ open, onClose }) => {
 
               {dates.map((date, index) => {
                 const fullDate = date ? getFullDate(date) : null;
-                const tamilInfo = fullDate ? getTamilInfo(fullDate) : null;
                 const dayEvents = fullDate ? events[fullDate] || [] : [];
                 const visibleEvents = dayEvents.slice(0, 3);
                 const hiddenCount = dayEvents.length - visibleEvents.length;
@@ -506,40 +362,22 @@ const CalendarModal = ({ open, onClose }) => {
                     style={{ animationDelay: `${index * 16}ms` }}
                   >
                     {date && (
-                      <>
-                        <div className="date-row">
-                          <button
-                            type="button"
-                            className="date"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCreateEvent(date);
-                            }}
-                          >
-                            {shouldShowEnglish ? date : tamilInfo?.day}
-                          </button>
+                      <div className="date-row">
+                        <button
+                          type="button"
+                          className="date"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openCreateEvent(date);
+                          }}
+                        >
+                          {date}
+                        </button>
 
-                          {dayEvents.length > 0 && (
-                            <span className="event-count">
-                              {dayEvents.length}
-                            </span>
-                          )}
-                        </div>
-
-                        {shouldShowTamil && tamilInfo && (
-                          <div className="tamil-date-line">
-                            {calendarMode === "both"
-                              ? tamilInfo.label
-                              : `${tamilInfo.month} ${tamilInfo.day}`}
-                          </div>
+                        {dayEvents.length > 0 && (
+                          <span className="event-count">{dayEvents.length}</span>
                         )}
-
-                        {shouldShowTamil && tamilInfo?.festival && (
-                          <div className="festival-tag">
-                            {tamilInfo.festival}
-                          </div>
-                        )}
-                      </>
+                      </div>
                     )}
 
                     <div className="cell-events-scroll">
@@ -574,18 +412,7 @@ const CalendarModal = ({ open, onClose }) => {
         </h3>
 
         <p className="modal-date-text">
-          {selectedDate && shouldShowEnglish
-            ? dayjs(selectedDate).format("dddd, MMMM D, YYYY")
-            : ""}
-
-          {selectedTamilInfo && shouldShowTamil && (
-            <span className="modal-tamil-date">
-              {selectedTamilInfo.label}
-              {selectedTamilInfo.festival
-                ? ` - ${selectedTamilInfo.festival}`
-                : ""}
-            </span>
-          )}
+          {selectedDate ? dayjs(selectedDate).format("dddd, MMMM D, YYYY") : ""}
         </p>
 
         <div className="modal-toolbar">
@@ -696,18 +523,9 @@ const CalendarModal = ({ open, onClose }) => {
         {viewMode === "day" && (
           <>
             <p className="modal-date-text">
-              {selectedDate && shouldShowEnglish
+              {selectedDate
                 ? dayjs(selectedDate).format("dddd, MMMM D, YYYY")
                 : ""}
-
-              {selectedTamilInfo && shouldShowTamil && (
-                <span className="modal-tamil-date">
-                  {selectedTamilInfo.label}
-                  {selectedTamilInfo.festival
-                    ? ` - ${selectedTamilInfo.festival}`
-                    : ""}
-                </span>
-              )}
             </p>
 
             <div className="details-count">
@@ -726,13 +544,7 @@ const CalendarModal = ({ open, onClose }) => {
                     <span className="event-dot" />
                     <div>
                       <strong>{event.title}</strong>
-                      <small>
-                        {shouldShowEnglish &&
-                          dayjs(selectedDate).format("MMM D, YYYY")}
-                        {shouldShowTamil &&
-                          selectedTamilInfo &&
-                          ` ${selectedTamilInfo.label}`}
-                      </small>
+                      <small>{dayjs(selectedDate).format("MMM D, YYYY")}</small>
                     </div>
                   </div>
                 ))}
@@ -763,23 +575,15 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
             ) : (
               <div className="details-scroll">
-                {selectedWeekEvents.map((event, index) => {
-                  const tamilInfo = getTamilInfo(event.date);
-
-                  return (
-                    <div key={index} className={`detail-row ${event.color}`}>
-                      <span className="event-dot" />
-                      <div>
-                        <strong>{event.title}</strong>
-                        <small>
-                          {shouldShowEnglish &&
-                            dayjs(event.date).format("dddd, MMM D")}
-                          {shouldShowTamil && tamilInfo && ` ${tamilInfo.label}`}
-                        </small>
-                      </div>
+                {selectedWeekEvents.map((event, index) => (
+                  <div key={index} className={`detail-row ${event.color}`}>
+                    <span className="event-dot" />
+                    <div>
+                      <strong>{event.title}</strong>
+                      <small>{dayjs(event.date).format("dddd, MMM D")}</small>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </>
@@ -787,12 +591,7 @@ const CalendarModal = ({ open, onClose }) => {
 
         {viewMode === "month" && (
           <>
-            <p className="modal-date-text">
-              {shouldShowEnglish && currentMonth.format("MMMM YYYY")}
-              {shouldShowTamil && (
-                <span className="modal-tamil-date">{tamilMonthText}</span>
-              )}
-            </p>
+            <p className="modal-date-text">{currentMonth.format("MMMM YYYY")}</p>
 
             <div className="details-count">
               {selectedMonthEvents.length} event
@@ -805,23 +604,15 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
             ) : (
               <div className="details-scroll">
-                {selectedMonthEvents.map((event, index) => {
-                  const tamilInfo = getTamilInfo(event.date);
-
-                  return (
-                    <div key={index} className={`detail-row ${event.color}`}>
-                      <span className="event-dot" />
-                      <div>
-                        <strong>{event.title}</strong>
-                        <small>
-                          {shouldShowEnglish &&
-                            dayjs(event.date).format("dddd, MMM D")}
-                          {shouldShowTamil && tamilInfo && ` ${tamilInfo.label}`}
-                        </small>
-                      </div>
+                {selectedMonthEvents.map((event, index) => (
+                  <div key={index} className={`detail-row ${event.color}`}>
+                    <span className="event-dot" />
+                    <div>
+                      <strong>{event.title}</strong>
+                      <small>{dayjs(event.date).format("dddd, MMM D")}</small>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </>
@@ -843,14 +634,7 @@ const CalendarModal = ({ open, onClose }) => {
         <div className="create-form">
           <div className="create-date-pill">
             <CalendarOutlined />
-
-            {selectedDate && shouldShowEnglish
-              ? dayjs(selectedDate).format("MMMM D, YYYY")
-              : ""}
-
-            {selectedTamilInfo && shouldShowTamil && (
-              <span className="create-pill-tamil">{selectedTamilInfo.label}</span>
-            )}
+            {selectedDate ? dayjs(selectedDate).format("MMMM D, YYYY") : ""}
           </div>
 
           <label>Event Title</label>
@@ -876,4 +660,3 @@ const CalendarModal = ({ open, onClose }) => {
 };
 
 export default CalendarModal;
-
