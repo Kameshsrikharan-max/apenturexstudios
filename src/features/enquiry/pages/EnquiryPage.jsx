@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Layout,
   Typography,
@@ -25,16 +25,11 @@ import {
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
-  CalendarOutlined,
-  EnvironmentOutlined,
   UserOutlined,
   PhoneOutlined,
   MoreOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
-  ClearOutlined,
-  ThunderboltOutlined,
   FireOutlined,
 } from "@ant-design/icons";
 
@@ -124,27 +119,39 @@ const EnquiryPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const cities = useMemo(() => ["ALL", ...new Set(enquiriesData.map(item => item.city))], [enquiriesData]);
+  const cities = useMemo(
+    () => ["ALL", ...new Set(enquiriesData.map((item) => item.city))],
+    [enquiriesData]
+  );
 
   const filteredData = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    return enquiriesData.filter(enq => {
-      const matchesSearch = Object.values(enq).some(val => String(val).toLowerCase().includes(term));
+
+    return enquiriesData.filter((enq) => {
+      const matchesSearch = Object.values(enq).some((val) =>
+        String(val).toLowerCase().includes(term)
+      );
       const matchesStatus = statusFilter === "ALL" || enq.status === statusFilter;
       const matchesCity = cityFilter === "ALL" || enq.city === cityFilter;
-      const matchesPriority = priorityFilter === "ALL" || enq.priority === priorityFilter;
+      const matchesPriority =
+        priorityFilter === "ALL" || enq.priority === priorityFilter;
+
       return matchesSearch && matchesStatus && matchesCity && matchesPriority;
     });
   }, [enquiriesData, searchTerm, statusFilter, cityFilter, priorityFilter]);
 
-  const stats = useMemo(() => ({
-    total: enquiriesData.length,
-    highPriority: enquiriesData.filter(i => i.priority === "High").length,
-    followUps: enquiriesData.filter(i => i.status === "FOLLOWUP").length,
-  }), [enquiriesData]);
+  const stats = useMemo(
+    () => ({
+      total: enquiriesData.length,
+      highPriority: enquiriesData.filter((i) => i.priority === "High").length,
+      followUps: enquiriesData.filter((i) => i.status === "FOLLOWUP").length,
+    }),
+    [enquiriesData]
+  );
 
   const handleRefresh = () => {
     setIsLoading(true);
+
     setTimeout(() => {
       setIsLoading(false);
       message.success("Enquiries refreshed successfully");
@@ -159,25 +166,33 @@ const EnquiryPage = () => {
   };
 
   const updateStatus = (record, status) => {
-    setEnquiriesData(prev => prev.map(item => item.id === record.id ? { ...item, status } : item));
+    setEnquiriesData((prev) =>
+      prev.map((item) => (item.id === record.id ? { ...item, status } : item))
+    );
     message.success(`Enquiry marked as ${status}`);
   };
 
   const confirmDelete = (record) => {
-    setEnquiriesData(prev => prev.filter(item => item.id !== record.id));
+    setEnquiriesData((prev) => prev.filter((item) => item.id !== record.id));
     setDeleteEnquiry(null);
     message.success("Enquiry deleted successfully");
   };
 
   const handleBulkDelete = () => {
-    if (!selectedRowKeys.length) return message.warning("Please select enquiries");
+    if (!selectedRowKeys.length) {
+      message.warning("Please select enquiries");
+      return;
+    }
+
     Modal.confirm({
       title: "Delete Selected Enquiries?",
       content: `${selectedRowKeys.length} enquiries will be deleted.`,
       okText: "Delete",
       okButtonProps: { danger: true },
       onOk: () => {
-        setEnquiriesData(prev => prev.filter(item => !selectedRowKeys.includes(item.id)));
+        setEnquiriesData((prev) =>
+          prev.filter((item) => !selectedRowKeys.includes(item.id))
+        );
         setSelectedRowKeys([]);
       },
     });
@@ -203,9 +218,13 @@ const EnquiryPage = () => {
   };
 
   const handleSaveEnquiry = () => {
-    form.validateFields().then(values => {
+    form.validateFields().then((values) => {
       if (editEnquiry) {
-        setEnquiriesData(prev => prev.map(item => item.id === editEnquiry.id ? { ...item, ...values } : item));
+        setEnquiriesData((prev) =>
+          prev.map((item) =>
+            item.id === editEnquiry.id ? { ...item, ...values } : item
+          )
+        );
         message.success("Enquiry updated");
       } else {
         const newEnquiry = {
@@ -215,9 +234,11 @@ const EnquiryPage = () => {
           createdAt: "May 08, 2026",
           timeline: ["Enquiry created"],
         };
-        setEnquiriesData(prev => [newEnquiry, ...prev]);
+
+        setEnquiriesData((prev) => [newEnquiry, ...prev]);
         message.success("Enquiry created successfully");
       }
+
       closeFormModal();
     });
   };
@@ -232,32 +253,69 @@ const EnquiryPage = () => {
         <div className="enquiry-name-cell">
           <div className="avatar">{record.customerName?.charAt(0)}</div>
           <div>
-            <a className="enquiry-link" onClick={() => setViewEnquiry(record)}>{text}</a>
+            <a className="enquiry-link" onClick={() => setViewEnquiry(record)}>
+              {text}
+            </a>
             <div className="package">{record.packageType}</div>
           </div>
         </div>
       ),
     },
-    { title: "Customer", dataIndex: "customerName", key: "customerName", render: text => <Space><UserOutlined />{text}</Space> },
-    { title: "Phone", dataIndex: "phone", key: "phone", render: text => <Space><PhoneOutlined />{text}</Space> },
+    {
+      title: "Customer",
+      dataIndex: "customerName",
+      key: "customerName",
+      render: (text) => (
+        <Space>
+          <UserOutlined />
+          {text}
+        </Space>
+      ),
+    },
+    {
+      title: "Phone",
+      dataIndex: "phone",
+      key: "phone",
+      render: (text) => (
+        <Space>
+          <PhoneOutlined />
+          {text}
+        </Space>
+      ),
+    },
     { title: "Event Date", dataIndex: "eventDate", key: "eventDate" },
-    { title: "Status", dataIndex: "status", key: "status", render: status => <Tag color={statusColors[status]}>{status}</Tag> },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => <Tag color={statusColors[status]}>{status}</Tag>,
+    },
     { title: "City", dataIndex: "city", key: "city" },
     {
-      title: "Actions",
+    
       key: "actions",
       fixed: "right",
       width: 160,
       render: (_, record) => (
         <Space>
-          <Tooltip title="View"><Button icon={<EyeOutlined />} onClick={() => setViewEnquiry(record)} /></Tooltip>
-          <Tooltip title="Edit"><Button icon={<EditOutlined />} onClick={() => openEditModal(record)} /></Tooltip>
+          <Tooltip title="View">
+            <Button icon={<EyeOutlined />} onClick={() => setViewEnquiry(record)} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button icon={<EditOutlined />} onClick={() => openEditModal(record)} />
+          </Tooltip>
           <Popover
             content={
               <div className="action-menu">
-                <button onClick={() => setJourneyEnquiry(record)}>View Journey</button>
-                <button onClick={() => updateStatus(record, "CONFIRMED")}>Mark Confirmed</button>
-                <button className="delete-btn" onClick={() => setDeleteEnquiry(record)}>Delete</button>
+                <button onClick={() => setJourneyEnquiry(record)}>
+                  View Journey
+                </button>
+                <button onClick={() => updateStatus(record, "CONFIRMED")}>
+                  Mark Confirmed
+                </button>
+                <button className="delete-btn" onClick={() => setDeleteEnquiry(record)}>
+                  Delete
+                </button>
               </div>
             }
             trigger="click"
@@ -270,113 +328,191 @@ const EnquiryPage = () => {
   ];
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 12 } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: "#38bdf8", borderRadius: 12 } }}>
       <Layout className="enquiry-page">
         <div className="dashboard-frame">
           <Sidebar dark />
 
-          <Layout className="dashboard-shell">
-            <Header className="dashboard-navbar">
-              <Title level={3} className="page-title">Enquiries</Title>
+          <Layout className="dashboard-shell enquiry-shell">
+            <Header className="dashboard-navbar enquiry-navbar">
+              <Title level={3} className="page-title enquiry-title">
+                Enquiries
+              </Title>
             </Header>
 
-            <Content className="content-area">
-              <div className="hero-section">
-                <div>
-                  <Title level={2}>Event Enquiries</Title>
-                  <Text type="secondary">Manage leads, track follow-ups and convert bookings</Text>
-                </div>
-                <Button type="primary" icon={<PlusOutlined />} size="large" onClick={openCreateModal}>
-                  New Enquiry
-                </Button>
-              </div>
+            <Content className="content-area enquiry-content">
+              <div className="enquiry-page-scroll">
+                <div className="enquiry-page-inner">
+                  <div className="hero-section">
+                    <div>
+                      <Title level={2}>Event Enquiries</Title>
+                      <Text type="secondary">
+                        Manage leads, track follow-ups and convert bookings
+                      </Text>
+                    </div>
 
-              <div className="stats-row">
-                <div className="stat-card">
-                  <FileTextOutlined className="stat-icon" />
-                  <div><h3>{stats.total}</h3><p>Total Enquiries</p></div>
-                </div>
-                <div className="stat-card">
-                  <FireOutlined className="stat-icon high" />
-                  <div><h3>{stats.highPriority}</h3><p>High Priority</p></div>
-                </div>
-                <div className="stat-card">
-                  <ClockCircleOutlined className="stat-icon" />
-                  <div><h3>{stats.followUps}</h3><p>Follow-ups</p></div>
-                </div>
-              </div>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      size="large"
+                      onClick={openCreateModal}
+                    >
+                      New Enquiry
+                    </Button>
+                  </div>
 
-              <div className="table-container">
-                <div className="toolbar">
-                  <Space wrap>
-                    <Input
-                      placeholder="Search enquiries, customer, phone..."
-                      prefix={<SearchOutlined />}
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      style={{ width: 340 }}
-                      allowClear
+                  <div className="stats-row">
+                    <div className="stat-card">
+                      <FileTextOutlined className="stat-icon" />
+                      <div>
+                        <h3>{stats.total}</h3>
+                        <p>Total Enquiries</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <FireOutlined className="stat-icon high" />
+                      <div>
+                        <h3>{stats.highPriority}</h3>
+                        <p>High Priority</p>
+                      </div>
+                    </div>
+                    <div className="stat-card">
+                      <ClockCircleOutlined className="stat-icon" />
+                      <div>
+                        <h3>{stats.followUps}</h3>
+                        <p>Follow-ups</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="table-container">
+                    <div className="toolbar">
+                      <Space wrap>
+                        <Input
+                          className="enquiry-search"
+                          placeholder="Search enquiries, customer, phone..."
+                          prefix={<SearchOutlined />}
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          allowClear
+                        />
+
+                        <Select
+                          className="filter-select"
+                          value={statusFilter}
+                          onChange={setStatusFilter}
+                        >
+                          <Select.Option value="ALL">All Status</Select.Option>
+                          <Select.Option value="DRAFT">Draft</Select.Option>
+                          <Select.Option value="FOLLOWUP">Follow-up</Select.Option>
+                          <Select.Option value="CONFIRMED">Confirmed</Select.Option>
+                        </Select>
+
+                        <Select
+                          className="filter-select"
+                          value={cityFilter}
+                          onChange={setCityFilter}
+                        >
+                          {cities.map((city) => (
+                            <Select.Option key={city} value={city}>
+                              {city}
+                            </Select.Option>
+                          ))}
+                        </Select>
+
+                        <Button onClick={clearFilters}>Clear</Button>
+                        <Button
+                          icon={<ReloadOutlined spin={isLoading} />}
+                          onClick={handleRefresh}
+                        >
+                          Refresh
+                        </Button>
+                      </Space>
+
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        disabled={!selectedRowKeys.length}
+                        onClick={handleBulkDelete}
+                      >
+                        Delete Selected
+                      </Button>
+                    </div>
+
+                    <Table
+                      className="enquiry-table"
+                      columns={columns}
+                      dataSource={filteredData}
+                      rowKey="id"
+                      loading={isLoading}
+                      rowSelection={{
+                        selectedRowKeys,
+                        onChange: setSelectedRowKeys,
+                      }}
+                      pagination={{ pageSize: 10 }}
+                      scroll={{ x: 1200 }}
                     />
-                    <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 160 }}>
-                      <Select.Option value="ALL">All Status</Select.Option>
-                      <Select.Option value="DRAFT">Draft</Select.Option>
-                      <Select.Option value="FOLLOWUP">Follow-up</Select.Option>
-                      <Select.Option value="CONFIRMED">Confirmed</Select.Option>
-                    </Select>
-                    <Select value={cityFilter} onChange={setCityFilter} style={{ width: 160 }}>
-                      {cities.map(city => <Select.Option key={city} value={city}>{city}</Select.Option>)}
-                    </Select>
-                    <Button onClick={clearFilters}>Clear</Button>
-                    <Button icon={<ReloadOutlined spin={isLoading} />} onClick={handleRefresh}>Refresh</Button>
-                  </Space>
-
-                  <Button danger icon={<DeleteOutlined />} disabled={!selectedRowKeys.length} onClick={handleBulkDelete}>
-                    Delete Selected
-                  </Button>
+                  </div>
                 </div>
-
-                <Table
-                  columns={columns}
-                  dataSource={filteredData}
-                  rowKey="id"
-                  loading={isLoading}
-                  rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
-                  pagination={{ pageSize: 10 }}
-                  scroll={{ x: 1200 }}
-                />
               </div>
             </Content>
           </Layout>
         </div>
 
-        {/* Modals */}
-        <Modal open={!!viewEnquiry} onCancel={() => setViewEnquiry(null)} footer={null} width={720} centered>
+        <Modal
+          className="enquiry-modal"
+          open={!!viewEnquiry}
+          onCancel={() => setViewEnquiry(null)}
+          footer={null}
+          width={720}
+          centered
+        >
           {viewEnquiry && (
             <>
               <Title level={4}>{viewEnquiry.enquiryName}</Title>
               <Divider />
               <Descriptions bordered column={2}>
-                <Descriptions.Item label="Customer">{viewEnquiry.customerName}</Descriptions.Item>
+                <Descriptions.Item label="Customer">
+                  {viewEnquiry.customerName}
+                </Descriptions.Item>
                 <Descriptions.Item label="Phone">{viewEnquiry.phone}</Descriptions.Item>
-                <Descriptions.Item label="Event Date">{viewEnquiry.eventDate}</Descriptions.Item>
+                <Descriptions.Item label="Event Date">
+                  {viewEnquiry.eventDate}
+                </Descriptions.Item>
                 <Descriptions.Item label="Budget">{viewEnquiry.budget}</Descriptions.Item>
-                <Descriptions.Item label="Status"><Tag color={statusColors[viewEnquiry.status]}>{viewEnquiry.status}</Tag></Descriptions.Item>
+                <Descriptions.Item label="Status">
+                  <Tag color={statusColors[viewEnquiry.status]}>
+                    {viewEnquiry.status}
+                  </Tag>
+                </Descriptions.Item>
                 <Descriptions.Item label="City">{viewEnquiry.city}</Descriptions.Item>
               </Descriptions>
             </>
           )}
         </Modal>
 
-        <Modal open={!!journeyEnquiry} onCancel={() => setJourneyEnquiry(null)} footer={null} width={500} centered>
+        <Modal
+          className="enquiry-modal"
+          open={!!journeyEnquiry}
+          onCancel={() => setJourneyEnquiry(null)}
+          footer={null}
+          width={500}
+          centered
+        >
           {journeyEnquiry && (
             <>
               <Title level={5}>{journeyEnquiry.enquiryName} - Journey</Title>
-              <Timeline items={journeyEnquiry.timeline.map(item => ({ children: item }))} />
+              <Timeline
+                items={journeyEnquiry.timeline.map((item) => ({
+                  children: item,
+                }))}
+              />
             </>
           )}
         </Modal>
 
         <Modal
+          className="enquiry-modal"
           open={!!editEnquiry || isCreateOpen}
           onCancel={closeFormModal}
           onOk={handleSaveEnquiry}
@@ -387,34 +523,77 @@ const EnquiryPage = () => {
         >
           <Form form={form} layout="vertical">
             <div className="form-grid">
-              <Form.Item name="enquiryName" label="Enquiry Name" rules={[{ required: true }]}>
+              <Form.Item
+                name="enquiryName"
+                label="Enquiry Name"
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
-              <Form.Item name="customerName" label="Customer Name" rules={[{ required: true }]}>
+
+              <Form.Item
+                name="customerName"
+                label="Customer Name"
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
+
               <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="eventDate" label="Event Date" rules={[{ required: true }]}>
+
+              <Form.Item
+                name="eventDate"
+                label="Event Date"
+                rules={[{ required: true }]}
+              >
                 <Input />
               </Form.Item>
+
               <Form.Item name="status" label="Status">
-                <Select options={Object.keys(statusColors).map(k => ({ value: k, label: k }))} />
+                <Select
+                  options={Object.keys(statusColors).map((k) => ({
+                    value: k,
+                    label: k,
+                  }))}
+                />
               </Form.Item>
-              <Form.Item name="city" label="City"><Input /></Form.Item>
-              <Form.Item name="budget" label="Budget"><Input /></Form.Item>
+
+              <Form.Item name="city" label="City">
+                <Input />
+              </Form.Item>
+
+              <Form.Item name="budget" label="Budget">
+                <Input />
+              </Form.Item>
+
               <Form.Item name="priority" label="Priority">
-                <Select options={[{ value: "High", label: "High" }, { value: "Medium", label: "Medium" }, { value: "Low", label: "Low" }]} />
+                <Select
+                  options={[
+                    { value: "High", label: "High" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "Low", label: "Low" },
+                  ]}
+                />
               </Form.Item>
             </div>
+
             <Form.Item name="notes" label="Notes">
               <Input.TextArea rows={4} />
             </Form.Item>
           </Form>
         </Modal>
 
-        <Modal open={!!deleteEnquiry} onCancel={() => setDeleteEnquiry(null)} onOk={() => confirmDelete(deleteEnquiry)} okText="Delete" okButtonProps={{ danger: true }} centered>
+        <Modal
+          className="enquiry-modal"
+          open={!!deleteEnquiry}
+          onCancel={() => setDeleteEnquiry(null)}
+          onOk={() => confirmDelete(deleteEnquiry)}
+          okText="Delete"
+          okButtonProps={{ danger: true }}
+          centered
+        >
           <p>Are you sure you want to delete this enquiry?</p>
         </Modal>
       </Layout>

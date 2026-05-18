@@ -24,7 +24,6 @@ import {
   ReloadOutlined,
   UserAddOutlined,
   FilterOutlined,
-  DownOutlined,
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -57,10 +56,13 @@ const UsersPage = () => {
   const [editUser, setEditUser] = useState(null);
   const [deleteUser, setDeleteUser] = useState(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const [editForm] = Form.useForm();
+  const [inviteForm] = Form.useForm();
 
-  const usersData = [
+  const [usersData, setUsersData] = useState([
     { id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com", phone: "8888888888", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Registered", created: "06 May 2026" },
     { id: "2", name: "Arun Kumar", email: "arun.photography@gmail.com", phone: "9840123456", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Google", created: "05 May 2026" },
     { id: "3", name: "Priya", email: "priya.sharma@outlook.com", phone: "9123456789", studio: "Wave Studios", role: "Editor", status: "Inactive", signupType: "Registered", created: "04 May 2026" },
@@ -70,7 +72,7 @@ const UsersPage = () => {
     { id: "7", name: "Sara", email: "sara.w@yahoo.com", phone: "9887766554", studio: "Wave Studios", role: "Editor", status: "Active", signupType: "Registered", created: "30 Apr 2026" },
     { id: "8", name: "Rajesh", email: "rajesh.k@gmail.com", phone: "8122334455", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Google", created: "29 Apr 2026" },
     { id: "9", name: "Paul", email: "anitha.p@gmail.com", phone: "9000111222", studio: "Wave Studios", role: "Editor", status: "Active", signupType: "Registered", created: "28 Apr 2026" },
-  ];
+  ]);
 
   const referralsData = [];
 
@@ -101,7 +103,7 @@ const UsersPage = () => {
     if (activeTab === "referrals") return referralsData;
     if (activeTab === "photographers") return photographersData;
     return usersData;
-  }, [activeTab, photographersData]);
+  }, [activeTab, photographersData, usersData]);
 
   const filterOptions = useMemo(() => {
     if (activeTab !== "photographers") {
@@ -161,20 +163,40 @@ const UsersPage = () => {
   };
 
   const handleEditSave = (values) => {
-    setPhotographersData((prev) =>
-      prev.map((item) =>
-        item.id === editUser.id ? { ...item, ...values } : item
-      )
-    );
+    const updatedValues = {
+      ...values,
+      shoots: values.shoots === undefined ? values.shoots : Number(values.shoots),
+    };
+
+    if (editUser.id.startsWith("p")) {
+      setPhotographersData((prev) =>
+        prev.map((item) =>
+          item.id === editUser.id ? { ...item, ...updatedValues } : item
+        )
+      );
+    } else {
+      setUsersData((prev) =>
+        prev.map((item) =>
+          item.id === editUser.id ? { ...item, ...updatedValues } : item
+        )
+      );
+    }
 
     setEditUser(null);
-    message.success("Photographer updated");
+    message.success("User updated");
   };
 
   const handleDeleteConfirm = () => {
-    setPhotographersData((prev) =>
-      prev.filter((item) => item.id !== deleteUser.id)
-    );
+    if (deleteUser.id.startsWith("p")) {
+      setPhotographersData((prev) =>
+        prev.filter((item) => item.id !== deleteUser.id)
+      );
+    } else {
+      setUsersData((prev) =>
+        prev.filter((item) => item.id !== deleteUser.id)
+      );
+    }
+
     setSelectedRowKeys((prev) => prev.filter((key) => key !== deleteUser.id));
     message.success(`${deleteUser.name} deleted`);
     setDeleteUser(null);
@@ -209,16 +231,40 @@ const UsersPage = () => {
     message.success("Selected photographers marked Invited");
   };
 
-  const renderStatusTag = (status) => {
-    const color =
-      status === "Active" ? "green" : status === "Pending" ? "gold" : "red";
+  const handleInvite = (values) => {
+    const isPhotographer = activeTab === "photographers";
 
-    return (
-      <Tag color={color} className={`status-pill status-${status.toLowerCase()}`}>
-        {status}
-      </Tag>
-    );
+    const newUser = {
+      id: `${isPhotographer ? "p" : "u"}${Date.now()}`,
+      name: values.name,
+      email: values.email,
+      phone: values.phone,
+      studio: "Wave Studios",
+      role: isPhotographer ? "Freelance Photographer" : values.role,
+      status: "Pending",
+      signupType: "Invited",
+      created: "18 May 2026",
+      shoots: 0,
+      location: values.location || "Chennai",
+      notes: "Invited from users page.",
+    };
+
+    if (isPhotographer) {
+      setPhotographersData((prev) => [newUser, ...prev]);
+    } else {
+      setUsersData((prev) => [newUser, ...prev]);
+    }
+
+    inviteForm.resetFields();
+    setInviteOpen(false);
+    message.success("Invite added");
   };
+
+  const renderStatusTag = (status) => (
+    <Tag className={`status-pill transparent-status status-${status.toLowerCase()}`}>
+      {status}
+    </Tag>
+  );
 
   const renderSignupTag = (text) => (
     <Tag className={text === "Invited" ? "signup-tag-invited" : "signup-tag-outline"}>
@@ -242,9 +288,9 @@ const UsersPage = () => {
         <span><PhoneOutlined /> Phone</span>
         <strong>{record.phone}</strong>
         <span><UserSwitchOutlined /> Shoots</span>
-        <strong>{record.shoots}</strong>
+        <strong>{record.shoots ?? "-"}</strong>
         <span><EnvironmentOutlined /> Location</span>
-        <strong>{record.location}</strong>
+        <strong>{record.location || "Wave Studios"}</strong>
       </div>
 
       <div className="preview-tags">
@@ -306,6 +352,43 @@ const UsersPage = () => {
     },
   ];
 
+  const actionColumn = {
+    title: "",
+    key: "actions",
+    fixed: "right",
+    width: 124,
+    render: (_, record) => (
+      <Space size={6} className="photographer-actions">
+        <Tooltip title="View" placement="top">
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            className="photographer-action-btn view-action"
+            onClick={() => setViewUser(record)}
+          />
+        </Tooltip>
+
+        <Tooltip title="Edit" placement="top">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            className="photographer-action-btn edit-action"
+            onClick={() => setEditUser(record)}
+          />
+        </Tooltip>
+
+        <Tooltip title="Delete" placement="top">
+          <Button
+            type="text"
+            icon={<DeleteOutlined />}
+            className="photographer-action-btn delete-action"
+            onClick={() => setDeleteUser(record)}
+          />
+        </Tooltip>
+      </Space>
+    ),
+  };
+
   const usersColumns = [
     ...commonColumns,
     {
@@ -313,14 +396,14 @@ const UsersPage = () => {
       dataIndex: "studio",
       key: "studio",
       width: 160,
-      render: (text) => <Tag color="purple" className="status-pill">{text}</Tag>,
+      render: (text) => <Tag className="studio-pill">{text}</Tag>,
     },
     {
       title: "Role",
       dataIndex: "role",
       key: "role",
       width: 180,
-      render: (text) => <Tag color="blue" className="status-pill">{text}</Tag>,
+      render: (text) => <Tag className="role-pill">{text}</Tag>,
     },
     {
       title: "Status",
@@ -343,6 +426,7 @@ const UsersPage = () => {
       sorter: true,
       width: 160,
     },
+    actionColumn,
   ];
 
   const photographersColumns = [
@@ -353,7 +437,7 @@ const UsersPage = () => {
       key: "role",
       width: 250,
       render: (text) => (
-        <Tag color="blue" className="status-pill photographer-role-pill">
+        <Tag className="role-pill photographer-role-pill">
           {text}
         </Tag>
       ),
@@ -379,43 +463,28 @@ const UsersPage = () => {
       sorter: true,
       width: 160,
     },
-    {
-      title: "",
-      key: "actions",
-      fixed: "right",
-      width: 124,
-      render: (_, record) => (
-        <Space size={6} className="photographer-actions">
-          <Tooltip title="View" placement="top">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              className="photographer-action-btn view-action"
-              onClick={() => setViewUser(record)}
-            />
-          </Tooltip>
-
-          <Tooltip title="Edit" placement="top">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              className="photographer-action-btn edit-action"
-              onClick={() => setEditUser(record)}
-            />
-          </Tooltip>
-
-          <Tooltip title="Delete" placement="top">
-            <Button
-              type="text"
-              icon={<DeleteOutlined />}
-              className="photographer-action-btn delete-action"
-              onClick={() => setDeleteUser(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
+    actionColumn,
   ];
+
+  const filterMenu = (
+    <div className="filter-popover-panel">
+      <Text strong>Quick filter</Text>
+      <div className="filter-popover-list">
+        {filterOptions.map((filter) => (
+          <Button
+            key={filter}
+            type={activeFilter === filter ? "primary" : "text"}
+            onClick={() => {
+              setActiveFilter(filter);
+              setFilterOpen(false);
+            }}
+          >
+            {filter} ({filterCounts[filter] || 0})
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
 
   const columns = activeTab === "photographers" ? photographersColumns : usersColumns;
 
@@ -432,17 +501,6 @@ const UsersPage = () => {
             <Header className="dashboard-navbar review-navbar">
               <div className="dashboard-brand">
                 <Title level={3} className="dashboard-title review-title">Users</Title>
-              </div>
-
-              <div className="header-user-profile">
-                <Space className="profile-badge-glass">
-                  <Avatar size="small" style={{ backgroundColor: "#818cf8" }}>K</Avatar>
-                  <div className="profile-text">
-                    <Text className="user-name-header">Kamesh Srikharan.T</Text>
-                    <Text className="user-role-header">Studioadmin</Text>
-                  </div>
-                  <DownOutlined style={{ fontSize: "10px" }} />
-                </Space>
               </div>
             </Header>
 
@@ -481,14 +539,23 @@ const UsersPage = () => {
                 <div className="review-toolbar user-toolbar-inline">
                   <Space size="middle" wrap>
                     <Input
-                      placeholder="Search by name, email, or phon..."
+                      placeholder="Search by name, email, or phone..."
                       prefix={<SearchOutlined />}
                       className="review-search"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      allowClear
                     />
 
-                    <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
+                    <Popover
+                      open={filterOpen}
+                      onOpenChange={setFilterOpen}
+                      content={filterMenu}
+                      trigger="click"
+                      placement="bottomLeft"
+                    >
+                      <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
+                    </Popover>
 
                     <Button
                       type="text"
@@ -541,7 +608,12 @@ const UsersPage = () => {
                       </div>
                     )}
 
-                    <Button type="primary" icon={<UserAddOutlined />} className="invite-btn-styled">
+                    <Button
+                      type="primary"
+                      icon={<UserAddOutlined />}
+                      className="invite-btn-styled"
+                      onClick={() => setInviteOpen(true)}
+                    >
                       Invite User
                     </Button>
                   </Space>
@@ -563,7 +635,7 @@ const UsersPage = () => {
                         }
                       : undefined
                   }
-                  scroll={{ x: activeTab === "photographers" ? 1520 : 1400 }}
+                  scroll={{ x: activeTab === "photographers" ? 1520 : 1540 }}
                   locale={{
                     emptyText: <Empty description="No data" />,
                   }}
@@ -629,7 +701,7 @@ const UsersPage = () => {
                 <div className="modal-info-card">
                   <EnvironmentOutlined />
                   <span>Location</span>
-                  <strong>{viewUser.location || "Wave Studios"}</strong>
+                  <strong>{viewUser.location || viewUser.studio || "Wave Studios"}</strong>
                 </div>
 
                 <div className="modal-info-card">
@@ -666,7 +738,7 @@ const UsersPage = () => {
                   {editUser.name.charAt(0)}
                 </Avatar>
                 <div>
-                  <Title level={3}>Edit Photographer</Title>
+                  <Title level={3}>Edit User</Title>
                   <Text>Update profile details and save changes.</Text>
                 </div>
               </div>
@@ -677,7 +749,7 @@ const UsersPage = () => {
                     <Input />
                   </Form.Item>
 
-                  <Form.Item name="email" label="Email" rules={[{ required: true, message: "Enter email" }]}>
+                  <Form.Item name="email" label="Email" rules={[{ required: true, message: "Enter email" }, { type: "email", message: "Enter a valid email" }]}>
                     <Input />
                   </Form.Item>
 
@@ -688,8 +760,10 @@ const UsersPage = () => {
                   <Form.Item name="role" label="Role">
                     <Select
                       options={[
+                        { value: "Studio Admin", label: "Studio Admin" },
                         { value: "Freelance Photographer", label: "Freelance Photographer" },
                         { value: "Photographer", label: "Photographer" },
+                        { value: "Editor", label: "Editor" },
                         { value: "Lead Photographer", label: "Lead Photographer" },
                       ]}
                     />
@@ -710,6 +784,7 @@ const UsersPage = () => {
                       options={[
                         { value: "Registered", label: "Registered" },
                         { value: "Invited", label: "Invited" },
+                        { value: "Google", label: "Google" },
                       ]}
                     />
                   </Form.Item>
@@ -739,6 +814,65 @@ const UsersPage = () => {
         </Modal>
 
         <Modal
+          open={inviteOpen}
+          onCancel={() => setInviteOpen(false)}
+          footer={null}
+          width={560}
+          title={null}
+          className="creative-modal edit-modal"
+          centered
+        >
+          <div className="modal-shell">
+            <div className="modal-title-row">
+              <Avatar className="modal-small-avatar">
+                <UserAddOutlined />
+              </Avatar>
+              <div>
+                <Title level={3}>Invite User</Title>
+                <Text>Add a new invited user to the current tab.</Text>
+              </div>
+            </div>
+
+            <Form form={inviteForm} layout="vertical" onFinish={handleInvite}>
+              <div className="edit-form-grid">
+                <Form.Item name="name" label="Name" rules={[{ required: true, message: "Enter name" }]}>
+                  <Input />
+                </Form.Item>
+
+                <Form.Item name="email" label="Email" rules={[{ required: true, message: "Enter email" }, { type: "email", message: "Enter a valid email" }]}>
+                  <Input />
+                </Form.Item>
+
+                <Form.Item name="phone" label="Phone" rules={[{ required: true, message: "Enter phone" }]}>
+                  <Input />
+                </Form.Item>
+
+                <Form.Item name="role" label="Role" initialValue="Photographer">
+                  <Select
+                    options={[
+                      { value: "Studio Admin", label: "Studio Admin" },
+                      { value: "Photographer", label: "Photographer" },
+                      { value: "Editor", label: "Editor" },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item name="location" label="Location" className="edit-notes-field">
+                  <Input />
+                </Form.Item>
+              </div>
+
+              <div className="modal-action-row">
+                <Button onClick={() => setInviteOpen(false)}>Cancel</Button>
+                <Button htmlType="submit" type="primary" icon={<SendOutlined />} className="invite-btn-styled">
+                  Send Invite
+                </Button>
+              </div>
+            </Form>
+          </div>
+        </Modal>
+
+        <Modal
           open={!!deleteUser}
           onCancel={() => setDeleteUser(null)}
           footer={null}
@@ -753,9 +887,9 @@ const UsersPage = () => {
                 <WarningOutlined />
               </div>
 
-              <Title level={3}>Delete Photographer?</Title>
+              <Title level={3}>Delete User?</Title>
               <Text>
-                This will remove the photographer from the table. This action cannot be undone in the current session.
+                This will remove the user from the table. This action cannot be undone in the current session.
               </Text>
 
               <div className="delete-profile-line">

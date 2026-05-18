@@ -1,35 +1,3 @@
-.profile-badge-glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  padding: 4px 12px;
-  border-radius: 50px;
-  border: 1px solid rgb(8, 139, 245);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
-}
-
-.profile-badge-glass:hover {
-  border-color: #60a5fa;
-  box-shadow: 0 0 18px rgba(8, 139, 245, 0.55);
-  transform: translateY(-1px);
-}
-
-.profile-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.user-name-header {
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.user-role-header {
-  font-size: 10px;
-  color: #3b82f6;
-}
-
 .user-tabs-glass {
   padding: 0 20px;
   border-bottom: 1px solid rgb(8, 139, 245);
@@ -211,20 +179,24 @@
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
 }
 
-.photographers-hover-table .ant-table-tbody > tr {
+.photographers-hover-table .ant-table-tbody > tr,
+.user-table-custom .ant-table-tbody > tr {
   cursor: pointer;
 }
 
-.photographers-hover-table .ant-table-tbody > tr > td {
+.photographers-hover-table .ant-table-tbody > tr > td,
+.user-table-custom .ant-table-tbody > tr > td {
   position: relative;
   transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
 }
 
-.photographers-hover-table .ant-table-tbody > tr:hover > td {
+.photographers-hover-table .ant-table-tbody > tr:hover > td,
+.user-table-custom .ant-table-tbody > tr:hover > td {
   background: rgba(59, 130, 246, 0.09) !important;
 }
 
-.photographers-hover-table .ant-table-tbody > tr:hover > td:first-child::before {
+.photographers-hover-table .ant-table-tbody > tr:hover > td:first-child::before,
+.user-table-custom .ant-table-tbody > tr:hover > td:first-child::before {
   content: "";
   position: absolute;
   left: 0;
@@ -274,7 +246,7 @@
   transition: opacity 0.22s ease, visibility 0.22s ease, transform 0.22s ease;
 }
 
-.photographers-hover-table .ant-table-tbody > tr:hover .photographer-actions,
+.user-table-custom .ant-table-tbody > tr:hover .photographer-actions,
 .photographer-actions:hover {
   opacity: 1;
   visibility: visible;
@@ -287,8 +259,8 @@
   padding: 0;
   border-radius: 10px;
   color: #3b82f6 !important;
-  background: rgba(59, 130, 246, 0.08) !important;
-  border: 1px solid rgba(96, 165, 250, 0.12);
+  background: transparent !important;
+  border: 1px solid rgba(96, 165, 250, 0.2);
   transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
@@ -302,7 +274,6 @@
 
 .delete-action {
   color: #ff4d4f !important;
-  background: rgba(255, 77, 79, 0.08) !important;
 }
 
 .delete-action:hover {
@@ -311,16 +282,16 @@
   box-shadow: 0 0 18px rgba(255, 77, 79, 0.72);
 }
 
-.photographers-hover-table .ant-table-cell-fix-right,
-.photographers-hover-table .ant-table-cell-fix-right-first,
-.photographers-hover-table .ant-table-cell-fix-right-last,
-.photographers-hover-table .ant-table-thead > tr > th.ant-table-cell-fix-right,
-.photographers-hover-table .ant-table-tbody > tr > td.ant-table-cell-fix-right {
+.user-table-custom .ant-table-cell-fix-right,
+.user-table-custom .ant-table-cell-fix-right-first,
+.user-table-custom .ant-table-cell-fix-right-last,
+.user-table-custom .ant-table-thead > tr > th.ant-table-cell-fix-right,
+.user-table-custom .ant-table-tbody > tr > td.ant-table-cell-fix-right {
   background: transparent !important;
   box-shadow: none !important;
 }
 
-.photographers-hover-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right {
+.user-table-custom .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right {
   background: transparent !important;
 }
 
@@ -376,30 +347,48 @@
 
 .status-pill,
 .signup-tag-outline,
-.signup-tag-invited {
+.signup-tag-invited,
+.studio-pill,
+.role-pill {
   transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
 }
 
 .status-pill:hover,
 .signup-tag-outline:hover,
-.signup-tag-invited:hover {
+.signup-tag-invited:hover,
+.studio-pill:hover,
+.role-pill:hover {
   transform: translateY(-1px);
   filter: brightness(1.08);
 }
 
+.transparent-status {
+  background: transparent !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
 .status-active {
-  animation: activePulse 2.4s ease-in-out infinite;
+  color: #22c55e !important;
+  border-color: rgba(34, 197, 94, 0.48) !important;
 }
 
-@keyframes activePulse {
-  50% {
-    box-shadow: 0 0 14px rgba(34, 197, 94, 0.32);
-  }
+.status-inactive {
+  color: #ff4d4f !important;
+  border-color: rgba(255, 77, 79, 0.48) !important;
 }
 
+.status-pending {
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.48) !important;
+}
+
+.role-pill,
+.studio-pill,
 .photographer-role-pill {
-  background: rgba(59, 130, 246, 0.18) !important;
-  border: 1px solid rgba(96, 165, 250, 0.18);
+  background: transparent !important;
+  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  color: #60a5fa !important;
 }
 
 .signup-tag-outline {
@@ -414,7 +403,20 @@
   color: #f59e0b !important;
 }
 
-/* Photographer hover preview popover - black text */
+.filter-popover-panel {
+  width: 190px;
+}
+
+.filter-popover-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.filter-popover-list .ant-btn {
+  justify-content: flex-start;
+}
+
 .photographer-preview-popover .ant-popover-inner {
   background: rgba(255, 255, 255, 0.96) !important;
   border: 1px solid rgba(8, 139, 245, 0.28);
@@ -497,7 +499,6 @@
   border: none !important;
 }
 
-/* Creative black-text modals */
 .creative-modal .ant-modal-content {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.96) !important;
@@ -748,10 +749,7 @@
     flex-wrap: wrap;
   }
 
-  .review-search {
-    width: 100%;
-  }
-
+  .review-search,
   .invite-btn-styled {
     width: 100%;
   }

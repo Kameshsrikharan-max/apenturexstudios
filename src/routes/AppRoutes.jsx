@@ -16,19 +16,19 @@ import EnquiryPage from "../features/enquiry/pages/EnquiryPage";
 
 import MainLayout from "../components/Layout/MainLayout";
 
-function ProtectedLayout({ isAuthenticated, user }) {
+function ProtectedLayout({ isAuthenticated, user, onLogout }) {
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
   return (
-    <MainLayout user={user}>
+    <MainLayout user={user} onLogout={onLogout}>
       <Outlet />
     </MainLayout>
   );
 }
 
-export default function AppRoutes({ isAuthenticated, onLogin, user }) {
+export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,7 +53,11 @@ export default function AppRoutes({ isAuthenticated, onLogin, user }) {
 
       <Route
         element={
-          <ProtectedLayout isAuthenticated={isAuthenticated} user={user} />
+          <ProtectedLayout
+            isAuthenticated={isAuthenticated}
+            user={user}
+            onLogout={onLogout}
+          />
         }
       >
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
