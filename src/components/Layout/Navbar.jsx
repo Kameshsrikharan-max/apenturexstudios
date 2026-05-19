@@ -13,6 +13,7 @@ import {
   SettingOutlined,
   ProfileOutlined,
   CloseOutlined,
+  CompassOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
@@ -73,12 +74,50 @@ function Navbar({
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [upcomingEventsOpen, setUpcomingEventsOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
   const [notificationType, setNotificationType] = useState(
     localStorage.getItem("notificationPreference") || ""
   );
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
+
+  const tourSteps = [
+    {
+      title: "Welcome to Apenture X Studios",
+      text: "This admin panel helps you manage the studio dashboard, reviews, users, enquiries, events, and notifications.",
+    },
+    {
+      title: "Dashboard",
+      text: "Use the dashboard to view the main studio overview and important daily updates.",
+    },
+    {
+      title: "Reviews",
+      text: "Open Reviews to check client feedback and manage studio ratings.",
+    },
+    {
+      title: "Users",
+      text: "Use Users to manage people connected with your studio panel.",
+    },
+    {
+      title: "Enquiry",
+      text: "Open Enquiry to view and respond to client booking or service requests.",
+    },
+    {
+      title: "Calendar",
+      text: "Use the calendar icon to check upcoming shoots, bookings, meetings, and studio events.",
+    },
+    {
+      title: "Notifications",
+      text: "The bell icon shows upcoming events and important studio reminders.",
+    },
+    {
+      title: "Profile",
+      text: "Use your profile menu to view account details, update notification settings, or logout.",
+    },
+  ];
 
   const dates = useMemo(() => {
     const list = [];
@@ -106,6 +145,34 @@ function Navbar({
 
   const refreshEvents = () => {
     setEvents(getSavedEvents());
+  };
+
+  const startTour = () => {
+    setMiniCalendarOpen(false);
+    setUserMenuOpen(false);
+    setProfileModalOpen(false);
+    setNotificationSettingsOpen(false);
+    setUpcomingEventsOpen(false);
+    setTourStep(0);
+    setTourOpen(true);
+  };
+
+  const closeTour = () => {
+    setTourOpen(false);
+    setTourStep(0);
+  };
+
+  const nextTourStep = () => {
+    if (tourStep === tourSteps.length - 1) {
+      closeTour();
+      return;
+    }
+
+    setTourStep((current) => current + 1);
+  };
+
+  const previousTourStep = () => {
+    setTourStep((current) => Math.max(current - 1, 0));
   };
 
   const toggleMiniCalendar = () => {
@@ -158,6 +225,7 @@ function Navbar({
     setProfileModalOpen(false);
     setNotificationSettingsOpen(false);
     setUpcomingEventsOpen(false);
+    setTourOpen(false);
 
     if (onLogout) {
       onLogout();
@@ -192,6 +260,16 @@ function Navbar({
         </nav>
 
         <div className="navbar-actions">
+          <button
+            type="button"
+            className="nav-icon-button tour-button"
+            onClick={startTour}
+            aria-label="Start Apenture X Studios tour"
+            title="Start Tour"
+          >
+            <CompassOutlined />
+          </button>
+
           <div className="mini-calendar-wrap">
             <button
               type="button"
@@ -267,11 +345,7 @@ function Navbar({
                   })}
                 </div>
 
-                <button
-                  type="button"
-                  className="mini-calendar-full-button"
-                  onClick={openFullCalendar}
-                >
+                <button type="button" className="mini-calendar-full-button" onClick={openFullCalendar}>
                   Open Full Calendar
                 </button>
               </div>
@@ -345,6 +419,46 @@ function Navbar({
           </div>
         </div>
       </header>
+
+      {tourOpen && (
+        <div className="tour-overlay">
+          <div className="tour-card">
+            <div className="tour-card-head">
+              <span>
+                Step {tourStep + 1} of {tourSteps.length}
+              </span>
+
+              <button type="button" onClick={closeTour} aria-label="Close tour">
+                <CloseOutlined />
+              </button>
+            </div>
+
+            <h3>{tourSteps[tourStep].title}</h3>
+            <p>{tourSteps[tourStep].text}</p>
+
+            <div className="tour-progress">
+              {tourSteps.map((step, index) => (
+                <span key={step.title} className={index === tourStep ? "active" : ""} />
+              ))}
+            </div>
+
+            <div className="tour-actions">
+              <button
+                type="button"
+                className="tour-secondary-button"
+                onClick={previousTourStep}
+                disabled={tourStep === 0}
+              >
+                Back
+              </button>
+
+              <button type="button" className="tour-primary-button" onClick={nextTourStep}>
+                {tourStep === tourSteps.length - 1 ? "Finish" : "Next"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {profileModalOpen && (
         <div className="nav-modal-overlay">

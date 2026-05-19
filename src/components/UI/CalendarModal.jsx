@@ -7,8 +7,8 @@ import {
   Empty,
   Spin,
   Segmented,
+  TimePicker,
 } from "antd";
-
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -19,8 +19,9 @@ import {
   RightOutlined,
   AimOutlined,
   EyeOutlined,
+  CloseOutlined,
+  ClockCircleOutlined,
 } from "@ant-design/icons";
-
 import dayjs from "dayjs";
 import "./CalendarModal.css";
 
@@ -53,6 +54,27 @@ const TAMIL_HOLIDAY_KEYWORDS = [
   "vinayaka chaturthi",
 ];
 
+const makeTime = (hour, minute = 0) =>
+  dayjs().hour(hour).minute(minute).second(0).millisecond(0);
+
+const timeToDayjs = (time) => {
+  if (!time) return null;
+  const [hour, minute] = time.split(":").map(Number);
+  return makeTime(hour, minute);
+};
+
+const getMinutes = (time) => {
+  if (!time) return 9 * 60;
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+};
+
+const formatEventTime = (event) => {
+  if (!event.startTime && !event.endTime) return event.category || "Event";
+  if (event.startTime && event.endTime) return `${event.startTime} - ${event.endTime}`;
+  return event.startTime || event.endTime;
+};
+
 const getSavedEvents = () => {
   try {
     const saved = localStorage.getItem("calendarEvents");
@@ -74,7 +96,7 @@ const CalendarModal = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
-  const [eventListOpen, setEventListOpen] = useState(false);
+  const [dayPageOpen, setDayPageOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -82,15 +104,23 @@ const CalendarModal = ({ open, onClose }) => {
   const [selectedWeek, setSelectedWeek] = useState(1);
 
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [color, setColor] = useState("blue");
+  const [startTime, setStartTime] = useState(makeTime(9));
+  const [endTime, setEndTime] = useState(makeTime(10));
 
   const [editingIndex, setEditingIndex] = useState(null);
   const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [editColor, setEditColor] = useState("blue");
+  const [editStartTime, setEditStartTime] = useState(makeTime(9));
+  const [editEndTime, setEditEndTime] = useState(makeTime(10));
 
   const currentYear = currentMonth.format("YYYY");
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = currentMonth.format("YYYY-MM");
+
+  const dayHours = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
 
   useEffect(() => {
     localStorage.setItem("calendarEvents", JSON.stringify(userEvents));
@@ -113,19 +143,17 @@ const CalendarModal = ({ open, onClose }) => {
 
         holidays.forEach((holiday) => {
           const date = holiday.date.iso;
-
           if (!holidayMap[date]) holidayMap[date] = [];
 
           const types = holiday.type || [];
           const name = holiday.name?.toLowerCase() || "";
-          const description = holiday.description?.toLowerCase() || "";
+          const descriptionText = holiday.description?.toLowerCase() || "";
 
           const isNational =
             types.includes("National holiday") || types.includes("national");
 
           const isTamilHoliday = TAMIL_HOLIDAY_KEYWORDS.some(
-            (keyword) =>
-              name.includes(keyword) || description.includes(keyword)
+            (keyword) => name.includes(keyword) || descriptionText.includes(keyword)
           );
 
           holidayMap[date].push({
@@ -160,10 +188,7 @@ const CalendarModal = ({ open, onClose }) => {
     const merged = { ...userEvents };
 
     Object.keys(holidayEvents).forEach((date) => {
-      merged[date] = [
-        ...(holidayEvents[date] || []),
-        ...(userEvents[date] || []),
-      ];
+      merged[date] = [...(holidayEvents[date] || []), ...(userEvents[date] || [])];
     });
 
     return merged;
@@ -208,7 +233,6 @@ const CalendarModal = ({ open, onClose }) => {
     if (viewMode !== "week" || !selectedWeekInfo) return dates;
 
     const weekDates = [];
-
     for (let day = selectedWeekInfo.start; day <= selectedWeekInfo.end; day++) {
       weekDates.push(day);
     }
@@ -227,6 +251,14 @@ const CalendarModal = ({ open, onClose }) => {
 
   const selectedEventGroups = useMemo(
     () => splitEvents(selectedEventsWithIndex),
+    [selectedEventsWithIndex]
+  );
+
+  const timelineEvents = useMemo(
+    () =>
+      selectedEventsWithIndex
+        .filter((event) => !event.isHoliday && event.startTime)
+        .sort((a, b) => getMinutes(a.startTime) - getMinutes(b.startTime)),
     [selectedEventsWithIndex]
   );
 
@@ -270,18 +302,17 @@ const CalendarModal = ({ open, onClose }) => {
     return result;
   }, [events, monthKey]);
 
-  const selectedWeekGroups = useMemo(
-    () => splitEvents(selectedWeekEvents),
-    [selectedWeekEvents]
-  );
+  const selectedWeekGroups = useMemo(() => splitEvents(selectedWeekEvents), [selectedWeekEvents]);
+  const selectedMonthGroups = useMemo(() => splitEvents(selectedMonthEvents), [selectedMonthEvents]);
 
-  const selectedMonthGroups = useMemo(
-    () => splitEvents(selectedMonthEvents),
-    [selectedMonthEvents]
-  );
+  const getFullDate = (date) => `${monthKey}-${String(date).padStart(2, "0")}`;
 
-  const getFullDate = (date) => {
-    return `${monthKey}-${String(date).padStart(2, "0")}`;
+  const resetCreateForm = () => {
+    setTitle("");
+    setDescription("");
+    setColor("blue");
+    setStartTime(makeTime(9));
+    setEndTime(makeTime(10));
   };
 
   const openEventList = (date) => {
@@ -289,21 +320,24 @@ const CalendarModal = ({ open, onClose }) => {
 
     setSelectedDate(getFullDate(date));
     setEditingIndex(null);
-    setEventListOpen(true);
+    setDayPageOpen(true);
+  };
+
+  const closeDayPage = () => {
+    setDayPageOpen(false);
+    setEditingIndex(null);
   };
 
   const openCreateEvent = (date) => {
     if (!date) return;
 
     setSelectedDate(getFullDate(date));
-    setTitle("");
-    setColor("blue");
+    resetCreateForm();
     setCreateOpen(true);
   };
 
-  const openCreateFromList = () => {
-    setTitle("");
-    setColor("blue");
+  const openCreateFromDayPage = () => {
+    resetCreateForm();
     setCreateOpen(true);
   };
 
@@ -323,12 +357,20 @@ const CalendarModal = ({ open, onClose }) => {
   const createEvent = () => {
     if (!selectedDate || !title.trim()) return;
 
+    const start = startTime ? startTime.format("HH:mm") : "";
+    const end = endTime ? endTime.format("HH:mm") : "";
+
+    if (start && end && getMinutes(end) <= getMinutes(start)) return;
+
     setUserEvents((prev) => ({
       ...prev,
       [selectedDate]: [
         ...(prev[selectedDate] || []),
         {
           title: title.trim(),
+          description: description.trim(),
+          startTime: start,
+          endTime: end,
           color,
           category: "Personal Event",
           isHoliday: false,
@@ -336,8 +378,7 @@ const CalendarModal = ({ open, onClose }) => {
       ],
     }));
 
-    setTitle("");
-    setColor("blue");
+    resetCreateForm();
     setCreateOpen(false);
   };
 
@@ -369,12 +410,27 @@ const CalendarModal = ({ open, onClose }) => {
     if (event.isHoliday) return;
 
     setEditingIndex(index);
-    setEditTitle(event.title);
-    setEditColor(event.color);
+    setEditTitle(event.title || "");
+    setEditDescription(event.description || "");
+    setEditColor(event.color || "blue");
+    setEditStartTime(timeToDayjs(event.startTime) || makeTime(9));
+    setEditEndTime(timeToDayjs(event.endTime) || makeTime(10));
+  };
+
+  const openEditFromDayPage = (event, index) => {
+    if (event.isHoliday) return;
+
+    startEdit(event, index);
+    setDetailsOpen(true);
   };
 
   const saveEdit = (index) => {
     if (!selectedDate || !editTitle.trim()) return;
+
+    const start = editStartTime ? editStartTime.format("HH:mm") : "";
+    const end = editEndTime ? editEndTime.format("HH:mm") : "";
+
+    if (start && end && getMinutes(end) <= getMinutes(start)) return;
 
     const userIndex = getUserEventIndex(selectedDate, index);
     if (userIndex < 0) return;
@@ -385,7 +441,10 @@ const CalendarModal = ({ open, onClose }) => {
       updated[userIndex] = {
         ...updated[userIndex],
         title: editTitle.trim(),
+        description: editDescription.trim(),
         color: editColor,
+        startTime: start,
+        endTime: end,
       };
 
       return {
@@ -395,8 +454,13 @@ const CalendarModal = ({ open, onClose }) => {
     });
 
     setEditingIndex(null);
-    setEditTitle("");
-    setEditColor("blue");
+  };
+
+  const formatHour = (hour) => {
+    if (hour === 0) return "12 AM";
+    if (hour < 12) return `${hour} AM`;
+    if (hour === 12) return "12 PM";
+    return `${hour - 12} PM`;
   };
 
   const renderEventSection = ({ title: sectionTitle, events: sectionEvents }) => (
@@ -416,12 +480,37 @@ const CalendarModal = ({ open, onClose }) => {
               className={`day-event-card ${event.color}`}
             >
               {isEditing ? (
-                <div className="edit-form">
+                <div className="edit-form edit-form-expanded">
                   <Input
+                    placeholder="Event title"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     onPressEnter={() => saveEdit(index)}
                   />
+
+                  <Input
+                    placeholder="Description"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                  />
+
+                  <div className="time-picker-row">
+                    <TimePicker
+                      value={editStartTime}
+                      format="HH:mm"
+                      minuteStep={5}
+                      onChange={setEditStartTime}
+                      suffixIcon={<ClockCircleOutlined />}
+                    />
+
+                    <TimePicker
+                      value={editEndTime}
+                      format="HH:mm"
+                      minuteStep={5}
+                      onChange={setEditEndTime}
+                      suffixIcon={<ClockCircleOutlined />}
+                    />
+                  </div>
 
                   <Select value={editColor} onChange={setEditColor}>
                     {COLORS.map((item) => (
@@ -437,7 +526,10 @@ const CalendarModal = ({ open, onClose }) => {
 
                   <div>
                     <strong>{event.title}</strong>
-                    {event.category && <small>{event.category}</small>}
+                    <small>
+                      {formatEventTime(event)}
+                      {event.description ? ` • ${event.description}` : ""}
+                    </small>
                   </div>
                 </div>
               )}
@@ -491,10 +583,7 @@ const CalendarModal = ({ open, onClose }) => {
         <p className="event-section-empty">No events</p>
       ) : (
         sectionEvents.map((event, index) => (
-          <div
-            key={`${sectionTitle}-${index}-${event.title}`}
-            className={`detail-row ${event.color}`}
-          >
+          <div key={`${sectionTitle}-${index}-${event.title}`} className={`detail-row ${event.color}`}>
             <span className="event-dot" />
 
             <div>
@@ -502,8 +591,10 @@ const CalendarModal = ({ open, onClose }) => {
               <small>
                 {event.date
                   ? dayjs(event.date).format("dddd, MMM D")
-                  : event.category || dayjs(selectedDate).format("MMM D, YYYY")}
-                {event.date && event.category ? ` • ${event.category}` : ""}
+                  : dayjs(selectedDate).format("MMM D, YYYY")}
+                {" • "}
+                {formatEventTime(event)}
+                {event.description ? ` • ${event.description}` : ""}
               </small>
             </div>
           </div>
@@ -540,8 +631,7 @@ const CalendarModal = ({ open, onClose }) => {
               <div className="event-list">
                 <h4>Events</h4>
 
-                {Object.keys(events).filter((date) => date.startsWith(monthKey))
-                  .length === 0 && (
+                {Object.keys(events).filter((date) => date.startsWith(monthKey)).length === 0 && (
                   <p className="empty-text">No events this month</p>
                 )}
 
@@ -558,7 +648,7 @@ const CalendarModal = ({ open, onClose }) => {
 
                           <span>
                             {event.title}
-                            {event.category && <small>{event.category}</small>}
+                            <small>{formatEventTime(event)}</small>
                           </span>
                         </div>
                       ))}
@@ -569,206 +659,221 @@ const CalendarModal = ({ open, onClose }) => {
           </aside>
 
           <main className="main">
-            <div className="header">
-              <div className="header-actions">
-                <Button
-                  icon={<LeftOutlined />}
-                  onClick={() =>
-                    setCurrentMonth((prev) => prev.subtract(1, "month"))
-                  }
-                />
+            {dayPageOpen ? (
+              <div className="day-page">
+                <div className="day-page-top">
+                  <div className="day-page-timezone">GMT+05:30</div>
 
-                <Button
-                  icon={<AimOutlined />}
-                  onClick={() => {
-                    const now = dayjs();
-                    setCurrentMonth(now);
-                    setSelectedDate(now.format("YYYY-MM-DD"));
-                  }}
-                >
-                  Today
-                </Button>
+                  <div className="day-page-date">
+                    <span>{dayjs(selectedDate).format("ddd").toUpperCase()}</span>
+                    <strong>{dayjs(selectedDate).format("D")}</strong>
+                  </div>
 
-                <Button
-                  icon={<RightOutlined />}
-                  onClick={() => setCurrentMonth((prev) => prev.add(1, "month"))}
-                />
+                  <div className="day-page-actions">
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      className="day-page-create"
+                      onClick={openCreateFromDayPage}
+                    >
+                      Add Event
+                    </Button>
 
-                <Segmented
-                  value={viewMode}
-                  onChange={setViewMode}
-                  options={[
-                    { label: "Day", value: "day" },
-                    { label: "Week", value: "week" },
-                    { label: "Month", value: "month" },
-                  ]}
-                  className="mode-switch"
-                />
+                    <Button icon={<CloseOutlined />} className="day-page-exit" onClick={closeDayPage}>
+                      Exit
+                    </Button>
+                  </div>
+                </div>
 
-                {viewMode === "week" && (
-                  <Select
-                    value={selectedWeek}
-                    onChange={setSelectedWeek}
-                    className="week-select"
-                  >
-                    {weeks.map((week) => (
-                      <Option key={week.value} value={week.value}>
-                        {week.label}
-                      </Option>
+                {selectedEventsWithIndex.length > 0 && (
+                  <div className="day-page-events">
+                    {selectedEventsWithIndex.map((event) => (
+                      <div
+                        key={event.mergedIndex}
+                        className={`day-page-chip day-page-chip-action ${event.color}`}
+                      >
+                        <span className="event-dot" />
+
+                        <span className="day-page-chip-text">
+                          {event.startTime ? `${event.startTime} ` : ""}
+                          {event.title}
+                        </span>
+
+                        {!event.isHoliday && (
+                          <span className="day-page-chip-buttons">
+                            <button
+                              type="button"
+                              onClick={() => openEditFromDayPage(event, event.mergedIndex)}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteEvent(event.mergedIndex, event)}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        )}
+                      </div>
                     ))}
-                  </Select>
+                  </div>
                 )}
 
-                <Button icon={<EyeOutlined />} onClick={openDetailsModal} />
-              </div>
+                <div className="day-schedule">
+                  <div className="timeline-layer">
+                    {timelineEvents.map((event) => {
+                      const start = getMinutes(event.startTime);
+                      const end = getMinutes(event.endTime || event.startTime);
+                      const top = start;
+                      const height = Math.max(end - start, 38);
 
-              <div className="month-title">
-                <span>{currentMonth.format("YYYY")}</span>
-                <h2>{currentMonth.format("MMMM")}</h2>
-              </div>
-            </div>
-
-            <div className={`grid ${viewMode === "week" ? "week-grid" : ""}`}>
-              {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
-                <div key={day} className="day-header">
-                  {day}
-                </div>
-              ))}
-
-              {displayedDates.map((date, index) => {
-                const fullDate = date ? getFullDate(date) : null;
-                const dayEvents = fullDate ? events[fullDate] || [] : [];
-                const visibleEvents = dayEvents.slice(0, 3);
-                const hiddenCount = dayEvents.length - visibleEvents.length;
-
-                return (
-                  <div
-                    key={index}
-                    className={`cell ${!date ? "empty" : ""} ${
-                      fullDate === today ? "today" : ""
-                    } ${fullDate === selectedDate ? "selected-cell" : ""}`}
-                    onClick={() => openEventList(date)}
-                    style={{ animationDelay: `${index * 16}ms` }}
-                  >
-                    {date && (
-                      <>
-                        <div className="date-row">
-                          <button
-                            type="button"
-                            className="date"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCreateEvent(date);
-                            }}
-                          >
-                            {date}
-                          </button>
-
-                          {dayEvents.length > 0 && (
-                            <span className="event-count">{dayEvents.length}</span>
-                          )}
+                      return (
+                        <div
+                          key={`${event.mergedIndex}-${event.title}`}
+                          className={`timeline-event ${event.color}`}
+                          style={{ top, height }}
+                        >
+                          <strong>{event.title}</strong>
+                          <small>{formatEventTime(event)}</small>
                         </div>
-
-                        <div className="cell-events-scroll">
-                          {visibleEvents.map((event, eventIndex) => (
-                            <div
-                              key={eventIndex}
-                              className={`event ${event.color}`}
-                            >
-                              <span className="event-dot" />
-                              <span>{event.title}</span>
-                            </div>
-                          ))}
-
-                          {hiddenCount > 0 && (
-                            <div className="more-events">+{hiddenCount} more</div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+
+                  {dayHours.map((hour) => (
+                    <div key={hour} className="time-row">
+                      <div className="time-label">{formatHour(hour)}</div>
+                      <div className="time-line" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="header">
+                  <div className="header-actions">
+                    <Button icon={<LeftOutlined />} onClick={() => setCurrentMonth((prev) => prev.subtract(1, "month"))} />
+
+                    <Button
+                      icon={<AimOutlined />}
+                      onClick={() => {
+                        const now = dayjs();
+                        setCurrentMonth(now);
+                        setSelectedDate(now.format("YYYY-MM-DD"));
+                      }}
+                    >
+                      Today
+                    </Button>
+
+                    <Button icon={<RightOutlined />} onClick={() => setCurrentMonth((prev) => prev.add(1, "month"))} />
+
+                    <Segmented
+                      value={viewMode}
+                      onChange={setViewMode}
+                      options={[
+                        { label: "Day", value: "day" },
+                        { label: "Week", value: "week" },
+                        { label: "Month", value: "month" },
+                      ]}
+                      className="mode-switch"
+                    />
+
+                    {viewMode === "week" && (
+                      <Select value={selectedWeek} onChange={setSelectedWeek} className="week-select">
+                        {weeks.map((week) => (
+                          <Option key={week.value} value={week.value}>
+                            {week.label}
+                          </Option>
+                        ))}
+                      </Select>
+                    )}
+
+                    <Button icon={<EyeOutlined />} onClick={openDetailsModal} />
+                  </div>
+
+                  <div className="month-title">
+                    <span>{currentMonth.format("YYYY")}</span>
+                    <h2>{currentMonth.format("MMMM")}</h2>
+                  </div>
+                </div>
+
+                <div className={`grid ${viewMode === "week" ? "week-grid" : ""}`}>
+                  {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
+                    <div key={day} className="day-header">
+                      {day}
+                    </div>
+                  ))}
+
+                  {displayedDates.map((date, index) => {
+                    const fullDate = date ? getFullDate(date) : null;
+                    const dayEvents = fullDate ? events[fullDate] || [] : [];
+                    const visibleEvents = dayEvents.slice(0, 3);
+                    const hiddenCount = dayEvents.length - visibleEvents.length;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`cell ${!date ? "empty" : ""} ${fullDate === today ? "today" : ""} ${
+                          fullDate === selectedDate ? "selected-cell" : ""
+                        }`}
+                        onClick={() => openEventList(date)}
+                        style={{ animationDelay: `${index * 16}ms` }}
+                      >
+                        {date && (
+                          <>
+                            <div className="date-row">
+                              <button
+                                type="button"
+                                className="date"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openCreateEvent(date);
+                                }}
+                              >
+                                {date}
+                              </button>
+
+                              {dayEvents.length > 0 && <span className="event-count">{dayEvents.length}</span>}
+                            </div>
+
+                            <div className="cell-events-scroll">
+                              {visibleEvents.map((event, eventIndex) => (
+                                <div key={eventIndex} className={`event ${event.color}`}>
+                                  <span className="event-dot" />
+                                  <span>
+                                    {event.startTime ? `${event.startTime} ` : ""}
+                                    {event.title}
+                                  </span>
+                                </div>
+                              ))}
+
+                              {hiddenCount > 0 && <div className="more-events">+{hiddenCount} more</div>}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </main>
         </div>
       </Modal>
 
-      <Modal
-        open={eventListOpen}
-        onCancel={() => setEventListOpen(false)}
-        footer={null}
-        className="event-list-modal creative-modal"
-        title={null}
-      >
+      <Modal open={detailsOpen} onCancel={() => setDetailsOpen(false)} footer={null} className="creative-modal details-modal" title={null}>
         <h3 className="modal-heading black-heading">
-          <CalendarOutlined /> Event List
-        </h3>
-
-        <p className="modal-date-text">
-          {dayjs(selectedDate).format("dddd, MMMM D, YYYY")}
-        </p>
-
-        <div className="modal-toolbar">
-          <span>
-            {selectedEvents.length} event
-            {selectedEvents.length === 1 ? "" : "s"}
-          </span>
-
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            className="create-button"
-            onClick={openCreateFromList}
-          >
-            Create Event
-          </Button>
-        </div>
-
-        {selectedEvents.length === 0 ? (
-          <div className="day-empty">
-            <Empty description="No events for this date" />
-          </div>
-        ) : (
-          <div className="day-event-list">
-            {renderEventSection({
-              title: "Created Events",
-              events: selectedEventGroups.created,
-            })}
-
-            {renderEventSection({
-              title: "Holiday / Other Events",
-              events: selectedEventGroups.other,
-            })}
-          </div>
-        )}
-      </Modal>
-
-      <Modal
-        open={detailsOpen}
-        onCancel={() => setDetailsOpen(false)}
-        footer={null}
-        className="creative-modal details-modal"
-        title={null}
-      >
-        <h3 className="modal-heading black-heading">
-          <EyeOutlined />{" "}
-          {viewMode === "day"
-            ? "Day Details"
-            : viewMode === "week"
-              ? "Week Details"
-              : "Month Details"}
+          <EyeOutlined /> {viewMode === "day" ? "Day Details" : viewMode === "week" ? "Week Details" : "Month Details"}
         </h3>
 
         {viewMode === "day" && (
           <>
-            <p className="modal-date-text">
-              {dayjs(selectedDate).format("dddd, MMMM D, YYYY")}
-            </p>
+            <p className="modal-date-text">{dayjs(selectedDate).format("dddd, MMMM D, YYYY")}</p>
 
             <div className="details-count">
-              {selectedEvents.length} event
-              {selectedEvents.length === 1 ? "" : "s"} on this day
+              {selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"} on this day
             </div>
 
             {selectedEvents.length === 0 ? (
@@ -777,15 +882,8 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
             ) : (
               <div className="details-scroll">
-                {renderDetailsSection({
-                  title: "Created Events",
-                  events: selectedEventGroups.created,
-                })}
-
-                {renderDetailsSection({
-                  title: "Holiday / Other Events",
-                  events: selectedEventGroups.other,
-                })}
+                {renderEventSection({ title: "Created Events", events: selectedEventGroups.created })}
+                {renderDetailsSection({ title: "Holiday / Other Events", events: selectedEventGroups.other })}
               </div>
             )}
           </>
@@ -795,16 +893,12 @@ const CalendarModal = ({ open, onClose }) => {
           <>
             <p className="modal-date-text">
               {selectedWeekInfo
-                ? `${currentMonth.format("MMMM")} ${selectedWeekInfo.start} - ${
-                    selectedWeekInfo.end
-                  }, ${currentMonth.format("YYYY")}`
+                ? `${currentMonth.format("MMMM")} ${selectedWeekInfo.start} - ${selectedWeekInfo.end}, ${currentMonth.format("YYYY")}`
                 : ""}
             </p>
 
             <div className="details-count">
-              {selectedWeekEvents.length} event
-              {selectedWeekEvents.length === 1 ? "" : "s"} in Week{" "}
-              {selectedWeek}
+              {selectedWeekEvents.length} event{selectedWeekEvents.length === 1 ? "" : "s"} in Week {selectedWeek}
             </div>
 
             {selectedWeekEvents.length === 0 ? (
@@ -813,15 +907,8 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
             ) : (
               <div className="details-scroll">
-                {renderDetailsSection({
-                  title: "Created Events",
-                  events: selectedWeekGroups.created,
-                })}
-
-                {renderDetailsSection({
-                  title: "Holiday / Other Events",
-                  events: selectedWeekGroups.other,
-                })}
+                {renderDetailsSection({ title: "Created Events", events: selectedWeekGroups.created })}
+                {renderDetailsSection({ title: "Holiday / Other Events", events: selectedWeekGroups.other })}
               </div>
             )}
           </>
@@ -832,8 +919,7 @@ const CalendarModal = ({ open, onClose }) => {
             <p className="modal-date-text">{currentMonth.format("MMMM YYYY")}</p>
 
             <div className="details-count">
-              {selectedMonthEvents.length} event
-              {selectedMonthEvents.length === 1 ? "" : "s"} in this month
+              {selectedMonthEvents.length} event{selectedMonthEvents.length === 1 ? "" : "s"} in this month
             </div>
 
             {selectedMonthEvents.length === 0 ? (
@@ -842,15 +928,8 @@ const CalendarModal = ({ open, onClose }) => {
               </div>
             ) : (
               <div className="details-scroll">
-                {renderDetailsSection({
-                  title: "Created Events",
-                  events: selectedMonthGroups.created,
-                })}
-
-                {renderDetailsSection({
-                  title: "Holiday / Other Events",
-                  events: selectedMonthGroups.other,
-                })}
+                {renderDetailsSection({ title: "Created Events", events: selectedMonthGroups.created })}
+                {renderDetailsSection({ title: "Holiday / Other Events", events: selectedMonthGroups.other })}
               </div>
             )}
           </>
@@ -862,6 +941,7 @@ const CalendarModal = ({ open, onClose }) => {
         onCancel={() => setCreateOpen(false)}
         onOk={createEvent}
         okText="Create Event"
+        cancelText="Cancel"
         className="create-event-modal creative-modal"
         title={null}
       >
@@ -876,7 +956,6 @@ const CalendarModal = ({ open, onClose }) => {
           </div>
 
           <label>Event Title</label>
-
           <Input
             placeholder="Enter event title"
             value={title}
@@ -884,8 +963,33 @@ const CalendarModal = ({ open, onClose }) => {
             onPressEnter={createEvent}
           />
 
-          <label>Event Color</label>
+          <label>Description</label>
+          <Input
+            placeholder="Example: Client call, birthday plan, project review"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
 
+          <label>Event Timing</label>
+          <div className="time-picker-row">
+            <TimePicker
+              value={startTime}
+              format="HH:mm"
+              minuteStep={5}
+              onChange={setStartTime}
+              suffixIcon={<ClockCircleOutlined />}
+            />
+
+            <TimePicker
+              value={endTime}
+              format="HH:mm"
+              minuteStep={5}
+              onChange={setEndTime}
+              suffixIcon={<ClockCircleOutlined />}
+            />
+          </div>
+
+          <label>Event Color</label>
           <Select value={color} onChange={setColor}>
             {COLORS.map((item) => (
               <Option key={item.value} value={item.value}>
