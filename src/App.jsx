@@ -21,12 +21,20 @@ function App() {
   };
 
   return (
-    <AppRoutes
-      isAuthenticated={isAuthenticated}
-      onLogin={handleLoginSuccess}
-      onLogout={handleLogout}
-      user={user}
-    />
+    <div style={{ 
+      width: "100%", 
+      minHeight: "100vh", 
+      backgroundColor: "#020617", 
+      margin: 0, 
+      padding: 0 
+    }}>
+      <AppRoutes
+        isAuthenticated={isAuthenticated}
+        onLogin={handleLoginSuccess}
+        onLogout={handleLogout}
+        user={user}
+      />
+    </div>
   );
 }
 

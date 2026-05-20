@@ -5,4 +5,12 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+  background-color: #020617 !important;
+  color: #ffffff;
+}
+
+/* Structural fix to avoid default layout layout jumps */
+body {
+  overflow-x: hidden;
+  background: #020617 !important;
 }

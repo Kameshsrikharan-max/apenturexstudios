@@ -264,8 +264,12 @@
 }
 
 .metric-card {
-  min-height: 208px;
-  transition: transform 0.32s ease, border-color 0.32s ease, box-shadow 0.32s ease;
+  width: 260px; /* Set your desired width */
+  height: 210px; /* Make height equal to width for square shape */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .metric-card:hover {

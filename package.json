@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.2.2",
+    "@ant-design/icons": "^6.2.3",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
@@ -19,14 +19,20 @@
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
     "antd": "^6.3.7",
+    "axios": "^1.16.1",
     "cors": "^2.8.6",
     "dayjs": "^1.11.20",
     "dotenv": "^17.4.2",
+    "driver.js": "^1.4.0",
     "express": "^5.2.1",
     "framer-motion": "^12.38.0",
+    "howler": "^2.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "react-router-dom": "^7.14.2"
+    "react-redux": "^9.3.0",
+    "react-router-dom": "^7.14.2",
+    "redux": "^5.0.1",
+    "redux-saga": "^1.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
