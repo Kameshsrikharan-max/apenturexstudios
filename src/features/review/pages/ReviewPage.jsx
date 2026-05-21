@@ -1,33 +1,6 @@
-import React, { useMemo, useState } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Select,
-  Button,
-  Space,
-  Empty,
-  ConfigProvider,
-  Card,
-  Avatar,
-  Tooltip,
-  Modal,
-  Descriptions,
-  message,
-} from "antd";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  EyeOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  UsergroupAddOutlined,
-  CalendarOutlined,
-  ThunderboltOutlined,
-} from "@ant-design/icons";
+import  { useMemo, useState } from "react";
+import {Layout,Typography,Table,Input,Select,Button,Space,Empty,ConfigProvider, Card,Avatar,Tooltip,Modal,Descriptions, message,} from "antd";
+import {SearchOutlined,ReloadOutlined,EyeOutlined,CheckCircleOutlined,CloseCircleOutlined,AppstoreOutlined,BarsOutlined,UsergroupAddOutlined,CalendarOutlined,ThunderboltOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
 

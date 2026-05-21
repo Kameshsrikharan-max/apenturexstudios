@@ -9,7 +9,7 @@
   justify-content: space-between;
   gap: 24px;
   border-bottom: 1px solid rgba(125, 211, 252, 0.14);
-  background: rgba(8, 11, 22, 0.85); 
+  background: rgba(8, 11, 22, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
@@ -26,7 +26,7 @@
 
 .navbar-light {
   color: #082f49;
-  background: rgba(255, 255, 255, 0.85); 
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .navbar-left,
@@ -42,7 +42,7 @@
   gap: 12px;
   color: inherit;
   text-decoration: none;
-  flex-shrink: 0; 
+  flex-shrink: 0;
 }
 
 .brand-logo {
@@ -81,7 +81,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap; 
+  flex-wrap: nowrap;
 }
 
 .nav-menu a {
@@ -123,7 +123,9 @@
   transition: 0.25s ease;
 }
 
-.nav-icon-button:hover {
+.nav-icon-button:hover,
+.nav-icon-button:focus-visible,
+.nav-icon-button:active {
   transform: translateY(-2px);
   color: #082f49;
   background: #38bdf8;
@@ -137,8 +139,59 @@
 }
 
 .tour-button {
+  color: inherit;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tour-button:hover,
+.tour-button:focus-visible,
+.tour-button:active {
   color: #082f49;
   background: linear-gradient(135deg, #7dd3fc, #38bdf8);
+}
+
+.nav-tooltip {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  z-index: 2300;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: #082f49;
+  background: #38bdf8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-4px);
+  transition: 150ms ease;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+}
+
+.nav-tooltip::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #38bdf8;
+  transform: translateX(-50%) translateY(4px) rotate(45deg);
+}
+
+.nav-icon-button:hover .nav-tooltip,
+.nav-icon-button:focus .nav-tooltip,
+.nav-icon-button:focus-visible .nav-tooltip,
+.nav-icon-button:active .nav-tooltip,
+.nav-user:hover .nav-tooltip,
+.nav-user:focus .nav-tooltip,
+.nav-user:focus-visible .nav-tooltip,
+.nav-user:active .nav-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .notification-button {
@@ -163,46 +216,6 @@
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
 }
 
-.notification-tooltip {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 50%;
-  z-index: 2200;
-  padding: 7px 10px;
-  border-radius: 8px;
-  color: #082f49;
-  background: #38bdf8;
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(50%) translateY(-4px);
-  transition: 150ms ease;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
-}
-
-.notification-tooltip::before {
-  content: "";
-  position: absolute;
-  bottom: 100%;
-  right: 50%;
-  width: 8px;
-  height: 8px;
-  background: #38bdf8;
-  transform: translateX(50%) translateY(4px) rotate(45deg);
-}
-
-.notification-button:hover .notification-tooltip,
-.notification-button:focus .notification-tooltip,
-.notification-button:focus-visible .notification-tooltip,
-.notification-button:active .notification-tooltip {
-  opacity: 1;
-  transform: translateX(50%) translateY(0);
-}
-
 .notify-dot {
   position: absolute;
   top: 9px;
@@ -219,6 +232,7 @@
 }
 
 .nav-user {
+  position: relative;
   height: 46px;
   padding: 5px 12px 5px 5px;
   display: flex;
@@ -338,10 +352,10 @@
   background: #f87171;
 }
 
-.nav-modal-overlay,
-.tour-overlay {
+.nav-modal-overlay {
   position: fixed;
   inset: 0;
+  z-index: 3000;
   display: grid;
   place-items: center;
   padding: 18px;
@@ -350,17 +364,9 @@
   -webkit-backdrop-filter: blur(10px);
 }
 
-.nav-modal-overlay {
-  z-index: 3000;
-}
-
-.tour-overlay {
-  z-index: 3500;
-  background: rgba(2, 6, 23, 0.66);
-}
-
-.nav-modal,
-.tour-card {
+.nav-modal {
+  width: min(440px, 100%);
+  padding: 20px;
   border: 1px solid rgba(125, 211, 252, 0.24);
   border-radius: 16px;
   color: #f8fafc;
@@ -371,29 +377,19 @@
   animation: navModalIn 0.2s ease both;
 }
 
-.nav-modal {
-  width: min(440px, 100%);
-  padding: 20px;
-}
-
-.tour-card {
-  width: min(420px, 100%);
-  padding: 20px;
-}
-
 @keyframes navModalIn {
   from {
     opacity: 0;
     transform: translateY(12px) scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
-.nav-modal-head,
-.tour-card-head {
+.nav-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -401,19 +397,13 @@
   margin-bottom: 14px;
 }
 
-.nav-modal-head h3,
-.tour-card h3 {
+.nav-modal-head h3 {
   margin: 0;
   font-size: 20px;
   font-weight: 900;
 }
 
-.tour-card h3 {
-  font-size: 21px;
-}
-
-.nav-modal-head button,
-.tour-card-head button {
+.nav-modal-head button {
   width: 34px;
   height: 34px;
   display: grid;
@@ -427,83 +417,9 @@
   transition: 160ms ease;
 }
 
-.nav-modal-head button:hover,
-.tour-card-head button:hover {
+.nav-modal-head button:hover {
   color: #082f49;
   background: #38bdf8;
-}
-
-.tour-card-head span {
-  color: #93c5fd;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.tour-card p {
-  margin: 10px 0 0;
-  color: #cbd5e1;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.tour-progress {
-  display: flex;
-  gap: 7px;
-  margin-top: 18px;
-}
-
-.tour-progress span {
-  height: 7px;
-  flex: 1;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.tour-progress span.active {
-  background: #38bdf8;
-}
-
-.tour-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.tour-secondary-button,
-.tour-primary-button {
-  height: 38px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 900;
-  font-family: inherit;
-  cursor: pointer;
-  transition: 160ms ease;
-}
-
-.tour-secondary-button {
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tour-secondary-button:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.tour-secondary-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.tour-primary-button {
-  color: #082f49;
-  background: linear-gradient(135deg, #7dd3fc, #38bdf8);
-}
-
-.tour-primary-button:hover {
-  filter: brightness(1.05);
 }
 
 .profile-card {
@@ -782,6 +698,7 @@
     opacity: 0;
     transform: translateY(-8px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -986,7 +903,7 @@
 @media (max-width: 1120px) {
   .top-navbar {
     padding: 14px 20px;
-    flex-direction: column; 
+    flex-direction: column;
     align-items: stretch;
     min-height: auto;
     gap: 14px;
@@ -1003,12 +920,13 @@
     overflow-x: auto;
     padding-bottom: 6px;
     justify-content: flex-start;
-    -webkit-overflow-scrolling: touch; 
+    -webkit-overflow-scrolling: touch;
   }
-  
+
   .nav-menu::-webkit-scrollbar {
     height: 3px;
   }
+
   .nav-menu::-webkit-scrollbar-thumb {
     background: rgba(125, 211, 252, 0.2);
     border-radius: 99px;
@@ -1041,28 +959,35 @@
     height: 40px;
   }
 
+  .nav-tooltip {
+    top: calc(100% + 8px);
+    left: auto;
+    right: 0;
+    transform: translateX(0) translateY(-4px);
+  }
+
+  .nav-tooltip::before {
+    left: auto;
+    right: 16px;
+    transform: translateY(4px) rotate(45deg);
+  }
+
+  .nav-icon-button:hover .nav-tooltip,
+  .nav-icon-button:focus .nav-tooltip,
+  .nav-icon-button:focus-visible .nav-tooltip,
+  .nav-icon-button:active .nav-tooltip,
+  .nav-user:hover .nav-tooltip,
+  .nav-user:focus .nav-tooltip,
+  .nav-user:focus-visible .nav-tooltip,
+  .nav-user:active .nav-tooltip {
+    transform: translateX(0) translateY(0);
+  }
+
   .mini-calendar-popover {
     position: fixed;
     top: 76px;
     right: 12px;
     width: min(292px, calc(100vw - 24px));
-  }
-
-  .notification-tooltip {
-    right: 0;
-    transform: translateX(0) translateY(-4px);
-  }
-
-  .notification-tooltip::before {
-    right: 16px;
-    transform: translateY(4px) rotate(45deg);
-  }
-
-  .notification-button:hover .notification-tooltip,
-  .notification-button:focus .notification-tooltip,
-  .notification-button:focus-visible .notification-tooltip,
-  .notification-button:active .notification-tooltip {
-    transform: translateX(0) translateY(0);
   }
 
   .nav-user-dropdown {

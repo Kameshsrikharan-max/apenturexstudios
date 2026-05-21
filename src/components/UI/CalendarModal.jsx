@@ -1,27 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Modal,
-  Input,
-  Select,
-  Button,
-  Empty,
-  Spin,
-  Segmented,
-  TimePicker,
-} from "antd";
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  SaveOutlined,
-  CalendarOutlined,
-  LeftOutlined,
-  RightOutlined,
-  AimOutlined,
-  EyeOutlined,
-  CloseOutlined,
-  ClockCircleOutlined,
-} from "@ant-design/icons";
+import { useEffect, useMemo, useState } from "react";
+import {Modal,Input,Select,Button,Empty,Spin,Segmented,TimePicker,} from "antd";
+import {PlusOutlined,DeleteOutlined,EditOutlined,SaveOutlined,CalendarOutlined,LeftOutlined,RightOutlined,AimOutlined,EyeOutlined,CloseOutlined,ClockCircleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./CalendarModal.css";
 
@@ -222,11 +201,11 @@ const CalendarModal = ({ open, onClose }) => {
     });
   }, [currentMonth]);
 
-  useEffect(() => {
-    setSelectedWeek(1);
-  }, [monthKey]);
+ 
 
-  const selectedEvents = events[selectedDate] || [];
+ const selectedEvents = useMemo(() => {
+  return events[selectedDate] || [];
+}, [events, selectedDate]);
   const selectedWeekInfo = weeks.find((week) => week.value === selectedWeek);
 
   const displayedDates = useMemo(() => {

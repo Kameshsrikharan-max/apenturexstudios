@@ -1,43 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Typography,
-  Card,
-  Row,
-  Col,
-  Progress,
-  Table,
-  Avatar,
-  Space,
-  Tag,
-  Button,
-  ConfigProvider,
-  Badge,
-  Statistic,
-  Empty,
-  Input,
-  Drawer,
-  Segmented,
-  FloatButton,
-} from "antd";
-import {
-  ArrowRightOutlined,
-  CalendarOutlined,
-  ThunderboltFilled,
-  HistoryOutlined,
-  UsergroupAddOutlined,
-  VideoCameraOutlined,
-  PlusOutlined,
-  RiseOutlined,
-  SafetyCertificateOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  FireOutlined,
-  EyeOutlined,
-  CheckCircleOutlined,
-  DollarOutlined,
-  TeamOutlined,
-  SearchOutlined,
-} from "@ant-design/icons";
+import  { useEffect, useMemo, useState } from "react";
+import {Typography,Card,Row,Col,Progress,Table,Avatar,Space,Tag,Button,ConfigProvider,Badge,Statistic,Empty,Input,Drawer,Segmented,FloatButton,} from "antd";
+import {ArrowRightOutlined,CalendarOutlined,ThunderboltFilled,HistoryOutlined,UsergroupAddOutlined,VideoCameraOutlined,PlusOutlined,RiseOutlined,SafetyCertificateOutlined,CameraOutlined,PictureOutlined,FireOutlined,EyeOutlined,CheckCircleOutlined,DollarOutlined,TeamOutlined,SearchOutlined,} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import "./DashboardPage.css";
 

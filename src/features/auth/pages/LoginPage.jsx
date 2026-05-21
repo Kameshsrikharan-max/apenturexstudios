@@ -1,33 +1,9 @@
-import React, { useState, useEffect } from "react";
-import {
-  motion,
-  AnimatePresence,
-  useSpring,
-  useMotionValue,
-  useTransform,
-} from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion,AnimatePresence,useSpring,useMotionValue, useTransform,} from "framer-motion";
 
-import {
-  Button,
-  Input,
-  Space,
-  Typography,
-  Card,
-  message,
-  ConfigProvider,
-  Row,
-  Col,
-} from "antd";
+import {Button, Input, Space,Typography,Card,message,ConfigProvider,Row,Col,} from "antd";
 
-import {
-  CameraOutlined,
-  ScanOutlined,
-  UserOutlined,
-  LoadingOutlined,
-  GoogleOutlined,
-  TwitterOutlined,
-  FacebookOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,ScanOutlined,UserOutlined,LoadingOutlined,GoogleOutlined,TwitterOutlined,FacebookOutlined,} from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
@@ -176,7 +152,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
       >
         {contextHolder}
 
-        {/*BACKGROUND IMAGE */}
+      
         <motion.div
           style={{
             position: "absolute",
@@ -203,7 +179,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
           }}
         />
 
-        {/*BLUE SCREEN / WELCOME SCREEN*/}
+        
         <AnimatePresence>
           {isAnimating && (
             <motion.div
@@ -222,7 +198,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                 overflow: "hidden",
               }}
             >
-              {/* BACKGROUND */}
+            
               <motion.div
                 initial={{ scale: 1.2 }}
                 animate={{ scale: 1 }}
@@ -245,7 +221,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                 }}
               />
 
-              {/* GLOW */}
+          
               <motion.div
                 animate={{
                   opacity: [0.3, 0.7, 0.3],
@@ -267,7 +243,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                 }}
               />
 
-              {/* CONTENT */}
+              
               <div
                 style={{
                   position: "relative",
@@ -275,7 +251,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                   textAlign: "center",
                 }}
               >
-                {/* CAMERA ANIMATION */}
+                
                 <motion.div
                   initial={{
                     y: -500,
@@ -316,7 +292,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                   </motion.div>
                 </motion.div>
 
-                {/* CAMERA FLASH */}
+            
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{
@@ -335,7 +311,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                   }}
                 />
 
-                {/* WELCOME TEXT */}
+              
                 <motion.div
                   initial={{
                     opacity: 0,
@@ -366,7 +342,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     Welcome To
                   </Text>
 
-                  {/* TITLE */}
+            
                   <div
                     style={{
                       display: "flex",
@@ -375,7 +351,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                       flexWrap: "wrap",
                     }}
                   >
-                    {"APERTURE".split("").map((char, i) => (
+                    {"APENTURE".split("").map((char, i) => (
                       <motion.span
                         key={i}
                         initial={{
@@ -452,7 +428,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     ))}
                   </div>
 
-                  {/* SUBTEXT */}
+                  
                   <motion.div
                     initial={{
                       opacity: 0,
@@ -478,7 +454,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     </Text>
                   </motion.div>
 
-                  {/* LOADING BAR */}
+                  
                   <motion.div
                     initial={{
                       width: 0,
@@ -506,7 +482,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
           )}
         </AnimatePresence>
 
-        {/*MAIN CONTENT*/}
+        
         <Row
           style={{
             height: "100vh",
@@ -514,7 +490,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
             zIndex: 10,
           }}
         >
-          {/* LEFT */}
+          
           <Col
             xs={0}
             md={12}
@@ -553,7 +529,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     ...timesFont,
                   }}
                 >
-                  APERTURE X Studios
+                  APENTURE X Studios
                 </Title>
               </Space>
 
@@ -579,7 +555,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                 craft
               </Title>
 
-              {/* QUOTES */}
+              
               <div
                 style={{
                   height: "60px",
@@ -621,7 +597,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
             </motion.div>
           </Col>
 
-          {/* RIGHT */}
+        
           <Col
             xs={24}
             md={12}
@@ -708,7 +684,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     gap: "25px",
                   }}
                 >
-                  {/* INPUT */}
+              
                   <motion.div variants={itemVariants}>
                     <Text className="label-text">
                       Email or Number
@@ -732,7 +708,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     />
                   </motion.div>
 
-                  {/* BUTTON */}
+                  
                   <motion.div variants={itemVariants}>
                     <Button
                       block
@@ -752,7 +728,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     </Button>
                   </motion.div>
 
-                  {/* SOCIAL */}
+                
                   <motion.div
                     variants={itemVariants}
                     style={{
@@ -785,7 +761,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     </div>
                   </motion.div>
 
-                  {/* SIGNUP */}
+              
                   <motion.div
                     variants={itemVariants}
                     style={{
@@ -809,7 +785,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
           </Col>
         </Row>
 
-        {/*STYLES */}
+        
         <style>{`
           .glass-card {
             transition: border 0.4s ease;

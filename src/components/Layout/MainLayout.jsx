@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { ConfigProvider } from "antd";
 import Navbar from "./Navbar";
 import Sidebar from "../UI/Sidebar";
 import CalendarModal from "../UI/CalendarModal";
+import StudioTour from "../StudioTour/StudioTour";
 import "./MainLayout.css";
 
 const MainLayout = ({ children, user }) => {
@@ -47,14 +48,14 @@ const MainLayout = ({ children, user }) => {
             <h3>Apenture X Studios</h3>
             <p>Creative blue admin experience for dashboard, reviews, users, and enquiries.</p>
           </div>
-
-         
         </footer>
 
         <CalendarModal
           open={calendarOpen}
           onClose={() => setCalendarOpen(false)}
         />
+
+        <StudioTour />
       </div>
     </ConfigProvider>
   );

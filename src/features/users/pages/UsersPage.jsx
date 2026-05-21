@@ -1,43 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Avatar,
-  Tabs,
-  Tooltip,
-  Popover,
-  Modal,
-  Form,
-  Select,
-  message,
-  Empty,
-  Divider,
-} from "antd";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  UserAddOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SendOutlined,
-  UserSwitchOutlined,
-  WarningOutlined,
-  EnvironmentOutlined,
-  CalendarOutlined,
-  SaveOutlined,
-} from "@ant-design/icons";
+import  { useEffect, useMemo, useState } from "react";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Modal,Form,Select,message,Empty,Divider,} from "antd";
+import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,DeleteOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,WarningOutlined,EnvironmentOutlined, CalendarOutlined,SaveOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./UsersPage.css";
 
@@ -74,7 +37,21 @@ const UsersPage = () => {
     { id: "9", name: "Paul", email: "anitha.p@gmail.com", phone: "9000111222", studio: "Wave Studios", role: "Editor", status: "Active", signupType: "Registered", created: "28 Apr 2026" },
   ]);
 
-  const referralsData = [];
+  const [referralsData] = useState([
+  {
+    id: "r1",
+    name: "Referral User",
+    email: "referral@gmail.com",
+    phone: "9999999999",
+    studio: "Wave Studios",
+    role: "Referral",
+    status: "Active",
+    signupType: "Registered",
+    created: "06 May 2026",
+  },
+]);
+
+  
 
   const [photographersData, setPhotographersData] = useState([
     { id: "p1", name: "Srikharan Kamesh", email: "srikharankamesh@gmail.com", phone: "8888888888", role: "Freelance Photographer", status: "Active", signupType: "Registered", created: "06 May 2026", shoots: 18, location: "Chennai", notes: "Reliable for wedding and event shoots." },
@@ -103,8 +80,7 @@ const UsersPage = () => {
     if (activeTab === "referrals") return referralsData;
     if (activeTab === "photographers") return photographersData;
     return usersData;
-  }, [activeTab, photographersData, usersData]);
-
+  }, [activeTab, referralsData, photographersData, usersData]);
   const filterOptions = useMemo(() => {
     if (activeTab !== "photographers") {
       return ["All", "Active", "Inactive", "Pending", "Registered", "Google"];

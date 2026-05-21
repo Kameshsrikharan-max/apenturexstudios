@@ -1,4 +1,3 @@
-import React from "react";
 import { Layout, Menu, Typography } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -51,6 +50,14 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
       label: "Enquiry",
       path: "/enquiry",
     },
+
+     {
+    key: "media",
+    icon: <CameraOutlined />,
+    label: "Media Library",
+    path: "/media",
+  }, 
+  
     {
       key: "studio",
       icon: <ShopOutlined />,

@@ -1,37 +1,6 @@
-import React, { useMemo, useState } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Tooltip,
-  Popover,
-  Modal,
-  message,
-  Descriptions,
-  Select,
-  Form,
-  Divider,
-  Timeline,
-} from "antd";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  MoreOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  FireOutlined,
-} from "@ant-design/icons";
+import  { useMemo, useState } from "react";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Tooltip,Popover,Modal,message,Descriptions,Select,Form,Divider,Timeline,} from "antd";
+import {SearchOutlined,ReloadOutlined,PlusOutlined,EyeOutlined,EditOutlined,DeleteOutlined,UserOutlined,PhoneOutlined,MoreOutlined,ClockCircleOutlined,FileTextOutlined,FireOutlined,} from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
 import "./EnquiryPage.css";

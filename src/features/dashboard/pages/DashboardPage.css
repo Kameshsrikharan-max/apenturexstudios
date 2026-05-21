@@ -21,9 +21,14 @@
   color: #bfdbfe !important;
 }
 
-.dashboard-local-search {
+.dashboard-search-tour-target {
   max-width: 460px;
   min-width: 260px;
+  width: 100%;
+}
+
+.dashboard-local-search {
+  width: 100%;
 }
 
 .dashboard-local-search .ant-input-group,
@@ -264,8 +269,8 @@
 }
 
 .metric-card {
-  width: 260px; /* Set your desired width */
-  height: 210px; /* Make height equal to width for square shape */
+  width: 260px;
+  height: 210px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -426,12 +431,145 @@
   box-shadow: 0 0 34px rgba(56, 189, 248, 0.44);
 }
 
+.dashboard-tour-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  pointer-events: none;
+}
+
+.dashboard-tour-spotlight {
+  position: fixed;
+  border-radius: 16px;
+  background: transparent;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72);
+  outline: 4px solid #38bdf8;
+  outline-offset: 4px;
+  transition: 220ms ease;
+  pointer-events: none;
+}
+
+.dashboard-tour-card {
+  position: fixed;
+  padding: 20px 22px;
+  border-radius: 8px;
+  color: #050505;
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
+  pointer-events: auto;
+  transition: 220ms ease;
+}
+
+.dashboard-tour-card::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 34px;
+  width: 18px;
+  height: 18px;
+  background: #38bdf8;
+  transform: rotate(45deg);
+}
+
+.dashboard-tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dashboard-tour-head span {
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.62);
+}
+
+.dashboard-tour-head button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #000000;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dashboard-tour-card h3 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 950;
+  color: #050505;
+}
+
+.dashboard-tour-card p {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 650;
+  color: #050505;
+}
+
+.dashboard-tour-progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.dashboard-tour-progress span {
+  height: 7px;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.dashboard-tour-progress span.active {
+  background: #050505;
+}
+
+.dashboard-tour-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.dashboard-tour-actions button {
+  min-width: 126px;
+  height: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #050505;
+  font-size: 14px;
+  font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.dashboard-tour-actions button:first-child {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.dashboard-tour-actions button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
   .dashboard-page-top {
     align-items: flex-start;
   }
 
-  .dashboard-local-search {
+  .dashboard-search-tour-target {
     max-width: none;
     width: 100%;
   }
@@ -448,5 +586,26 @@
   .quote-runner {
     height: auto;
     min-height: 94px;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-tour-card {
+    width: calc(100vw - 32px) !important;
+    left: 16px !important;
+    padding: 18px;
+  }
+
+  .dashboard-tour-card h3 {
+    font-size: 19px;
+  }
+
+  .dashboard-tour-card p {
+    font-size: 14px;
+  }
+
+  .dashboard-tour-actions button {
+    min-width: 0;
+    flex: 1;
   }
 }

@@ -1,20 +1,6 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import {
-  MenuOutlined,
-  CalendarOutlined,
-  BellOutlined,
-  SunOutlined,
-  MoonOutlined,
-  LeftOutlined,
-  RightOutlined,
-  DownOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-  ProfileOutlined,
-  CloseOutlined,
-  CompassOutlined,
-} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
 
@@ -74,8 +60,6 @@ function Navbar({
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [upcomingEventsOpen, setUpcomingEventsOpen] = useState(false);
-  const [tourOpen, setTourOpen] = useState(false);
-  const [tourStep, setTourStep] = useState(0);
 
   const [notificationType, setNotificationType] = useState(
     localStorage.getItem("notificationPreference") || ""
@@ -83,41 +67,6 @@ function Navbar({
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
-
-  const tourSteps = [
-    {
-      title: "Welcome to Apenture X Studios",
-      text: "This admin panel helps you manage the studio dashboard, reviews, users, enquiries, events, and notifications.",
-    },
-    {
-      title: "Dashboard",
-      text: "Use the dashboard to view the main studio overview and important daily updates.",
-    },
-    {
-      title: "Reviews",
-      text: "Open Reviews to check client feedback and manage studio ratings.",
-    },
-    {
-      title: "Users",
-      text: "Use Users to manage people connected with your studio panel.",
-    },
-    {
-      title: "Enquiry",
-      text: "Open Enquiry to view and respond to client booking or service requests.",
-    },
-    {
-      title: "Calendar",
-      text: "Use the calendar icon to check upcoming shoots, bookings, meetings, and studio events.",
-    },
-    {
-      title: "Notifications",
-      text: "The bell icon shows upcoming events and important studio reminders.",
-    },
-    {
-      title: "Profile",
-      text: "Use your profile menu to view account details, update notification settings, or logout.",
-    },
-  ];
 
   const dates = useMemo(() => {
     const list = [];
@@ -153,26 +102,7 @@ function Navbar({
     setProfileModalOpen(false);
     setNotificationSettingsOpen(false);
     setUpcomingEventsOpen(false);
-    setTourStep(0);
-    setTourOpen(true);
-  };
-
-  const closeTour = () => {
-    setTourOpen(false);
-    setTourStep(0);
-  };
-
-  const nextTourStep = () => {
-    if (tourStep === tourSteps.length - 1) {
-      closeTour();
-      return;
-    }
-
-    setTourStep((current) => current + 1);
-  };
-
-  const previousTourStep = () => {
-    setTourStep((current) => Math.max(current - 1, 0));
+    window.dispatchEvent(new Event("startStudioTour"));
   };
 
   const toggleMiniCalendar = () => {
@@ -221,28 +151,34 @@ function Navbar({
   };
 
   const handleLogout = () => {
-    setUserMenuOpen(false);
-    setProfileModalOpen(false);
-    setNotificationSettingsOpen(false);
-    setUpcomingEventsOpen(false);
-    setTourOpen(false);
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("isLoggedIn");
 
-    if (onLogout) {
-      onLogout();
-    }
+  setUserMenuOpen(false);
 
-    navigate("/", { replace: true });
-  };
+  if (onLogout) {
+    onLogout();
+  }
 
+  navigate("/login", { replace: true });
+};
   return (
     <>
       <header className={`top-navbar ${darkMode ? "navbar-dark" : "navbar-light"}`}>
         <div className="navbar-left">
-          <button type="button" className="nav-icon-button" onClick={onSidebarOpen}>
+          <button
+            type="button"
+            className="nav-icon-button"
+            onClick={onSidebarOpen}
+            aria-label="Open sidebar"
+            data-tour-id="nav-sidebar"
+          >
             <MenuOutlined />
+            <span className="nav-tooltip">Sidebar</span>
           </button>
 
-          <NavLink to="/dashboard" className="nav-brand">
+          <NavLink to="/dashboard" className="nav-brand" data-tour-id="nav-brand">
             <span className="brand-logo">A</span>
 
             <div>
@@ -252,11 +188,22 @@ function Navbar({
           </NavLink>
         </div>
 
-        <nav className="nav-menu">
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/review">Review</NavLink>
-          <NavLink to="/users">Users</NavLink>
-          <NavLink to="/enquiry">Enquiry</NavLink>
+        <nav className="nav-menu" data-tour-id="nav-menu">
+          <NavLink to="/dashboard" data-tour-id="nav-dashboard">
+            Dashboard
+          </NavLink>
+
+          <NavLink to="/review" data-tour-id="nav-review">
+            Review
+          </NavLink>
+
+          <NavLink to="/users" data-tour-id="nav-users">
+            Users
+          </NavLink>
+
+          <NavLink to="/enquiry" data-tour-id="nav-enquiry">
+            Enquiry
+          </NavLink>
         </nav>
 
         <div className="navbar-actions">
@@ -264,10 +211,11 @@ function Navbar({
             type="button"
             className="nav-icon-button tour-button"
             onClick={startTour}
-            aria-label="Start Apenture X Studios tour"
-            title="Start Tour"
+            aria-label="Start studio tour"
+            data-tour-id="nav-tour"
           >
             <CompassOutlined />
+            <span className="nav-tooltip">Studio Tour</span>
           </button>
 
           <div className="mini-calendar-wrap">
@@ -275,8 +223,11 @@ function Navbar({
               type="button"
               className={`nav-icon-button ${miniCalendarOpen ? "active" : ""}`}
               onClick={toggleMiniCalendar}
+              aria-label="Open calendar"
+              data-tour-id="nav-calendar"
             >
               <CalendarOutlined />
+              <span className="nav-tooltip">Calendar</span>
             </button>
 
             {miniCalendarOpen && (
@@ -356,30 +307,36 @@ function Navbar({
             type="button"
             className="nav-icon-button notification-button"
             onClick={openUpcomingEvents}
-            aria-label={`${upcomingEvents.length} notification${
-              upcomingEvents.length === 1 ? "" : "s"
-            }`}
+            aria-label="Open notifications"
+            data-tour-id="nav-notifications"
           >
             <BellOutlined />
 
             {upcomingEvents.length > 0 && (
-              <>
-                <span className="notify-count">
-                  {upcomingEvents.length > 99 ? "99+" : upcomingEvents.length}
-                </span>
-
-                <span className="notification-tooltip">
-                  {upcomingEvents.length} notification{upcomingEvents.length === 1 ? "" : "s"}
-                </span>
-              </>
+              <span className="notify-count">
+                {upcomingEvents.length > 99 ? "99+" : upcomingEvents.length}
+              </span>
             )}
+
+            <span className="nav-tooltip">
+              {upcomingEvents.length > 0
+                ? `${upcomingEvents.length} Notification${upcomingEvents.length === 1 ? "" : "s"}`
+                : "Notifications"}
+            </span>
           </button>
 
-          <button type="button" className="nav-icon-button" onClick={onToggleTheme}>
+          <button
+            type="button"
+            className="nav-icon-button"
+            onClick={onToggleTheme}
+            aria-label="Toggle theme"
+            data-tour-id="nav-theme"
+          >
             {darkMode ? <SunOutlined /> : <MoonOutlined />}
+            <span className="nav-tooltip">{darkMode ? "Light Mode" : "Dark Mode"}</span>
           </button>
 
-          <div className="nav-user-wrap">
+          <div className="nav-user-wrap" data-tour-id="nav-profile">
             <button
               type="button"
               className="nav-user"
@@ -387,6 +344,7 @@ function Navbar({
                 setUserMenuOpen((current) => !current);
                 setMiniCalendarOpen(false);
               }}
+              aria-label="Open profile menu"
             >
               <span className="nav-user-avatar">{displayName.charAt(0)}</span>
 
@@ -396,6 +354,7 @@ function Navbar({
               </div>
 
               <DownOutlined className={`nav-user-arrow ${userMenuOpen ? "open" : ""}`} />
+              <span className="nav-tooltip profile-tooltip">Profile</span>
             </button>
 
             {userMenuOpen && (
@@ -419,46 +378,6 @@ function Navbar({
           </div>
         </div>
       </header>
-
-      {tourOpen && (
-        <div className="tour-overlay">
-          <div className="tour-card">
-            <div className="tour-card-head">
-              <span>
-                Step {tourStep + 1} of {tourSteps.length}
-              </span>
-
-              <button type="button" onClick={closeTour} aria-label="Close tour">
-                <CloseOutlined />
-              </button>
-            </div>
-
-            <h3>{tourSteps[tourStep].title}</h3>
-            <p>{tourSteps[tourStep].text}</p>
-
-            <div className="tour-progress">
-              {tourSteps.map((step, index) => (
-                <span key={step.title} className={index === tourStep ? "active" : ""} />
-              ))}
-            </div>
-
-            <div className="tour-actions">
-              <button
-                type="button"
-                className="tour-secondary-button"
-                onClick={previousTourStep}
-                disabled={tourStep === 0}
-              >
-                Back
-              </button>
-
-              <button type="button" className="tour-primary-button" onClick={nextTourStep}>
-                {tourStep === tourSteps.length - 1 ? "Finish" : "Next"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {profileModalOpen && (
         <div className="nav-modal-overlay">

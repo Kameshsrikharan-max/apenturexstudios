@@ -13,6 +13,7 @@ import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import ReviewPage from "../features/review/pages/ReviewPage";
 import UsersPage from "../features/users/pages/UsersPage";
 import EnquiryPage from "../features/enquiry/pages/EnquiryPage";
+import MediaLibraryPage from "../features/media/pages/MediaLibraryPage.jsx";
 
 import MainLayout from "../components/Layout/MainLayout";
 
@@ -28,7 +29,12 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }) {
   );
 }
 
-export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) {
+export default function AppRoutes({
+  isAuthenticated,
+  onLogin,
+  onLogout,
+  user,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -64,11 +70,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
         <Route path="/review" element={<ReviewPage user={user} />} />
         <Route path="/users" element={<UsersPage user={user} />} />
         <Route path="/enquiry" element={<EnquiryPage user={user} />} />
+        <Route path="/media" element={<MediaLibraryPage user={user} />} />
       </Route>
 
       <Route
         path="*"
-        element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />}
+        element={
+          <Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />
+        }
       />
     </Routes>
   );

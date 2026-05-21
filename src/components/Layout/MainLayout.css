@@ -18,7 +18,8 @@
 .site-light {
   color: #082f49;
   background:
-    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.18), transparent 28%),
+    radial-gradient(circle at 82% 20%, rgba(14, 165, 233, 0.12), transparent 30%),
     linear-gradient(180deg, #eff9ff 0%, #dff3ff 48%, #f8fbff 100%);
 }
 
@@ -38,6 +39,7 @@
   background:
     radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.34), transparent 30%),
     linear-gradient(135deg, #031633 0%, #063b8f 55%, #0759c9 100%);
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .site-footer h3 {
@@ -66,6 +68,184 @@
   background: rgba(255, 255, 255, 0.14);
   font-size: 13px;
   font-weight: 800;
+}
+
+/* Light mode global readability fixes */
+.site-light .site-content {
+  color: #082f49;
+}
+
+.site-light .dashboard-page-content,
+.site-light .review-page,
+.site-light .enquiry-page,
+.site-light .review-content,
+.site-light .enquiry-content,
+.site-light .content-area {
+  color: #082f49 !important;
+}
+
+.site-light h1,
+.site-light h2,
+.site-light h3,
+.site-light h4,
+.site-light h5,
+.site-light .ant-typography,
+.site-light .ant-typography strong,
+.site-light .dashboard-title,
+.site-light .review-title,
+.site-light .enquiry-title,
+.site-light .page-title,
+.site-light .dashboard-page-top h2,
+.site-light .hero-section h2,
+.site-light .section-heading h4 {
+  color: #082f49 !important;
+}
+
+.site-light .ant-typography-secondary,
+.site-light .dashboard-page-top .ant-typography-secondary,
+.site-light .welcome-card .ant-typography-secondary,
+.site-light .metric-card .ant-typography-secondary,
+.site-light .dashboard-panel .ant-typography-secondary,
+.site-light .hero-section .ant-typography-secondary,
+.site-light .section-heading span,
+.site-light .role-text,
+.site-light .location-text,
+.site-light .package,
+.site-light .metric-card p,
+.site-light .stat-card p,
+.site-light .quote-text {
+  color: #475569 !important;
+}
+
+.site-light .welcome-card,
+.site-light .dashboard-panel,
+.site-light .metric-card,
+.site-light .feature-card,
+.site-light .table-wrapper,
+.site-light .empty-state,
+.site-light .talent-card,
+.site-light .user-panel-container,
+.site-light .hero-section,
+.site-light .stat-card,
+.site-light .table-container {
+  background: rgba(255, 255, 255, 0.86) !important;
+  border-color: rgba(14, 116, 144, 0.18) !important;
+  color: #082f49 !important;
+  box-shadow: 0 18px 44px rgba(8, 47, 73, 0.12) !important;
+}
+
+.site-light .dashboard-local-search .ant-input-group,
+.site-light .dashboard-local-search .ant-input,
+.site-light .dashboard-local-search .ant-input-affix-wrapper,
+.site-light .dashboard-local-search .ant-btn,
+.site-light .review-search .ant-input-affix-wrapper,
+.site-light .review-search input,
+.site-light .status-select .ant-select-selector,
+.site-light .enquiry-search.ant-input-affix-wrapper,
+.site-light .enquiry-search input,
+.site-light .filter-select .ant-select-selector,
+.site-light .enquiry-page .ant-input,
+.site-light .enquiry-page .ant-input-affix-wrapper,
+.site-light .enquiry-page .ant-select-selector,
+.site-light .enquiry-page .ant-btn-default {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(14, 116, 144, 0.22) !important;
+  color: #082f49 !important;
+}
+
+.site-light input::placeholder,
+.site-light textarea::placeholder,
+.site-light .dashboard-local-search input::placeholder,
+.site-light .review-search input::placeholder,
+.site-light .enquiry-search input::placeholder {
+  color: #64748b !important;
+}
+
+.site-light .ant-select-selection-item,
+.site-light .ant-select-arrow,
+.site-light .ant-input-prefix,
+.site-light .enquiry-page .ant-select-selection-item,
+.site-light .enquiry-page .ant-select-arrow,
+.site-light .enquiry-page .ant-input-prefix,
+.site-light .enquiry-page .anticon {
+  color: #082f49 !important;
+}
+
+.site-light .ant-table,
+.site-light .ant-table-container,
+.site-light .ant-table-cell,
+.site-light .ant-table-content,
+.site-light .ant-table-body,
+.site-light .review-table .ant-table,
+.site-light .review-table .ant-table-container,
+.site-light .review-table .ant-table-cell,
+.site-light .review-table .ant-table-content,
+.site-light .review-table .ant-table-body,
+.site-light .enquiry-table .ant-table,
+.site-light .enquiry-table .ant-table-container,
+.site-light .enquiry-table .ant-table-cell {
+  background: transparent !important;
+  color: #082f49 !important;
+}
+
+.site-light .ant-table-thead > tr > th,
+.site-light .review-table .ant-table-thead > tr > th,
+.site-light .enquiry-table .ant-table-thead > tr > th {
+  background: rgba(224, 242, 254, 0.78) !important;
+  color: #082f49 !important;
+  border-color: rgba(14, 116, 144, 0.18) !important;
+}
+
+.site-light .ant-table-tbody > tr > td,
+.site-light .review-table .ant-table-tbody > tr > td,
+.site-light .enquiry-table .ant-table-tbody > tr > td {
+  color: #0f172a !important;
+  border-color: rgba(14, 116, 144, 0.14) !important;
+}
+
+.site-light .ant-table-tbody > tr:hover > td,
+.site-light .review-table .ant-table-tbody > tr:hover > td,
+.site-light .enquiry-table .ant-table-tbody > tr:hover > td {
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.site-light .applicant-name,
+.site-light .date-chip,
+.site-light .talent-card h4,
+.site-light .upcoming-event-content h4,
+.site-light .enquiry-link,
+.site-light .feature-value,
+.site-light .dashboard-panel .ant-card-head-title,
+.site-light .metric-card .ant-statistic-content {
+  color: #082f49 !important;
+}
+
+.site-light .feature-label,
+.site-light .feature-caption {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Light mode footer */
+.site-light .site-footer {
+  color: #082f49;
+  background:
+    radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.22), transparent 30%),
+    linear-gradient(135deg, #ffffff 0%, #e0f2fe 48%, #bae6fd 100%);
+  border-top: 1px solid rgba(14, 116, 144, 0.16);
+}
+
+.site-light .site-footer h3 {
+  color: #082f49;
+}
+
+.site-light .site-footer p {
+  color: #475569;
+}
+
+.site-light .site-footer-tags span {
+  color: #075985;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 116, 144, 0.16);
 }
 
 @media (max-width: 760px) {
