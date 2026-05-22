@@ -900,6 +900,25 @@
   filter: brightness(1.05);
 }
 
+/* SETTINGS ICON ROTATION ONLY  */
+.settings-rotate svg {
+  animation: settingsSpin 3s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes settingsSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.settings-rotate:hover svg {
+  animation-play-state: paused;
+}
+
 @media (max-width: 1120px) {
   .top-navbar {
     padding: 14px 20px;
@@ -908,6 +927,7 @@
     min-height: auto;
     gap: 14px;
   }
+  
 
   .navbar-left {
     justify-content: space-between;

@@ -1,4 +1,4 @@
-import { Layout, Menu, Typography } from "antd";
+import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DashboardOutlined,
@@ -26,43 +26,48 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
       icon: <DashboardOutlined />,
       label: "Dashboard",
       path: "/dashboard",
+      tooltip: "View your main dashboard metrics",
     },
     {
       key: "review",
       icon: <StarOutlined />,
       label: "Review",
       path: "/review",
+      tooltip: "Manage and read client reviews",
     },
     {
       key: "users",
       icon: <UserOutlined />,
       label: "Users",
       path: "/users",
+      tooltip: "Manage client and team accounts",
     },
     {
       key: "events",
       icon: <CalendarOutlined />,
       label: "Calendar",
+      tooltip: "Open the event scheduler",
     },
     {
       key: "enquiry",
       icon: <MailOutlined />,
       label: "Enquiry",
       path: "/enquiry",
+      tooltip: "Check incoming customer inquiries",
     },
-
-     {
-    key: "media",
-    icon: <CameraOutlined />,
-    label: "Media Library",
-    path: "/media",
-  }, 
-  
+    {
+      key: "media",
+      icon: <CameraOutlined />,
+      label: "Media Library",
+      path: "/media",
+      tooltip: "Browse uploaded photos and videos",
+    },
     {
       key: "studio",
       icon: <ShopOutlined />,
       label: "My Studio",
       path: "/studio",
+      tooltip: "Configure your studio storefront settings",
     },
   ];
 
@@ -101,19 +106,25 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
           open ? "studio-sidebar-open" : "",
         ].join(" ")}
       >
-        <button type="button" className="sidebar-close" onClick={onClose}>
-          <CloseOutlined />
-        </button>
+        <Tooltip title="Close Sidebar" placement="left">
+          <button type="button" className="sidebar-close" onClick={onClose}>
+            <CloseOutlined />
+          </button>
+        </Tooltip>
 
         <div className="studio-sidebar-brand">
-          <div className="studio-brand-mark">
-            <CameraOutlined />
-          </div>
+          <Tooltip title="Aperture X Studios Identity" placement="bottom">
+            <div className="studio-brand-mark">
+              <CameraOutlined />
+            </div>
+          </Tooltip>
 
           <div>
-            <Text strong className="studio-brand-title">
-              AXS
-            </Text>
+            <Tooltip title="Aperture X Studios" placement="right">
+              <Text strong className="studio-brand-title">
+                AXS
+              </Text>
+            </Tooltip>
             <Text className="studio-brand-subtitle">
               Apenture X Studios
             </Text>
@@ -128,13 +139,20 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
           items={menuItems.map((item) => ({
             key: item.key,
             icon: item.icon,
-            label: item.label,
+            // Wrapped label in a full width div so the tooltip covers the entire item row
+            label: (
+              <Tooltip title={item.tooltip} placement="right" mouseEnterDelay={0.4}>
+                <div style={{ width: "100%", height: "100%" }}>{item.label}</div>
+              </Tooltip>
+            ),
           }))}
         />
 
-        <div className="studio-sidebar-footer">
-          <Text className="studio-version">Version 2.0</Text>
-        </div>
+        <Tooltip title="Current Production Version" placement="top">
+          <div className="studio-sidebar-footer">
+            <Text className="studio-version">Version 2.0</Text>
+          </div>
+        </Tooltip>
       </Sider>
     </>
   );

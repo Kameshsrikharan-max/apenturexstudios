@@ -1,3 +1,6 @@
+/* ==========================================================================
+   Backdrop and Base Sidebar Layout
+   ========================================================================== */
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
@@ -41,6 +44,9 @@
   transform: translateX(0);
 }
 
+/* ==========================================================================
+   Theme Variations (Dark & Light)
+   ========================================================================== */
 .studio-sidebar-dark {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 13, 24, 0.98)) !important;
 }
@@ -49,10 +55,14 @@
   background: linear-gradient(180deg, rgba(239, 249, 255, 0.98), rgba(186, 230, 253, 0.96)) !important;
 }
 
+/* Force global font styling inside the container */
 .studio-sidebar * {
   font-family: "Times New Roman", Times, serif !important;
 }
 
+/* ==========================================================================
+   Header and Branding Components
+   ========================================================================== */
 .sidebar-close {
   position: absolute;
   top: 18px;
@@ -74,6 +84,7 @@
   background: rgba(255, 255, 255, 0.56);
 }
 
+/* Decorative background glowing effects */
 .studio-sidebar::before {
   content: "";
   position: absolute;
@@ -165,6 +176,9 @@
   color: #0369a1 !important;
 }
 
+/* ==========================================================================
+   Navigation Menu Item Styles
+   ========================================================================== */
 .studio-sidebar-menu {
   position: relative;
   z-index: 1;
@@ -207,6 +221,15 @@
   box-shadow: 0 16px 34px rgba(56, 189, 248, 0.28);
 }
 
+/* Ant Design menu overrides to maintain custom layouts inside tooltips */
+.studio-sidebar-menu .ant-menu-title-content {
+  padding-inline-start: 0 !important;
+  overflow: visible !important;
+}
+
+/* ==========================================================================
+   Footer Layout
+   ========================================================================== */
 .studio-sidebar-footer {
   position: absolute;
   left: 18px;
@@ -227,34 +250,40 @@
   font-weight: 900;
 }
 
+/* ==========================================================================
+   Ant Design Popover/Tooltip Uniformity
+   ========================================================================== */
+.ant-tooltip, 
+.ant-tooltip-inner {
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+/* ==========================================================================
+   Animation Keyframes
+   ========================================================================== */
 @keyframes sidebarGlowFloat {
   from {
     transform: translate3d(0, 0, 0) scale(1);
   }
-
   to {
     transform: translate3d(38px, 48px, 0) scale(1.2);
   }
 }
 
 @keyframes brandPulse {
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0);
   }
-
   50% {
     transform: translateY(-3px);
   }
 }
 
 @keyframes markRing {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 0.45;
     transform: scale(1);
   }
-
   50% {
     opacity: 1;
     transform: scale(1.08);
@@ -266,19 +295,27 @@
     opacity: 0;
     transform: translateX(-18px);
   }
-
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-@keyframes footerFloat {
-  0%,
-  100% {
+@keyframes brandEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
     transform: translateY(0);
   }
+}
 
+@keyframes footerFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
   50% {
     transform: translateY(-5px);
   }

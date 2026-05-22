@@ -84,7 +84,7 @@ export default function MediaLibraryPage() {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isNavigating, setIsNavigating] = useState(null); 
 
-  const isDragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -237,12 +237,12 @@ export default function MediaLibraryPage() {
   
   const handleMouseDown = (e) => {
     if (zoomScale <= 1) return;
-    isDragging.current = true;
+    setIsDragging(true);
     dragStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging.current) return;
+    if (!isDragging) return;
     setPanOffset({
       x: e.clientX - dragStart.current.x,
       y: e.clientY - dragStart.current.y
@@ -250,7 +250,7 @@ export default function MediaLibraryPage() {
   };
 
   const handleMouseUp = () => {
-    isDragging.current = false;
+    setIsDragging(false);
   };
 
   const currentPreviewItem = previewIndex !== null ? displayedMedia[previewIndex] : null;
@@ -535,7 +535,7 @@ export default function MediaLibraryPage() {
                   className="zoom-transform-container-fluid" 
                   style={{ 
                     transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
-                    transition: isDragging.current ? "none" : "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)"
+                    transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)"
                   }}
                 >
                   {currentPreviewItem.type === "video" ? (
