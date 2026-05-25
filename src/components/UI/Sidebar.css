@@ -23,15 +23,18 @@
   top: 0;
   bottom: 0;
   z-index: 1100;
-  width: 260px !important;
-  min-width: 260px !important;
-  max-width: 260px !important;
+  width: 96px !important;
+  min-width: 96px !important;
+  max-width: 96px !important;
   min-height: 100vh;
-  padding: 24px 18px;
+  padding: 26px 12px;
   overflow: hidden;
-  transform: translateX(-105%);
-  transition: transform 0.34s ease, background 0.3s ease;
-  border-radius: 0 28px 28px 0;
+  transform: translateX(-110%) scale(0.96);
+  transform-origin: left center;
+  transition:
+    transform 0.42s cubic-bezier(0.19, 1, 0.22, 1),
+    background 0.3s ease;
+  border-radius: 0 34px 34px 0;
   border-right: 1px solid rgba(125, 211, 252, 0.18);
   box-shadow:
     inset -1px 0 0 rgba(255, 255, 255, 0.04),
@@ -41,61 +44,43 @@
 }
 
 .studio-sidebar-open {
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
+  animation: sidebarSoftBounce 0.72s cubic-bezier(0.19, 1, 0.22, 1) both;
 }
 
 /* ==========================================================================
    Theme Variations (Dark & Light)
    ========================================================================== */
 .studio-sidebar-dark {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 13, 24, 0.98)) !important;
+  background:
+    radial-gradient(circle at 50% 4%, rgba(56, 189, 248, 0.28), transparent 32%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 13, 24, 0.98)) !important;
 }
 
 .studio-sidebar-light {
-  background: linear-gradient(180deg, rgba(239, 249, 255, 0.98), rgba(186, 230, 253, 0.96)) !important;
+  background:
+    radial-gradient(circle at 50% 4%, rgba(14, 165, 233, 0.28), transparent 34%),
+    linear-gradient(180deg, rgba(239, 249, 255, 0.98), rgba(186, 230, 253, 0.96)) !important;
 }
 
-/* Force global font styling inside the container */
 .studio-sidebar * {
   font-family: "Times New Roman", Times, serif !important;
 }
 
 /* ==========================================================================
-   Header and Branding Components
+   Creative Glow Layers
    ========================================================================== */
-.sidebar-close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 2;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(125, 211, 252, 0.24);
-  border-radius: 12px;
-  color: #e0f2fe;
-  background: rgba(15, 23, 42, 0.44);
-  cursor: pointer;
-}
-
-.studio-sidebar-light .sidebar-close {
-  color: #082f49;
-  background: rgba(255, 255, 255, 0.56);
-}
-
-/* Decorative background glowing effects */
 .studio-sidebar::before {
   content: "";
   position: absolute;
-  width: 240px;
-  height: 240px;
-  top: -88px;
-  left: -86px;
+  width: 220px;
+  height: 220px;
+  top: -78px;
+  left: -88px;
   border-radius: 50%;
   background: rgba(56, 189, 248, 0.25);
   filter: blur(44px);
-  animation: sidebarGlowFloat 9s ease-in-out infinite alternate;
+  animation: sidebarGlowFloat 8s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
@@ -106,33 +91,44 @@
   background-image:
     linear-gradient(rgba(125, 211, 252, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(125, 211, 252, 0.06) 1px, transparent 1px);
-  background-size: 30px 30px;
+  background-size: 28px 28px;
   opacity: 0.22;
   mask-image: linear-gradient(to bottom, #000 0%, transparent 92%);
+  animation: gridDrift 9s linear infinite;
   pointer-events: none;
 }
 
+/* ==========================================================================
+   Header and Branding Components
+   ========================================================================== */
 .studio-sidebar-brand {
-  height: 70px;
+  min-height: 94px;
   display: flex;
   align-items: center;
-  gap: 13px;
-  margin-bottom: 34px;
-  padding: 0 4px;
+  justify-content: center;
+  margin-bottom: 26px;
   position: relative;
   z-index: 1;
   animation: brandEnter 0.55s ease both;
 }
 
+.studio-brand-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: brandFloat 3.4s ease-in-out infinite;
+}
+
 .studio-brand-mark {
   position: relative;
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 18px;
   color: #082f49;
-  font-size: 22px;
+  font-size: 23px;
   background: linear-gradient(135deg, #7dd3fc, #38bdf8, #0284c7);
   box-shadow:
     0 0 26px rgba(56, 189, 248, 0.42),
@@ -140,40 +136,38 @@
   animation: brandPulse 3s ease-in-out infinite;
 }
 
+.studio-brand-mark::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(8, 47, 73, 0.35);
+  animation: lensBlink 3.8s ease-in-out infinite;
+}
+
 .studio-brand-mark::after {
   content: "";
   position: absolute;
   inset: -7px;
-  border-radius: 22px;
-  border: 1px solid rgba(125, 211, 252, 0.26);
+  border-radius: 24px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
   animation: markRing 2.8s ease-in-out infinite;
 }
 
 .studio-brand-title {
   display: block;
-  font-size: 18px;
-  line-height: 1.05;
+  font-size: 15px;
+  line-height: 1;
   color: #f8fafc !important;
   font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 0 18px rgba(125, 211, 252, 0.46);
 }
 
 .studio-sidebar-light .studio-brand-title {
   color: #082f49 !important;
-}
-
-.studio-brand-subtitle {
-  display: block;
-  max-width: 150px;
-  margin-top: 4px;
-  font-size: 10px;
-  line-height: 1.15;
-  color: #93c5fd !important;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.studio-sidebar-light .studio-brand-subtitle {
-  color: #0369a1 !important;
+  text-shadow: 0 0 18px rgba(14, 165, 233, 0.22);
 }
 
 /* ==========================================================================
@@ -187,14 +181,23 @@
 }
 
 .studio-sidebar-menu .ant-menu-item {
+  width: 56px !important;
   height: 50px;
   line-height: 50px;
-  margin: 9px 0;
-  border-radius: 16px;
-  overflow: hidden;
+  margin: 10px auto;
+  padding: 0 !important;
+  border-radius: 18px;
+  overflow: visible;
   color: #bfdbfe !important;
   font-weight: 800;
-  transition: all 0.26s ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.28s ease,
+    background 0.28s ease,
+    color 0.28s ease,
+    box-shadow 0.28s ease;
   animation: menuItemEnter 0.5s ease both;
 }
 
@@ -203,10 +206,12 @@
 }
 
 .studio-sidebar-menu .ant-menu-item:hover {
-  transform: translateX(6px);
+  transform: translateX(8px) scale(1.07);
   color: #f8fafc !important;
-  background: rgba(56, 189, 248, 0.11) !important;
-  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.18);
+  background: rgba(56, 189, 248, 0.13) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 211, 252, 0.2),
+    0 12px 26px rgba(56, 189, 248, 0.16);
 }
 
 .studio-sidebar-light .studio-sidebar-menu .ant-menu-item:hover {
@@ -214,46 +219,50 @@
 }
 
 .studio-sidebar-menu .ant-menu-item-selected {
-  transform: translateX(6px);
+  transform: translateX(8px) scale(1.08);
   color: #082f49 !important;
   background: linear-gradient(135deg, #7dd3fc, #38bdf8, #0284c7) !important;
   font-weight: 900;
-  box-shadow: 0 16px 34px rgba(56, 189, 248, 0.28);
+  box-shadow:
+    0 16px 34px rgba(56, 189, 248, 0.3),
+    0 0 0 6px rgba(56, 189, 248, 0.08);
 }
 
-/* Ant Design menu overrides to maintain custom layouts inside tooltips */
+.studio-sidebar-menu .ant-menu-item-selected::after {
+  display: none !important;
+}
+
+.studio-sidebar-menu .ant-menu-item-icon {
+  margin: 0 !important;
+  font-size: 22px !important;
+}
+
 .studio-sidebar-menu .ant-menu-title-content {
-  padding-inline-start: 0 !important;
-  overflow: visible !important;
+  display: none !important;
 }
 
-/* ==========================================================================
-   Footer Layout
-   ========================================================================== */
-.studio-sidebar-footer {
-  position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 22px;
-  z-index: 1;
-  padding: 18px;
-  text-align: center;
-  border-radius: 20px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #38bdf8, #0284c7, #2563eb);
-  box-shadow: 0 18px 38px rgba(56, 189, 248, 0.24);
-  animation: footerFloat 4.2s ease-in-out infinite;
+.sidebar-menu-icon {
+  width: 56px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  animation: iconRise 0.52s ease both;
+  animation-delay: calc(var(--item-index) * 0.055s);
 }
 
-.studio-version {
-  color: #ffffff !important;
-  font-weight: 900;
+.studio-sidebar-menu .ant-menu-item:hover .sidebar-menu-icon {
+  animation: iconWiggle 0.62s ease both;
+}
+
+.studio-sidebar-menu .ant-menu-item-selected .sidebar-menu-icon {
+  animation: selectedIconGlow 1.8s ease-in-out infinite;
 }
 
 /* ==========================================================================
    Ant Design Popover/Tooltip Uniformity
    ========================================================================== */
-.ant-tooltip, 
+.ant-tooltip,
 .ant-tooltip-inner {
   font-family: "Times New Roman", Times, serif !important;
 }
@@ -261,62 +270,134 @@
 /* ==========================================================================
    Animation Keyframes
    ========================================================================== */
+@keyframes sidebarSoftBounce {
+  0% {
+    transform: translateX(-110%) scale(0.96);
+  }
+  70% {
+    transform: translateX(6px) scale(1);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+  }
+}
+
 @keyframes sidebarGlowFloat {
   from {
     transform: translate3d(0, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(38px, 48px, 0) scale(1.2);
+    transform: translate3d(34px, 56px, 0) scale(1.18);
+  }
+}
+
+@keyframes gridDrift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 28px 56px;
+  }
+}
+
+@keyframes brandFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
 @keyframes brandPulse {
   0%, 100% {
-    transform: translateY(0);
+    transform: scale(1);
+    box-shadow:
+      0 0 26px rgba(56, 189, 248, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.36);
   }
   50% {
-    transform: translateY(-3px);
+    transform: scale(1.05);
+    box-shadow:
+      0 0 38px rgba(56, 189, 248, 0.58),
+      inset 0 1px 0 rgba(255, 255, 255, 0.44);
+  }
+}
+
+@keyframes lensBlink {
+  0%, 86%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  92% {
+    transform: scale(0.45);
+    opacity: 0.9;
   }
 }
 
 @keyframes markRing {
   0%, 100% {
-    opacity: 0.45;
+    opacity: 0.42;
     transform: scale(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.08);
+    transform: scale(1.1);
   }
 }
 
 @keyframes menuItemEnter {
   from {
     opacity: 0;
-    transform: translateX(-18px);
+    transform: translateX(-18px) scale(0.9);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes iconRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0);
+  }
+}
+
+@keyframes iconWiggle {
+  0%, 100% {
+    transform: rotate(0) scale(1);
+  }
+  35% {
+    transform: rotate(-8deg) scale(1.08);
+  }
+  70% {
+    transform: rotate(8deg) scale(1.08);
+  }
+}
+
+@keyframes selectedIconGlow {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 0 0 rgba(8, 47, 73, 0));
+  }
+  50% {
+    transform: translateY(-2px) scale(1.08);
+    filter: drop-shadow(0 8px 12px rgba(8, 47, 73, 0.25));
   }
 }
 
 @keyframes brandEnter {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-12px) scale(0.92);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes footerFloat {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
+    transform: translateY(0) scale(1);
   }
 }

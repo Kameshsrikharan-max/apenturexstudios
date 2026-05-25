@@ -131,9 +131,9 @@ function Navbar({
   };
 
   const openProfileModal = () => {
-    setUserMenuOpen(false);
-    setProfileModalOpen(true);
-  };
+  setUserMenuOpen(false);
+  navigate("/profile");
+};
 
   const openNotificationSettings = () => {
     setUserMenuOpen(false);

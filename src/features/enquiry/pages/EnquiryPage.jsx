@@ -16,6 +16,9 @@ import {
   Form,
   Divider,
   Timeline,
+  Tooltip,
+  Progress,
+  Empty,
 } from "antd";
 
 import {
@@ -31,6 +34,17 @@ import {
   ClockCircleOutlined,
   FileTextOutlined,
   FireOutlined,
+  CalendarOutlined,
+  EnvironmentOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+  ThunderboltOutlined,
+  MessageOutlined,
+  TeamOutlined,
+  CameraOutlined,
+  InstagramOutlined,
+  GlobalOutlined,
+  GiftOutlined,
 } from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
@@ -38,6 +52,9 @@ import "./EnquiryPage.css";
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
+
+const imageFallback =
+  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80";
 
 const initialEnquiries = [
   {
@@ -55,13 +72,11 @@ const initialEnquiries = [
     priority: "High",
     packageType: "Premium Wedding",
     nextFollowUp: "May 08, 2026",
-    notes:
-      "Client is interested in premium wedding coverage with candid team.",
-    timeline: [
-      "Enquiry created",
-      "Budget discussed",
-      "Awaiting follow-up",
-    ],
+    progress: 45,
+    image:
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
+    notes: "Client is interested in premium wedding coverage with candid team.",
+    timeline: ["Enquiry created", "Budget discussed", "Awaiting follow-up"],
   },
   {
     id: "2",
@@ -78,13 +93,11 @@ const initialEnquiries = [
     priority: "Medium",
     packageType: "Classic Wedding",
     nextFollowUp: "May 06, 2026",
-    notes:
-      "Needs album, traditional photography, and candid event coverage.",
-    timeline: [
-      "Enquiry created",
-      "Package shared",
-      "Waiting for confirmation",
-    ],
+    progress: 62,
+    image:
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=900&q=80",
+    notes: "Needs album, traditional photography, and candid event coverage.",
+    timeline: ["Enquiry created", "Package shared", "Waiting for confirmation"],
   },
   {
     id: "3",
@@ -101,13 +114,11 @@ const initialEnquiries = [
     priority: "High",
     packageType: "Engagement Plus",
     nextFollowUp: "May 07, 2026",
-    notes:
-      "Highly interested. Wants cinematic teaser and couple portraits.",
-    timeline: [
-      "Enquiry created",
-      "Call completed",
-      "Follow-up scheduled",
-    ],
+    progress: 78,
+    image:
+      "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80",
+    notes: "Highly interested. Wants cinematic teaser and couple portraits.",
+    timeline: ["Enquiry created", "Call completed", "Follow-up scheduled"],
   },
 ];
 
@@ -119,25 +130,25 @@ const statusColors = {
   CANCELLED: "red",
 };
 
+const sourceIcons = {
+  Instagram: <InstagramOutlined />,
+  Website: <GlobalOutlined />,
+  Referral: <GiftOutlined />,
+};
+
 const EnquiryPage = () => {
   const [enquiriesData, setEnquiriesData] = useState(initialEnquiries);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [cityFilter, setCityFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
-
   const [isLoading, setIsLoading] = useState(false);
-
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-
   const [viewEnquiry, setViewEnquiry] = useState(null);
   const [journeyEnquiry, setJourneyEnquiry] = useState(null);
   const [editEnquiry, setEditEnquiry] = useState(null);
   const [deleteEnquiry, setDeleteEnquiry] = useState(null);
-
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-
   const [form] = Form.useForm();
 
   const cities = useMemo(
@@ -153,40 +164,21 @@ const EnquiryPage = () => {
         String(val).toLowerCase().includes(term)
       );
 
-      const matchesStatus =
-        statusFilter === "ALL" || enq.status === statusFilter;
-
-      const matchesCity =
-        cityFilter === "ALL" || enq.city === cityFilter;
-
-      const matchesPriority =
-        priorityFilter === "ALL" ||
-        enq.priority === priorityFilter;
-
       return (
         matchesSearch &&
-        matchesStatus &&
-        matchesCity &&
-        matchesPriority
+        (statusFilter === "ALL" || enq.status === statusFilter) &&
+        (cityFilter === "ALL" || enq.city === cityFilter) &&
+        (priorityFilter === "ALL" || enq.priority === priorityFilter)
       );
     });
-  }, [
-    enquiriesData,
-    searchTerm,
-    statusFilter,
-    cityFilter,
-    priorityFilter,
-  ]);
+  }, [enquiriesData, searchTerm, statusFilter, cityFilter, priorityFilter]);
 
   const stats = useMemo(
     () => ({
       total: enquiriesData.length,
-      highPriority: enquiriesData.filter(
-        (i) => i.priority === "High"
-      ).length,
-      followUps: enquiriesData.filter(
-        (i) => i.status === "FOLLOWUP"
-      ).length,
+      highPriority: enquiriesData.filter((i) => i.priority === "High").length,
+      followUps: enquiriesData.filter((i) => i.status === "FOLLOWUP").length,
+      confirmed: enquiriesData.filter((i) => i.status === "CONFIRMED").length,
     }),
     [enquiriesData]
   );
@@ -209,23 +201,15 @@ const EnquiryPage = () => {
 
   const updateStatus = (record, status) => {
     setEnquiriesData((prev) =>
-      prev.map((item) =>
-        item.id === record.id
-          ? { ...item, status }
-          : item
-      )
+      prev.map((item) => (item.id === record.id ? { ...item, status } : item))
     );
 
     message.success(`Enquiry marked as ${status}`);
   };
 
   const confirmDelete = (record) => {
-    setEnquiriesData((prev) =>
-      prev.filter((item) => item.id !== record.id)
-    );
-
+    setEnquiriesData((prev) => prev.filter((item) => item.id !== record.id));
     setDeleteEnquiry(null);
-
     message.success("Enquiry deleted successfully");
   };
 
@@ -240,15 +224,10 @@ const EnquiryPage = () => {
       content: `${selectedRowKeys.length} enquiries will be deleted.`,
       okText: "Delete",
       okButtonProps: { danger: true },
-
       onOk: () => {
         setEnquiriesData((prev) =>
-          prev.filter(
-            (item) =>
-              !selectedRowKeys.includes(item.id)
-          )
+          prev.filter((item) => !selectedRowKeys.includes(item.id))
         );
-
         setSelectedRowKeys([]);
       },
     });
@@ -257,28 +236,25 @@ const EnquiryPage = () => {
   const openEditModal = (record) => {
     setEditEnquiry(record);
     setIsCreateOpen(false);
-
     form.setFieldsValue(record);
   };
 
   const openCreateModal = () => {
     setEditEnquiry(null);
-
     setIsCreateOpen(true);
-
     form.resetFields();
 
     form.setFieldsValue({
       status: "DRAFT",
       priority: "Medium",
+      progress: 10,
+      image: imageFallback,
     });
   };
 
   const closeFormModal = () => {
     setEditEnquiry(null);
-
     setIsCreateOpen(false);
-
     form.resetFields();
   };
 
@@ -287,9 +263,7 @@ const EnquiryPage = () => {
       if (editEnquiry) {
         setEnquiriesData((prev) =>
           prev.map((item) =>
-            item.id === editEnquiry.id
-              ? { ...item, ...values }
-              : item
+            item.id === editEnquiry.id ? { ...item, ...values } : item
           )
         );
 
@@ -303,14 +277,8 @@ const EnquiryPage = () => {
           timeline: ["Enquiry created"],
         };
 
-        setEnquiriesData((prev) => [
-          newEnquiry,
-          ...prev,
-        ]);
-
-        message.success(
-          "Enquiry created successfully"
-        );
+        setEnquiriesData((prev) => [newEnquiry, ...prev]);
+        message.success("Enquiry created successfully");
       }
 
       closeFormModal();
@@ -319,150 +287,161 @@ const EnquiryPage = () => {
 
   const columns = [
     {
-      title: "Enquiry Name",
+      title: "Enquiry",
       dataIndex: "enquiryName",
       key: "enquiryName",
-      width: 340,
-
+      width: 430,
       render: (text, record) => (
         <Popover
           trigger={["hover", "click"]}
-          placement="topLeft"
-          overlayClassName="horizontal-action-popover"
+          placement="rightTop"
+          overlayClassName="enquiry-action-popover"
           content={
-            <div className="horizontal-action-menu">
+            <div className="action-panel">
+              <Tooltip title="View enquiry details" color="#ffffff">
+                <button onClick={() => setViewEnquiry(record)}>
+                  <EyeOutlined />
+                  <span>View</span>
+                </button>
+              </Tooltip>
 
-              <button
-                className="horizontal-action-btn view"
-                onClick={() =>
-                  setViewEnquiry(record)
-                }
-              >
-                <EyeOutlined />
-                <span>View</span>
-              </button>
+              <Tooltip title="Edit enquiry information" color="#ffffff">
+                <button onClick={() => openEditModal(record)}>
+                  <EditOutlined />
+                  <span>Edit</span>
+                </button>
+              </Tooltip>
 
-              <button
-                className="horizontal-action-btn edit"
-                onClick={() =>
-                  openEditModal(record)
-                }
-              >
-                <EditOutlined />
-                <span>Edit</span>
-              </button>
+              <Tooltip title="Open enquiry journey" color="#ffffff">
+                <button onClick={() => setJourneyEnquiry(record)}>
+                  <ClockCircleOutlined />
+                  <span>Journey</span>
+                </button>
+              </Tooltip>
 
-              <button
-                className="horizontal-action-btn journey"
-                onClick={() =>
-                  setJourneyEnquiry(record)
-                }
-              >
-                <ClockCircleOutlined />
-                <span>Journey</span>
-              </button>
+              <Tooltip title="Mark this enquiry as confirmed" color="#ffffff">
+                <button onClick={() => updateStatus(record, "CONFIRMED")}>
+                  <CheckCircleOutlined />
+                  <span>Confirm</span>
+                </button>
+              </Tooltip>
 
-              <button
-                className="horizontal-action-btn confirm"
-                onClick={() =>
-                  updateStatus(
-                    record,
-                    "CONFIRMED"
-                  )
-                }
-              >
-                <ReloadOutlined />
-                <span>Confirm</span>
-              </button>
-
-              <button
-                className="horizontal-action-btn delete"
-                onClick={() =>
-                  setDeleteEnquiry(record)
-                }
-              >
-                <DeleteOutlined />
-                <span>Delete</span>
-              </button>
-
+              <Tooltip title="Delete this enquiry" color="#ffffff">
+                <button className="danger" onClick={() => setDeleteEnquiry(record)}>
+                  <DeleteOutlined />
+                  <span>Delete</span>
+                </button>
+              </Tooltip>
             </div>
           }
         >
-          <div className="enquiry-name-card">
-
-            <div className="avatar pulse-avatar">
-              {record.customerName?.charAt(0)}
+          <div className="enquiry-image-card">
+            <div className="enquiry-photo-wrap">
+              <img
+                className="enquiry-photo"
+                src={record.image || imageFallback}
+                alt={record.enquiryName}
+                onError={(e) => {
+                  e.currentTarget.src = imageFallback;
+                }}
+              />
             </div>
 
-            <div className="enquiry-name-content">
+            <div className="enquiry-card-info">
+              <div className="card-title-row">
+                <Tooltip title={record.enquiryName} color="#ffffff">
+                  <strong>{text}</strong>
+                </Tooltip>
 
-              <div className="enquiry-link">
-                {text}
+                <Tooltip title="Quick actions" color="#ffffff">
+                  <MoreOutlined className="more-icon" />
+                </Tooltip>
               </div>
 
-              <div className="package">
-                {record.packageType}
+              <span className="package-line">
+                <CameraOutlined /> {record.packageType}
+              </span>
+
+              <div className="tiny-meta">
+                <span>
+                  <CalendarOutlined /> {record.eventDate}
+                </span>
+                <span>
+                  <EnvironmentOutlined /> {record.city}
+                </span>
               </div>
-
             </div>
-
-            <div className="hover-action-icon">
-              <MoreOutlined />
-            </div>
-
           </div>
         </Popover>
       ),
     },
-
     {
       title: "Customer",
       dataIndex: "customerName",
       key: "customerName",
-
-      render: (text) => (
-        <Space>
-          <UserOutlined />
-          {text}
-        </Space>
+      render: (text, record) => (
+        <Tooltip title={`Customer: ${text}`} color="#ffffff">
+          <div className="compact-cell">
+            <UserOutlined />
+            <div>
+              <strong>{text}</strong>
+              <span>
+                {sourceIcons[record.source] || <MessageOutlined />} {record.source}
+              </span>
+            </div>
+          </div>
+        </Tooltip>
       ),
     },
-
     {
       title: "Phone",
       dataIndex: "phone",
       key: "phone",
-
       render: (text) => (
-        <Space>
-          <PhoneOutlined />
-          {text}
-        </Space>
+        <Tooltip title={`Call ${text}`} color="#ffffff">
+          <Space>
+            <PhoneOutlined />
+            {text}
+          </Space>
+        </Tooltip>
       ),
     },
-
     {
-      title: "Event Date",
-      dataIndex: "eventDate",
-      key: "eventDate",
+      title: "Budget",
+      dataIndex: "budget",
+      key: "budget",
+      render: (budget, record) => (
+        <Tooltip title={`Booking progress ${record.progress || 0}%`} color="#ffffff">
+          <div className="budget-cell">
+            <strong>
+              <DollarOutlined /> {budget}
+            </strong>
+            <Progress percent={record.progress || 0} size="small" showInfo={false} />
+          </div>
+        </Tooltip>
+      ),
     },
-
+    {
+      title: "Priority",
+      dataIndex: "priority",
+      key: "priority",
+      render: (priority) => (
+        <Tooltip title={`${priority} priority enquiry`} color="#ffffff">
+          <span className={`priority-chip priority-${priority?.toLowerCase()}`}>
+            <FireOutlined /> {priority}
+          </span>
+        </Tooltip>
+      ),
+    },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-
       render: (status) => (
-        <Tag color={statusColors[status]}>
-          {status}
-        </Tag>
+        <Tooltip title={`Current status: ${status}`} color="#ffffff">
+          <Tag color={statusColors[status]}>{status}</Tag>
+        </Tooltip>
       ),
-    },
-
-    {
-      title: "City",
-      dataIndex: "city",
-      key: "city",
     },
   ];
 
@@ -471,114 +450,119 @@ const EnquiryPage = () => {
       theme={{
         token: {
           colorPrimary: "#38bdf8",
-          borderRadius: 12,
+          borderRadius: 14,
         },
       }}
     >
       <Layout className="enquiry-page">
-
         <div className="dashboard-frame">
-
           <Sidebar dark />
 
           <Layout className="dashboard-shell enquiry-shell">
-
             <Header className="dashboard-navbar enquiry-navbar">
-
-              <Title
-                level={3}
-                className="page-title enquiry-title"
-              >
+              <Title level={3} className="page-title enquiry-title">
                 Enquiries
               </Title>
-
             </Header>
 
             <Content className="content-area enquiry-content">
-
               <div className="enquiry-page-scroll">
-
                 <div className="enquiry-page-inner">
+                  <section className="hero-section">
+                    <div className="hero-copy">
+                      <span className="hero-pill">
+                        <CameraOutlined /> Creative Lead Board
+                      </span>
 
-                  <div className="hero-section">
+                      <Title level={2}>Event Enquiries</Title>
 
-                    <div>
-
-                      <Title level={2}>
-                        Event Enquiries
-                      </Title>
-
-                      <Text type="secondary">
-                        Manage leads, track follow-ups
-                        and convert bookings
+                      <Text>
+                        Track enquiry photos, customers, follow-ups, city, budget and
+                        booking status in one visual workspace.
                       </Text>
 
-                    </div>
+                      <div className="hero-buttons">
+                        <Button
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          size="large"
+                          onClick={openCreateModal}
+                        >
+                          New Enquiry
+                        </Button>
 
-                    <Button
-                      type="primary"
-                      icon={<PlusOutlined />}
-                      size="large"
-                      onClick={openCreateModal}
-                    >
-                      New Enquiry
-                    </Button>
-
-                  </div>
-
-                  <div className="stats-row">
-
-                    <div className="stat-card">
-
-                      <FileTextOutlined className="stat-icon" />
-
-                      <div>
-                        <h3>{stats.total}</h3>
-                        <p>Total Enquiries</p>
+                        <Tooltip title="Refresh enquiries" color="#ffffff">
+                          <Button
+                            icon={<ReloadOutlined spin={isLoading} />}
+                            size="large"
+                            onClick={handleRefresh}
+                          />
+                        </Tooltip>
                       </div>
-
                     </div>
 
-                    <div className="stat-card">
+                    <div className="hero-image-stack">
+                      {enquiriesData.slice(0, 3).map((item) => (
+                        <Tooltip
+                          key={item.id}
+                          title={item.enquiryName}
+                          color="#ffffff"
+                        >
+                          <img
+                            src={item.image || imageFallback}
+                            alt={item.enquiryName}
+                            onError={(e) => {
+                              e.currentTarget.src = imageFallback;
+                            }}
+                          />
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </section>
 
-                      <FireOutlined className="stat-icon high" />
-
-                      <div>
-                        <h3>{stats.highPriority}</h3>
-                        <p>High Priority</p>
+                  <section className="stats-row">
+                    <Tooltip title="Total enquiries" color="#ffffff">
+                      <div className="stat-card">
+                        <FileTextOutlined className="stat-icon blue" />
+                        <strong>{stats.total}</strong>
+                        <span>Total</span>
                       </div>
+                    </Tooltip>
 
-                    </div>
-
-                    <div className="stat-card">
-
-                      <ClockCircleOutlined className="stat-icon" />
-
-                      <div>
-                        <h3>{stats.followUps}</h3>
-                        <p>Follow-ups</p>
+                    <Tooltip title="High priority enquiries" color="#ffffff">
+                      <div className="stat-card">
+                        <FireOutlined className="stat-icon orange" />
+                        <strong>{stats.highPriority}</strong>
+                        <span>Hot Leads</span>
                       </div>
+                    </Tooltip>
 
-                    </div>
+                    <Tooltip title="Follow-up enquiries" color="#ffffff">
+                      <div className="stat-card">
+                        <ClockCircleOutlined className="stat-icon yellow" />
+                        <strong>{stats.followUps}</strong>
+                        <span>Follow-ups</span>
+                      </div>
+                    </Tooltip>
 
-                  </div>
+                    <Tooltip title="Confirmed bookings" color="#ffffff">
+                      <div className="stat-card">
+                        <CheckCircleOutlined className="stat-icon green" />
+                        <strong>{stats.confirmed}</strong>
+                        <span>Confirmed</span>
+                      </div>
+                    </Tooltip>
+                  </section>
 
-                  <div className="table-container">
-
+                  <section className="table-container">
                     <div className="toolbar">
-
                       <Space wrap>
-
                         <Input
                           className="enquiry-search"
                           placeholder="Search enquiries..."
                           prefix={<SearchOutlined />}
                           value={searchTerm}
-                          onChange={(e) =>
-                            setSearchTerm(
-                              e.target.value
-                            )
-                          }
+                          onChange={(e) => setSearchTerm(e.target.value)}
                           allowClear
                         />
 
@@ -586,70 +570,48 @@ const EnquiryPage = () => {
                           className="filter-select"
                           value={statusFilter}
                           onChange={setStatusFilter}
-                        >
-                          <Select.Option value="ALL">
-                            All Status
-                          </Select.Option>
-
-                          <Select.Option value="DRAFT">
-                            Draft
-                          </Select.Option>
-
-                          <Select.Option value="FOLLOWUP">
-                            Follow-up
-                          </Select.Option>
-
-                          <Select.Option value="CONFIRMED">
-                            Confirmed
-                          </Select.Option>
-
-                        </Select>
+                          options={[
+                            { value: "ALL", label: "All Status" },
+                            { value: "DRAFT", label: "Draft" },
+                            { value: "FOLLOWUP", label: "Follow-up" },
+                            { value: "CONFIRMED", label: "Confirmed" },
+                            { value: "CANCELLED", label: "Cancelled" },
+                          ]}
+                        />
 
                         <Select
                           className="filter-select"
                           value={cityFilter}
                           onChange={setCityFilter}
-                        >
-                          {cities.map((city) => (
-                            <Select.Option
-                              key={city}
-                              value={city}
-                            >
-                              {city}
-                            </Select.Option>
-                          ))}
-                        </Select>
+                          options={cities.map((city) => ({
+                            value: city,
+                            label: city === "ALL" ? "All Cities" : city,
+                          }))}
+                        />
 
-                        <Button
-                          onClick={clearFilters}
-                        >
-                          Clear
-                        </Button>
+                        <Select
+                          className="filter-select"
+                          value={priorityFilter}
+                          onChange={setPriorityFilter}
+                          options={[
+                            { value: "ALL", label: "All Priority" },
+                            { value: "High", label: "High" },
+                            { value: "Medium", label: "Medium" },
+                            { value: "Low", label: "Low" },
+                          ]}
+                        />
 
-                        <Button
-                          icon={
-                            <ReloadOutlined
-                              spin={isLoading}
-                            />
-                          }
-                          onClick={handleRefresh}
-                        >
-                          Refresh
-                        </Button>
-
+                        <Button onClick={clearFilters}>Clear</Button>
                       </Space>
 
                       <Button
                         danger
                         icon={<DeleteOutlined />}
-                        disabled={
-                          !selectedRowKeys.length
-                        }
+                        disabled={!selectedRowKeys.length}
                         onClick={handleBulkDelete}
                       >
-                        Delete Selected
+                        
                       </Button>
-
                     </div>
 
                     <Table
@@ -660,51 +622,56 @@ const EnquiryPage = () => {
                       loading={isLoading}
                       rowSelection={{
                         selectedRowKeys,
-                        onChange:
-                          setSelectedRowKeys,
+                        onChange: setSelectedRowKeys,
                       }}
-                      pagination={{
-                        pageSize: 10,
+                      pagination={{ pageSize: 10 }}
+                      scroll={{ x: 1250 }}
+                      locale={{
+                        emptyText: (
+                          <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description="No matching enquiries"
+                          />
+                        ),
                       }}
-                      scroll={{ x: 1200 }}
                     />
-
-                  </div>
-
+                  </section>
                 </div>
-
               </div>
-
             </Content>
-
           </Layout>
-
         </div>
-
-        {/* VIEW MODAL */}
 
         <Modal
           className="enquiry-modal"
           open={!!viewEnquiry}
-          onCancel={() =>
-            setViewEnquiry(null)
-          }
+          onCancel={() => setViewEnquiry(null)}
           footer={null}
-          width={720}
+          width={820}
           centered
         >
           {viewEnquiry && (
             <>
-              <Title level={4}>
-                {viewEnquiry.enquiryName}
-              </Title>
+              <div className="modal-image-cover">
+                <img
+                  src={viewEnquiry.image || imageFallback}
+                  alt={viewEnquiry.enquiryName}
+                  onError={(e) => {
+                    e.currentTarget.src = imageFallback;
+                  }}
+                />
+
+                <div>
+                  <Title level={3}>{viewEnquiry.enquiryName}</Title>
+                  <Tag color={statusColors[viewEnquiry.status]}>
+                    {viewEnquiry.status}
+                  </Tag>
+                </div>
+              </div>
 
               <Divider />
 
-              <Descriptions
-                bordered
-                column={2}
-              >
+              <Descriptions bordered column={2}>
                 <Descriptions.Item label="Customer">
                   {viewEnquiry.customerName}
                 </Descriptions.Item>
@@ -721,210 +688,149 @@ const EnquiryPage = () => {
                   {viewEnquiry.budget}
                 </Descriptions.Item>
 
-                <Descriptions.Item label="Status">
-                  <Tag
-                    color={
-                      statusColors[
-                        viewEnquiry.status
-                      ]
-                    }
-                  >
-                    {viewEnquiry.status}
-                  </Tag>
-                </Descriptions.Item>
-
                 <Descriptions.Item label="City">
                   {viewEnquiry.city}
                 </Descriptions.Item>
 
+                <Descriptions.Item label="Source">
+                  {viewEnquiry.source}
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Package" span={2}>
+                  {viewEnquiry.packageType}
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Notes" span={2}>
+                  {viewEnquiry.notes}
+                </Descriptions.Item>
               </Descriptions>
             </>
           )}
         </Modal>
 
-        {/* JOURNEY MODAL */}
-
         <Modal
           className="enquiry-modal"
           open={!!journeyEnquiry}
-          onCancel={() =>
-            setJourneyEnquiry(null)
-          }
+          onCancel={() => setJourneyEnquiry(null)}
           footer={null}
-          width={500}
+          width={540}
           centered
         >
           {journeyEnquiry && (
             <>
-              <Title level={5}>
-                {journeyEnquiry.enquiryName}
-                {" "} - Journey
-              </Title>
+              <Title level={5}>{journeyEnquiry.enquiryName} - Journey</Title>
 
               <Timeline
-                items={journeyEnquiry.timeline.map(
-                  (item) => ({
-                    children: item,
-                  })
-                )}
+                items={journeyEnquiry.timeline.map((item) => ({
+                  dot: <ThunderboltOutlined />,
+                  children: item,
+                }))}
               />
             </>
           )}
         </Modal>
 
-        {/* CREATE / EDIT MODAL */}
-
         <Modal
           className="enquiry-modal"
-          open={
-            !!editEnquiry || isCreateOpen
-          }
+          open={!!editEnquiry || isCreateOpen}
           onCancel={closeFormModal}
           onOk={handleSaveEnquiry}
-          okText={
-            editEnquiry
-              ? "Save Changes"
-              : "Create Enquiry"
-          }
-          title={
-            editEnquiry
-              ? "Edit Enquiry"
-              : "Create New Enquiry"
-          }
-          width={800}
+          okText={editEnquiry ? "Save Changes" : "Create Enquiry"}
+          title={editEnquiry ? "Edit Enquiry" : "Create New Enquiry"}
+          width={840}
           centered
         >
-          <Form
-            form={form}
-            layout="vertical"
-          >
+          <Form form={form} layout="vertical">
             <div className="form-grid">
-
               <Form.Item
                 name="enquiryName"
                 label="Enquiry Name"
-                rules={[
-                  { required: true },
-                ]}
+                rules={[{ required: true }]}
               >
-                <Input />
+                <Input prefix={<FileTextOutlined />} />
               </Form.Item>
 
               <Form.Item
                 name="customerName"
                 label="Customer Name"
-                rules={[
-                  { required: true },
-                ]}
+                rules={[{ required: true }]}
               >
-                <Input />
+                <Input prefix={<UserOutlined />} />
               </Form.Item>
 
-              <Form.Item
-                name="phone"
-                label="Phone"
-                rules={[
-                  { required: true },
-                ]}
-              >
-                <Input />
+              <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
+                <Input prefix={<PhoneOutlined />} />
               </Form.Item>
 
               <Form.Item
                 name="eventDate"
                 label="Event Date"
-                rules={[
-                  { required: true },
-                ]}
+                rules={[{ required: true }]}
               >
-                <Input />
+                <Input prefix={<CalendarOutlined />} />
               </Form.Item>
 
-              <Form.Item
-                name="status"
-                label="Status"
-              >
+              <Form.Item name="status" label="Status">
                 <Select
-                  options={Object.keys(
-                    statusColors
-                  ).map((k) => ({
+                  options={Object.keys(statusColors).map((k) => ({
                     value: k,
                     label: k,
                   }))}
                 />
               </Form.Item>
 
-              <Form.Item
-                name="city"
-                label="City"
-              >
-                <Input />
+              <Form.Item name="city" label="City">
+                <Input prefix={<EnvironmentOutlined />} />
               </Form.Item>
 
-              <Form.Item
-                name="budget"
-                label="Budget"
-              >
-                <Input />
+              <Form.Item name="budget" label="Budget">
+                <Input prefix={<DollarOutlined />} />
               </Form.Item>
 
-              <Form.Item
-                name="priority"
-                label="Priority"
-              >
+              <Form.Item name="priority" label="Priority">
                 <Select
                   options={[
-                    {
-                      value: "High",
-                      label: "High",
-                    },
-                    {
-                      value: "Medium",
-                      label: "Medium",
-                    },
-                    {
-                      value: "Low",
-                      label: "Low",
-                    },
+                    { value: "High", label: "High" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "Low", label: "Low" },
                   ]}
                 />
               </Form.Item>
 
+              <Form.Item name="source" label="Source">
+                <Input prefix={<MessageOutlined />} />
+              </Form.Item>
+
+              <Form.Item name="packageType" label="Package Type">
+                <Input prefix={<TeamOutlined />} />
+              </Form.Item>
+
+              <Form.Item name="progress" label="Progress">
+                <Input type="number" min={0} max={100} />
+              </Form.Item>
+
+              <Form.Item name="image" label="Image URL">
+                <Input />
+              </Form.Item>
             </div>
 
-            <Form.Item
-              name="notes"
-              label="Notes"
-            >
+            <Form.Item name="notes" label="Notes">
               <Input.TextArea rows={4} />
             </Form.Item>
-
           </Form>
         </Modal>
-
-        {/* DELETE MODAL */}
 
         <Modal
           className="enquiry-modal"
           open={!!deleteEnquiry}
-          onCancel={() =>
-            setDeleteEnquiry(null)
-          }
-          onOk={() =>
-            confirmDelete(deleteEnquiry)
-          }
+          onCancel={() => setDeleteEnquiry(null)}
+          onOk={() => confirmDelete(deleteEnquiry)}
           okText="Delete"
-          okButtonProps={{
-            danger: true,
-          }}
+          okButtonProps={{ danger: true }}
           centered
         >
-          <p>
-            Are you sure you want to
-            delete this enquiry?
-          </p>
+          <p>Are you sure you want to delete this enquiry?</p>
         </Modal>
-
       </Layout>
     </ConfigProvider>
   );

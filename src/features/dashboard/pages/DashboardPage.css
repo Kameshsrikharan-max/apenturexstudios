@@ -1,5 +1,6 @@
 .dashboard-page-content {
   color: #f8fafc;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .dashboard-page-top {
@@ -9,26 +10,19 @@
   justify-content: space-between;
   gap: 24px;
   flex-wrap: wrap;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .dashboard-page-top h2 {
   margin: 0 !important;
   color: #f8fafc !important;
   font-weight: 900 !important;
-}
-
-.dashboard-page-top .ant-typography-secondary {
-  color: #bfdbfe !important;
-}
-
-.dashboard-search-tour-target {
-  max-width: 460px;
-  min-width: 260px;
-  width: 100%;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .dashboard-local-search {
-  width: 100%;
+  width: min(420px, 100%);
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .dashboard-local-search .ant-input-group,
@@ -39,6 +33,7 @@
   border-color: rgba(125, 211, 252, 0.18) !important;
   color: #f8fafc !important;
   box-shadow: none !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .dashboard-local-search .ant-input-affix-wrapper:hover,
@@ -49,9 +44,10 @@
 
 .dashboard-local-search input::placeholder {
   color: #94a3b8 !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
-.welcome-card,
+.hero-card,
 .dashboard-panel,
 .metric-card,
 .feature-card {
@@ -62,9 +58,81 @@
   border-radius: 18px !important;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26) !important;
   backdrop-filter: blur(18px);
+  font-family: "Times New Roman", Times, serif !important;
 }
 
-.welcome-card::before,
+.hero-card {
+  min-height: 330px;
+  margin-bottom: 28px;
+  padding: 34px;
+  display: flex;
+  align-items: flex-end;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 23, 0.88), rgba(2, 6, 23, 0.32)),
+    url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80")
+      center / cover !important;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.24), transparent 34%),
+    linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.52));
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.hero-content h1 {
+  margin: 12px 0 26px !important;
+  color: #f8fafc !important;
+  font-size: clamp(34px, 6vw, 72px) !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.hero-mini-stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hero-mini-stats div {
+  min-width: 132px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 4px;
+  border-radius: 14px;
+  background: rgba(8, 13, 24, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.hero-mini-stats svg {
+  color: #38bdf8;
+  font-size: 20px;
+}
+
+.hero-mini-stats strong {
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+  font-family: "Times New Roman", Times, serif !important;
+}
+
+.hero-mini-stats span {
+  color: #bfdbfe;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: "Times New Roman", Times, serif !important;
+}
+
 .dashboard-panel::before,
 .metric-card::before {
   content: "";
@@ -83,75 +151,22 @@
   pointer-events: none;
 }
 
-.welcome-card:hover::before,
 .dashboard-panel:hover::before,
 .metric-card:hover::before {
   transform: translateX(120%);
 }
 
-.welcome-card {
-  padding: 30px;
-  margin-bottom: 28px;
-  animation: panelEnter 0.55s ease both;
-}
-
-@keyframes panelEnter {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.99);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.welcome-card h2,
-.quote-text,
 .dashboard-panel .ant-card-head-title,
 .metric-card .ant-statistic-content,
 .feature-value {
   color: #f8fafc !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
-.welcome-card .ant-typography-secondary,
 .metric-card .ant-typography-secondary,
 .dashboard-panel .ant-typography-secondary {
   color: #bfdbfe !important;
-}
-
-.quote-runner {
-  height: 94px;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.quote-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.quote-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  color: #082f49;
-  background: linear-gradient(135deg, #7dd3fc, #38bdf8);
-  flex: 0 0 auto;
-  font-size: 24px;
-  box-shadow: 0 0 26px rgba(56, 189, 248, 0.38);
-}
-
-.quote-text {
-  margin: 0 !important;
-  line-height: 1.35 !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .feature-stage {
@@ -166,18 +181,7 @@
   inset: 0;
   padding: 30px;
   color: #ffffff;
-}
-
-.feature-slide::before {
-  content: "";
-  position: absolute;
-  width: 260px;
-  height: 260px;
-  border-radius: 999px;
-  right: -90px;
-  top: -80px;
-  background: rgba(255, 255, 255, 0.2);
-  animation: orbDrift 6s ease-in-out infinite alternate;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .feature-slide::after {
@@ -192,12 +196,6 @@
   mask-image: linear-gradient(to bottom, #000, transparent);
 }
 
-@keyframes orbDrift {
-  to {
-    transform: translate(-28px, 32px) scale(1.18);
-  }
-}
-
 .feature-icon {
   position: relative;
   z-index: 1;
@@ -208,7 +206,7 @@
   place-items: center;
   background: rgba(255, 255, 255, 0.24);
   font-size: 30px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   animation: iconFloat 3.2s ease-in-out infinite;
 }
 
@@ -224,19 +222,22 @@
 }
 
 .feature-label,
-.feature-caption,
 .feature-value {
   position: relative;
   z-index: 1;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
-.feature-label,
-.feature-caption {
+.feature-label {
   color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .feature-value {
-  margin: 4px 0 !important;
+  margin: 0 0 6px !important;
+  font-size: 64px !important;
+  line-height: 1 !important;
   text-shadow: 0 12px 32px rgba(0, 0, 0, 0.26);
 }
 
@@ -271,10 +272,14 @@
 .metric-card {
   width: 260px;
   height: 210px;
+}
+
+.metric-card .ant-card-body {
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .metric-card:hover {
@@ -286,6 +291,7 @@
 
 .metric-top {
   display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 
@@ -316,6 +322,7 @@
 
 .inline-blue {
   color: #38bdf8;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-table,
@@ -325,6 +332,7 @@
   background: transparent !important;
   color: #f8fafc !important;
   border-color: rgba(125, 211, 252, 0.14) !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-table-thead > tr > th {
@@ -362,30 +370,13 @@
 .ant-table-cell .ant-typography,
 .ant-table-cell .ant-typography-secondary {
   color: inherit;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-tag {
   border-radius: 999px;
   font-weight: 700;
-}
-
-.calendar-panel .ant-picker-calendar,
-.calendar-panel .ant-picker-panel,
-.calendar-panel .ant-picker-body {
-  background: transparent !important;
-  color: #f8fafc !important;
-}
-
-.calendar-panel .ant-picker-calendar-date,
-.calendar-panel .ant-picker-content th,
-.calendar-panel .ant-picker-cell {
-  color: #bfdbfe !important;
-}
-
-.calendar-panel .ant-picker-cell-selected .ant-picker-calendar-date {
-  background: linear-gradient(135deg, #38bdf8, #0284c7) !important;
-  color: #ffffff !important;
-  border-radius: 12px;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-segmented {
@@ -393,26 +384,31 @@
   color: #bfdbfe !important;
   padding: 4px;
   border: 1px solid rgba(125, 211, 252, 0.14);
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-segmented-item-selected {
   background: linear-gradient(135deg, #38bdf8, #0284c7) !important;
   color: #082f49 !important;
   font-weight: 800;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .empty-schedule {
   padding: 76px 20px;
   text-align: center;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .empty-schedule .ant-empty-description {
   color: #bfdbfe;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-drawer-content {
   background: #0f172a !important;
   color: #f8fafc !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-drawer-header {
@@ -424,6 +420,7 @@
 .ant-drawer-close,
 .ant-drawer-body .ant-typography {
   color: #f8fafc !important;
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 .ant-float-btn-primary .ant-float-btn-body {
@@ -431,137 +428,8 @@
   box-shadow: 0 0 34px rgba(56, 189, 248, 0.44);
 }
 
-.dashboard-tour-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 6000;
-  pointer-events: none;
-}
-
-.dashboard-tour-spotlight {
-  position: fixed;
-  border-radius: 16px;
-  background: transparent;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72);
-  outline: 4px solid #38bdf8;
-  outline-offset: 4px;
-  transition: 220ms ease;
-  pointer-events: none;
-}
-
-.dashboard-tour-card {
-  position: fixed;
-  padding: 20px 22px;
-  border-radius: 8px;
-  color: #050505;
-  background: linear-gradient(135deg, #38bdf8, #0284c7);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.42);
-  pointer-events: auto;
-  transition: 220ms ease;
-}
-
-.dashboard-tour-card::before {
-  content: "";
-  position: absolute;
-  top: -8px;
-  left: 34px;
-  width: 18px;
-  height: 18px;
-  background: #38bdf8;
-  transform: rotate(45deg);
-}
-
-.dashboard-tour-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.dashboard-tour-head span {
-  font-size: 12px;
-  font-weight: 900;
-  color: rgba(0, 0, 0, 0.62);
-}
-
-.dashboard-tour-head button {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 8px;
-  color: #ffffff;
-  background: #000000;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.dashboard-tour-card h3 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 950;
-  color: #050505;
-}
-
-.dashboard-tour-card p {
-  margin: 10px 0 0;
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 650;
-  color: #050505;
-}
-
-.dashboard-tour-progress {
-  display: flex;
-  gap: 6px;
-  margin-top: 18px;
-}
-
-.dashboard-tour-progress span {
-  height: 7px;
-  flex: 1;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.dashboard-tour-progress span.active {
-  background: #050505;
-}
-
-.dashboard-tour-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.dashboard-tour-actions button {
-  min-width: 126px;
-  height: 44px;
-  padding: 0 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 0;
-  border-radius: 8px;
-  color: #ffffff;
-  background: #050505;
-  font-size: 14px;
-  font-weight: 900;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.dashboard-tour-actions button:first-child {
-  background: rgba(0, 0, 0, 0.78);
-}
-
-.dashboard-tour-actions button:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
+* {
+  font-family: "Times New Roman", Times, serif !important;
 }
 
 @media (max-width: 900px) {
@@ -569,8 +437,7 @@
     align-items: flex-start;
   }
 
-  .dashboard-search-tour-target {
-    max-width: none;
+  .dashboard-local-search {
     width: 100%;
   }
 
@@ -579,33 +446,40 @@
     flex-basis: 240px;
   }
 
-  .welcome-card {
-    padding: 22px;
+  .hero-card {
+    min-height: 360px;
+    padding: 24px;
   }
 
-  .quote-runner {
-    height: auto;
-    min-height: 94px;
+  .hero-mini-stats div {
+    min-width: 112px;
   }
 }
 
 @media (max-width: 620px) {
-  .dashboard-tour-card {
-    width: calc(100vw - 32px) !important;
-    left: 16px !important;
-    padding: 18px;
+  .hero-card {
+    min-height: 420px;
   }
 
-  .dashboard-tour-card h3 {
+  .hero-mini-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hero-mini-stats div {
+    min-width: 0;
+    padding: 12px;
+  }
+
+  .hero-mini-stats strong {
     font-size: 19px;
   }
 
-  .dashboard-tour-card p {
-    font-size: 14px;
+  .hero-mini-stats span {
+    font-size: 11px;
   }
 
-  .dashboard-tour-actions button {
-    min-width: 0;
-    flex: 1;
+  .feature-value {
+    font-size: 52px !important;
   }
 }

@@ -1,6 +1,33 @@
-import  { useMemo, useState } from "react";
-import {Layout,Typography,Table,Input,Select,Button,Space,Empty,ConfigProvider, Card,Avatar,Tooltip,Modal,Descriptions, message,} from "antd";
-import {SearchOutlined,ReloadOutlined,EyeOutlined,CheckCircleOutlined,CloseCircleOutlined,AppstoreOutlined,BarsOutlined,UsergroupAddOutlined,CalendarOutlined,ThunderboltOutlined,} from "@ant-design/icons";
+import { useMemo, useState } from "react";
+import {
+  Avatar,
+  Button,
+  Card,
+  ConfigProvider,
+  Descriptions,
+  Empty,
+  Input,
+  Layout,
+  message,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Tooltip,
+  Typography,
+} from "antd";
+import {
+  AppstoreOutlined,
+  BarsOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+  UsergroupAddOutlined,
+} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
 
@@ -19,31 +46,31 @@ const ReviewPage = () => {
       key: "1",
       submitted: "2026-05-02",
       applicant: "Rajesh",
-      location: "Chennai, Tamil Nadu",
+      location: "Chennai",
       avatar: "https://randomuser.me/api/portraits/men/32.jpg",
       status: "Pending",
       score: 78,
-      role: "Full Stack Developer",
+      role: "Full Stack",
     },
     {
       key: "2",
       submitted: "2026-05-01",
       applicant: "Priya",
-      location: "Bangalore, Karnataka",
+      location: "Bangalore",
       avatar: "https://randomuser.me/api/portraits/women/44.jpg",
       status: "Approved",
       score: 92,
-      role: "UI/UX Designer",
+      role: "UI/UX",
     },
     {
       key: "3",
       submitted: "2026-04-30",
       applicant: "Arjun",
-      location: "Hyderabad, Telangana",
+      location: "Hyderabad",
       avatar: "https://randomuser.me/api/portraits/men/45.jpg",
       status: "Rejected",
       score: 45,
-      role: "Data Scientist",
+      role: "Data",
     },
   ]);
 
@@ -64,32 +91,30 @@ const ReviewPage = () => {
     });
   }, [referralsData, searchTerm, statusFilter]);
 
+  const pendingCount = referralsData.filter(
+    (item) => item.status === "Pending"
+  ).length;
+
+  const avgScore = Math.round(
+    referralsData.reduce((total, item) => total + item.score, 0) /
+      referralsData.length
+  );
+
   const handleRefresh = () => {
     setIsLoading(true);
 
     setTimeout(() => {
       setIsLoading(false);
-      message.success("Referral list refreshed");
+      message.success("Updated");
     }, 900);
   };
 
   const handleStatusChange = (key, status) => {
     setReferralsData((prevData) =>
-      prevData.map((item) =>
-        item.key === key
-          ? {
-              ...item,
-              status,
-            }
-          : item
-      )
+      prevData.map((item) => (item.key === key ? { ...item, status } : item))
     );
 
-    message.success(`Referral ${status.toLowerCase()}`);
-  };
-
-  const handleViewPortfolio = (record) => {
-    setSelectedReferral(record);
+    message.success(status);
   };
 
   const getStatusClass = (status) => {
@@ -113,20 +138,20 @@ const ReviewPage = () => {
 
   const columns = [
     {
-      title: "Submitted",
+      title: "Date",
       dataIndex: "submitted",
       key: "submitted",
-      width: 160,
+      width: 140,
       render: (date) => <span className="date-chip">{date}</span>,
     },
     {
-      title: "Applicant",
+      title: "Name",
       dataIndex: "applicant",
       key: "applicant",
-      width: 280,
+      width: 240,
       render: (_, record) => (
         <Space>
-          <Avatar src={record.avatar} size={40} className="avatar-ring" />
+          <Avatar src={record.avatar} size={42} className="avatar-ring" />
           <div>
             <div className="applicant-name">{record.applicant}</div>
             <div className="role-text">{record.role}</div>
@@ -135,53 +160,53 @@ const ReviewPage = () => {
       ),
     },
     {
-      title: "Location",
+      title: "City",
       dataIndex: "location",
       key: "location",
-      width: 260,
+      width: 170,
       render: (location) => <span className="location-text">{location}</span>,
     },
     {
-      title: "Status",
+      title: "Score",
       dataIndex: "status",
       key: "status",
       width: 230,
       render: (_, record) => getStatusBadge(record.status, record.score),
     },
     {
-      title: "Actions",
+      title: "",
       key: "actions",
-      width: 360,
+      width: 220,
       render: (_, record) => (
         <Space size="small" wrap>
-          <Button
-            ghost
-            icon={<EyeOutlined />}
-            className="action-btn"
-            onClick={() => handleViewPortfolio(record)}
-          >
-            View Portfolio
-          </Button>
+          <Tooltip title="View">
+            <Button
+              ghost
+              icon={<EyeOutlined />}
+              className="action-btn icon-action"
+              onClick={() => setSelectedReferral(record)}
+            />
+          </Tooltip>
 
           {record.status === "Pending" && (
             <>
-              <Button
-                type="primary"
-                icon={<CheckCircleOutlined />}
-                className="approve-btn"
-                onClick={() => handleStatusChange(record.key, "Approved")}
-              >
-                Approve
-              </Button>
+              <Tooltip title="Approve">
+                <Button
+                  type="primary"
+                  icon={<CheckCircleOutlined />}
+                  className="approve-btn icon-action"
+                  onClick={() => handleStatusChange(record.key, "Approved")}
+                />
+              </Tooltip>
 
-              <Button
-                danger
-                icon={<CloseCircleOutlined />}
-                className="reject-btn"
-                onClick={() => handleStatusChange(record.key, "Rejected")}
-              >
-                Reject
-              </Button>
+              <Tooltip title="Reject">
+                <Button
+                  danger
+                  icon={<CloseCircleOutlined />}
+                  className="reject-btn icon-action"
+                  onClick={() => handleStatusChange(record.key, "Rejected")}
+                />
+              </Tooltip>
             </>
           )}
         </Space>
@@ -194,7 +219,9 @@ const ReviewPage = () => {
       theme={{
         token: {
           colorPrimary: "#38bdf8",
-          borderRadius: 18,
+          borderRadius: 14,
+          colorText: "#f8fafc",
+          colorTextSecondary: "#94a3b8",
         },
       }}
     >
@@ -214,53 +241,58 @@ const ReviewPage = () => {
             <Content className="dashboard-content review-content">
               <div className="review-page-scroll">
                 <div className="review-page-inner">
+                  <div className="review-hero">
+                    <div>
+                      <Text className="hero-kicker">Live</Text>
+                      <Title level={1}>Reviews</Title>
+                    </div>
+
+                    <div className="hero-score">
+                      <ThunderboltOutlined />
+                      <strong>{avgScore}%</strong>
+                    </div>
+                  </div>
+
                   <div className="stats-row">
-                    <Card className="metric-card">
+                    <Card className="review-metric-card">
                       <div className="metric-icon">
                         <UsergroupAddOutlined />
                       </div>
                       <div>
                         <h3>{referralsData.length}</h3>
-                        <p>Total Referrals</p>
+                        <p>Total</p>
                       </div>
                     </Card>
 
-                    <Card className="metric-card">
+                    <Card className="review-metric-card">
                       <div className="metric-icon">
                         <CalendarOutlined />
                       </div>
                       <div>
-                        <h3>18</h3>
-                        <p>This Week</p>
+                        <h3>{pendingCount}</h3>
+                        <p>Pending</p>
                       </div>
                     </Card>
 
-                    <Card className="metric-card">
+                    <Card className="review-metric-card">
                       <div className="metric-icon">
                         <ThunderboltOutlined />
                       </div>
                       <div>
-                        <h3>81%</h3>
-                        <p>Avg. Score</p>
+                        <h3>{avgScore}%</h3>
+                        <p>Score</p>
                       </div>
                     </Card>
-                  </div>
-
-                  <div className="section-heading">
-                    <div>
-                      <Title level={4}>My Referrals</Title>
-                      <Text>{filteredData.length} candidates visible</Text>
-                    </div>
                   </div>
 
                   <div className="review-toolbar">
                     <Space size="middle" wrap>
                       <Input
-                        placeholder="Search applicants, roles, or locations..."
+                        placeholder="Search..."
                         prefix={<SearchOutlined />}
                         className="dashboard-search review-search"
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(event) => setSearchTerm(event.target.value)}
                         allowClear
                       />
 
@@ -269,24 +301,24 @@ const ReviewPage = () => {
                         className="status-select"
                         onChange={setStatusFilter}
                         options={[
-                          { value: "all", label: "All Status" },
+                          { value: "all", label: "All" },
                           { value: "pending", label: "Pending" },
                           { value: "approved", label: "Approved" },
                           { value: "rejected", label: "Rejected" },
                         ]}
                       />
 
-                      <Button
-                        icon={<ReloadOutlined spin={isLoading} />}
-                        onClick={handleRefresh}
-                        className="refresh-btn"
-                      >
-                        Refresh
-                      </Button>
+                      <Tooltip title="Refresh">
+                        <Button
+                          icon={<ReloadOutlined spin={isLoading} />}
+                          onClick={handleRefresh}
+                          className="refresh-btn icon-action"
+                        />
+                      </Tooltip>
                     </Space>
 
                     <div className="view-toggle">
-                      <Tooltip title="Table view">
+                      <Tooltip title="Table">
                         <Button
                           type={viewMode === "table" ? "primary" : "default"}
                           icon={<BarsOutlined />}
@@ -294,7 +326,7 @@ const ReviewPage = () => {
                         />
                       </Tooltip>
 
-                      <Tooltip title="Card view">
+                      <Tooltip title="Cards">
                         <Button
                           type={viewMode === "card" ? "primary" : "default"}
                           icon={<AppstoreOutlined />}
@@ -306,7 +338,7 @@ const ReviewPage = () => {
 
                   {filteredData.length === 0 ? (
                     <div className="empty-state">
-                      <Empty description="No referrals found" />
+                      <Empty description={false} />
                     </div>
                   ) : viewMode === "table" ? (
                     <div className="table-wrapper animated-panel">
@@ -314,11 +346,9 @@ const ReviewPage = () => {
                         columns={columns}
                         dataSource={filteredData}
                         pagination={false}
-                        scroll={{ x: 1290 }}
+                        scroll={{ x: 1000 }}
                         className="wow-table review-table"
-                        rowClassName={(_, index) =>
-                          `table-row-animate row-${index}`
-                        }
+                        rowClassName={(_, index) => `table-row-animate row-${index}`}
                       />
                     </div>
                   ) : (
@@ -337,7 +367,7 @@ const ReviewPage = () => {
                           <div className="talent-top">
                             <Avatar
                               src={item.avatar}
-                              size={54}
+                              size={58}
                               className="avatar-ring"
                             />
                             <div
@@ -350,10 +380,9 @@ const ReviewPage = () => {
 
                           <h4>{item.applicant}</h4>
                           <p className="role-text">{item.role}</p>
-                          <p className="location-text">{item.location}</p>
 
                           <div className="card-meta">
-                            <span>{item.submitted}</span>
+                            <span>{item.location}</span>
                             <span
                               className={`status-pill ${getStatusClass(
                                 item.status
@@ -365,35 +394,37 @@ const ReviewPage = () => {
                           </div>
 
                           <div className="card-actions">
-                            <Button
-                              icon={<EyeOutlined />}
-                              className="action-btn"
-                              onClick={() => handleViewPortfolio(item)}
-                            >
-                              Portfolio
-                            </Button>
+                            <Tooltip title="View">
+                              <Button
+                                icon={<EyeOutlined />}
+                                className="action-btn icon-action"
+                                onClick={() => setSelectedReferral(item)}
+                              />
+                            </Tooltip>
 
                             {item.status === "Pending" && (
                               <>
-                                <Button
-                                  type="primary"
-                                  className="approve-btn"
-                                  onClick={() =>
-                                    handleStatusChange(item.key, "Approved")
-                                  }
-                                >
-                                  Approve
-                                </Button>
+                                <Tooltip title="Approve">
+                                  <Button
+                                    type="primary"
+                                    icon={<CheckCircleOutlined />}
+                                    className="approve-btn icon-action"
+                                    onClick={() =>
+                                      handleStatusChange(item.key, "Approved")
+                                    }
+                                  />
+                                </Tooltip>
 
-                                <Button
-                                  danger
-                                  className="reject-btn"
-                                  onClick={() =>
-                                    handleStatusChange(item.key, "Rejected")
-                                  }
-                                >
-                                  Reject
-                                </Button>
+                                <Tooltip title="Reject">
+                                  <Button
+                                    danger
+                                    icon={<CloseCircleOutlined />}
+                                    className="reject-btn icon-action"
+                                    onClick={() =>
+                                      handleStatusChange(item.key, "Rejected")
+                                    }
+                                  />
+                                </Tooltip>
                               </>
                             )}
                           </div>
@@ -409,37 +440,63 @@ const ReviewPage = () => {
 
         <Modal
           open={Boolean(selectedReferral)}
-          title="Referral Portfolio"
+          title="Profile"
           footer={null}
           onCancel={() => setSelectedReferral(null)}
           className="review-modal"
         >
           {selectedReferral && (
             <div className="portfolio-preview">
-              <Avatar
-                src={selectedReferral.avatar}
-                size={72}
-                className="avatar-ring"
-              />
+              <div className="portfolio-hero">
+                <Avatar
+                  src={selectedReferral.avatar}
+                  size={86}
+                  className="portfolio-avatar"
+                />
 
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label="Applicant">
+                <div>
+                  <h2>{selectedReferral.applicant}</h2>
+                  <p>{selectedReferral.role}</p>
+                </div>
+
+                <div
+                  className="portfolio-score"
+                  style={{ "--score": `${selectedReferral.score}%` }}
+                >
+                  <strong>{selectedReferral.score}</strong>
+                  <span>Score</span>
+                </div>
+              </div>
+
+              <div className="portfolio-tiles">
+                <div>
+                  <span>City</span>
+                  <strong>{selectedReferral.location}</strong>
+                </div>
+
+                <div>
+                  <span>Date</span>
+                  <strong>{selectedReferral.submitted}</strong>
+                </div>
+
+                <div>
+                  <span>Status</span>
+                  <strong>{selectedReferral.status}</strong>
+                </div>
+              </div>
+
+              <Descriptions column={1} size="small" className="portfolio-details">
+                <Descriptions.Item label="Name">
                   {selectedReferral.applicant}
                 </Descriptions.Item>
                 <Descriptions.Item label="Role">
                   {selectedReferral.role}
                 </Descriptions.Item>
-                <Descriptions.Item label="Location">
+                <Descriptions.Item label="City">
                   {selectedReferral.location}
                 </Descriptions.Item>
-                <Descriptions.Item label="Submitted">
+                <Descriptions.Item label="Date">
                   {selectedReferral.submitted}
-                </Descriptions.Item>
-                <Descriptions.Item label="AI Score">
-                  {selectedReferral.score}%
-                </Descriptions.Item>
-                <Descriptions.Item label="Status">
-                  {selectedReferral.status}
                 </Descriptions.Item>
               </Descriptions>
             </div>

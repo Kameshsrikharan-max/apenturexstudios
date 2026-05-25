@@ -1,48 +1,73 @@
-import  { useEffect, useMemo, useState } from "react";
-import {Typography,Card,Row,Col,Progress,Table,Avatar,Space,Tag,Button,ConfigProvider,Badge,Statistic,Empty,Input,Drawer,Segmented,FloatButton,} from "antd";
-import {ArrowRightOutlined,CalendarOutlined,ThunderboltFilled,HistoryOutlined,UsergroupAddOutlined,VideoCameraOutlined,PlusOutlined,RiseOutlined,SafetyCertificateOutlined,CameraOutlined,PictureOutlined,FireOutlined,EyeOutlined,CheckCircleOutlined,DollarOutlined,TeamOutlined,SearchOutlined,} from "@ant-design/icons";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Col,
+  ConfigProvider,
+  Drawer,
+  Empty,
+  FloatButton,
+  Input,
+  Progress,
+  Row,
+  Segmented,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  ArrowRightOutlined,
+  CalendarOutlined,
+  CameraOutlined,
+  CheckCircleOutlined,
+  DollarOutlined,
+  EyeOutlined,
+  FireOutlined,
+  HistoryOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  RiseOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  TeamOutlined,
+  ThunderboltFilled,
+  UsergroupAddOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import "./DashboardPage.css";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 
 const THEME_COLOR = "#38BDF8";
 
-const photographyQuotes = [
-  "Photography is the story you fail to put into words.",
-  "A camera freezes time, but vision gives it meaning.",
-  "Great portraits begin long before the shutter clicks.",
-  "Light is not just seen. It is shaped.",
-  "Every frame is a decision about what matters.",
-];
-
 const featureCards = [
   {
-    title: "Creative Shoots",
+    title: "Shoots",
     value: "18",
-    caption: "Concept sessions planned",
     icon: <CameraOutlined />,
     background: "linear-gradient(135deg, #38BDF8, #2563eb)",
   },
   {
-    title: "Gallery Views",
+    title: "Views",
     value: "12.8K",
-    caption: "Portfolio impressions",
     icon: <EyeOutlined />,
     background: "linear-gradient(135deg, #38BDF8, #06b6d4)",
   },
   {
-    title: "Featured Frames",
+    title: "Frames",
     value: "64",
-    caption: "Selected final edits",
     icon: <PictureOutlined />,
     background: "linear-gradient(135deg, #38BDF8, #22c55e)",
   },
   {
-    title: "Trending Bookings",
+    title: "Bookings",
     value: "+27%",
-    caption: "Demand this month",
     icon: <FireOutlined />,
     background: "linear-gradient(135deg, #38BDF8, #f59e0b)",
   },
@@ -86,55 +111,49 @@ const eventsData = [
 
 const metricCards = [
   {
-    title: "Total Users",
+    title: "Users",
     value: 1042,
-    suffix: "+12%",
-    caption: "Growth this month",
+    suffix: "",
     percent: 100,
     icon: <UsergroupAddOutlined />,
     color: "#38BDF8",
   },
   {
-    title: "Active Events",
+    title: "Events",
     value: 2,
-    suffix: "Live",
-    caption: "Currently tracked",
+    suffix: "",
     percent: 40,
     icon: <VideoCameraOutlined />,
     color: "#f59e0b",
   },
   {
-    title: "Studio Health",
+    title: "Health",
     value: 98,
     suffix: "%",
-    caption: "System performance",
     percent: 98,
     icon: <SafetyCertificateOutlined />,
     color: "#06b6d4",
   },
   {
-    title: "Profile Strength",
+    title: "Profile",
     value: 82,
     suffix: "%",
-    caption: "Admin profile complete",
     percent: 82,
     icon: <CheckCircleOutlined />,
     color: "#22c55e",
   },
   {
-    title: "Monthly Revenue",
+    title: "Revenue",
     value: 180000,
     suffix: "Rs",
-    caption: "Estimated this month",
     percent: 76,
     icon: <DollarOutlined />,
     color: "#14b8a6",
   },
   {
-    title: "Client Leads",
+    title: "Leads",
     value: 36,
-    suffix: "New",
-    caption: "Fresh enquiries",
+    suffix: "",
     percent: 64,
     icon: <TeamOutlined />,
     color: "#38BDF8",
@@ -142,25 +161,17 @@ const metricCards = [
 ];
 
 const DashboardPage = () => {
-  const [quoteIndex, setQuoteIndex] = useState(0);
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
-    const quoteTimer = setInterval(() => {
-      setQuoteIndex((current) => (current + 1) % photographyQuotes.length);
-    }, 6000);
-
     const featureTimer = setInterval(() => {
       setFeatureIndex((current) => (current + 1) % featureCards.length);
-    }, 5200);
+    }, 4200);
 
-    return () => {
-      clearInterval(quoteTimer);
-      clearInterval(featureTimer);
-    };
+    return () => clearInterval(featureTimer);
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -203,7 +214,7 @@ const DashboardPage = () => {
 
   const userColumns = [
     {
-      title: "User Profile",
+      title: "User",
       dataIndex: "name",
       key: "name",
       render: (text) => (
@@ -216,7 +227,7 @@ const DashboardPage = () => {
             <Text strong>{text}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: 11 }}>
-              {text.split(" ")[0].toLowerCase()}_admin
+              Admin
             </Text>
           </div>
         </Space>
@@ -230,7 +241,7 @@ const DashboardPage = () => {
     },
     { title: "Phone", dataIndex: "phone", key: "phone" },
     {
-      title: "Created At",
+      title: "Joined",
       dataIndex: "createdAt",
       key: "createdAt",
       render: (date) => <Tag>{date}</Tag>,
@@ -239,20 +250,20 @@ const DashboardPage = () => {
 
   const eventColumns = [
     {
-      title: "Event ID",
+      title: "ID",
       dataIndex: "id",
       key: "id",
       render: (id) => <Text code>{id}</Text>,
     },
     {
-      title: "Event Name",
+      title: "Shoot",
       dataIndex: "name",
       key: "name",
       render: (text) => <Text strong>{text}</Text>,
     },
     { title: "Studio", dataIndex: "studio", key: "studio" },
     {
-      title: "Event Date",
+      title: "Date",
       dataIndex: "date",
       key: "date",
       render: (date) => (
@@ -267,11 +278,7 @@ const DashboardPage = () => {
       dataIndex: "priority",
       key: "priority",
       render: (priority) => (
-        <Tag
-          color={
-            priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"
-          }
-        >
+        <Tag color={priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"}>
           {priority}
         </Tag>
       ),
@@ -320,15 +327,10 @@ const DashboardPage = () => {
     >
       <div className="dashboard-page-content">
         <div className="dashboard-page-top">
-          <div>
-            <Title level={2}>Dashboard Overview</Title>
-            <Paragraph type="secondary">
-              Manage studio events, users, reviews, and photography activity.
-            </Paragraph>
-          </div>
+          <Title level={2}>Dashboard</Title>
 
           <Search
-            placeholder="Search users, events, studios..."
+            placeholder="Search..."
             allowClear
             enterButton={<SearchOutlined />}
             value={searchText}
@@ -341,47 +343,37 @@ const DashboardPage = () => {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className="welcome-card"
+          className="hero-card"
         >
-          <Row align="middle" gutter={[28, 28]}>
-            <Col xs={24} lg={10}>
-              <Space orientation="vertical" size={10}>
-                <Tag color="cyan">
-                  <ThunderboltFilled /> Live Creative Overview
-                </Tag>
+          <div className="hero-overlay" />
 
-                <Title level={2}>Welcome back, Kamesh</Title>
+          <div className="hero-content">
+            <Tag color="cyan">
+              <ThunderboltFilled /> Live
+            </Tag>
 
-                <Paragraph type="secondary">
-                  Manage studio events, production schedules, users, and
-                  photography activity from one elegant dashboard.
-                </Paragraph>
-              </Space>
-            </Col>
+            <Title level={1}>Welcome, Kamesh</Title>
 
-            <Col xs={24} lg={14}>
-              <div className="quote-runner">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={quoteIndex}
-                    initial={{ x: -90, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 90, opacity: 0 }}
-                    transition={{ duration: 0.7, ease: "easeInOut" }}
-                    className="quote-item"
-                  >
-                    <div className="quote-icon">
-                      <CameraOutlined />
-                    </div>
-
-                    <Title level={4} className="quote-text">
-                      "{photographyQuotes[quoteIndex]}"
-                    </Title>
-                  </motion.div>
-                </AnimatePresence>
+            <div className="hero-mini-stats">
+              <div>
+                <CameraOutlined />
+                <strong>18</strong>
+                <span>Shoots</span>
               </div>
-            </Col>
-          </Row>
+
+              <div>
+                <EyeOutlined />
+                <strong>12.8K</strong>
+                <span>Views</span>
+              </div>
+
+              <div>
+                <PictureOutlined />
+                <strong>64</strong>
+                <span>Frames</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         <Row gutter={[24, 24]}>
@@ -400,16 +392,12 @@ const DashboardPage = () => {
                   >
                     <div className="feature-icon">{featureCards[featureIndex].icon}</div>
 
-                    <Text className="feature-label">
-                      {featureCards[featureIndex].title}
-                    </Text>
-
                     <Title level={1} className="feature-value">
                       {featureCards[featureIndex].value}
                     </Title>
 
-                    <Text className="feature-caption">
-                      {featureCards[featureIndex].caption}
+                    <Text className="feature-label">
+                      {featureCards[featureIndex].title}
                     </Text>
                   </motion.div>
                 </AnimatePresence>
@@ -427,38 +415,33 @@ const DashboardPage = () => {
                   className="horizontal-card-item"
                 >
                   <Card variant="borderless" className="metric-card">
-                    <Space orientation="vertical" size={18} style={{ width: "100%" }}>
-                      <div className="metric-top">
-                        <div className="metric-icon" style={{ color: item.color }}>
-                          {item.icon}
-                        </div>
-
-                        <Progress
-                          type="circle"
-                          percent={item.percent}
-                          size={58}
-                          strokeColor={item.color}
-                          railColor="rgba(255,255,255,0.1)"
-                          format={() => ""}
-                        />
+                    <div className="metric-top">
+                      <div className="metric-icon" style={{ color: item.color }}>
+                        {item.icon}
                       </div>
 
-                      <Statistic
-                        title={
-                          <Text strong type="secondary">
-                            {item.title}
-                          </Text>
-                        }
-                        value={item.value}
-                        suffix={item.suffix}
-                        styles={{ content: { fontWeight: 800 } }}
+                      <Progress
+                        type="circle"
+                        percent={item.percent}
+                        size={58}
+                        strokeColor={item.color}
+                        railColor="rgba(255,255,255,0.1)"
+                        format={() => ""}
                       />
+                    </div>
 
-                      <Space>
-                        <RiseOutlined style={{ color: item.color }} />
-                        <Text type="secondary">{item.caption}</Text>
-                      </Space>
-                    </Space>
+                    <Statistic
+                      title={
+                        <Text strong type="secondary">
+                          {item.title}
+                        </Text>
+                      }
+                      value={item.value}
+                      suffix={item.suffix}
+                      styles={{ content: { fontWeight: 800 } }}
+                    />
+
+                    <RiseOutlined style={{ color: item.color, fontSize: 20 }} />
                   </Card>
                 </motion.div>
               ))}
@@ -470,14 +453,10 @@ const DashboardPage = () => {
           title={
             <Space>
               <HistoryOutlined />
-              User Records
+              Users
             </Space>
           }
-          extra={
-            <Button type="text" icon={<ArrowRightOutlined />}>
-              View All
-            </Button>
-          }
+          extra={<Button type="text" icon={<ArrowRightOutlined />} />}
           className="dashboard-panel"
         >
           <Table
@@ -520,14 +499,10 @@ const DashboardPage = () => {
           title={
             <Space>
               <ThunderboltFilled className="inline-blue" />
-              Upcoming Production Schedule
+              Schedule
             </Space>
           }
-          extra={
-            <Button type="primary" shape="round" icon={<PlusOutlined />}>
-              Create New Event
-            </Button>
-          }
+          extra={<Button type="primary" shape="circle" icon={<PlusOutlined />} />}
           className="dashboard-panel schedule-panel"
           styles={{ body: { padding: 0 } }}
         >
@@ -539,14 +514,9 @@ const DashboardPage = () => {
             locale={{
               emptyText: (
                 <div className="empty-schedule">
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No production events are booked for the next 7 days."
-                  />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
 
-                  <Button type="primary" shape="round" icon={<PlusOutlined />}>
-                    Plan First Shoot
-                  </Button>
+                  <Button type="primary" shape="circle" icon={<PlusOutlined />} />
                 </div>
               ),
             }}
@@ -554,7 +524,7 @@ const DashboardPage = () => {
         </Card>
 
         <Drawer
-          title="Event Details"
+          title="Event"
           open={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           size="default"
@@ -564,7 +534,7 @@ const DashboardPage = () => {
               <Title level={4}>{selectedEvent.name}</Title>
 
               <Text>
-                <strong>Event ID:</strong> {selectedEvent.id}
+                <strong>ID:</strong> {selectedEvent.id}
               </Text>
 
               <Text>
@@ -590,7 +560,7 @@ const DashboardPage = () => {
           )}
         </Drawer>
 
-        <FloatButton icon={<PlusOutlined />} type="primary" tooltip="Create Event" />
+        <FloatButton icon={<PlusOutlined />} type="primary" tooltip="Create" />
       </div>
     </ConfigProvider>
   );

@@ -14,6 +14,8 @@ import ReviewPage from "../features/review/pages/ReviewPage";
 import UsersPage from "../features/users/pages/UsersPage";
 import EnquiryPage from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage from "../features/media/pages/MediaLibraryPage.jsx";
+import ProfilePage from "../features/profile/pages/ProfilePage";
+import MyPortfolioPage from "../features/profile/pages/MyPortfolioPage";
 
 import MainLayout from "../components/Layout/MainLayout";
 
@@ -71,6 +73,8 @@ export default function AppRoutes({
         <Route path="/users" element={<UsersPage user={user} />} />
         <Route path="/enquiry" element={<EnquiryPage user={user} />} />
         <Route path="/media" element={<MediaLibraryPage user={user} />} />
+        <Route path="/profile" element={<ProfilePage user={user} />} />
+        <Route path="/portfolio" element={<MyPortfolioPage user={user} />} />
       </Route>
 
       <Route

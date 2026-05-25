@@ -8,7 +8,6 @@ import {
   MailOutlined,
   ShopOutlined,
   CameraOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 
 import "./Sidebar.css";
@@ -26,48 +25,41 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
       icon: <DashboardOutlined />,
       label: "Dashboard",
       path: "/dashboard",
-      tooltip: "View your main dashboard metrics",
     },
     {
       key: "review",
       icon: <StarOutlined />,
       label: "Review",
       path: "/review",
-      tooltip: "Manage and read client reviews",
     },
     {
       key: "users",
       icon: <UserOutlined />,
       label: "Users",
       path: "/users",
-      tooltip: "Manage client and team accounts",
     },
     {
       key: "events",
       icon: <CalendarOutlined />,
       label: "Calendar",
-      tooltip: "Open the event scheduler",
     },
     {
       key: "enquiry",
       icon: <MailOutlined />,
       label: "Enquiry",
       path: "/enquiry",
-      tooltip: "Check incoming customer inquiries",
     },
     {
       key: "media",
       icon: <CameraOutlined />,
       label: "Media Library",
       path: "/media",
-      tooltip: "Browse uploaded photos and videos",
     },
     {
       key: "studio",
       icon: <ShopOutlined />,
       label: "My Studio",
       path: "/studio",
-      tooltip: "Configure your studio storefront settings",
     },
   ];
 
@@ -99,36 +91,25 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
       />
 
       <Sider
-        width={260}
+        width={96}
         className={[
           "studio-sidebar",
           dark ? "studio-sidebar-dark" : "studio-sidebar-light",
           open ? "studio-sidebar-open" : "",
         ].join(" ")}
       >
-        <Tooltip title="Close Sidebar" placement="left">
-          <button type="button" className="sidebar-close" onClick={onClose}>
-            <CloseOutlined />
-          </button>
-        </Tooltip>
-
         <div className="studio-sidebar-brand">
-          <Tooltip title="Aperture X Studios Identity" placement="bottom">
-            <div className="studio-brand-mark">
-              <CameraOutlined />
-            </div>
-          </Tooltip>
+          <Tooltip title="Aperture X Studios" placement="right">
+            <div className="studio-brand-stack">
+              <div className="studio-brand-mark">
+                <CameraOutlined />
+              </div>
 
-          <div>
-            <Tooltip title="Aperture X Studios" placement="right">
               <Text strong className="studio-brand-title">
                 AXS
               </Text>
-            </Tooltip>
-            <Text className="studio-brand-subtitle">
-              Apenture X Studios
-            </Text>
-          </div>
+            </div>
+          </Tooltip>
         </div>
 
         <Menu
@@ -136,23 +117,26 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
           selectedKeys={getSelectedKey()}
           onClick={handleMenuClick}
           className="studio-sidebar-menu"
-          items={menuItems.map((item) => ({
+          items={menuItems.map((item, index) => ({
             key: item.key,
-            icon: item.icon,
-            // Wrapped label in a full width div so the tooltip covers the entire item row
-            label: (
-              <Tooltip title={item.tooltip} placement="right" mouseEnterDelay={0.4}>
-                <div style={{ width: "100%", height: "100%" }}>{item.label}</div>
+            icon: (
+              <Tooltip
+                title={item.label}
+                placement="right"
+                trigger={["hover", "focus", "click"]}
+                mouseEnterDelay={0.2}
+              >
+                <span
+                  className="sidebar-menu-icon"
+                  style={{ "--item-index": index }}
+                >
+                  {item.icon}
+                </span>
               </Tooltip>
             ),
+            label: null,
           }))}
         />
-
-        <Tooltip title="Current Production Version" placement="top">
-          <div className="studio-sidebar-footer">
-            <Text className="studio-version">Version 2.0</Text>
-          </div>
-        </Tooltip>
       </Sider>
     </>
   );
