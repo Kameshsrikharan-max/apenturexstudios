@@ -1,33 +1,6 @@
 import { useMemo, useState } from "react";
-import {
-  Avatar,
-  Button,
-  Card,
-  ConfigProvider,
-  Descriptions,
-  Empty,
-  Input,
-  Layout,
-  message,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tooltip,
-  Typography,
-} from "antd";
-import {
-  AppstoreOutlined,
-  BarsOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  EyeOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  ThunderboltOutlined,
-  UsergroupAddOutlined,
-} from "@ant-design/icons";
+import {Avatar,Button,Card,ConfigProvider,Descriptions,Empty,Input,Layout,message,Modal,Select,Space,Table,Tooltip,Typography,} from "antd";
+import {AppstoreOutlined,BarsOutlined,CalendarOutlined,CheckCircleOutlined,CloseCircleOutlined,EyeOutlined,ReloadOutlined,SearchOutlined,ThunderboltOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
 
@@ -42,36 +15,9 @@ const ReviewPage = () => {
   const [selectedReferral, setSelectedReferral] = useState(null);
 
   const [referralsData, setReferralsData] = useState([
-    {
-      key: "1",
-      submitted: "2026-05-02",
-      applicant: "Rajesh",
-      location: "Chennai",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-      status: "Pending",
-      score: 78,
-      role: "Full Stack",
-    },
-    {
-      key: "2",
-      submitted: "2026-05-01",
-      applicant: "Priya",
-      location: "Bangalore",
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-      status: "Approved",
-      score: 92,
-      role: "UI/UX",
-    },
-    {
-      key: "3",
-      submitted: "2026-04-30",
-      applicant: "Arjun",
-      location: "Hyderabad",
-      avatar: "https://randomuser.me/api/portraits/men/45.jpg",
-      status: "Rejected",
-      score: 45,
-      role: "Data",
-    },
+    {key: "1",submitted: "2026-05-02",applicant: "Rajesh",location: "Chennai",avatar: "https://randomuser.me/api/portraits/men/32.jpg",status: "Pending",score: 78,role: "Full Stack",},
+    {key: "2",submitted: "2026-05-01",applicant: "Priya",location: "Bangalore",avatar: "https://randomuser.me/api/portraits/women/44.jpg",status: "Approved",score: 92,role: "UI/UX",},
+    {key: "3",submitted: "2026-04-30",applicant: "Arjun",location: "Hyderabad",avatar: "https://randomuser.me/api/portraits/men/45.jpg",status: "Rejected",score: 45,role: "Data",},
   ]);
 
   const filteredData = useMemo(() => {

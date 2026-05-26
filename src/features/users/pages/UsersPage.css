@@ -19,7 +19,7 @@
 
 .user-navbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   background: transparent !important;
   box-shadow: none !important;
@@ -35,15 +35,26 @@
   place-items: center;
   border-radius: 16px;
   color: #ffffff !important;
-  background: linear-gradient(135deg, #3b82f6, #22c55e);
+  background: linear-gradient(135deg, #3b82f6, #3b82f6);
   box-shadow: 0 0 28px rgba(59, 130, 246, 0.48);
+}
+.users-page-heading {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.users-page-heading h2 {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: 34px !important;
+  font-weight: 900 !important;
 }
 
 .user-mini-stats {
   display: flex;
   gap: 10px;
 }
-
 .user-mini-stats span {
   height: 36px;
   padding: 0 12px;
@@ -61,9 +72,18 @@
   overflow: hidden;
   background: rgba(15, 23, 42, 0.5) !important;
   backdrop-filter: blur(18px);
-  border: 1px solid rgba(8, 139, 245, 0.45);
-  box-shadow: 0 0 28px rgba(8, 139, 245, 0.18);
+  border: 1px solid rgba(8, 139, 245, 0.22);
+  border-bottom: none !important;
+  box-shadow: none !important;
   border-radius: 26px;
+}
+.user-tabs-glass {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+.user-panel-container::before {
+  display: none !important;
 }
 
 .user-panel-container::before {
@@ -96,6 +116,7 @@
   position: relative;
   z-index: 1;
   padding: 0 20px;
+  border-top: 1px solid rgba(8, 139, 245, 0.48);
   border-bottom: 1px solid rgba(8, 139, 245, 0.48);
 }
 
@@ -229,7 +250,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 0 20px 14px;
+  padding: 22px 20px 18px;
 }
 
 .smart-chip {
@@ -812,6 +833,20 @@
 .delete-modal-shell {
   text-align: center;
 }
+
+.user-content {
+  padding-top: 0 !important;
+  transform: translateY(-35px);
+}
+
+.users-page-heading {
+  margin-bottom: 8px !important;
+  padding-bottom: 6px !important;
+}
+
+.user-panel-container {
+  margin-top: 0 !important;
+} 
 
 .delete-warning-icon {
   width: 82px;

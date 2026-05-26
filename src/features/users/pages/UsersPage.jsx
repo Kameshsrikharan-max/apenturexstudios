@@ -1,50 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Avatar,
-  Tabs,
-  Tooltip,
-  Popover,
-  Modal,
-  Form,
-  Select,
-  message,
-  Empty,
-  Divider,
-  Progress,
+import {Layout, Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Modal,Form,Select,message,Empty, Divider,Progress,
 } from "antd";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  UserAddOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SendOutlined,
-  UserSwitchOutlined,
-  WarningOutlined,
-  EnvironmentOutlined,
-  CalendarOutlined,
-  SaveOutlined,
-  TeamOutlined,
-  LinkOutlined,
-  CameraOutlined,
-  AppstoreOutlined,
-  GoogleOutlined,
-  ClockCircleOutlined,
-  StarOutlined,
+import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,DeleteOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,
+  SendOutlined, UserSwitchOutlined,WarningOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./UsersPage.css";
@@ -134,13 +92,7 @@ const UsersPage = () => {
       notes: "Manages studio users and booking activity.",
     },
     {
-      id: "2",
-      name: "Arun Kumar",
-      email: "arun.photography@gmail.com",
-      phone: "9840123456",
-      studio: "Wave Studios",
-      role: "Photographer",
-      status: "Active",
+      id: "2",name: "Arun Kumar", email: "arun.photography@gmail.com",phone: "9840123456", studio: "Wave Studios", role: "Photographer",status: "Active",
       signupType: "Google",
       created: "05 May 2026",
       location: "Coimbatore",
@@ -789,11 +741,7 @@ const UsersPage = () => {
 
           <Layout className="dashboard-shell user-shell">
             <Header className="dashboard-navbar review-navbar user-navbar">
-              <div className="dashboard-brand">
-                <Title level={3} className="dashboard-title review-title user-page-title">
-                  <TeamOutlined />
-                </Title>
-              </div>
+            
 
               <div className="user-mini-stats">
                 <Tooltip title="Visible users">
@@ -810,21 +758,13 @@ const UsersPage = () => {
               </div>
             </Header>
 
-            <Content className="dashboard-content review-content user-content">
-              <div className="table-wrapper animated-panel user-panel-container">
-                <Tabs
-                  activeKey={activeTab}
-                  onChange={(key) => {
-                    setActiveTab(key);
-                    setSearchTerm("");
-                    setActiveFilter("All");
-                    setSelectedRowKeys([]);
-                  }}
-                  className="user-tabs-glass"
-                  items={tabItems}
-                />
+           <Content className="dashboard-content review-content user-content">
+  <div className="users-page-heading">
+    <Title level={2}>Users</Title>
+  </div>
 
-                <div className="user-hero-strip">
+  <div className="table-wrapper animated-panel user-panel-container">
+              <div className="user-hero-strip">
                   <div>
                     <span className="hero-mini-pill">
                       <TeamOutlined /> Studio People Board
@@ -837,21 +777,38 @@ const UsersPage = () => {
                       icon headers, smart filters and visual profile details.
                     </Text>
                   </div>
-
-                  <div className="hero-face-stack">
-                    {filteredData.slice(0, 4).map((item) => (
-                      <Tooltip title={item.name} key={item.id}>
-                        <img
-                          src={item.image || fallbackImage}
-                          alt={item.name}
-                          onError={(e) => {
-                            e.currentTarget.src = fallbackImage;
-                          }}
-                        />
-                      </Tooltip>
-                    ))}
-                  </div>
+                {activeTab === "photographers" && (
+  <div className="hero-face-stack">
+    {filteredData.slice(0, 4).map((item) => (
+      <Tooltip title={item.name} key={item.id}>
+        <img
+          src={item.image || fallbackImage}
+          alt={item.name}
+          onError={(e) => {
+            e.currentTarget.src = fallbackImage;
+          }}
+        />
+      </Tooltip>
+    ))}
+  </div>
+)}
                 </div>
+
+                </div>
+
+<Tabs
+  activeKey={activeTab}
+  onChange={(key) => {
+    setActiveTab(key);
+    setSearchTerm("");
+    setActiveFilter("All");
+    setSelectedRowKeys([]);
+  }}
+  className="user-tabs-glass"
+  items={tabItems}
+/>
+
+<div className="smart-filter-row">
 
                 <div className="smart-filter-row">
                   {filterOptions.map((filter) => (
