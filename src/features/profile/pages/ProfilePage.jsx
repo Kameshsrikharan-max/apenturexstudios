@@ -1,25 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  AppstoreOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  HeartFilled,
-  HeartOutlined,
-  InstagramOutlined,
-  LeftOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  RightOutlined,
-  SaveOutlined,
-  StarFilled,
-  UploadOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+import {AppstoreOutlined,CameraOutlined,CheckCircleOutlined,CloseOutlined,DeleteOutlined,EditOutlined,EnvironmentOutlined,HeartFilled,HeartOutlined,LeftOutlined,MailOutlined,PhoneOutlined,RightOutlined,SaveOutlined,StarFilled,UploadOutlined,UserOutlined,} from "@ant-design/icons";
 import "./ProfilePage.css";
 
 const DEFAULT_PROFILE = {
@@ -68,29 +49,32 @@ function ProfilePage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
-  const [draftProfile, setDraftProfile] = useState(DEFAULT_PROFILE);
+ 
   const [editOpen, setEditOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [favorites, setFavorites] = useState([]);
 
-  useEffect(() => {
+ const getInitialProfile = () => {
+  try {
     const savedProfile = localStorage.getItem("axsProfile");
 
     if (savedProfile) {
-      try {
-        const parsedProfile = JSON.parse(savedProfile);
-        const nextProfile = { ...DEFAULT_PROFILE, ...parsedProfile };
-        setProfile(nextProfile);
-        setDraftProfile(nextProfile);
-      } catch {
-        setProfile(DEFAULT_PROFILE);
-        setDraftProfile(DEFAULT_PROFILE);
-      }
+      return {
+        ...DEFAULT_PROFILE,
+        ...JSON.parse(savedProfile),
+      };
     }
-  }, []);
+  } catch (error) {
+    console.error(error);
+  }
+
+  return DEFAULT_PROFILE;
+};
+
+const [profile, setProfile] = useState(getInitialProfile);
+const [draftProfile, setDraftProfile] = useState(getInitialProfile);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
