@@ -65,7 +65,7 @@ const ABOUT_LINES = [
   "Available for events, portraits, campaigns, and creative shoots.",
 ];
 
-/* ── Social SVG icons ── */
+
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
@@ -92,11 +92,11 @@ const GoogleIcon = () => (
   </svg>
 );
 
-/* ── helpers ── */
+
 const loadLS = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } };
 const saveLS = (key, val)      => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
 
-/* ── Editable detail field — no box, no pen icon ── */
+
 function DetailField({ icon, label, field, value, editable = true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange }) {
   const inputRef = useRef(null);
   const isEditing = editingField === field;
@@ -129,7 +129,7 @@ function DetailField({ icon, label, field, value, editable = true, editingField,
   );
 }
 
-/* ── KYC Section — no box, editable ── */
+
 function KycSection({ verified, onVerify, onReset }) {
   const [docType, setDocType] = useState("");
   const [consent, setConsent] = useState(false);
@@ -210,7 +210,7 @@ function KycSection({ verified, onVerify, onReset }) {
   );
 }
 
-/* ── Main component ── */
+
 function ProfilePage() {
   const navigate     = useNavigate();
   const fileInputRef = useRef(null);
@@ -351,13 +351,13 @@ function ProfilePage() {
           <CloseOutlined />
         </button>
 
-        {/* ── HERO ── */}
+      
         <section className="profile-hero animate-fade-up">
 
-          {/* LEFT — avatar + about + social */}
+        
           <div className="hero-left-col">
 
-            {/* Round avatar */}
+          
             <div className={`profile-avatar-wrap${kycVerified ? " avatar-verified" : " avatar-not-verified"}`}>
               <div className="profile-avatar-circle">
                 {profile.profilePhoto
@@ -379,14 +379,14 @@ function ProfilePage() {
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden />
             </div>
 
-            {/* Name + kicker */}
+          
             <div className="avatar-name-block">
               <p className="profile-kicker">Professional Photographer</p>
               <h2 className="avatar-fullname">{fullName}</h2>
               <p className="hero-subtitle">Capturing Moments, Creating Stories</p>
             </div>
 
-            {/* About Me */}
+          
             <div className="about-block">
               <p className="about-first-line">{ABOUT_LINES[0]}</p>
               {aboutExpanded && (
@@ -401,7 +401,7 @@ function ProfilePage() {
               </button>
             </div>
 
-            {/* Social icons */}
+          
             <div className="social-row">
               <span className="social-icon instagram" title="Instagram"><InstagramIcon /></span>
               <span className="social-icon facebook"  title="Facebook"><FacebookIcon /></span>
@@ -410,13 +410,13 @@ function ProfilePage() {
             </div>
           </div>
 
-          {/* RIGHT — details + KYC (no boxes) */}
+      
           <div className="hero-right-col">
 
             <div className="details-section">
               
 
-              {/* Name — editable */}
+              
               <DetailField
                 icon={<UserOutlined />}
                 label="Full Name"
@@ -483,10 +483,10 @@ function ProfilePage() {
                 onPendingChange={setPendingValue}
               />
 
-              {/* KYC — seamlessly inline after fields */}
+              
               <KycSection verified={kycVerified} onVerify={handleKycVerify} onReset={handleKycReset} />
 
-              {/* Floating save — appears only while editing */}
+          
               {hasUnsaved && (
                 <button type="button" className="floating-save-btn" onClick={handleSaveAll}>
                   <CheckCircleOutlined /> Save
@@ -496,7 +496,7 @@ function ProfilePage() {
           </div>
         </section>
 
-        {/* ── GALLERY ── */}
+        
         <section className="profile-panel gallery-panel animate-fade-up" style={{ animationDelay: "0.18s" }}>
           <div className="gallery-head">
             <div>
@@ -541,7 +541,7 @@ function ProfilePage() {
         <footer className="profile-footer">© axs</footer>
       </div>
 
-      {/* ── LIGHTBOX ── */}
+    
       {previewPhoto && (
         <div className="portfolio-lightbox" role="dialog" aria-modal="true">
           <button type="button" className="portfolio-lightbox-backdrop" onClick={() => setPreviewPhoto(null)} aria-label="Close preview" />
