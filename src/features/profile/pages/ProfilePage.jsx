@@ -1,63 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  AppstoreOutlined,
-  CheckCircleOutlined,
-  CameraOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  EnvironmentOutlined,
-  HeartFilled,
-  HeartOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  SafetyCertificateOutlined,
-  StarFilled,
-  StarOutlined,
-  UploadOutlined,
-  UserOutlined,
+  AppstoreOutlined, CameraOutlined, CheckCircleOutlined, CloseOutlined,
+  DeleteOutlined, EnvironmentOutlined, HeartFilled, HeartOutlined,
+  LeftOutlined, MailOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
+  PhoneOutlined, RightOutlined, SafetyCertificateOutlined, StarFilled,
+  StarOutlined, UploadOutlined, UserOutlined,
 } from "@ant-design/icons";
 import "./ProfilePage.css";
 
 const DEFAULT_PROFILE = {
-  Name: "Kamesh Srikharan.T",
-  email: "kameshsrikharan.t@gmail.com",
-  phone: "8888888888",
-  role: "Professional Photographer",
-  address: "Arumbakkam",
-  city: "Chennai",
-  state: "Tamil Nadu",
-  country: "India",
-  postalCode: "600106",
-  profilePhoto:
-    "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1200",
+  firstName: "Kamesh", lastName: "Srikharan.T",
+  email: "kameshsrikharan.t@gmail.com", phone: "8888888888",
+  role: "Professional Photographer", address: "Arumbakkam",
+  city: "Chennai", state: "Tamil Nadu", country: "India", postalCode: "600106",
+  profilePhoto: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1200",
 };
 
 const photos = [
-  { id: 1,  title: "Royal Wedding Frame",  category: "Wedding",   image: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400" },
-  { id: 2,  title: "Golden Couple Walk",   category: "Wedding",   image: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=1400" },
-  { id: 3,  title: "Classic Portrait",     category: "Portraits", image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1400" },
-  { id: 4,  title: "Forest Light",         category: "Nature",    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400" },
-  { id: 5,  title: "Camera Mood",          category: "Cinematic", image: "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1400" },
-  { id: 6,  title: "Bride Detail",         category: "Wedding",   image: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1400" },
-  { id: 7,  title: "Wedding Rings",        category: "Wedding",   image: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1400" },
-  { id: 8,  title: "Outdoor Couple",       category: "Wedding",   image: "https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?q=80&w=1400" },
-  { id: 9,  title: "Soft Portrait",        category: "Portraits", image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=1400" },
-  { id: 10, title: "Golden Portrait",      category: "Portraits", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1400" },
-  { id: 11, title: "Street Portrait",      category: "Portraits", image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1400" },
-  { id: 12, title: "Mountain Air",         category: "Nature",    image: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1400" },
-  { id: 13, title: "Nature Story",         category: "Nature",    image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1400" },
-  { id: 14, title: "Wild Hills",           category: "Nature",    image: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1400" },
-  { id: 15, title: "Lake Mirror",          category: "Nature",    image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1400" },
-  { id: 16, title: "Film Look",            category: "Cinematic", image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1400" },
-  { id: 17, title: "Night Lens",           category: "Cinematic", image: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?q=80&w=1400" },
-  { id: 18, title: "Studio Shadow",        category: "Cinematic", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1400" },
-  { id: 19, title: "Editorial Glow",       category: "Cinematic", image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1400" },
-  { id: 20, title: "Fashion Frame",        category: "Portraits", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
+  { id:1,  title:"Royal Wedding Frame",  category:"Wedding",   image:"https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400" },
+  { id:2,  title:"Golden Couple Walk",   category:"Wedding",   image:"https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=1400" },
+  { id:3,  title:"Classic Portrait",     category:"Portraits", image:"https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1400" },
+  { id:4,  title:"Forest Light",         category:"Nature",    image:"https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400" },
+  { id:5,  title:"Camera Mood",          category:"Cinematic", image:"https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1400" },
+  { id:6,  title:"Bride Detail",         category:"Wedding",   image:"https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1400" },
+  { id:7,  title:"Wedding Rings",        category:"Wedding",   image:"https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1400" },
+  { id:8,  title:"Outdoor Couple",       category:"Wedding",   image:"https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?q=80&w=1400" },
+  { id:9,  title:"Soft Portrait",        category:"Portraits", image:"https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=1400" },
+  { id:10, title:"Golden Portrait",      category:"Portraits", image:"https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1400" },
+  { id:11, title:"Street Portrait",      category:"Portraits", image:"https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1400" },
+  { id:12, title:"Mountain Air",         category:"Nature",    image:"https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1400" },
+  { id:13, title:"Nature Story",         category:"Nature",    image:"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1400" },
+  { id:14, title:"Wild Hills",           category:"Nature",    image:"https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=1400" },
+  { id:15, title:"Lake Mirror",          category:"Nature",    image:"https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1400" },
+  { id:16, title:"Film Look",            category:"Cinematic", image:"https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1400" },
+  { id:17, title:"Night Lens",           category:"Cinematic", image:"https://images.unsplash.com/photo-1510915361894-db8b60106cb1?q=80&w=1400" },
+  { id:18, title:"Studio Shadow",        category:"Cinematic", image:"https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1400" },
+  { id:19, title:"Editorial Glow",       category:"Cinematic", image:"https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1400" },
+  { id:20, title:"Fashion Frame",        category:"Portraits", image:"https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
 ];
 
-const categories = ["All", "Wedding", "Portraits", "Nature", "Cinematic"];
-
+const categories = ["All","Wedding","Portraits","Nature","Cinematic"];
 const ABOUT_LINES = [
   "Passionate photographer with a strong eye for emotion, light, and storytelling.",
   "Specialized in wedding, portraits, nature, and cinematic photography.",
@@ -65,26 +48,39 @@ const ABOUT_LINES = [
   "Available for events, portraits, campaigns, and creative shoots.",
 ];
 
+const DOC_LABELS = { aadhaar:"Aadhaar", pan:"PAN", dl:"Driving License", passport:"Passport" };
+const DOC_FIELDS = {
+  aadhaar: [],
+  pan:      [{ key:"panNumber",    label:"PAN Number",                required:true }],
+  dl:       [{ key:"dlNumber",     label:"DL Number",                 required:true },
+             { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
+             { key:"dlName",       label:"Full Name (as on DL)",      required:false }],
+  passport: [{ key:"passportNo",   label:"Passport Number",           required:true },
+             { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
+             { key:"expiry",       label:"Expiry Date",               required:false, placeholder:"DD-MM-YYYY" },
+             { key:"passportName", label:"Full Name (as on Passport)",required:false }],
+};
 
+/* ── Social SVGs ── */
 const InstagramIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <circle cx="12" cy="12" r="4"/>
     <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
   </svg>
 );
 const FacebookIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
   </svg>
 );
 const TwitterIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
   </svg>
 );
 const GoogleIcon = () => (
-  <svg viewBox="0 0 24 24" width="18" height="18">
+  <svg viewBox="0 0 24 24" width="16" height="16">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -92,36 +88,175 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const loadLS = (k,fb) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):fb; } catch { return fb; } };
+const saveLS = (k,v)  => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
 
-const loadLS = (key, fallback) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } };
-const saveLS = (key, val)      => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+const maskValue = (s="") => {
+  if (!s) return "";
+  if (s.length <= 4) return s;
+  return s.slice(0,2)+"*".repeat(Math.max(0,s.length-4))+s.slice(-2);
+};
 
+/* ══════════════════════════════════════
+   KYC SECTION
+══════════════════════════════════════ */
+function KycSection({ verified, kycData, onVerify, onReset }) {
+  const [docType, setDocType] = useState("");
+  const [vals,    setVals]    = useState({});
+  const [consent, setConsent] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const fields = DOC_FIELDS[docType] || [];
 
-function DetailField({ icon, label, field, value, editable = true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange }) {
-  const inputRef = useRef(null);
-  const isEditing = editingField === field;
-  useEffect(() => { if (isEditing) inputRef.current?.focus(); }, [isEditing]);
+  const canSubmit = () => {
+    if (!docType || !consent) return false;
+    return fields.filter(f=>f.required).every(f=>(vals[f.key]||"").trim());
+  };
 
+  const handleVerify = () => {
+    if (!canSubmit()) return;
+    onVerify({ docType, vals });
+    setEditing(false);
+  };
+
+  const handleReset = () => {
+    setDocType(""); setVals({}); setConsent(false); setEditing(true); onReset();
+  };
+
+  /* verified — show submitted data */
+  if (verified && !editing) {
+    const subFields = DOC_FIELDS[kycData?.docType] || [];
+    return (
+      <div className="kyc-wrap">
+        <div className="kyc-hdr">
+          <span className="kyc-hdr-icon"><SafetyCertificateOutlined /></span>
+          <div className="kyc-hdr-body">
+            <span className="kyc-hdr-lbl">KYC VERIFICATION</span>
+            <span className="kyc-verified-row">
+              <CheckCircleOutlined className="kyc-ok-ic" /> Verified
+              <button type="button" className="kyc-reverify" onClick={handleReset}>Re-verify</button>
+            </span>
+          </div>
+        </div>
+        {kycData && (
+          <div className="kyc-data-list">
+            <div className="kyc-data-row">
+              <span className="kyc-data-lbl">Document</span>
+              <span className="kyc-data-val">{DOC_LABELS[kycData.docType]||kycData.docType}</span>
+            </div>
+            {kycData.docType==="aadhaar" && (
+              <div className="kyc-data-row">
+                <span className="kyc-data-lbl">Method</span>
+                <span className="kyc-data-val">Aadhaar Digilocker</span>
+              </div>
+            )}
+            {subFields.map(f => kycData.vals?.[f.key] ? (
+              <div key={f.key} className="kyc-data-row">
+                <span className="kyc-data-lbl">{f.label}</span>
+                <span className="kyc-data-val kyc-masked">{maskValue(kycData.vals[f.key])}</span>
+              </div>
+            ) : null)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* not verified */
   return (
-    <div className={`detail-field${isEditing ? " detail-field--editing" : ""}`}>
-      <span className="detail-field-icon">{icon}</span>
-      <div className="detail-field-body">
-        <small className="detail-field-label">{label}</small>
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            className="detail-edit-input"
-            value={pendingValue}
-            onChange={(e) => onPendingChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
-          />
+    <div className="kyc-wrap">
+      <div className="kyc-hdr">
+        <span className="kyc-hdr-icon"><SafetyCertificateOutlined /></span>
+        <div className="kyc-hdr-body">
+          <span className="kyc-hdr-lbl">KYC VERIFICATION</span>
+          <span className="kyc-notverified"><CloseOutlined /> Not Verified</span>
+        </div>
+      </div>
+
+      <div className="kyc-form">
+        <div className="kyc-info-bar">
+          <span className="kyc-info-i">i</span>
+          Complete your KYC verification here
+        </div>
+
+        {/* doc type */}
+        <div className="kyc-fgroup">
+          <label className="kyc-flbl"><span className="kyc-req">*</span> Document Type</label>
+          <div className="kyc-sel-wrap">
+            <select className="kyc-sel" value={docType}
+              onChange={e=>{ setDocType(e.target.value); setVals({}); }}>
+              <option value="">Select document type</option>
+              <option value="aadhaar">Aadhaar</option>
+              <option value="pan">PAN</option>
+              <option value="dl">Driving License</option>
+              <option value="passport">Passport</option>
+            </select>
+          </div>
+        </div>
+
+        {/* aadhaar info box */}
+        {docType==="aadhaar" && (
+          <div className="kyc-digi-box kyc-in">
+            <strong>Aadhaar Digilocker</strong>
+            <p>Aadhaar verification uses Digilocker — you'll be redirected to complete the linking process.</p>
+          </div>
+        )}
+
+        {/* dynamic fields */}
+        {fields.length>0 && (
+          <div className="kyc-dyn-grid kyc-in">
+            {fields.map((f,i)=>(
+              <div key={f.key}
+                className={`kyc-dyn-cell${(fields.length===1||(fields.length%2!==0&&i===fields.length-1))?" kyc-full":""}`}>
+                <label className="kyc-flbl">
+                  {f.required&&<span className="kyc-req">*</span>} {f.label}
+                </label>
+                <input className="kyc-inp" placeholder={f.placeholder||f.label}
+                  value={vals[f.key]||""}
+                  onChange={e=>setVals(p=>({...p,[f.key]:e.target.value}))} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {docType && (
+          <>
+            <label className="kyc-consent kyc-in">
+              <input type="checkbox" className="kyc-cb" checked={consent}
+                onChange={e=>setConsent(e.target.checked)} />
+              I consent to KYC verification via Truthscreen
+            </label>
+            <button className={`kyc-submit kyc-in${canSubmit()?" kyc-submit--on":""}`}
+              disabled={!canSubmit()} onClick={handleVerify}>
+              Verify &amp; Continue
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   INLINE EDITABLE FIELD
+══════════════════════════════════════ */
+function InfoRow({ icon, label, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange }) {
+  const ref = useRef(null);
+  const on  = editingField===field;
+  useEffect(()=>{ if(on) ref.current?.focus(); },[on]);
+  return (
+    <div className={`inforow${on?" inforow--on":""}`}>
+      <span className="inforow-icon">{icon}</span>
+      <div className="inforow-body">
+        <span className="inforow-lbl">{label}</span>
+        {on ? (
+          <input ref={ref} className="inforow-input" value={pendingValue}
+            onChange={e=>onPendingChange(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter")onSave(); if(e.key==="Escape")onCancel(); }} />
         ) : (
-          <span
-            className={`detail-field-value${editable ? " detail-field-value--clickable" : ""}`}
-            onClick={() => editable && onStartEdit(field, value)}
-            title={editable ? "Click to edit" : undefined}
-          >
-            {value || "—"}
+          <span className={`inforow-val${editable?" inforow-val--click":""}`}
+            onClick={()=>editable&&onStartEdit(field,value)}
+            title={editable?`Click to edit ${label}`:undefined}>
+            {value||<span className="inforow-ph">—</span>}
           </span>
         )}
       </div>
@@ -129,446 +264,264 @@ function DetailField({ icon, label, field, value, editable = true, editingField,
   );
 }
 
-
-function KycSection({ verified, onVerify, onReset }) {
-  const [docType, setDocType] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [editing, setEditing] = useState(false);
-
-  const handleStartEdit = () => {
-    setDocType("");
-    setConsent(false);
-    setEditing(true);
-    onReset();
-  };
-
-  if (verified && !editing) {
-    return (
-      <div className="kyc-section">
-        <div className="kyc-section-header">
-          <span className="detail-field-icon"><SafetyCertificateOutlined /></span>
-          <div className="detail-field-body">
-            <small className="detail-field-label">KYC Verification</small>
-            <span className="kyc-verified-inline">
-              <CheckCircleOutlined className="kyc-check-icon" /> Verified
-              <button type="button" className="kyc-re-verify-btn" onClick={handleStartEdit}>Re-verify</button>
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="kyc-section">
-      <div className="kyc-section-header">
-        <span className="detail-field-icon"><SafetyCertificateOutlined /></span>
-        <div className="detail-field-body">
-          <small className="detail-field-label">KYC Verification</small>
-          <span className="kyc-badge-inline kyc-badge-inline--no"><CloseOutlined /> Not Verified</span>
-        </div>
-      </div>
-
-      <div className="kyc-form-inline">
-        <div className="kyc-info-bar">
-          <span className="kyc-info-icon">ℹ</span>
-          Complete your KYC verification here
-        </div>
-
-        <div className="kyc-row">
-          <label className="kyc-field-label"><span className="kyc-required">*</span> Document Type</label>
-          <div className="kyc-select-wrap">
-            <select className="kyc-select" value={docType} onChange={(e) => setDocType(e.target.value)}>
-              <option value="">Select document type</option>
-              <option value="aadhaar">Aadhaar Card</option>
-              <option value="passport">Passport</option>
-              <option value="pan">PAN Card</option>
-              <option value="dl">Driving Licence</option>
-            </select>
-          </div>
-        </div>
-
-        <label className="kyc-consent-row">
-          <input
-            type="checkbox"
-            className="kyc-checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-          />
-          <span>I consent to KYC verification via Truthscreen</span>
-        </label>
-
-        <button
-          className={`kyc-verify-btn${docType && consent ? " kyc-verify-btn--active" : ""}`}
-          disabled={!docType || !consent}
-          onClick={() => { if (docType && consent) { onVerify(); setEditing(false); } }}
-        >
-          Verify &amp; Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
+/* ══════════════════════════════════════
+   MAIN PAGE
+══════════════════════════════════════ */
 function ProfilePage() {
   const navigate     = useNavigate();
   const fileInputRef = useRef(null);
 
+  const [sidebarOpen,    setSidebarOpen]    = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [previewPhoto,   setPreviewPhoto]   = useState(null);
   const [previewIndex,   setPreviewIndex]   = useState(null);
-  const [favorites,      setFavorites]      = useState(() => loadLS("axsStarred", []));
-  const [starred,        setStarred]        = useState(() => loadLS("axsStarredPhotos", []));
-  const [profile,        setProfile]        = useState(() => {
-    const saved = loadLS("axsProfile", null);
-    return saved ? { ...DEFAULT_PROFILE, ...saved } : DEFAULT_PROFILE;
-  });
-  const [kycVerified,    setKycVerified]    = useState(() => loadLS("axsKycVerified", false));
+  const [favorites,      setFavorites]      = useState(()=>loadLS("axsStarred",[]));
+  const [starred,        setStarred]        = useState(()=>loadLS("axsStarredPhotos",[]));
+  const [profile,        setProfile]        = useState(()=>{ const s=loadLS("axsProfile",null); return s?{...DEFAULT_PROFILE,...s}:DEFAULT_PROFILE; });
+  const [kycVerified,    setKycVerified]    = useState(()=>loadLS("axsKycVerified",false));
+  const [kycData,        setKycData]        = useState(()=>loadLS("axsKycData",null));
   const [aboutExpanded,  setAboutExpanded]  = useState(false);
+  const [editingField,   setEditingField]   = useState(null);
+  const [pendingValue,   setPendingValue]   = useState("");
+  const [hasUnsaved,     setHasUnsaved]     = useState(false);
 
-  /* single-field inline edit */
-  const [editingField, setEditingField] = useState(null);
-  const [pendingValue, setPendingValue] = useState("");
-  const [hasUnsaved,   setHasUnsaved]   = useState(false);
+  const fullName = useMemo(()=>(`${profile.firstName||""} ${profile.lastName||""}`).trim()||"Kamesh Srikharan.T",[profile]);
+  const addressFull = [profile.address,profile.city,profile.state,profile.country,profile.postalCode].filter(Boolean).join(", ");
+  const filteredPhotos = useMemo(()=>activeCategory==="All"?photos:photos.filter(p=>p.category===activeCategory),[activeCategory]);
 
-  const fullName = useMemo(() => `${profile.firstName} ${profile.lastName}`.trim(), [profile.firstName, profile.lastName]);
+  const saveField = (field,value)=>{ const n={...profile,[field]:value}; setProfile(n); saveLS("axsProfile",n); };
 
-  const filteredPhotos = useMemo(
-    () => activeCategory === "All" ? photos : photos.filter((p) => p.category === activeCategory),
-    [activeCategory]
-  );
+  const handleStartEdit=(field,value)=>{ setEditingField(field); setPendingValue(value); setHasUnsaved(true); };
+  const handleSaveAll=()=>{
+    if(editingField==="fullName"){
+      const p=pendingValue.trim().split(" ");
+      const n={...profile,firstName:p[0]||"",lastName:p.slice(1).join(" ")||""};
+      setProfile(n); saveLS("axsProfile",n);
+    } else if(editingField) saveField(editingField,pendingValue);
+    setEditingField(null); setPendingValue(""); setHasUnsaved(false);
+  };
+  const handleCancelEdit=()=>{ setEditingField(null); setPendingValue(""); setHasUnsaved(false); };
 
-  const saveField = (field, value) => {
-    const next = { ...profile, [field]: value };
-    setProfile(next);
-    saveLS("axsProfile", next);
+  const handlePhotoUpload=e=>{
+    const f=e.target.files?.[0]; if(!f)return;
+    const r=new FileReader(); r.onload=()=>saveField("profilePhoto",r.result); r.readAsDataURL(f); e.target.value="";
   };
 
-  const handleStartEdit = (field, value) => {
-    setEditingField(field);
-    setPendingValue(value);
-    setHasUnsaved(true);
-  };
+  const toggleFavorite=id=>{ setFavorites(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarred",n); return n; }); };
+  const toggleStarred=id=>{ setStarred(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarredPhotos",n); return n; }); };
 
-  const handleSaveAll = () => {
-    if (editingField === "fullName") {
-      const parts = pendingValue.trim().split(" ");
-      const fn = parts[0] || "";
-      const ln = parts.slice(1).join(" ") || "";
-      const next = { ...profile, firstName: fn, lastName: ln };
-      setProfile(next);
-      saveLS("axsProfile", next);
-    } else if (editingField) {
-      saveField(editingField, pendingValue);
-    }
-    setEditingField(null);
-    setPendingValue("");
-    setHasUnsaved(false);
-  };
+  const openLightbox=photo=>{ const i=filteredPhotos.findIndex(p=>p.id===photo.id); setPreviewPhoto(photo); setPreviewIndex(i); };
+  const lbPrev=()=>{ const i=(previewIndex-1+filteredPhotos.length)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
+  const lbNext=()=>{ const i=(previewIndex+1)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
 
-  const handleCancelEdit = () => {
-    setEditingField(null);
-    setPendingValue("");
-    setHasUnsaved(false);
-  };
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => saveField("profilePhoto", reader.result);
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const handleRemovePhoto = () => saveField("profilePhoto", "");
-
-  const toggleFavorite = (id) => {
-    setFavorites((cur) => {
-      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-      saveLS("axsStarred", next);
-      return next;
-    });
-  };
-
-  const toggleStarred = (id) => {
-    setStarred((cur) => {
-      const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-      saveLS("axsStarredPhotos", next);
-      return next;
-    });
-  };
-
-  const handleKycVerify = () => {
-    setKycVerified(true);
-    saveLS("axsKycVerified", true);
-  };
-
-  const handleKycReset = () => {
-    setKycVerified(false);
-    saveLS("axsKycVerified", false);
-  };
-
-  const openLightbox = (photo) => {
-    const idx = filteredPhotos.findIndex((p) => p.id === photo.id);
-    setPreviewPhoto(photo);
-    setPreviewIndex(idx);
-  };
-
-  const lightboxPrev = () => {
-    const idx = (previewIndex - 1 + filteredPhotos.length) % filteredPhotos.length;
-    setPreviewPhoto(filteredPhotos[idx]);
-    setPreviewIndex(idx);
-  };
-
-  const lightboxNext = () => {
-    const idx = (previewIndex + 1) % filteredPhotos.length;
-    setPreviewPhoto(filteredPhotos[idx]);
-    setPreviewIndex(idx);
-  };
-
-  useEffect(() => {
-    if (!previewPhoto) return;
-    const handler = (e) => {
-      if (e.key === "ArrowLeft")  lightboxPrev();
-      if (e.key === "ArrowRight") lightboxNext();
-      if (e.key === "Escape")     setPreviewPhoto(null);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [previewPhoto, previewIndex, filteredPhotos]);
+  useEffect(()=>{
+    if(!previewPhoto)return;
+    const h=e=>{ if(e.key==="ArrowLeft")lbPrev(); if(e.key==="ArrowRight")lbNext(); if(e.key==="Escape")setPreviewPhoto(null); };
+    window.addEventListener("keydown",h);
+    return ()=>window.removeEventListener("keydown",h);
+  },[previewPhoto,previewIndex,filteredPhotos]);
 
   return (
-    <main className="profile-page">
-      <div className="profile-shell">
+    <div className={`pp-root${sidebarOpen?" pp-root--sb-open":""}`}>
 
-        <div className="profile-page-heading animate-fade-down">
-          <h1>Profile and Portfolio</h1>
-        </div>
+      {/* ══════════════════════════════════
+          FIXED LEFT SIDEBAR
+      ══════════════════════════════════ */}
+      <aside className={`pp-sidebar${sidebarOpen?" pp-sidebar--open":""}`}>
 
-        <button type="button" className="profile-close-button" onClick={() => navigate("/dashboard")} aria-label="Close profile page">
-          <CloseOutlined />
+        {/* sidebar close button — top right of sidebar */}
+        <button type="button" className="pp-sb-close" onClick={()=>setSidebarOpen(false)}
+          title="Close sidebar" aria-label="Close profile sidebar">
+          <LeftOutlined />
         </button>
 
-      
-        <section className="profile-hero animate-fade-up">
+        {/* scrollable content */}
+        <div className="pp-sb-scroll">
 
-        
-          <div className="hero-left-col">
-
-          
-            <div className={`profile-avatar-wrap${kycVerified ? " avatar-verified" : " avatar-not-verified"}`}>
-              <div className="profile-avatar-circle">
-                {profile.profilePhoto
-                  ? <img src={profile.profilePhoto} alt={fullName} />
-                  : <UserOutlined />}
-              </div>
-              {kycVerified
-                ? <span className="avatar-kyc-badge avatar-kyc-badge--ok" title="KYC Verified"><CheckCircleOutlined /></span>
-                : <span className="avatar-kyc-badge avatar-kyc-badge--no" title="Not Verified"><CloseOutlined /></span>
-              }
-              <div className="avatar-actions">
-                <button type="button" onClick={() => fileInputRef.current?.click()} title="Upload photo" className="avatar-action-btn">
-                  <UploadOutlined />
-                </button>
-                <button type="button" onClick={handleRemovePhoto} title="Remove photo" disabled={!profile.profilePhoto} className="avatar-action-btn">
-                  <DeleteOutlined />
-                </button>
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden />
+          {/* ── PHOTO CARD ── */}
+          <div className={`pp-photo-card${kycVerified?" pp-photo-card--ok":" pp-photo-card--no"}`}>
+            <div className="pp-photo-frame">
+              {profile.profilePhoto
+                ? <img src={profile.profilePhoto} alt={fullName}
+                    onError={e=>{e.currentTarget.style.display="none";}} />
+                : <UserOutlined className="pp-photo-placeholder" />}
             </div>
-
-          
-            <div className="avatar-name-block">
-              <p className="profile-kicker">Professional Photographer</p>
-              <h2 className="avatar-fullname">{fullName}</h2>
-              <p className="hero-subtitle">Capturing Moments, Creating Stories</p>
-            </div>
-
-          
-            <div className="about-block">
-              <p className="about-first-line">{ABOUT_LINES[0]}</p>
-              {aboutExpanded && (
-                <div className="about-rest">
-                  {ABOUT_LINES.slice(1).map((line, i) => (
-                    <p key={i} className="about-extra-line">{line}</p>
-                  ))}
-                </div>
-              )}
-              <button type="button" className="about-toggle-btn" onClick={() => setAboutExpanded((v) => !v)}>
-                {aboutExpanded ? "Show less ▲" : "Read more..."}
+            {/* bottom overlay bar */}
+            <div className="pp-photo-bar">
+              <button type="button" className="pp-photo-act"
+                onClick={()=>fileInputRef.current?.click()} title="Upload photo">
+                <UploadOutlined />
+              </button>
+              <span className={`pp-kyc-dot${kycVerified?" pp-kyc-dot--ok":" pp-kyc-dot--no"}`}>
+                {kycVerified ? <CheckCircleOutlined /> : <CloseOutlined />}
+              </span>
+              <button type="button" className="pp-photo-act pp-photo-act--del"
+                onClick={()=>saveField("profilePhoto","")} disabled={!profile.profilePhoto} title="Remove photo">
+                <DeleteOutlined />
               </button>
             </div>
-
-          
-            <div className="social-row">
-              <span className="social-icon instagram" title="Instagram"><InstagramIcon /></span>
-              <span className="social-icon facebook"  title="Facebook"><FacebookIcon /></span>
-              <span className="social-icon twitter"   title="Twitter / X"><TwitterIcon /></span>
-              <span className="social-icon google"    title="Google"><GoogleIcon /></span>
-            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden />
           </div>
 
-      
-          <div className="hero-right-col">
-
-            <div className="details-section">
-              
-
-              
-              <DetailField
-                icon={<UserOutlined />}
-                label="Full Name"
-                field="fullName"
-                value={fullName}
-                editable={true}
-                editingField={editingField}
-                onStartEdit={(field) => handleStartEdit(field, fullName)}
-                onSave={handleSaveAll}
-                onCancel={handleCancelEdit}
-                pendingValue={pendingValue}
-                onPendingChange={setPendingValue}
-              />
-              <DetailField
-                icon={<MailOutlined />}
-                label="Email"
-                field="email"
-                value={profile.email}
-                editable={true}
-                editingField={editingField}
-                onStartEdit={handleStartEdit}
-                onSave={handleSaveAll}
-                onCancel={handleCancelEdit}
-                pendingValue={pendingValue}
-                onPendingChange={setPendingValue}
-              />
-              <DetailField
-                icon={<PhoneOutlined />}
-                label="Phone Number"
-                field="phone"
-                value={profile.phone}
-                editable={true}
-                editingField={editingField}
-                onStartEdit={handleStartEdit}
-                onSave={handleSaveAll}
-                onCancel={handleCancelEdit}
-                pendingValue={pendingValue}
-                onPendingChange={setPendingValue}
-              />
-              <DetailField
-                icon={<CameraOutlined />}
-                label="Role"
-                field="role"
-                value={profile.role}
-                editable={false}
-                editingField={editingField}
-                onStartEdit={handleStartEdit}
-                onSave={handleSaveAll}
-                onCancel={handleCancelEdit}
-                pendingValue={pendingValue}
-                onPendingChange={setPendingValue}
-              />
-              <DetailField
-                icon={<EnvironmentOutlined />}
-                label="Address"
-                field="address"
-                value={profile.address}
-                editable={true}
-                editingField={editingField}
-                onStartEdit={handleStartEdit}
-                onSave={handleSaveAll}
-                onCancel={handleCancelEdit}
-                pendingValue={pendingValue}
-                onPendingChange={setPendingValue}
-              />
-
-              
-              <KycSection verified={kycVerified} onVerify={handleKycVerify} onReset={handleKycReset} />
-
-          
-              {hasUnsaved && (
-                <button type="button" className="floating-save-btn" onClick={handleSaveAll}>
-                  <CheckCircleOutlined /> Save
-                </button>
-              )}
-            </div>
+          {/* ── NAME BLOCK ── */}
+          <div className="pp-sb-name-block">
+            <p className="pp-sb-kicker">{profile.role}</p>
+            <h2 className="pp-sb-name">{fullName}</h2>
+            <p className="pp-sb-tagline">Capturing Moments, Creating Stories</p>
           </div>
-        </section>
 
-        
-        <section className="profile-panel gallery-panel animate-fade-up" style={{ animationDelay: "0.18s" }}>
-          <div className="gallery-head">
+          {/* ── ABOUT ── */}
+          <div className="pp-sb-about">
+            <p className="pp-about-line">{ABOUT_LINES[0]}</p>
+            {aboutExpanded && (
+              <div className="pp-about-more">
+                {ABOUT_LINES.slice(1).map((l,i)=><p key={i} className="pp-about-line">{l}</p>)}
+              </div>
+            )}
+            <button type="button" className="pp-about-toggle"
+              onClick={()=>setAboutExpanded(v=>!v)}>
+              {aboutExpanded?"Show less ▲":"Read more..."}
+            </button>
+          </div>
+
+          {/* ── SOCIAL ── */}
+          <div className="pp-sb-social">
+            <span className="social-icon instagram" title="Instagram"><InstagramIcon /></span>
+            <span className="social-icon facebook"  title="Facebook"><FacebookIcon /></span>
+            <span className="social-icon twitter"   title="Twitter"><TwitterIcon /></span>
+            <span className="social-icon google"    title="Google"><GoogleIcon /></span>
+          </div>
+
+          {/* ── DIVIDER ── */}
+          <div className="pp-sb-divider" />
+
+          {/* ── INFO ROWS ── */}
+          <div className="pp-sb-info">
+            <InfoRow icon={<UserOutlined />}        label="FULL NAME"    field="fullName" value={fullName}        editable editingField={editingField} onStartEdit={f=>handleStartEdit(f,fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
+            <InfoRow icon={<MailOutlined />}        label="EMAIL"        field="email"    value={profile.email}  editable editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
+            <InfoRow icon={<PhoneOutlined />}       label="PHONE NUMBER" field="phone"    value={profile.phone}  editable editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
+            <InfoRow icon={<CameraOutlined />}      label="ROLE"         field="role"     value={profile.role}   editable={false} editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
+            <InfoRow icon={<EnvironmentOutlined />} label="ADDRESS"      field="address"  value={addressFull}    editable editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
+
+            <KycSection
+              verified={kycVerified}
+              kycData={kycData}
+              onVerify={data=>{ setKycVerified(true); setKycData(data); saveLS("axsKycVerified",true); saveLS("axsKycData",data); }}
+              onReset={()=>{ setKycVerified(false); setKycData(null); saveLS("axsKycVerified",false); saveLS("axsKycData",null); }}
+            />
+
+            {hasUnsaved && (
+              <button type="button" className="pp-save-btn" onClick={handleSaveAll}>
+                <CheckCircleOutlined /> Save Changes
+              </button>
+            )}
+          </div>
+
+          <div style={{height:40}} />
+        </div>
+      </aside>
+
+      {/* ── SIDEBAR TOGGLE (open) — shows when sidebar is closed ── */}
+      {!sidebarOpen && (
+        <button type="button" className="pp-sb-open-btn" onClick={()=>setSidebarOpen(true)}
+          title="Open profile sidebar" aria-label="Open profile sidebar">
+          <UserOutlined />
+          <span className="pp-sb-open-label">Profile</span>
+        </button>
+      )}
+
+      {/* ══════════════════════════════════
+          MAIN CONTENT — gallery
+      ══════════════════════════════════ */}
+      <main className="pp-main">
+
+        {/* top bar */}
+        <div className="pp-topbar">
+          <div className="pp-topbar-left">
+            {/* sidebar toggle icon in topbar */}
+            <button type="button" className="pp-toggle-btn"
+              onClick={()=>setSidebarOpen(v=>!v)}
+              title={sidebarOpen?"Close profile":"Open profile"}>
+              {sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+            </button>
             <div>
-              <h2><AppstoreOutlined /> Gallery</h2>
-              <p>Wedding, portraits, nature, and cinematic work</p>
+              <h1 className="pp-topbar-title">Profile &amp; Portfolio</h1>
+              <p className="pp-topbar-sub">Manage your identity and showcase your work</p>
             </div>
-            <div className="category-filter">
-              {categories.map((cat) => (
-                <button type="button" key={cat} className={activeCategory === cat ? "active" : ""} onClick={() => setActiveCategory(cat)}>
+          </div>
+          <button type="button" className="pp-close-page-btn"
+            onClick={()=>navigate("/dashboard")} aria-label="Close page">
+            <CloseOutlined />
+          </button>
+        </div>
+
+        {/* gallery section */}
+        <div className="pp-gallery-section">
+          <div className="pp-gallery-hdr">
+            <div>
+              <h2 className="pp-gallery-title"><AppstoreOutlined /> Gallery</h2>
+              <p className="pp-gallery-sub">Wedding, portraits, nature, and cinematic work</p>
+            </div>
+            <div className="pp-cats">
+              {categories.map(cat=>(
+                <button type="button" key={cat}
+                  className={`pp-cat${activeCategory===cat?" pp-cat--on":""}`}
+                  onClick={()=>setActiveCategory(cat)}>
                   {cat}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="masonry-grid">
-            {filteredPhotos.map((photo, i) => (
-              <div className="masonry-item" key={photo.id} style={{ animationDelay: `${i * 0.04}s` }}>
-                <button type="button" className="masonry-btn" onClick={() => openLightbox(photo)}>
+          <div className="pp-masonry">
+            {filteredPhotos.map((photo,i)=>(
+              <div className="pp-masonry-item" key={photo.id} style={{animationDelay:`${i*0.03}s`}}>
+                <button type="button" className="pp-masonry-btn" onClick={()=>openLightbox(photo)}>
                   <img src={photo.image} alt={photo.title} loading="lazy" />
-                  <div className="masonry-overlay">
+                  <div className="pp-masonry-overlay">
                     <small>{photo.category}</small>
                     <h3>{photo.title}</h3>
                   </div>
                 </button>
-                <button
-                  type="button"
-                  className={`favorite-button${favorites.includes(photo.id) ? " fav-active" : ""}`}
-                  onClick={() => toggleFavorite(photo.id)}
-                  aria-label="Like photo"
-                >
-                  {favorites.includes(photo.id) ? <HeartFilled /> : <HeartOutlined />}
+                <button type="button"
+                  className={`pp-heart${favorites.includes(photo.id)?" pp-heart--on":""}`}
+                  onClick={()=>toggleFavorite(photo.id)} aria-label="Like">
+                  {favorites.includes(photo.id)?<HeartFilled />:<HeartOutlined />}
                 </button>
-                {starred.includes(photo.id) && (
-                  <span className="card-star-badge" title="Starred"><StarFilled /></span>
-                )}
+                {starred.includes(photo.id)&&<span className="pp-star-badge"><StarFilled /></span>}
               </div>
             ))}
           </div>
-        </section>
+        </div>
 
-        <footer className="profile-footer">© axs</footer>
-      </div>
+        <footer className="pp-footer">© axs</footer>
+      </main>
 
-    
-      {previewPhoto && (
-        <div className="portfolio-lightbox" role="dialog" aria-modal="true">
-          <button type="button" className="portfolio-lightbox-backdrop" onClick={() => setPreviewPhoto(null)} aria-label="Close preview" />
-          <div className="portfolio-lightbox-card">
-            <button type="button" className="portfolio-lightbox-close" onClick={() => setPreviewPhoto(null)} aria-label="Close">
-              <CloseOutlined />
+      {/* ══════════════════════════════════
+          LIGHTBOX
+      ══════════════════════════════════ */}
+      {previewPhoto&&(
+        <div className="pp-lb" role="dialog" aria-modal="true">
+          <button type="button" className="pp-lb-bg" onClick={()=>setPreviewPhoto(null)} />
+          <div className="pp-lb-card">
+            <button type="button" className="pp-lb-close" onClick={()=>setPreviewPhoto(null)}><CloseOutlined /></button>
+            <button type="button"
+              className={`pp-lb-star${starred.includes(previewPhoto.id)?" pp-lb-star--on":""}`}
+              onClick={()=>toggleStarred(previewPhoto.id)}>
+              {starred.includes(previewPhoto.id)?<StarFilled />:<StarOutlined />}
             </button>
-            <button
-              type="button"
-              className={`lb-star-btn${starred.includes(previewPhoto.id) ? " lb-star-active" : ""}`}
-              onClick={() => toggleStarred(previewPhoto.id)}
-              title={starred.includes(previewPhoto.id) ? "Remove star" : "Mark as best"}
-            >
-              {starred.includes(previewPhoto.id) ? <StarFilled /> : <StarOutlined />}
-            </button>
-            <button type="button" className="lb-arrow lb-prev" onClick={lightboxPrev} aria-label="Previous">&#8249;</button>
-            <button type="button" className="lb-arrow lb-next" onClick={lightboxNext} aria-label="Next">&#8250;</button>
+            <button type="button" className="pp-lb-arrow pp-lb-prev" onClick={lbPrev}><LeftOutlined /></button>
+            <button type="button" className="pp-lb-arrow pp-lb-next" onClick={lbNext}><RightOutlined /></button>
             <img src={previewPhoto.image} alt={previewPhoto.title} />
-            <div className="lb-meta">
+            <div className="pp-lb-meta">
               <span>{previewPhoto.category}</span>
               <h3>{previewPhoto.title}</h3>
-              <small>{previewIndex + 1} / {filteredPhotos.length}</small>
+              <small>{previewIndex+1} / {filteredPhotos.length}</small>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
