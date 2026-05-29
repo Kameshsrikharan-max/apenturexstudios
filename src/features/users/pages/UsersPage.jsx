@@ -187,7 +187,7 @@ const UserViewOverlay = ({ user, onClose }) => {
       {/* ── MAIN PANEL ── */}
       <div className="uvo-panel" ref={scrollRef}>
 
-        {/* LEFT COLUMN — sticky profile card */}
+        {/* LEFT COLUMN — sticky profile card with profile details */}
         <aside className="uvo-sidebar">
           <div className="uvo-profile-card">
             {/* Glow ring behind avatar */}
@@ -196,7 +196,7 @@ const UserViewOverlay = ({ user, onClose }) => {
               style={{ "--gcolor": statusMeta.glow }}
             />
 
-            {/* Profile image (real photo, not just initials) */}
+            {/* Profile image */}
             <div className="uvo-avatar-shell">
               {user.image ? (
                 <>
@@ -243,73 +243,38 @@ const UserViewOverlay = ({ user, onClose }) => {
               </span>
             </div>
 
-            {/* Score ring */}
-            {user.score !== undefined && (
-              <div className="uvo-score-wrap">
-                <svg className="uvo-score-svg" viewBox="0 0 80 80">
-                  <circle cx="40" cy="40" r="34" className="uvo-score-track" />
-                  <circle
-                    cx="40" cy="40" r="34"
-                    className="uvo-score-fill"
-                    style={{
-                      "--dash": `${(user.score / 100) * 213.6}`,
-                      "--color": user.score > 75 ? "#22c55e" : user.score > 45 ? "#f59e0b" : "#ef4444",
-                    }}
-                  />
-                </svg>
-                <div className="uvo-score-inner">
-                  <strong>{user.score}</strong>
-                  <small>Score</small>
-                </div>
+            {/* ── PROFILE DETAILS inside sticky sidebar ── */}
+            <div className="uvo-sidebar-details">
+              <div className="uvo-section-header uvo-section-header-sm">
+                <div className="uvo-section-line" />
+                <span>Details</span>
+                <div className="uvo-section-line" />
               </div>
-            )}
 
-            {/* Quick contact links */}
-            <div className="uvo-quick-links">
-              <a href={`mailto:${user.email}`} className="uvo-quick-btn" title="Send email">
-                <MailOutlined />
-              </a>
-              <a href={`tel:${user.phone}`} className="uvo-quick-btn" title="Call">
-                <PhoneOutlined />
-              </a>
-              <span className="uvo-quick-btn" title="Location">
-                <EnvironmentOutlined />
-              </span>
+              <div className="uvo-sidebar-info-list">
+                {infoCards.map(({ icon, label, value, accent }) => (
+                  <div
+                    key={label}
+                    className="uvo-sidebar-info-row"
+                    style={{ "--acc": accent }}
+                  >
+                    <div className="uvo-sidebar-icon">{icon}</div>
+                    <div className="uvo-sidebar-text">
+                      <small>{label}</small>
+                      <strong>{value}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </aside>
 
-        {/* RIGHT COLUMN — scrollable: profile + gallery together */}
+        {/* RIGHT COLUMN — Best Shots gallery */}
         <main className="uvo-main">
 
-          {/* ── PROFILE DETAILS ── */}
-          <div className="uvo-info-section">
-            <div className="uvo-section-header">
-              <div className="uvo-section-line" />
-              <span>Profile Details</span>
-              <div className="uvo-section-line" />
-            </div>
-
-            <div className="uvo-info-grid">
-              {infoCards.map(({ icon, label, value, accent, wide }, i) => (
-                <div
-                  key={label}
-                  className={`uvo-info-tile ${wide ? "wide" : ""}`}
-                  style={{ "--acc": accent, "--delay": `${i * 0.06}s` }}
-                >
-                  <div className="uvo-tile-icon">{icon}</div>
-                  <div className="uvo-tile-text">
-                    <small>{label}</small>
-                    <strong>{value}</strong>
-                  </div>
-                  <div className="uvo-tile-glow" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── BEST SHOTS GALLERY (always visible below) ── */}
-          {bestPics.length > 0 && (
+          {/* ── BEST SHOTS GALLERY ── */}
+          {bestPics.length > 0 ? (
             <div className="uvo-gallery-section">
               <div className="uvo-section-header">
                 <div className="uvo-section-line" />
@@ -338,6 +303,12 @@ const UserViewOverlay = ({ user, onClose }) => {
                   </button>
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="uvo-empty-gallery">
+              <StarOutlined style={{ fontSize: 48, color: "rgba(255,255,255,0.2)" }} />
+              <p>No best shots starred yet.</p>
+              <small>Star photos from the gallery to showcase them here.</small>
             </div>
           )}
         </main>

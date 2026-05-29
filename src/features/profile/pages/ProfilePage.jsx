@@ -49,6 +49,17 @@ const ABOUT_LINES = [
 ];
 
 const DOC_LABELS = { aadhaar:"Aadhaar", pan:"PAN", dl:"Driving License", passport:"Passport" };
+const DOC_FIELDS = {
+  aadhaar: [],
+  pan:      [{ key:"panNumber",    label:"PAN Number",                required:true }],
+  dl:       [{ key:"dlNumber",     label:"DL Number",                 required:true },
+             { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
+             { key:"dlName",       label:"Full Name (as on DL)",      required:false }],
+  passport: [{ key:"passportNo",   label:"Passport Number",           required:true },
+             { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
+             { key:"expiry",       label:"Expiry Date",               required:false, placeholder:"DD-MM-YYYY" },
+             { key:"passportName", label:"Full Name (as on Passport)",required:false }],
+};
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="17" height="17">
@@ -76,51 +87,33 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const loadLS = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
-const saveLS = (k, v)  => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const loadLS = (k,fb) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):fb; } catch { return fb; } };
+const saveLS = (k,v)  => { try { localStorage.setItem(k,JSON.stringify(v)); } catch {} };
 
-function maskValue(str = "") {
+function maskValue(str="") {
   if (!str) return "";
-  if (str.length <= 4) return str;
-  return str.slice(0, 2) + "*".repeat(str.length - 4) + str.slice(-2);
+  if (str.length<=4) return str;
+  return str.slice(0,2)+"*".repeat(str.length-4)+str.slice(-2);
 }
 
-const DOC_FIELDS = {
-  aadhaar: [],
-  pan:      [{ key:"panNumber",    label:"PAN Number",             required:true }],
-  dl:       [{ key:"dlNumber",     label:"DL Number",              required:true },
-             { key:"dob",          label:"Date of Birth",          required:true, placeholder:"DD-MM-YYYY" },
-             { key:"dlName",       label:"Full Name (as on DL)",   required:false }],
-  passport: [{ key:"passportNo",   label:"Passport Number",        required:true },
-             { key:"dob",          label:"Date of Birth",          required:true, placeholder:"DD-MM-YYYY" },
-             { key:"expiry",       label:"Expiry Date",            required:false, placeholder:"DD-MM-YYYY" },
-             { key:"passportName", label:"Full Name (as on Passport)", required:false }],
-};
 
 function KycSection({ verified, kycData, onVerify, onReset }) {
-  const [docType, setDocType] = useState("");
-  const [vals,    setVals]    = useState({});
-  const [consent, setConsent] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const fields = DOC_FIELDS[docType] || [];
+  const [docType,setDocType]=useState("");
+  const [vals,setVals]=useState({});
+  const [consent,setConsent]=useState(false);
+  const [editing,setEditing]=useState(false);
+  const fields=DOC_FIELDS[docType]||[];
 
-  const canSubmit = () => {
-    if (!docType || !consent) return false;
-    return fields.filter(f => f.required).every(f => (vals[f.key] || "").trim());
+  const canSubmit=()=>{
+    if(!docType||!consent)return false;
+    return fields.filter(f=>f.required).every(f=>(vals[f.key]||"").trim());
   };
 
-  const handleVerify = () => {
-    if (!canSubmit()) return;
-    onVerify({ docType, vals });
-    setEditing(false);
-  };
+  const handleVerify=()=>{ if(!canSubmit())return; onVerify({docType,vals}); setEditing(false); };
+  const handleReset=()=>{ setDocType("");setVals({});setConsent(false);setEditing(true);onReset(); };
 
-  const handleReset = () => {
-    setDocType(""); setVals({}); setConsent(false); setEditing(true); onReset();
-  };
-
-  if (verified && !editing) {
-    const submittedFields = DOC_FIELDS[kycData?.docType] || [];
+  if(verified&&!editing){
+    const sf=DOC_FIELDS[kycData?.docType]||[];
     return (
       <div className="kyc-section">
         <div className="kyc-hdr">
@@ -128,29 +121,21 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
           <div className="kyc-hdr-content">
             <p className="kyc-hdr-label">KYC VERIFICATION</p>
             <span className="kyc-verified-inline">
-              <CheckCircleOutlined className="kyc-ok-icon" /> Verified
+              <CheckCircleOutlined className="kyc-ok-icon"/> Verified
               <button type="button" className="kyc-reverify" onClick={handleReset}>Re-verify</button>
             </span>
           </div>
         </div>
-        {kycData && (
+        {kycData&&(
           <div className="kyc-submitted-data">
-            <div className="kyc-submitted-row">
-              <span className="kyc-sub-label">Document</span>
-              <span className="kyc-sub-value">{DOC_LABELS[kycData.docType] || kycData.docType}</span>
-            </div>
-            {kycData.docType === "aadhaar" && (
-              <div className="kyc-submitted-row">
-                <span className="kyc-sub-label">Method</span>
-                <span className="kyc-sub-value">Aadhaar Digilocker</span>
-              </div>
-            )}
-            {submittedFields.map(f => kycData.vals?.[f.key] ? (
+            <div className="kyc-submitted-row"><span className="kyc-sub-label">Document</span><span className="kyc-sub-value">{DOC_LABELS[kycData.docType]||kycData.docType}</span></div>
+            {kycData.docType==="aadhaar"&&<div className="kyc-submitted-row"><span className="kyc-sub-label">Method</span><span className="kyc-sub-value">Aadhaar Digilocker</span></div>}
+            {sf.map(f=>kycData.vals?.[f.key]?(
               <div key={f.key} className="kyc-submitted-row">
                 <span className="kyc-sub-label">{f.label}</span>
                 <span className="kyc-sub-value kyc-sub-masked">{maskValue(kycData.vals[f.key])}</span>
               </div>
-            ) : null)}
+            ):null)}
           </div>
         )}
       </div>
@@ -167,14 +152,11 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
         </div>
       </div>
       <div className="kyc-body">
-        <div className="kyc-info-banner">
-          <span className="kyc-i-icon">i</span>
-          Complete your KYC verification here
-        </div>
+        <div className="kyc-info-banner"><span className="kyc-i-icon">i</span>Complete your KYC verification here</div>
         <div className="kyc-field-group">
           <label className="kyc-field-label"><span className="kyc-req">*</span> Document Type</label>
           <div className="kyc-select-wrap">
-            <select className="kyc-select" value={docType} onChange={e => { setDocType(e.target.value); setVals({}); }}>
+            <select className="kyc-select" value={docType} onChange={e=>{setDocType(e.target.value);setVals({});}}>
               <option value="">Select document type</option>
               <option value="aadhaar">Aadhaar</option>
               <option value="pan">PAN</option>
@@ -183,42 +165,31 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
             </select>
           </div>
         </div>
-        {docType === "aadhaar" && (
+        {docType==="aadhaar"&&(
           <div className="kyc-digilocker-box kyc-reveal">
             <strong>Aadhaar Digilocker</strong>
-            <p>Aadhaar verification uses Digilocker - you will be redirected to complete the linking process.</p>
+            <p>Aadhaar verification uses Digilocker — you'll be redirected to complete the linking process.</p>
           </div>
         )}
-        {fields.length > 0 && (
+        {fields.length>0&&(
           <div className="kyc-fields-grid kyc-reveal">
-            {fields.map((f, i) => (
-              <div key={f.key} className={`kyc-input-cell${fields.length === 1 || (i === fields.length - 1 && fields.length % 2 !== 0) ? " kyc-full" : ""}`}>
-                <label className="kyc-field-label">
-                  {f.required && <span className="kyc-req">*</span>} {f.label}
-                </label>
-                <input
-                  className="kyc-input"
-                  placeholder={f.placeholder || f.label}
-                  value={vals[f.key] || ""}
-                  onChange={e => setVals(p => ({ ...p, [f.key]: e.target.value }))}
-                />
+            {fields.map((f,i)=>(
+              <div key={f.key} className={`kyc-input-cell${fields.length===1||(i===fields.length-1&&fields.length%2!==0)?" kyc-full":""}`}>
+                <label className="kyc-field-label">{f.required&&<span className="kyc-req">*</span>} {f.label}</label>
+                <input className="kyc-input" placeholder={f.placeholder||f.label}
+                  value={vals[f.key]||""} onChange={e=>setVals(p=>({...p,[f.key]:e.target.value}))} />
               </div>
             ))}
           </div>
         )}
-        {docType && (
+        {docType&&(
           <>
             <label className="kyc-consent kyc-reveal">
-              <input type="checkbox" className="kyc-checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+              <input type="checkbox" className="kyc-checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
               <span>I consent to KYC verification via Truthscreen</span>
             </label>
-            <button
-              className={`kyc-submit kyc-reveal${canSubmit() ? " kyc-submit--active" : ""}`}
-              disabled={!canSubmit()}
-              onClick={handleVerify}
-            >
-              Verify &amp; Continue
-            </button>
+            <button className={`kyc-submit kyc-reveal${canSubmit()?" kyc-submit--active":""}`}
+              disabled={!canSubmit()} onClick={handleVerify}>Verify &amp; Continue</button>
           </>
         )}
       </div>
@@ -226,31 +197,23 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
   );
 }
 
-function DetailField({ icon, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange, placeholder }) {
-  const inputRef = useRef(null);
-  const isEditing = editingField === field;
-  useEffect(() => { if (isEditing) inputRef.current?.focus(); }, [isEditing]);
 
+function DetailField({ icon, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange, placeholder }) {
+  const inputRef=useRef(null);
+  const isEditing=editingField===field;
+  useEffect(()=>{ if(isEditing)inputRef.current?.focus(); },[isEditing]);
   return (
-    <div className={`det-field${isEditing ? " det-field--active" : ""}`}>
+    <div className={`det-field${isEditing?" det-field--active":""}`}>
       <span className="det-icon">{icon}</span>
       <div className="det-body">
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            className="det-input"
-            value={pendingValue}
-            placeholder={placeholder}
-            onChange={e => onPendingChange(e.target.value)}
-            onKeyDown={e => { if (e.key==="Enter") onSave(); if (e.key==="Escape") onCancel(); }}
-          />
-        ) : (
-          <span
-            className={`det-value${editable ? " det-value--click" : ""}`}
-            onClick={() => editable && onStartEdit(field, value)}
-            title={editable ? `Edit` : undefined}
-          >
-            {value || <span className="det-placeholder">{placeholder || "-"}</span>}
+        {isEditing?(
+          <input ref={inputRef} className="det-input" value={pendingValue} placeholder={placeholder}
+            onChange={e=>onPendingChange(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter")onSave(); if(e.key==="Escape")onCancel(); }}/>
+        ):(
+          <span className={`det-value${editable?" det-value--click":""}`}
+            onClick={()=>editable&&onStartEdit(field,value)} title={editable?"Click to edit":undefined}>
+            {value||<span className="det-placeholder">{placeholder||"—"}</span>}
           </span>
         )}
       </div>
@@ -258,106 +221,80 @@ function DetailField({ icon, field, value, editable=true, editingField, onStartE
   );
 }
 
+
 function ProfilePage() {
-  const navigate     = useNavigate();
-  const fileInputRef = useRef(null);
+  const navigate=useNavigate();
+  const fileInputRef=useRef(null);
 
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [previewPhoto,   setPreviewPhoto]   = useState(null);
-  const [previewIndex,   setPreviewIndex]   = useState(null);
-  const [favorites,      setFavorites]      = useState(() => loadLS("axsStarred", []));
-  const [starred,        setStarred]        = useState(() => loadLS("axsStarredPhotos", []));
-  const [profile,        setProfile]        = useState(() => {
-    const s = loadLS("axsProfile", null);
-    return s ? { ...DEFAULT_PROFILE, ...s } : DEFAULT_PROFILE;
-  });
-  const [kycVerified,   setKycVerified]     = useState(() => loadLS("axsKycVerified", false));
-  const [kycData,       setKycData]         = useState(() => loadLS("axsKycData", null));
-  const [aboutExpanded, setAboutExpanded]   = useState(false);
-  const [sidebarOpen,   setSidebarOpen]     = useState(true);
-  const [editingField,  setEditingField]    = useState(null);
-  const [pendingValue,  setPendingValue]    = useState("");
-  const [hasUnsaved,    setHasUnsaved]      = useState(false);
+  const [activeCategory,setActiveCategory]=useState("All");
+  const [previewPhoto,setPreviewPhoto]=useState(null);
+  const [previewIndex,setPreviewIndex]=useState(null);
+  const [favorites,setFavorites]=useState(()=>loadLS("axsStarred",[]));
+  const [starred,setStarred]=useState(()=>loadLS("axsStarredPhotos",[]));
+  const [profile,setProfile]=useState(()=>{ const s=loadLS("axsProfile",null); return s?{...DEFAULT_PROFILE,...s}:DEFAULT_PROFILE; });
+  const [kycVerified,setKycVerified]=useState(()=>loadLS("axsKycVerified",false));
+  const [kycData,setKycData]=useState(()=>loadLS("axsKycData",null));
+  const [aboutExpanded,setAboutExpanded]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const [editingField,setEditingField]=useState(null);
+  const [pendingValue,setPendingValue]=useState("");
+  const [hasUnsaved,setHasUnsaved]=useState(false);
 
-  const fullName = useMemo(() =>
-    (`${profile.firstName||""} ${profile.lastName||""}`).trim() || "Kamesh Srikharan.T",
-  [profile]);
+  const fullName=useMemo(()=>(`${profile.firstName||""} ${profile.lastName||""}`).trim()||"Kamesh Srikharan.T",[profile]);
+  const filteredPhotos=useMemo(()=>activeCategory==="All"?photos:photos.filter(p=>p.category===activeCategory),[activeCategory]);
 
-  const filteredPhotos = useMemo(
-    () => activeCategory === "All" ? photos : photos.filter(p => p.category === activeCategory),
-    [activeCategory]
-  );
-
-  const saveField = (field, value) => {
-    const next = { ...profile, [field]: value };
-    setProfile(next); saveLS("axsProfile", next);
-  };
-
-  const handleStartEdit = (field, value) => { setEditingField(field); setPendingValue(value); setHasUnsaved(true); };
-
-  const handleSaveAll = () => {
-    if (editingField === "fullName") {
-      const p = pendingValue.trim().split(" ");
-      const next = { ...profile, firstName: p[0]||"", lastName: p.slice(1).join(" ")||"" };
-      setProfile(next); saveLS("axsProfile", next);
-    } else if (editingField) saveField(editingField, pendingValue);
+  const saveField=(field,value)=>{ const n={...profile,[field]:value}; setProfile(n); saveLS("axsProfile",n); };
+  const handleStartEdit=(field,value)=>{ setEditingField(field); setPendingValue(value); setHasUnsaved(true); };
+  const handleSaveAll=()=>{
+    if(editingField==="fullName"){
+      const p=pendingValue.trim().split(" ");
+      const n={...profile,firstName:p[0]||"",lastName:p.slice(1).join(" ")||""};
+      setProfile(n); saveLS("axsProfile",n);
+    } else if(editingField) saveField(editingField,pendingValue);
     setEditingField(null); setPendingValue(""); setHasUnsaved(false);
   };
+  const handleCancelEdit=()=>{ setEditingField(null); setPendingValue(""); setHasUnsaved(false); };
 
-  const handleCancelEdit = () => { setEditingField(null); setPendingValue(""); setHasUnsaved(false); };
-
-  const handlePhotoUpload = e => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const r = new FileReader();
-    r.onload = () => saveField("profilePhoto", r.result);
-    r.readAsDataURL(file); e.target.value = "";
+  const handlePhotoUpload=e=>{
+    const f=e.target.files?.[0]; if(!f)return;
+    const r=new FileReader(); r.onload=()=>saveField("profilePhoto",r.result); r.readAsDataURL(f); e.target.value="";
   };
 
-  const toggleFavorite = id => {
-    setFavorites(c => { const n = c.includes(id) ? c.filter(x=>x!==id) : [...c,id]; saveLS("axsStarred",n); return n; });
-  };
-  const toggleStarred = id => {
-    setStarred(c => { const n = c.includes(id) ? c.filter(x=>x!==id) : [...c,id]; saveLS("axsStarredPhotos",n); return n; });
-  };
+  const toggleFavorite=id=>{ setFavorites(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarred",n); return n; }); };
+  const toggleStarred=id=>{ setStarred(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarredPhotos",n); return n; }); };
 
-  const openLightbox = photo => {
-    const idx = filteredPhotos.findIndex(p => p.id === photo.id);
-    setPreviewPhoto(photo); setPreviewIndex(idx);
-  };
-  const lbPrev = () => { const i=(previewIndex-1+filteredPhotos.length)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
-  const lbNext = () => { const i=(previewIndex+1)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
+  const openLightbox=photo=>{ const i=filteredPhotos.findIndex(p=>p.id===photo.id); setPreviewPhoto(photo); setPreviewIndex(i); };
+  const lbPrev=()=>{ const i=(previewIndex-1+filteredPhotos.length)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
+  const lbNext=()=>{ const i=(previewIndex+1)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
 
-  useEffect(() => {
-    if (!previewPhoto) return;
-    const h = e => {
-      if (e.key==="ArrowLeft") lbPrev();
-      if (e.key==="ArrowRight") lbNext();
-      if (e.key==="Escape") setPreviewPhoto(null);
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [previewPhoto, previewIndex, filteredPhotos]);
+  useEffect(()=>{
+    if(!previewPhoto)return;
+    const h=e=>{ if(e.key==="ArrowLeft")lbPrev(); if(e.key==="ArrowRight")lbNext(); if(e.key==="Escape")setPreviewPhoto(null); };
+    window.addEventListener("keydown",h);
+    return ()=>window.removeEventListener("keydown",h);
+  },[previewPhoto,previewIndex,filteredPhotos]);
 
   return (
-    <div className={`profile-page${sidebarOpen ? " sidebar-open" : " sidebar-closed"}`}>
+    <div className={`profile-page${sidebarOpen?" sidebar-open":" sidebar-closed"}`}>
 
+      
+      <aside className={`pp-sidebar${sidebarOpen?" pp-sidebar--open":""}`}>
 
-      <aside className={`pp-sidebar${sidebarOpen ? " pp-sidebar--open" : ""}`}>
-        {/* Avatar */}
+        
         <div className="sb-avatar-wrap">
-          <div className={`profile-avatar-circle${kycVerified ? " avatar-verified" : " avatar-not-verified"}`}>
+          <div className={`profile-avatar-circle${kycVerified?" avatar-verified":" avatar-not-verified"}`}>
             {profile.profilePhoto
-              ? <img src={profile.profilePhoto} alt={fullName} />
-              : <UserOutlined />}
+              ? <img src={profile.profilePhoto} alt={fullName}/>
+              : <UserOutlined/>}
           </div>
-          <span className={`avatar-kyc-badge ${kycVerified ? "avatar-kyc-badge--ok" : "avatar-kyc-badge--no"}`}>
-            {kycVerified ? <CheckCircleOutlined /> : <CloseOutlined />}
+          <span className={`avatar-kyc-badge${kycVerified?" avatar-kyc-badge--ok":" avatar-kyc-badge--no"}`}>
+            {kycVerified?<CheckCircleOutlined/>:<CloseOutlined/>}
           </span>
           <div className="sb-avatar-actions">
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="avatar-action-btn" title="Upload photo"><UploadOutlined /></button>
-            <button type="button" onClick={() => saveField("profilePhoto","")} disabled={!profile.profilePhoto} className="avatar-action-btn" title="Remove photo"><DeleteOutlined /></button>
+            <button type="button" onClick={()=>fileInputRef.current?.click()} className="avatar-action-btn" title="Upload"><UploadOutlined/></button>
+            <button type="button" onClick={()=>saveField("profilePhoto","")} disabled={!profile.profilePhoto} className="avatar-action-btn" title="Remove"><DeleteOutlined/></button>
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden/>
         </div>
 
         
@@ -367,120 +304,131 @@ function ProfilePage() {
           <p className="sb-subtitle">Capturing Moments, Creating Stories</p>
         </div>
 
-      
+        
         <div className="sb-details">
-          <DetailField icon={<UserOutlined />}        field="fullName"  value={fullName}        editable placeholder="Full name"   editingField={editingField} onStartEdit={f => handleStartEdit(f, fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
-          <DetailField icon={<MailOutlined />}        field="email"     value={profile.email}   editable placeholder="Email"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
-          <DetailField icon={<PhoneOutlined />}       field="phone"     value={profile.phone}   editable placeholder="Phone"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
-          <DetailField icon={<CameraOutlined />}      field="role"      value={profile.role}    editable={false} placeholder="Role" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
-          <DetailField icon={<EnvironmentOutlined />} field="address"   value={`${profile.address}, ${profile.city}, ${profile.state}`} editable placeholder="Address" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} />
-          {hasUnsaved && (
+          <DetailField icon={<UserOutlined/>}        field="fullName" value={fullName}        editable placeholder="Full name"   editingField={editingField} onStartEdit={f=>handleStartEdit(f,fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
+          <DetailField icon={<MailOutlined/>}        field="email"    value={profile.email}   editable placeholder="Email"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
+          <DetailField icon={<PhoneOutlined/>}       field="phone"    value={profile.phone}   editable placeholder="Phone"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
+          <DetailField icon={<CameraOutlined/>}      field="role"     value={profile.role}    editable={false} placeholder="Role" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
+          <DetailField icon={<EnvironmentOutlined/>} field="address"  value={`${profile.address}, ${profile.city}, ${profile.state}`} editable placeholder="Address" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
+          {hasUnsaved&&(
             <button type="button" className="floating-save-btn" onClick={handleSaveAll}>
-              <CheckCircleOutlined /> Save
+              <CheckCircleOutlined/> Save
             </button>
           )}
         </div>
 
-      
+        
         <KycSection
-          verified={kycVerified}
-          kycData={kycData}
-          onVerify={data => { setKycVerified(true); setKycData(data); saveLS("axsKycVerified",true); saveLS("axsKycData",data); }}
-          onReset={() => { setKycVerified(false); setKycData(null); saveLS("axsKycVerified",false); saveLS("axsKycData",null); }}
+          verified={kycVerified} kycData={kycData}
+          onVerify={data=>{ setKycVerified(true); setKycData(data); saveLS("axsKycVerified",true); saveLS("axsKycData",data); }}
+          onReset={()=>{ setKycVerified(false); setKycData(null); saveLS("axsKycVerified",false); saveLS("axsKycData",null); }}
         />
 
-      
+        
         <div className="sb-about-block">
           <p className="about-first-line">{ABOUT_LINES[0]}</p>
-          {aboutExpanded && (
+          {aboutExpanded&&(
             <div className="about-rest">
-              {ABOUT_LINES.slice(1).map((line, i) => <p key={i} className="about-extra-line">{line}</p>)}
+              {ABOUT_LINES.slice(1).map((l,i)=><p key={i} className="about-extra-line">{l}</p>)}
             </div>
           )}
-          <button type="button" className="about-toggle-btn" onClick={() => setAboutExpanded(v=>!v)}>
-            {aboutExpanded ? "Show less" : "Read more..."}
+          <button type="button" className="about-toggle-btn" onClick={()=>setAboutExpanded(v=>!v)}>
+            {aboutExpanded?"Show less":"Read more..."}
           </button>
         </div>
 
-        
+      
         <div className="social-row">
-          <span className="social-icon instagram"><InstagramIcon /></span>
-          <span className="social-icon facebook"><FacebookIcon /></span>
-          <span className="social-icon twitter"><TwitterIcon /></span>
-          <span className="social-icon google"><GoogleIcon /></span>
+          <span className="social-icon instagram" title="Instagram"><InstagramIcon/></span>
+          <span className="social-icon facebook"  title="Facebook"><FacebookIcon/></span>
+          <span className="social-icon twitter"   title="Twitter"><TwitterIcon/></span>
+          <span className="social-icon google"    title="Google"><GoogleIcon/></span>
         </div>
       </aside>
 
       
-      <button
-        type="button"
-        className="sb-toggle-btn"
-        onClick={() => setSidebarOpen(v => !v)}
-        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-        title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-      >
-        {sidebarOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
+      <button type="button" className="sb-toggle-btn"
+        onClick={()=>setSidebarOpen(v=>!v)}
+        aria-label={sidebarOpen?"Close sidebar":"Open sidebar"}
+        title={sidebarOpen?"Close profile sidebar":"Open profile sidebar"}>
+        {sidebarOpen?<MenuFoldOutlined/>:<MenuUnfoldOutlined/>}
       </button>
 
       
       <main className="pp-main">
-        <button type="button" className="pp-page-close" onClick={() => navigate("/dashboard")} aria-label="Close">
-          <CloseOutlined />
-        </button>
 
-        <div className="profile-shell">
-          <div className="section-title section-title--portfolio">
-            <span className="section-title-kicker">Creator Space</span>
-            <h1>Profile &amp; Portfolio</h1>
-          </div>
-
-          <section className="profile-panel gallery-panel animate-fade-up">
-            <div className="gallery-head">
-              <div>
-                <h2><AppstoreOutlined /> Gallery</h2>
-                <p>Wedding, portraits, nature, and cinematic work</p>
-              </div>
-              <div className="category-filter">
-                {categories.map(cat => (
-                  <button type="button" key={cat} className={activeCategory===cat?"active":""} onClick={() => setActiveCategory(cat)}>{cat}</button>
-                ))}
-              </div>
+        
+        <div className="pp-topbar">
+          <div className="pp-topbar-left">
+            <div>
+              <h1 className="pp-topbar-title">Profile &amp; Portfolio</h1>
+              <p className="pp-topbar-sub">Your creative identity and gallery</p>
             </div>
-            <div className="masonry-grid">
-              {filteredPhotos.map((photo, i) => (
-                <div className="masonry-item" key={photo.id} style={{animationDelay:`${i*0.04}s`}}>
-                  <button type="button" className="masonry-btn" onClick={() => openLightbox(photo)}>
-                    <img src={photo.image} alt={photo.title} loading="lazy" />
-                    <div className="masonry-overlay">
-                      <small>{photo.category}</small>
-                      <h3>{photo.title}</h3>
-                    </div>
-                  </button>
-                  <button type="button" className={`favorite-button${favorites.includes(photo.id)?" fav-active":""}`} onClick={() => toggleFavorite(photo.id)} aria-label="Like">
-                    {favorites.includes(photo.id) ? <HeartFilled /> : <HeartOutlined />}
-                  </button>
-                  {starred.includes(photo.id) && <span className="card-star-badge"><StarFilled /></span>}
-                </div>
+          </div>
+          <button type="button" className="pp-close-page-btn"
+            onClick={()=>navigate("/dashboard")} aria-label="Close page">
+            <CloseOutlined/>
+          </button>
+        </div>
+
+        
+        <div className="pp-gallery-scroll">
+          <div className="gallery-head">
+            <div>
+              <h2><AppstoreOutlined/> Gallery</h2>
+              <p>Wedding, portraits, nature, and cinematic work</p>
+            </div>
+            <div className="category-filter">
+              {categories.map(cat=>(
+                <button type="button" key={cat}
+                  className={activeCategory===cat?"active":""}
+                  onClick={()=>setActiveCategory(cat)}>
+                  {cat}
+                </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <footer className="profile-footer">(c) axs</footer>
+          
+          <div className="masonry-grid">
+            {filteredPhotos.map(photo=>(
+              <div className="masonry-item" key={photo.id}>
+                <button type="button" className="masonry-btn" onClick={()=>openLightbox(photo)}>
+                  <img src={photo.image} alt={photo.title} loading="lazy"/>
+                  <div className="masonry-overlay">
+                    <small>{photo.category}</small>
+                    <h3>{photo.title}</h3>
+                  </div>
+                </button>
+                <button type="button"
+                  className={`favorite-button${favorites.includes(photo.id)?" fav-active":""}`}
+                  onClick={()=>toggleFavorite(photo.id)} aria-label="Like">
+                  {favorites.includes(photo.id)?<HeartFilled/>:<HeartOutlined/>}
+                </button>
+                {starred.includes(photo.id)&&<span className="card-star-badge"><StarFilled/></span>}
+              </div>
+            ))}
+          </div>
+
+          <footer className="profile-footer">© axs</footer>
         </div>
       </main>
 
     
-      {previewPhoto && (
+      {previewPhoto&&(
         <div className="portfolio-lightbox" role="dialog" aria-modal="true">
-          <button type="button" className="portfolio-lightbox-backdrop" onClick={() => setPreviewPhoto(null)} aria-label="Close" />
+          <button type="button" className="portfolio-lightbox-backdrop" onClick={()=>setPreviewPhoto(null)} aria-label="Close"/>
           <div className="portfolio-lightbox-card">
-            <button type="button" className="portfolio-lightbox-close" onClick={() => setPreviewPhoto(null)}><CloseOutlined /></button>
-            <button type="button" className={`lb-star-btn${starred.includes(previewPhoto.id)?" lb-star-active":""}`} onClick={() => toggleStarred(previewPhoto.id)}>
-              {starred.includes(previewPhoto.id) ? <StarFilled /> : <StarOutlined />}
+            <button type="button" className="portfolio-lightbox-close" onClick={()=>setPreviewPhoto(null)}><CloseOutlined/></button>
+            <button type="button"
+              className={`lb-star-btn${starred.includes(previewPhoto.id)?" lb-star-active":""}`}
+              onClick={()=>toggleStarred(previewPhoto.id)}>
+              {starred.includes(previewPhoto.id)?<StarFilled/>:<StarOutlined/>}
             </button>
             <button type="button" className="lb-arrow lb-prev" onClick={lbPrev}>&#8249;</button>
             <button type="button" className="lb-arrow lb-next" onClick={lbNext}>&#8250;</button>
-            <img src={previewPhoto.image} alt={previewPhoto.title} />
+            <img src={previewPhoto.image} alt={previewPhoto.title}/>
             <div className="lb-meta">
               <span>{previewPhoto.category}</span>
               <h3>{previewPhoto.title}</h3>
@@ -493,4 +441,4 @@ function ProfilePage() {
   );
 }
 
-export default ProfilePage;
+export default ProfilePage; 
