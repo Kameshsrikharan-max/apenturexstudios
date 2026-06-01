@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Avatar,
-  Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty, Divider, Progress,
+  Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty,
 } from "antd";
 import {
   SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,
@@ -9,7 +9,7 @@ import {
   CloseCircleOutlined, SendOutlined, UserSwitchOutlined, WarningOutlined,
   EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
   CameraOutlined, AppstoreOutlined, GoogleOutlined, ClockCircleOutlined, StarOutlined,
-  CloseOutlined, StarFilled,
+  CloseOutlined, StarFilled, RobotOutlined, LoadingOutlined, BulbOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./UsersPage.css";
@@ -65,7 +65,6 @@ const tabItems = [
   },
 ];
 
-/* ── Persist helpers ── */
 const loadLS = (key, fallback) => {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 };
@@ -73,7 +72,6 @@ const saveLS = (key, val) => {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 };
 
-/* ── Gallery photos ── */
 const galleryPhotos = [
   { id: 1,  title: "Royal Wedding Frame",  category: "Wedding",   image: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1400" },
   { id: 2,  title: "Golden Couple Walk",   category: "Wedding",   image: "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?q=80&w=1400" },
@@ -97,21 +95,199 @@ const galleryPhotos = [
   { id: 20, title: "Fashion Frame",        category: "Portraits", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
 ];
 
+/* ══════════════════════════════════════════
+   AI LIGHTBOX — Claude-powered photo insight
+══════════════════════════════════════════ */
+const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) => {
+  const [idx, setIdx]           = useState(initialIdx);
+  const [aiText, setAiText]     = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError]   = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const current = photos[idx];
+
+  const prev = () => { setIdx((i) => (i - 1 + photos.length) % photos.length); setAiText(""); setImgLoaded(false); };
+  const next = () => { setIdx((i) => (i + 1) % photos.length); setAiText(""); setImgLoaded(false); };
+
+  const fetchInsight = useCallback(async () => {
+    if (!current) return;
+    setAiLoading(true);
+    setAiError(false);
+    setAiText("");
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: `You are a creative photography critic and storyteller. The photo is titled "${current.title}" and categorized as "${current.category}". Write a short, poetic, vivid 2–3 sentence insight about what this photo likely captures — its mood, composition, and emotional resonance. Be cinematic and evocative. No bullet points. No preamble. Just the insight.`,
+          }],
+        }),
+      });
+      const data = await res.json();
+      const text = data?.content?.[0]?.text || "";
+      setAiText(text);
+    } catch {
+      setAiError(true);
+    }
+    setAiLoading(false);
+  }, [current]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [idx]);
+
+  if (!current) return null;
+  const isStarred = starredIds.includes(current.id);
+
+  return (
+    <div className="ailb-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="ailb-shell">
+        {/* Close */}
+        <button className="ailb-x" onClick={onClose}><CloseOutlined /></button>
+
+        {/* Nav */}
+        {photos.length > 1 && (
+          <>
+            <button className="ailb-nav ailb-prev" onClick={prev}>&#8249;</button>
+            <button className="ailb-nav ailb-next" onClick={next}>&#8250;</button>
+          </>
+        )}
+
+        {/* Image pane */}
+        <div className="ailb-image-pane">
+          <div className={`ailb-img-wrap ${imgLoaded ? "loaded" : ""}`}>
+            <img
+              key={current.id}
+              src={current.image}
+              alt={current.title}
+              onLoad={() => setImgLoaded(true)}
+              onError={(e) => { e.currentTarget.src = fallbackImage; setImgLoaded(true); }}
+            />
+            {!imgLoaded && <div className="ailb-img-skeleton" />}
+          </div>
+
+          {/* Counter + Star */}
+          <div className="ailb-img-footer">
+            <span className="ailb-counter">{idx + 1} / {photos.length}</span>
+            <button
+              className={`ailb-star-btn ${isStarred ? "starred" : ""}`}
+              onClick={() => onStar(current.id)}
+            >
+              {isStarred ? <StarFilled /> : <StarOutlined />}
+              {isStarred ? "Starred" : "Star"}
+            </button>
+          </div>
+        </div>
+
+        {/* Info + AI pane */}
+        <div className="ailb-info-pane">
+          <div className="ailb-info-top">
+            <span className="ailb-cat-pill">{current.category}</span>
+            <h2 className="ailb-title">{current.title}</h2>
+          </div>
+
+          <div className="ailb-divider" />
+
+          {/* AI Insight */}
+          <div className="ailb-ai-section">
+            <div className="ailb-ai-header">
+              <RobotOutlined />
+              <span>AI Insight</span>
+            </div>
+
+            {!aiText && !aiLoading && !aiError && (
+              <button className="ailb-ai-btn" onClick={fetchInsight}>
+                <BulbOutlined /> Generate Insight
+              </button>
+            )}
+
+            {aiLoading && (
+              <div className="ailb-ai-loading">
+                <LoadingOutlined spin />
+                <span>Analysing composition...</span>
+              </div>
+            )}
+
+            {aiError && (
+              <div className="ailb-ai-error">
+                <span>Could not connect. </span>
+                <button onClick={fetchInsight}>Retry</button>
+              </div>
+            )}
+
+            {aiText && (
+              <p className="ailb-ai-text">{aiText}</p>
+            )}
+          </div>
+
+          {/* Thumbnail strip */}
+          <div className="ailb-thumbs">
+            {photos.map((p, i) => (
+              <button
+                key={p.id}
+                className={`ailb-thumb ${i === idx ? "active" : ""}`}
+                onClick={() => { setIdx(i); setAiText(""); setImgLoaded(false); }}
+              >
+                <img src={p.image} alt={p.title} onError={(e) => { e.currentTarget.src = fallbackImage; }} />
+                {starredIds.includes(p.id) && (
+                  <span className="ailb-thumb-star"><StarFilled /></span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ════════════════════════════════════════════
    CINEMATIC FULL-PAGE USER VIEW OVERLAY
 ════════════════════════════════════════════ */
 const UserViewOverlay = ({ user, onClose }) => {
-  const [lbPhoto, setLbPhoto] = useState(null);
-  const [lbIdx, setLbIdx]     = useState(0);
+  const [starredIds, setStarredIds] = useState(() => loadLS("axsStarredPhotos", []));
+  const [lbOpen, setLbOpen]         = useState(false);
+  const [lbIdx, setLbIdx]           = useState(0);
   const [imgLoaded, setImgLoaded]   = useState(false);
-  const scrollRef = useRef(null);
+  const [activeFilter, setActiveFilter] = useState("All");
 
-  const starred = loadLS("axsStarredPhotos", []);
-  const bestPics = galleryPhotos.filter((p) => starred.includes(p.id));
+  // Save starred on change
+  useEffect(() => { saveLS("axsStarredPhotos", starredIds); }, [starredIds]);
 
-  const openLb = (photo, idx) => { setLbPhoto(photo); setLbIdx(idx); };
-  const prevLb = () => { const i = (lbIdx - 1 + bestPics.length) % bestPics.length; setLbPhoto(bestPics[i]); setLbIdx(i); };
-  const nextLb = () => { const i = (lbIdx + 1) % bestPics.length; setLbPhoto(bestPics[i]); setLbIdx(i); };
+  const toggleStar = (id) => {
+    setStarredIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(galleryPhotos.map((p) => p.category))];
+    return ["All", ...cats];
+  }, []);
+
+  const filteredPhotos = useMemo(() => {
+    const base = activeFilter === "All" ? galleryPhotos : galleryPhotos.filter((p) => p.category === activeFilter);
+    const starred = base.filter((p) => starredIds.includes(p.id));
+    const rest    = base.filter((p) => !starredIds.includes(p.id));
+    return [...starred, ...rest];
+  }, [activeFilter, starredIds]);
+
+  const openLb = (photo) => {
+    const idx = filteredPhotos.findIndex((p) => p.id === photo.id);
+    setLbIdx(idx >= 0 ? idx : 0);
+    setLbOpen(true);
+  };
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -119,14 +295,10 @@ const UserViewOverlay = ({ user, onClose }) => {
   }, []);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape") { if (lbPhoto) setLbPhoto(null); else onClose(); }
-      if (e.key === "ArrowLeft"  && lbPhoto) prevLb();
-      if (e.key === "ArrowRight" && lbPhoto) nextLb();
-    };
+    const handler = (e) => { if (e.key === "Escape" && !lbOpen) onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [lbPhoto, lbIdx]);
+  }, [lbOpen]);
 
   const statusMeta = {
     Active:   { color: "#22c55e", glow: "rgba(34,197,94,0.4)",   label: "Active" },
@@ -140,209 +312,189 @@ const UserViewOverlay = ({ user, onClose }) => {
     Registered: { color: "#22c55e", label: "Registered" },
   }[user.signupType] || { color: "#94a3b8", label: user.signupType };
 
-  const infoCards = [
-    { icon: <MailOutlined />,        label: "Email",    value: user.email,                         accent: "#38bdf8" },
-    { icon: <PhoneOutlined />,       label: "Phone",    value: user.phone,                         accent: "#34d399" },
-    { icon: <CameraOutlined />,      label: "Role",     value: user.role,                          accent: "#f59e0b" },
-    { icon: <EnvironmentOutlined />, label: "Location", value: user.location || "Wave Studios",    accent: "#a78bfa" },
-    { icon: <CalendarOutlined />,    label: "Joined",   value: user.created,                       accent: "#fb923c" },
-    { icon: <TeamOutlined />,        label: "Studio",   value: user.studio || "Wave Studios",      accent: "#f472b6" },
+  const infoItems = [
+    { icon: <MailOutlined />,        label: "Email",    value: user.email,                      accent: "#38bdf8" },
+    { icon: <PhoneOutlined />,       label: "Phone",    value: user.phone,                      accent: "#34d399" },
+    { icon: <CameraOutlined />,      label: "Role",     value: user.role,                       accent: "#f59e0b" },
+    { icon: <EnvironmentOutlined />, label: "Location", value: user.location || "Wave Studios", accent: "#a78bfa" },
+    { icon: <CalendarOutlined />,    label: "Joined",   value: user.created,                    accent: "#fb923c" },
+    { icon: <TeamOutlined />,        label: "Studio",   value: user.studio || "Wave Studios",   accent: "#f472b6" },
     ...(user.shoots !== undefined
-      ? [{ icon: <CameraOutlined />, label: "Shoots",   value: `${user.shoots} shoots`,            accent: "#e879f9" }]
+      ? [{ icon: <CameraOutlined />, label: "Shoots",   value: `${user.shoots} shoots`,          accent: "#e879f9" }]
       : []),
-    { icon: <EditOutlined />,        label: "Notes",    value: user.notes || "—",                  accent: "#94a3b8", wide: true },
+    { icon: <EditOutlined />,        label: "Notes",    value: user.notes || "—",               accent: "#94a3b8" },
   ];
 
   return (
-    <div className="uvo-root">
-      {/* ── BACKGROUND LAYERS ── */}
-      <div className="uvo-bg-blur">
-        <img
-          src={user.image || fallbackImage}
-          alt=""
-          onError={(e) => { e.currentTarget.src = fallbackImage; }}
-        />
-      </div>
-      <div className="uvo-bg-noise" />
-      <div className="uvo-bg-vignette" />
+    <>
+      <div className="uvo-root">
+        {/* BG layers */}
+        <div className="uvo-bg-blur">
+          <img src={user.image || fallbackImage} alt="" onError={(e) => { e.currentTarget.src = fallbackImage; }} />
+        </div>
+        <div className="uvo-bg-noise" />
+        <div className="uvo-bg-vignette" />
 
-      {/* ── FLOATING PARTICLES ── */}
-      <div className="uvo-particles" aria-hidden="true">
-        {[...Array(18)].map((_, i) => (
-          <span key={i} className="uvo-particle" style={{
-            "--x": `${Math.random() * 100}%`,
-            "--y": `${Math.random() * 100}%`,
-            "--d": `${4 + Math.random() * 10}s`,
-            "--s": `${2 + Math.random() * 4}px`,
-            "--o": `${0.2 + Math.random() * 0.5}`,
-          }} />
-        ))}
-      </div>
+        {/* Particles */}
+        <div className="uvo-particles" aria-hidden="true">
+          {[...Array(22)].map((_, i) => (
+            <span key={i} className="uvo-particle" style={{
+              "--x": `${Math.random() * 100}%`,
+              "--y": `${Math.random() * 100}%`,
+              "--d": `${4 + Math.random() * 10}s`,
+              "--s": `${2 + Math.random() * 5}px`,
+              "--o": `${0.15 + Math.random() * 0.45}`,
+            }} />
+          ))}
+        </div>
 
-      {/* ── CLOSE BUTTON ── */}
-      <button className="uvo-x" onClick={onClose} aria-label="Close">
-        <CloseOutlined />
-      </button>
+        {/* Orbital rings in background */}
+        <div className="uvo-orbital-bg" aria-hidden="true">
+          <div className="uvo-orb uvo-orb-1" />
+          <div className="uvo-orb uvo-orb-2" />
+          <div className="uvo-orb uvo-orb-3" />
+        </div>
 
-      {/* ── MAIN PANEL ── */}
-      <div className="uvo-panel" ref={scrollRef}>
+        {/* Close */}
+        <button className="uvo-x" onClick={onClose} aria-label="Close"><CloseOutlined /></button>
 
-        {/* LEFT COLUMN — sticky profile card with profile details */}
-        <aside className="uvo-sidebar">
-          <div className="uvo-profile-card">
-            {/* Glow ring behind avatar */}
-            <div
-              className="uvo-avatar-glow"
-              style={{ "--gcolor": statusMeta.glow }}
-            />
+        {/* MAIN PANEL — side drawer left, gallery right */}
+        <div className="uvo-panel">
 
-            {/* Profile image */}
-            <div className="uvo-avatar-shell">
-              {user.image ? (
-                <>
-                  <img
-                    className={`uvo-profile-img ${imgLoaded ? "loaded" : ""}`}
-                    src={user.image}
-                    alt={user.name}
-                    onLoad={() => setImgLoaded(true)}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      e.currentTarget.nextSibling.style.display = "grid";
-                    }}
-                  />
-                  <div className="uvo-profile-fallback" style={{ display: "none" }}>
-                    {user.name.charAt(0)}
-                  </div>
-                </>
-              ) : (
-                <div className="uvo-profile-fallback">{user.name.charAt(0)}</div>
-              )}
+          {/* ── LEFT SIDE DRAWER ── */}
+          <aside className="uvo-drawer">
+            {/* Profile visual */}
+            <div className="uvo-profile-visual">
+              <div className="uvo-avatar-glow" style={{ "--gcolor": statusMeta.glow }} />
 
-              {/* Animated ring */}
-              <div className="uvo-ring uvo-ring-1" style={{ "--rc": statusMeta.color }} />
-              <div className="uvo-ring uvo-ring-2" style={{ "--rc": statusMeta.color }} />
-            </div>
-
-            {/* Name & role */}
-            <h1 className="uvo-name">{user.name}</h1>
-            <p className="uvo-role-label">{user.role}</p>
-
-            {/* Status badges */}
-            <div className="uvo-badge-row">
-              <span
-                className="uvo-status-badge"
-                style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow }}
-              >
-                {filterIconMap[user.status]} {statusMeta.label}
-              </span>
-              <span
-                className="uvo-signup-badge"
-                style={{ "--bc": signupMeta.color }}
-              >
-                {filterIconMap[user.signupType] || <UserSwitchOutlined />} {signupMeta.label}
-              </span>
-            </div>
-
-            {/* ── PROFILE DETAILS inside sticky sidebar ── */}
-            <div className="uvo-sidebar-details">
-              <div className="uvo-section-header uvo-section-header-sm">
-                <div className="uvo-section-line" />
-                <span>Details</span>
-                <div className="uvo-section-line" />
+              {/* ROUND avatar shell */}
+              <div className="uvo-avatar-shell">
+                {user.image ? (
+                  <>
+                    <img
+                      className={`uvo-profile-img ${imgLoaded ? "loaded" : ""}`}
+                      src={user.image}
+                      alt={user.name}
+                      onLoad={() => setImgLoaded(true)}
+                      onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "grid"; }}
+                    />
+                    <div className="uvo-profile-fallback" style={{ display: "none" }}>{user.name.charAt(0)}</div>
+                  </>
+                ) : (
+                  <div className="uvo-profile-fallback">{user.name.charAt(0)}</div>
+                )}
+                <div className="uvo-ring uvo-ring-1" style={{ "--rc": statusMeta.color }} />
+                <div className="uvo-ring uvo-ring-2" style={{ "--rc": statusMeta.color }} />
+                <div className="uvo-ring uvo-ring-3" style={{ "--rc": statusMeta.color }} />
               </div>
 
-              <div className="uvo-sidebar-info-list">
-                {infoCards.map(({ icon, label, value, accent }) => (
-                  <div
-                    key={label}
-                    className="uvo-sidebar-info-row"
-                    style={{ "--acc": accent }}
+              <h1 className="uvo-name">{user.name}</h1>
+              <p className="uvo-role-label">{user.role}</p>
+
+              <div className="uvo-badge-row">
+                <span className="uvo-status-badge" style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow }}>
+                  {filterIconMap[user.status]} {statusMeta.label}
+                </span>
+                <span className="uvo-signup-badge" style={{ "--bc": signupMeta.color }}>
+                  {filterIconMap[user.signupType] || <UserSwitchOutlined />} {signupMeta.label}
+                </span>
+              </div>
+            </div>
+
+            {/* Info grid — compact, no scroll */}
+            <div className="uvo-info-grid">
+              {infoItems.map(({ icon, label, value, accent }) => (
+                <div key={label} className="uvo-info-card" style={{ "--acc": accent }}>
+                  <div className="uvo-info-icon">{icon}</div>
+                  <div className="uvo-info-text">
+                    <small>{label}</small>
+                    <strong title={value}>{value}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+
+          {/* ── RIGHT GALLERY ── */}
+          <main className="uvo-gallery-pane">
+            {/* Category filter pills */}
+            <div className="uvo-cat-strip">
+              <div className="uvo-cat-inner">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={`uvo-cat-pill ${activeFilter === cat ? "active" : ""}`}
+                    onClick={() => setActiveFilter(cat)}
                   >
-                    <div className="uvo-sidebar-icon">{icon}</div>
-                    <div className="uvo-sidebar-text">
-                      <small>{label}</small>
-                      <strong>{value}</strong>
-                    </div>
-                  </div>
+                    {cat}
+                    {cat !== "All" && (
+                      <span className="uvo-cat-count">
+                        {galleryPhotos.filter((p) => p.category === cat).length}
+                      </span>
+                    )}
+                  </button>
                 ))}
+                <span className="uvo-gallery-note">
+                  <StarFilled style={{ color: "#f5ba5e", fontSize: 11 }} /> starred first
+                </span>
               </div>
             </div>
-          </div>
-        </aside>
 
-        {/* RIGHT COLUMN — Best Shots gallery */}
-        <main className="uvo-main">
-
-          {/* ── BEST SHOTS GALLERY ── */}
-          {bestPics.length > 0 ? (
-            <div className="uvo-gallery-section">
-              <div className="uvo-section-header">
-                <div className="uvo-section-line" />
-                <span><StarFilled style={{ color: "#f5ba5e", marginRight: 6 }} />Best Shots</span>
-                <div className="uvo-section-line" />
-              </div>
-
-              <div className="uvo-gallery-grid">
-                {bestPics.map((photo, i) => (
+            {/* Mosaic gallery grid */}
+            <div className="uvo-mosaic">
+              {filteredPhotos.map((photo, i) => {
+                const isStarred = starredIds.includes(photo.id);
+                return (
                   <button
                     key={photo.id}
-                    className="uvo-gallery-tile"
-                    style={{ "--delay": `${i * 0.07}s` }}
-                    onClick={() => openLb(photo, i)}
+                    className={`uvo-mosaic-tile ${isStarred ? "is-starred" : ""}`}
+                    style={{ "--delay": `${i * 0.04}s` }}
+                    onClick={() => openLb(photo)}
                   >
                     <img
                       src={photo.image}
                       alt={photo.title}
                       onError={(e) => { e.currentTarget.src = fallbackImage; }}
                     />
-                    <div className="uvo-gallery-overlay">
-                      <span className="uvo-gallery-cat">{photo.category}</span>
-                      <span className="uvo-gallery-title">{photo.title}</span>
+                    <div className="uvo-tile-overlay">
+                      <span className="uvo-tile-cat">{photo.category}</span>
+                      <span className="uvo-tile-title">{photo.title}</span>
                     </div>
-                    <div className="uvo-gallery-star"><StarFilled /></div>
+                    {isStarred && (
+                      <div className="uvo-tile-star-badge"><StarFilled /></div>
+                    )}
+                    <button
+                      className="uvo-tile-star-toggle"
+                      onClick={(e) => { e.stopPropagation(); toggleStar(photo.id); }}
+                      title={isStarred ? "Unstar" : "Star"}
+                    >
+                      {isStarred ? <StarFilled style={{ color: "#f5ba5e" }} /> : <StarOutlined />}
+                    </button>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ) : (
-            <div className="uvo-empty-gallery">
-              <StarOutlined style={{ fontSize: 48, color: "rgba(255,255,255,0.2)" }} />
-              <p>No best shots starred yet.</p>
-              <small>Star photos from the gallery to showcase them here.</small>
-            </div>
-          )}
-        </main>
+          </main>
+        </div>
       </div>
 
-      {/* ── LIGHTBOX ── */}
-      {lbPhoto && (
-        <div
-          className="uvo-lb-backdrop"
-          onClick={(e) => e.target === e.currentTarget && setLbPhoto(null)}
-        >
-          <div className="uvo-lb-box">
-            <button className="uvo-lb-x" onClick={() => setLbPhoto(null)}><CloseOutlined /></button>
-            {bestPics.length > 1 && (
-              <>
-                <button className="uvo-lb-nav prev" onClick={prevLb}>&#8249;</button>
-                <button className="uvo-lb-nav next" onClick={nextLb}>&#8250;</button>
-              </>
-            )}
-            <img src={lbPhoto.image} alt={lbPhoto.title} />
-            <div className="uvo-lb-footer">
-              <span className="uvo-lb-cat">{lbPhoto.category}</span>
-              <h3>{lbPhoto.title}</h3>
-              <small>{lbIdx + 1} / {bestPics.length}</small>
-            </div>
-          </div>
-        </div>
+      {/* AI Lightbox */}
+      {lbOpen && (
+        <AILightbox
+          photo={filteredPhotos[lbIdx]}
+          photos={filteredPhotos}
+          initialIdx={lbIdx}
+          onClose={() => setLbOpen(false)}
+          onStar={toggleStar}
+          starredIds={starredIds}
+        />
       )}
-    </div>
+    </>
   );
 };
 
 /* ═══════════════════════════════════════════
-   MAIN PAGE
+   MAIN USERS PAGE
 ═══════════════════════════════════════════ */
 const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -361,116 +513,25 @@ const UsersPage = () => {
   const [inviteForm] = Form.useForm();
 
   const [usersData, setUsersData] = useState([
-    {
-      id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com",
-      phone: "8888888888", studio: "Wave Studios", role: "Studio Admin",
-      status: "Active", signupType: "Registered", created: "06 May 2026",
-      location: "Chennai", score: 92,
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80",
-      notes: "Manages studio users and booking activity.",
-    },
-    {
-      id: "2", name: "Arun Kumar", email: "arun.photography@gmail.com",
-      phone: "9840123456", studio: "Wave Studios", role: "Photographer",
-      status: "Active", signupType: "Google", created: "05 May 2026",
-      location: "Coimbatore", score: 84,
-      image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80",
-      notes: "Strong candid photography profile.",
-    },
-    {
-      id: "3", name: "Priya", email: "priya.sharma@outlook.com",
-      phone: "9123456789", studio: "Wave Studios", role: "Editor",
-      status: "Inactive", signupType: "Registered", created: "04 May 2026",
-      location: "Bangalore", score: 61,
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80",
-      notes: "Editing access currently inactive.",
-    },
-    {
-      id: "4", name: "John", email: "john.d@wavestudios.com",
-      phone: "8056123987", studio: "Wave Studios", role: "Photographer",
-      status: "Active", signupType: "Registered", created: "03 May 2026",
-      location: "Madurai", score: 76,
-      image: "https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=900&q=80",
-      notes: "Event photographer.",
-    },
-    {
-      id: "5", name: "Meera", email: "meera.reddy@gmail.com",
-      phone: "7012345678", studio: "Wave Studios", role: "Studio Admin",
-      status: "Active", signupType: "Google", created: "02 May 2026",
-      location: "Salem", score: 88,
-      image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80",
-      notes: "Handles booking operations.",
-    },
-    {
-      id: "6", name: "Vikram", email: "vikram.seth@live.com",
-      phone: "9944556677", studio: "Wave Studios", role: "Photographer",
-      status: "Pending", signupType: "Registered", created: "01 May 2026",
-      location: "Trichy", score: 45,
-      image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=80",
-      notes: "Pending approval.",
-    },
+    { id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com", phone: "8888888888", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80", notes: "Manages studio users and booking activity." },
+    { id: "2", name: "Arun Kumar", email: "arun.photography@gmail.com", phone: "9840123456", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Google", created: "05 May 2026", location: "Coimbatore", image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80", notes: "Strong candid photography profile." },
+    { id: "3", name: "Priya", email: "priya.sharma@outlook.com", phone: "9123456789", studio: "Wave Studios", role: "Editor", status: "Inactive", signupType: "Registered", created: "04 May 2026", location: "Bangalore", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80", notes: "Editing access currently inactive." },
+    { id: "4", name: "John", email: "john.d@wavestudios.com", phone: "8056123987", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Registered", created: "03 May 2026", location: "Madurai", image: "https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=900&q=80", notes: "Event photographer." },
+    { id: "5", name: "Meera", email: "meera.reddy@gmail.com", phone: "7012345678", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Google", created: "02 May 2026", location: "Salem", image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80", notes: "Handles booking operations." },
+    { id: "6", name: "Vikram", email: "vikram.seth@live.com", phone: "9944556677", studio: "Wave Studios", role: "Photographer", status: "Pending", signupType: "Registered", created: "01 May 2026", location: "Trichy", image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=80", notes: "Pending approval." },
   ]);
 
   const [referralsData] = useState([
-    {
-      id: "r1", name: "Referral User", email: "referral@gmail.com",
-      phone: "9999999999", studio: "Wave Studios", role: "Referral",
-      status: "Active", signupType: "Registered", created: "06 May 2026",
-      location: "Chennai", score: 70,
-      image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80",
-      notes: "Referral contact.",
-    },
+    { id: "r1", name: "Referral User", email: "referral@gmail.com", phone: "9999999999", studio: "Wave Studios", role: "Referral", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80", notes: "Referral contact." },
   ]);
 
   const [photographersData, setPhotographersData] = useState([
-    {
-      id: "p1", name: "Srikharan Kamesh", email: "srikharankamesh@gmail.com",
-      phone: "8888888888", role: "Freelance Photographer",
-      status: "Active", signupType: "Registered", created: "06 May 2026",
-      shoots: 18, location: "Chennai", score: 94,
-      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80",
-      notes: "Reliable for wedding and event shoots.",
-    },
-    {
-      id: "p2", name: "photo grapher(user-2)", email: "tolewi9752@pertok.com",
-      phone: "8383838383", role: "Freelance Photographer",
-      status: "Active", signupType: "Invited", created: "05 May 2026",
-      shoots: 4, location: "Bangalore", score: 52,
-      image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80",
-      notes: "Invite opened, profile pending.",
-    },
-    {
-      id: "p3", name: "photo grapher(user-1)", email: "velafe9699@mugstock.com",
-      phone: "8569742356", role: "Freelance Photographer",
-      status: "Active", signupType: "Invited", created: "04 May 2026",
-      shoots: 6, location: "Coimbatore", score: 64,
-      image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=1400",
-      notes: "Good candid photographer.",
-    },
-    {
-      id: "p4", name: "photographer-chandran", email: "tosaf14628@soppat.com",
-      phone: "5457452158", role: "Freelance Photographer",
-      status: "Active", signupType: "Registered", created: "03 May 2026",
-      shoots: 24, location: "Madurai", score: 89,
-      image: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1400",
-      notes: "Preferred for outdoor shoots.",
-    },
-    {
-      id: "p5", name: "photographer chandran", email: "netimil194@bmoar.com",
-      phone: "3838383678", role: "Freelance Photographer",
-      status: "Inactive", signupType: "Invited", created: "02 May 2026",
-      shoots: 2, location: "Trichy", score: 35,
-      image: "https://images.unsplash.com/photo-1528892952291-009c663ce843?q=80&w=1400",
-      notes: "Needs follow up.",
-    },
-    {
-      id: "p6", name: "ley opo", email: "leyopoj378@spotshops.com",
-      phone: "9840203148", role: "Freelance Photographer",
-      status: "Pending", signupType: "Registered", created: "01 May 2026",
-      shoots: 0, location: "Salem", score: 25,
-      image: "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=1400",
-      notes: "New profile under review.",
-    },
+    { id: "p1", name: "Srikharan Kamesh", email: "srikharankamesh@gmail.com", phone: "8888888888", role: "Freelance Photographer", status: "Active", signupType: "Registered", created: "06 May 2026", shoots: 18, location: "Chennai", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80", notes: "Reliable for wedding and event shoots." },
+    { id: "p2", name: "photo grapher(user-2)", email: "tolewi9752@pertok.com", phone: "8383838383", role: "Freelance Photographer", status: "Active", signupType: "Invited", created: "05 May 2026", shoots: 4, location: "Bangalore", image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80", notes: "Invite opened, profile pending." },
+    { id: "p3", name: "photo grapher(user-1)", email: "velafe9699@mugstock.com", phone: "8569742356", role: "Freelance Photographer", status: "Active", signupType: "Invited", created: "04 May 2026", shoots: 6, location: "Coimbatore", image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=1400", notes: "Good candid photographer." },
+    { id: "p4", name: "photographer-chandran", email: "tosaf14628@soppat.com", phone: "5457452158", role: "Freelance Photographer", status: "Active", signupType: "Registered", created: "03 May 2026", shoots: 24, location: "Madurai", image: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1400", notes: "Preferred for outdoor shoots." },
+    { id: "p5", name: "photographer chandran", email: "netimil194@bmoar.com", phone: "3838383678", role: "Freelance Photographer", status: "Inactive", signupType: "Invited", created: "02 May 2026", shoots: 2, location: "Trichy", image: "https://images.unsplash.com/photo-1528892952291-009c663ce843?q=80&w=1400", notes: "Needs follow up." },
+    { id: "p6", name: "ley opo", email: "leyopoj378@spotshops.com", phone: "9840203148", role: "Freelance Photographer", status: "Pending", signupType: "Registered", created: "01 May 2026", shoots: 0, location: "Salem", image: "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=1400", notes: "New profile under review." },
   ]);
 
   useEffect(() => {
@@ -484,9 +545,7 @@ const UsersPage = () => {
   }, [activeTab, referralsData, photographersData, usersData]);
 
   const filterOptions = useMemo(() => {
-    if (activeTab !== "photographers") {
-      return ["All", "Active", "Inactive", "Pending", "Registered", "Google"];
-    }
+    if (activeTab !== "photographers") return ["All", "Active", "Inactive", "Pending", "Registered", "Google"];
     return ["All", "Active", "Inactive", "Pending", "Registered", "Invited"];
   }, [activeTab]);
 
@@ -502,11 +561,8 @@ const UsersPage = () => {
   const filteredData = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return currentData.filter((user) => {
-      const matchesSearch = !term || Object.values(user).some((value) =>
-        String(value).toLowerCase().includes(term)
-      );
-      const matchesFilter = activeFilter === "All" ||
-        user.status === activeFilter || user.signupType === activeFilter;
+      const matchesSearch = !term || Object.values(user).some((value) => String(value).toLowerCase().includes(term));
+      const matchesFilter = activeFilter === "All" || user.status === activeFilter || user.signupType === activeFilter;
       return matchesSearch && matchesFilter;
     });
   }, [currentData, searchTerm, activeFilter]);
@@ -516,42 +572,28 @@ const UsersPage = () => {
     const regex = new RegExp(`(${escapeRegExp(searchTerm.trim())})`, "gi");
     const parts = String(value).split(regex);
     return parts.map((part, index) =>
-      part.toLowerCase() === searchTerm.trim().toLowerCase() ? (
-        <mark className="search-highlight" key={`${part}-${index}`}>{part}</mark>
-      ) : part
+      part.toLowerCase() === searchTerm.trim().toLowerCase()
+        ? <mark className="search-highlight" key={`${part}-${index}`}>{part}</mark>
+        : part
     );
   };
 
   const handleRefresh = () => {
     setIsLoading(true);
-    setTimeout(() => { setIsLoading(false); message.success("Users refreshed"); }, 800);
+    setTimeout(() => { setIsLoading(false); message.success("Refreshed"); }, 800);
   };
 
   const handleEditSave = (values) => {
-    const updatedValues = {
-      ...values,
-      shoots: values.shoots === undefined ? values.shoots : Number(values.shoots),
-      score: values.score === undefined ? values.score : Number(values.score),
-    };
-    if (editUser.id.startsWith("p")) {
-      setPhotographersData((prev) =>
-        prev.map((item) => item.id === editUser.id ? { ...item, ...updatedValues } : item)
-      );
-    } else {
-      setUsersData((prev) =>
-        prev.map((item) => item.id === editUser.id ? { ...item, ...updatedValues } : item)
-      );
-    }
+    const upd = { ...values, shoots: values.shoots !== undefined ? Number(values.shoots) : values.shoots };
+    if (editUser.id.startsWith("p")) setPhotographersData((prev) => prev.map((item) => item.id === editUser.id ? { ...item, ...upd } : item));
+    else setUsersData((prev) => prev.map((item) => item.id === editUser.id ? { ...item, ...upd } : item));
     setEditUser(null);
     message.success("Saved");
   };
 
   const handleDeleteConfirm = () => {
-    if (deleteUser.id.startsWith("p")) {
-      setPhotographersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
-    } else {
-      setUsersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
-    }
+    if (deleteUser.id.startsWith("p")) setPhotographersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
+    else setUsersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
     setSelectedRowKeys((prev) => prev.filter((key) => key !== deleteUser.id));
     message.success("Deleted");
     setDeleteUser(null);
@@ -565,16 +607,12 @@ const UsersPage = () => {
   };
 
   const handleBulkStatus = (status) => {
-    setPhotographersData((prev) =>
-      prev.map((item) => selectedRowKeys.includes(item.id) ? { ...item, status } : item)
-    );
+    setPhotographersData((prev) => prev.map((item) => selectedRowKeys.includes(item.id) ? { ...item, status } : item));
     message.success("Updated");
   };
 
   const handleBulkSignup = () => {
-    setPhotographersData((prev) =>
-      prev.map((item) => selectedRowKeys.includes(item.id) ? { ...item, signupType: "Invited" } : item)
-    );
+    setPhotographersData((prev) => prev.map((item) => selectedRowKeys.includes(item.id) ? { ...item, signupType: "Invited" } : item));
     message.success("Invited");
   };
 
@@ -585,8 +623,8 @@ const UsersPage = () => {
       name: values.name, email: values.email, phone: values.phone,
       studio: "Wave Studios",
       role: isPhotographer ? "Freelance Photographer" : values.role,
-      status: "Pending", signupType: "Invited", created: "18 May 2026",
-      shoots: 0, location: values.location || "Chennai", score: 10,
+      status: "Pending", signupType: "Invited", created: "01 Jun 2026",
+      shoots: 0, location: values.location || "Chennai",
       image: values.image || fallbackImage, notes: "Invited from users page.",
     };
     if (isPhotographer) setPhotographersData((prev) => [newUser, ...prev]);
@@ -620,16 +658,13 @@ const UsersPage = () => {
     render: (_, record) => (
       <Space size={6} className="photographer-actions">
         <Tooltip title="View profile">
-          <Button type="text" icon={<EyeOutlined />} className="circle-action view-action"
-            onClick={() => setViewUser(record)} />
+          <Button type="text" icon={<EyeOutlined />} className="circle-action view-action" onClick={() => setViewUser(record)} />
         </Tooltip>
         <Tooltip title="Edit profile">
-          <Button type="text" icon={<EditOutlined />} className="circle-action edit-action"
-            onClick={() => setEditUser(record)} />
+          <Button type="text" icon={<EditOutlined />} className="circle-action edit-action" onClick={() => setEditUser(record)} />
         </Tooltip>
         <Tooltip title="Delete profile">
-          <Button type="text" icon={<DeleteOutlined />} className="circle-action delete-action"
-            onClick={() => setDeleteUser(record)} />
+          <Button type="text" icon={<DeleteOutlined />} className="circle-action delete-action" onClick={() => setDeleteUser(record)} />
         </Tooltip>
       </Space>
     ),
@@ -637,133 +672,43 @@ const UsersPage = () => {
 
   const commonColumns = [
     {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a, b) => a.name.localeCompare(b.name),
-      width: 220,
+      title: "Name", dataIndex: "name", key: "name",
+      sorter: (a, b) => a.name.localeCompare(b.name), width: 220,
       render: (text, record) => (
         <div className="clean-user-cell" onClick={() => setViewUser(record)} style={{ cursor: "pointer" }}>
           <Avatar className="name-avatar">{text.charAt(0)}</Avatar>
           <div>
-            <Tooltip title={record.name}>
-              <strong>{highlightText(text)}</strong>
-            </Tooltip>
-            <span>
-              {activeTab === "photographers" ? <CameraOutlined /> : <TeamOutlined />}
-              {record.role}
-            </span>
+            <Tooltip title={record.name}><strong>{highlightText(text)}</strong></Tooltip>
+            <span>{activeTab === "photographers" ? <CameraOutlined /> : <TeamOutlined />}{record.role}</span>
           </div>
         </div>
       ),
     },
     {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      width: 230,
-      render: (text) => (
-        <Tooltip title={text}>
-          <span className="muted-cell">{highlightText(text)}</span>
-        </Tooltip>
-      ),
+      title: "Email", dataIndex: "email", key: "email", width: 230,
+      render: (text) => <Tooltip title={text}><span className="muted-cell">{highlightText(text)}</span></Tooltip>,
     },
     {
-      title: "Phone",
-      dataIndex: "phone",
-      key: "phone",
-      width: 140,
-      render: (text) => (
-        <Tooltip title={text}>
-          <span className="muted-cell">{highlightText(text)}</span>
-        </Tooltip>
-      ),
+      title: "Phone", dataIndex: "phone", key: "phone", width: 140,
+      render: (text) => <Tooltip title={text}><span className="muted-cell">{highlightText(text)}</span></Tooltip>,
     },
   ];
 
   const usersColumns = [
     ...commonColumns,
-    {
-      title: "Studio",
-      dataIndex: "studio",
-      key: "studio",
-      width: 130,
-      render: (text) => (
-        <Tag className="text-pill">
-          <EnvironmentOutlined /> {text}
-        </Tag>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 110,
-      render: renderStatusTag,
-    },
-    {
-      title: "Signup",
-      dataIndex: "signupType",
-      key: "signupType",
-      width: 110,
-      render: renderSignupTag,
-    },
-    {
-      title: "Created",
-      dataIndex: "created",
-      key: "created",
-      sorter: true,
-      width: 130,
-      render: (text) => (
-        <Tag className="text-pill">
-          <CalendarOutlined /> {text}
-        </Tag>
-      ),
-    },
+    { title: "Studio", dataIndex: "studio", key: "studio", width: 130, render: (text) => <Tag className="text-pill"><EnvironmentOutlined /> {text}</Tag> },
+    { title: "Status", dataIndex: "status", key: "status", width: 110, render: renderStatusTag },
+    { title: "Signup", dataIndex: "signupType", key: "signupType", width: 110, render: renderSignupTag },
+    { title: "Created", dataIndex: "created", key: "created", sorter: true, width: 130, render: (text) => <Tag className="text-pill"><CalendarOutlined /> {text}</Tag> },
     actionColumn,
   ];
 
   const photographersColumns = [
     ...commonColumns,
-    {
-      title: "Shoots",
-      dataIndex: "shoots",
-      key: "shoots",
-      width: 100,
-      render: (shoots) => (
-        <Tooltip title={`${shoots ?? 0} shoots`}>
-          <Tag className="shoot-chip">
-            <CameraOutlined /> {shoots ?? 0}
-          </Tag>
-        </Tooltip>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      width: 110,
-      render: renderStatusTag,
-    },
-    {
-      title: "Signup",
-      dataIndex: "signupType",
-      key: "signupType",
-      width: 110,
-      render: renderSignupTag,
-    },
-    {
-      title: "Created",
-      dataIndex: "created",
-      key: "created",
-      sorter: true,
-      width: 130,
-      render: (text) => (
-        <Tag className="text-pill">
-          <CalendarOutlined /> {text}
-        </Tag>
-      ),
-    },
+    { title: "Shoots", dataIndex: "shoots", key: "shoots", width: 100, render: (shoots) => <Tooltip title={`${shoots ?? 0} shoots`}><Tag className="shoot-chip"><CameraOutlined /> {shoots ?? 0}</Tag></Tooltip> },
+    { title: "Status", dataIndex: "status", key: "status", width: 110, render: renderStatusTag },
+    { title: "Signup", dataIndex: "signupType", key: "signupType", width: 110, render: renderSignupTag },
+    { title: "Created", dataIndex: "created", key: "created", sorter: true, width: 130, render: (text) => <Tag className="text-pill"><CalendarOutlined /> {text}</Tag> },
     actionColumn,
   ];
 
@@ -813,21 +758,15 @@ const UsersPage = () => {
               <div className="table-wrapper animated-panel user-panel-container">
                 <div className="user-hero-strip">
                   <div>
-                    <span className="hero-mini-pill">
-                      <TeamOutlined /> Studio People Board
-                    </span>
+                    <span className="hero-mini-pill"><TeamOutlined /> Studio People Board</span>
                     <Title level={2}>Users</Title>
-                    <Text>
-                      Manage users, referrals and photographers with clean rows,
-                      icon headers, smart filters and visual profile details.
-                    </Text>
+                    <Text>Manage users, referrals and photographers with clean rows, icon headers, smart filters and visual profile details.</Text>
                   </div>
                   {activeTab === "photographers" && (
                     <div className="hero-face-stack">
                       {filteredData.slice(0, 4).map((item) => (
                         <Tooltip title={item.name} key={item.id}>
-                          <img src={item.image || fallbackImage} alt={item.name}
-                            onError={(e) => { e.currentTarget.src = fallbackImage; }} />
+                          <img src={item.image || fallbackImage} alt={item.name} onError={(e) => { e.currentTarget.src = fallbackImage; }} />
                         </Tooltip>
                       ))}
                     </div>
@@ -836,12 +775,7 @@ const UsersPage = () => {
 
                 <Tabs
                   activeKey={activeTab}
-                  onChange={(key) => {
-                    setActiveTab(key);
-                    setSearchTerm("");
-                    setActiveFilter("All");
-                    setSelectedRowKeys([]);
-                  }}
+                  onChange={(key) => { setActiveTab(key); setSearchTerm(""); setActiveFilter("All"); setSelectedRowKeys([]); }}
                   className="user-tabs-glass"
                   items={tabItems}
                 />
@@ -872,20 +806,13 @@ const UsersPage = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         allowClear
                       />
-                      <Popover
-                        open={filterOpen}
-                        onOpenChange={setFilterOpen}
-                        content={filterMenu}
-                        trigger="click"
-                        placement="bottomLeft"
-                      >
+                      <Popover open={filterOpen} onOpenChange={setFilterOpen} content={filterMenu} trigger="click" placement="bottomLeft">
                         <Tooltip title="Filter">
                           <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
                         </Tooltip>
                       </Popover>
                       <Tooltip title="Refresh">
-                        <Button type="text" icon={<ReloadOutlined spin={isLoading} />}
-                          onClick={handleRefresh} className="icon-btn-glass" />
+                        <Button type="text" icon={<ReloadOutlined spin={isLoading} />} onClick={handleRefresh} className="icon-btn-glass" />
                       </Tooltip>
                     </Space>
 
@@ -893,31 +820,14 @@ const UsersPage = () => {
                       {activeTab === "photographers" && selectedRowKeys.length > 0 && (
                         <div className="bulk-action-bar">
                           <b>{selectedRowKeys.length}</b>
-                          <Tooltip title="Mark active">
-                            <Button type="text" icon={<CheckCircleOutlined />}
-                              className="bulk-icon-btn active-bulk"
-                              onClick={() => handleBulkStatus("Active")} />
-                          </Tooltip>
-                          <Tooltip title="Mark inactive">
-                            <Button type="text" icon={<CloseCircleOutlined />}
-                              className="bulk-icon-btn inactive-bulk"
-                              onClick={() => handleBulkStatus("Inactive")} />
-                          </Tooltip>
-                          <Tooltip title="Mark invited">
-                            <Button type="text" icon={<SendOutlined />}
-                              className="bulk-icon-btn invite-bulk"
-                              onClick={handleBulkSignup} />
-                          </Tooltip>
-                          <Tooltip title="Delete selected">
-                            <Button type="text" icon={<DeleteOutlined />}
-                              className="bulk-icon-btn delete-bulk"
-                              onClick={() => setBulkDeleteOpen(true)} />
-                          </Tooltip>
+                          <Tooltip title="Mark active"><Button type="text" icon={<CheckCircleOutlined />} className="bulk-icon-btn active-bulk" onClick={() => handleBulkStatus("Active")} /></Tooltip>
+                          <Tooltip title="Mark inactive"><Button type="text" icon={<CloseCircleOutlined />} className="bulk-icon-btn inactive-bulk" onClick={() => handleBulkStatus("Inactive")} /></Tooltip>
+                          <Tooltip title="Mark invited"><Button type="text" icon={<SendOutlined />} className="bulk-icon-btn invite-bulk" onClick={handleBulkSignup} /></Tooltip>
+                          <Tooltip title="Delete selected"><Button type="text" icon={<DeleteOutlined />} className="bulk-icon-btn delete-bulk" onClick={() => setBulkDeleteOpen(true)} /></Tooltip>
                         </div>
                       )}
                       <Tooltip title="Invite user">
-                        <Button type="primary" icon={<UserAddOutlined />}
-                          className="invite-btn-styled" onClick={() => setInviteOpen(true)} />
+                        <Button type="primary" icon={<UserAddOutlined />} className="invite-btn-styled" onClick={() => setInviteOpen(true)} />
                       </Tooltip>
                     </Space>
                   </div>
@@ -928,36 +838,23 @@ const UsersPage = () => {
                     pagination={false}
                     className="review-table user-table-custom photographers-hover-table"
                     rowKey="id"
-                    rowSelection={
-                      activeTab === "photographers"
-                        ? { selectedRowKeys, onChange: setSelectedRowKeys }
-                        : undefined
-                    }
+                    rowSelection={activeTab === "photographers" ? { selectedRowKeys, onChange: setSelectedRowKeys } : undefined}
                     scroll={{ x: 1100 }}
-                    locale={{
-                      emptyText: (
-                        <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                      ),
-                    }}
+                    locale={{ emptyText: <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
                   />
                 </div>
 
-                <div className="footer-copyright">
-                  <Text>© AXS</Text>
-                </div>
+                <div className="footer-copyright"><Text>© AXS</Text></div>
               </div>
             </Content>
           </Layout>
         </div>
 
-        {/* ── CINEMATIC FULL-PAGE VIEW OVERLAY ── */}
-        {viewUser && (
-          <UserViewOverlay user={viewUser} onClose={() => setViewUser(null)} />
-        )}
+        {/* Overlay */}
+        {viewUser && <UserViewOverlay user={viewUser} onClose={() => setViewUser(null)} />}
 
         {/* Edit Modal */}
-        <Modal open={!!editUser} onCancel={() => setEditUser(null)} footer={null}
-          width={660} title={null} className="creative-modal edit-modal" centered>
+        <Modal open={!!editUser} onCancel={() => setEditUser(null)} footer={null} width={660} title={null} className="creative-modal edit-modal" centered>
           {editUser && (
             <div className="modal-shell">
               <div className="modal-title-row">
@@ -966,15 +863,9 @@ const UsersPage = () => {
               </div>
               <Form form={editForm} layout="vertical" onFinish={handleEditSave}>
                 <div className="edit-form-grid">
-                  <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-                    <Input />
-                  </Form.Item>
-                  <Form.Item name="email" label="Email" rules={[{ required: true }, { type: "email" }]}>
-                    <Input />
-                  </Form.Item>
-                  <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
-                    <Input />
-                  </Form.Item>
+                  <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
+                  <Form.Item name="email" label="Email" rules={[{ required: true }, { type: "email" }]}><Input /></Form.Item>
+                  <Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item>
                   <Form.Item name="role" label="Role">
                     <Select options={[
                       { value: "Studio Admin", label: "Studio Admin" },
@@ -985,26 +876,15 @@ const UsersPage = () => {
                     ]} />
                   </Form.Item>
                   <Form.Item name="status" label="Status">
-                    <Select options={[
-                      { value: "Active", label: "Active" },
-                      { value: "Inactive", label: "Inactive" },
-                      { value: "Pending", label: "Pending" },
-                    ]} />
+                    <Select options={[{ value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }, { value: "Pending", label: "Pending" }]} />
                   </Form.Item>
                   <Form.Item name="signupType" label="Signup">
-                    <Select options={[
-                      { value: "Registered", label: "Registered" },
-                      { value: "Invited", label: "Invited" },
-                      { value: "Google", label: "Google" },
-                    ]} />
+                    <Select options={[{ value: "Registered", label: "Registered" }, { value: "Invited", label: "Invited" }, { value: "Google", label: "Google" }]} />
                   </Form.Item>
                   <Form.Item name="location" label="Location"><Input /></Form.Item>
                   <Form.Item name="shoots" label="Shoots"><Input type="number" /></Form.Item>
-                  <Form.Item name="score" label="Score"><Input type="number" min={0} max={100} /></Form.Item>
                   <Form.Item name="image" label="Image URL" className="edit-notes-field"><Input /></Form.Item>
-                  <Form.Item name="notes" label="Notes" className="edit-notes-field">
-                    <Input.TextArea rows={4} />
-                  </Form.Item>
+                  <Form.Item name="notes" label="Notes" className="edit-notes-field"><Input.TextArea rows={3} /></Form.Item>
                 </div>
                 <div className="modal-action-row">
                   <Button onClick={() => setEditUser(null)}>Cancel</Button>
@@ -1016,8 +896,7 @@ const UsersPage = () => {
         </Modal>
 
         {/* Invite Modal */}
-        <Modal open={inviteOpen} onCancel={() => setInviteOpen(false)} footer={null}
-          width={580} title={null} className="creative-modal edit-modal" centered>
+        <Modal open={inviteOpen} onCancel={() => setInviteOpen(false)} footer={null} width={580} title={null} className="creative-modal edit-modal" centered>
           <div className="modal-shell">
             <div className="modal-title-row">
               <Avatar className="modal-small-avatar"><UserAddOutlined /></Avatar>
@@ -1029,11 +908,7 @@ const UsersPage = () => {
                 <Form.Item name="email" label="Email" rules={[{ required: true }, { type: "email" }]}><Input /></Form.Item>
                 <Form.Item name="phone" label="Phone" rules={[{ required: true }]}><Input /></Form.Item>
                 <Form.Item name="role" label="Role" initialValue="Photographer">
-                  <Select options={[
-                    { value: "Studio Admin", label: "Studio Admin" },
-                    { value: "Photographer", label: "Photographer" },
-                    { value: "Editor", label: "Editor" },
-                  ]} />
+                  <Select options={[{ value: "Studio Admin", label: "Studio Admin" }, { value: "Photographer", label: "Photographer" }, { value: "Editor", label: "Editor" }]} />
                 </Form.Item>
                 <Form.Item name="location" label="Location"><Input /></Form.Item>
                 <Form.Item name="image" label="Image URL"><Input /></Form.Item>
@@ -1047,8 +922,7 @@ const UsersPage = () => {
         </Modal>
 
         {/* Delete Modal */}
-        <Modal open={!!deleteUser} onCancel={() => setDeleteUser(null)} footer={null}
-          width={430} title={null} className="creative-modal delete-modal" centered>
+        <Modal open={!!deleteUser} onCancel={() => setDeleteUser(null)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
           {deleteUser && (
             <div className="modal-shell delete-modal-shell">
               <div className="delete-warning-icon"><WarningOutlined /></div>
@@ -1063,8 +937,7 @@ const UsersPage = () => {
         </Modal>
 
         {/* Bulk Delete Modal */}
-        <Modal open={bulkDeleteOpen} onCancel={() => setBulkDeleteOpen(false)} footer={null}
-          width={430} title={null} className="creative-modal delete-modal" centered>
+        <Modal open={bulkDeleteOpen} onCancel={() => setBulkDeleteOpen(false)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
           <div className="modal-shell delete-modal-shell">
             <div className="delete-warning-icon"><WarningOutlined /></div>
             <Title level={3}>{selectedRowKeys.length} selected</Title>

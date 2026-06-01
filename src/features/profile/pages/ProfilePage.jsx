@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   AppstoreOutlined, CameraOutlined, CheckCircleOutlined, CloseOutlined,
   DeleteOutlined, EnvironmentOutlined, HeartFilled, HeartOutlined,
-  MailOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PhoneOutlined,
+  MailOutlined, MenuFoldOutlined, PhoneOutlined,
   SafetyCertificateOutlined, StarFilled, StarOutlined,
-  UploadOutlined, UserOutlined,
+  ThunderboltOutlined, UploadOutlined, UserOutlined,
 } from "@ant-design/icons";
 import "./ProfilePage.css";
 
@@ -38,9 +37,27 @@ const photos = [
   { id:18, title:"Studio Shadow",        category:"Cinematic", image:"https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1400" },
   { id:19, title:"Editorial Glow",       category:"Cinematic", image:"https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1400" },
   { id:20, title:"Fashion Frame",        category:"Portraits", image:"https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
+  { id:21, title:"Ceremony Lights",      category:"Wedding",   image:"https://images.unsplash.com/photo-1469371670807-013ccf25f16a?q=80&w=1400" },
+  { id:22, title:"Vow Detail",           category:"Wedding",   image:"https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1400" },
+  { id:23, title:"Reception Spark",      category:"Wedding",   image:"https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1400" },
+  { id:24, title:"Monochrome Look",      category:"Portraits", image:"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1400" },
+  { id:25, title:"Editorial Face",       category:"Portraits", image:"https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1400" },
+  { id:26, title:"Studio Calm",          category:"Portraits", image:"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1400" },
+  { id:27, title:"Waterfall Mist",       category:"Nature",    image:"https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?q=80&w=1400" },
+  { id:28, title:"Desert Dawn",          category:"Nature",    image:"https://images.unsplash.com/photo-1509316785289-025f5b846b35?q=80&w=1400" },
+  { id:29, title:"City Noir",            category:"Cinematic", image:"https://images.unsplash.com/photo-1519608487953-e999c86e7455?q=80&w=1400" },
+  { id:30, title:"Neon Scene",           category:"Cinematic", image:"https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=1400" },
 ];
 
 const categories = ["All","Wedding","Portraits","Nature","Cinematic"];
+const CATEGORY_META = {
+  All: { label:"All", icon:<AppstoreOutlined/> },
+  Wedding: { label:"Wedding", icon:<HeartOutlined/> },
+  Portraits: { label:"Portraits", icon:<UserOutlined/> },
+  Nature: { label:"Nature", icon:<EnvironmentOutlined/> },
+  Cinematic: { label:"Cinematic", icon:<CameraOutlined/> },
+};
+const PAGE_SIZE = 10;
 const ABOUT_LINES = [
   "Passionate photographer with a strong eye for emotion, light, and storytelling.",
   "Specialized in wedding, portraits, nature, and cinematic photography.",
@@ -95,7 +112,6 @@ function maskValue(str="") {
   if (str.length<=4) return str;
   return str.slice(0,2)+"*".repeat(str.length-4)+str.slice(-2);
 }
-
 
 function KycSection({ verified, kycData, onVerify, onReset }) {
   const [docType,setDocType]=useState("");
@@ -168,7 +184,7 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
         {docType==="aadhaar"&&(
           <div className="kyc-digilocker-box kyc-reveal">
             <strong>Aadhaar Digilocker</strong>
-            <p>Aadhaar verification uses Digilocker — you'll be redirected to complete the linking process.</p>
+            <p>Aadhaar verification uses Digilocker. You will be redirected to complete the linking process.</p>
           </div>
         )}
         {fields.length>0&&(
@@ -197,7 +213,6 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
   );
 }
 
-
 function DetailField({ icon, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange, placeholder }) {
   const inputRef=useRef(null);
   const isEditing=editingField===field;
@@ -213,7 +228,7 @@ function DetailField({ icon, field, value, editable=true, editingField, onStartE
         ):(
           <span className={`det-value${editable?" det-value--click":""}`}
             onClick={()=>editable&&onStartEdit(field,value)} title={editable?"Click to edit":undefined}>
-            {value||<span className="det-placeholder">{placeholder||"—"}</span>}
+            {value||<span className="det-placeholder">{placeholder||"-"}</span>}
           </span>
         )}
       </div>
@@ -221,11 +236,8 @@ function DetailField({ icon, field, value, editable=true, editingField, onStartE
   );
 }
 
-
 function ProfilePage() {
-  const navigate=useNavigate();
   const fileInputRef=useRef(null);
-
   const [activeCategory,setActiveCategory]=useState("All");
   const [previewPhoto,setPreviewPhoto]=useState(null);
   const [previewIndex,setPreviewIndex]=useState(null);
@@ -235,13 +247,20 @@ function ProfilePage() {
   const [kycVerified,setKycVerified]=useState(()=>loadLS("axsKycVerified",false));
   const [kycData,setKycData]=useState(()=>loadLS("axsKycData",null));
   const [aboutExpanded,setAboutExpanded]=useState(false);
-  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [galleryPage,setGalleryPage]=useState(0);
+  const [pageFlipping,setPageFlipping]=useState(false);
   const [editingField,setEditingField]=useState(null);
   const [pendingValue,setPendingValue]=useState("");
   const [hasUnsaved,setHasUnsaved]=useState(false);
 
   const fullName=useMemo(()=>(`${profile.firstName||""} ${profile.lastName||""}`).trim()||"Kamesh Srikharan.T",[profile]);
   const filteredPhotos=useMemo(()=>activeCategory==="All"?photos:photos.filter(p=>p.category===activeCategory),[activeCategory]);
+  const totalPages=Math.max(1,Math.ceil(filteredPhotos.length/PAGE_SIZE));
+  const visiblePhotos=useMemo(()=>{
+    const start=galleryPage*PAGE_SIZE;
+    return filteredPhotos.slice(start,start+PAGE_SIZE);
+  },[filteredPhotos,galleryPage]);
 
   const saveField=(field,value)=>{ const n={...profile,[field]:value}; setProfile(n); saveLS("axsProfile",n); };
   const handleStartEdit=(field,value)=>{ setEditingField(field); setPendingValue(value); setHasUnsaved(true); };
@@ -262,10 +281,22 @@ function ProfilePage() {
 
   const toggleFavorite=id=>{ setFavorites(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarred",n); return n; }); };
   const toggleStarred=id=>{ setStarred(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarredPhotos",n); return n; }); };
-
   const openLightbox=photo=>{ const i=filteredPhotos.findIndex(p=>p.id===photo.id); setPreviewPhoto(photo); setPreviewIndex(i); };
   const lbPrev=()=>{ const i=(previewIndex-1+filteredPhotos.length)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
   const lbNext=()=>{ const i=(previewIndex+1)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };
+  const goNextGalleryPage=()=>{
+    setPageFlipping(true);
+    setGalleryPage(p=>(p+1)%totalPages);
+    window.setTimeout(()=>setPageFlipping(false),560);
+  };
+
+  useEffect(()=>{
+    setGalleryPage(0);
+  },[activeCategory]);
+
+  useEffect(()=>{
+    if(galleryPage>=totalPages)setGalleryPage(0);
+  },[galleryPage,totalPages]);
 
   useEffect(()=>{
     if(!previewPhoto)return;
@@ -274,14 +305,41 @@ function ProfilePage() {
     return ()=>window.removeEventListener("keydown",h);
   },[previewPhoto,previewIndex,filteredPhotos]);
 
+  useEffect(()=>{
+    const h=e=>{ if(e.key==="Escape")setSidebarOpen(false); };
+    window.addEventListener("keydown",h);
+    return ()=>window.removeEventListener("keydown",h);
+  },[]);
+
   return (
     <div className={`profile-page${sidebarOpen?" sidebar-open":" sidebar-closed"}`}>
+      <button type="button" className="sb-toggle-btn"
+        onClick={()=>setSidebarOpen(v=>!v)}
+        aria-label={sidebarOpen?"Close profile sidebar":"Open profile sidebar"}
+        title={sidebarOpen?"Close profile sidebar":"Open profile sidebar"}>
+        <span className="toggle-divider" />
+        <span className="toggle-glyph">{sidebarOpen?"‹":"›"}</span>
+      </button>
 
-      
-      <aside className={`pp-sidebar${sidebarOpen?" pp-sidebar--open":""}`}>
+      {sidebarOpen&&(
+        <button type="button" className="sidebar-scrim" onClick={()=>setSidebarOpen(false)} aria-label="Close profile sidebar" />
+      )}
 
-        
+      <aside className={`pp-sidebar${sidebarOpen?" pp-sidebar--open":""}`} aria-hidden={!sidebarOpen}>
+        <div className="sidebar-aurora" />
+        <div className="side-particle side-particle-1" />
+        <div className="side-particle side-particle-2" />
+        <div className="side-particle side-particle-3" />
+
+        <div className="sidebar-topline">
+          <span><ThunderboltOutlined /> Creator Mode</span>
+          <button type="button" className="mini-close-btn" onClick={()=>setSidebarOpen(false)} aria-label="Close sidebar">
+            <MenuFoldOutlined/>
+          </button>
+        </div>
+
         <div className="sb-avatar-wrap">
+          <div className="avatar-orbit" />
           <div className={`profile-avatar-circle${kycVerified?" avatar-verified":" avatar-not-verified"}`}>
             {profile.profilePhoto
               ? <img src={profile.profilePhoto} alt={fullName}/>
@@ -297,14 +355,12 @@ function ProfilePage() {
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} hidden/>
         </div>
 
-        
         <div className="sb-name-block">
           <p className="sb-role">{profile.role}</p>
           <h2 className="sb-fullname">{fullName}</h2>
           <p className="sb-subtitle">Capturing Moments, Creating Stories</p>
         </div>
 
-        
         <div className="sb-details">
           <DetailField icon={<UserOutlined/>}        field="fullName" value={fullName}        editable placeholder="Full name"   editingField={editingField} onStartEdit={f=>handleStartEdit(f,fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
           <DetailField icon={<MailOutlined/>}        field="email"    value={profile.email}   editable placeholder="Email"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
@@ -318,14 +374,12 @@ function ProfilePage() {
           )}
         </div>
 
-        
         <KycSection
           verified={kycVerified} kycData={kycData}
           onVerify={data=>{ setKycVerified(true); setKycData(data); saveLS("axsKycVerified",true); saveLS("axsKycData",data); }}
           onReset={()=>{ setKycVerified(false); setKycData(null); saveLS("axsKycVerified",false); saveLS("axsKycData",null); }}
         />
 
-        
         <div className="sb-about-block">
           <p className="about-first-line">{ABOUT_LINES[0]}</p>
           {aboutExpanded&&(
@@ -338,7 +392,6 @@ function ProfilePage() {
           </button>
         </div>
 
-      
         <div className="social-row">
           <span className="social-icon instagram" title="Instagram"><InstagramIcon/></span>
           <span className="social-icon facebook"  title="Facebook"><FacebookIcon/></span>
@@ -347,18 +400,7 @@ function ProfilePage() {
         </div>
       </aside>
 
-      
-      <button type="button" className="sb-toggle-btn"
-        onClick={()=>setSidebarOpen(v=>!v)}
-        aria-label={sidebarOpen?"Close sidebar":"Open sidebar"}
-        title={sidebarOpen?"Close profile sidebar":"Open profile sidebar"}>
-        {sidebarOpen?<MenuFoldOutlined/>:<MenuUnfoldOutlined/>}
-      </button>
-
-      
       <main className="pp-main">
-
-        
         <div className="pp-topbar">
           <div className="pp-topbar-left">
             <div>
@@ -366,13 +408,8 @@ function ProfilePage() {
               <p className="pp-topbar-sub">Your creative identity and gallery</p>
             </div>
           </div>
-          <button type="button" className="pp-close-page-btn"
-            onClick={()=>navigate("/dashboard")} aria-label="Close page">
-            <CloseOutlined/>
-          </button>
         </div>
 
-        
         <div className="pp-gallery-scroll">
           <div className="gallery-head">
             <div>
@@ -383,17 +420,27 @@ function ProfilePage() {
               {categories.map(cat=>(
                 <button type="button" key={cat}
                   className={activeCategory===cat?"active":""}
+                  title={CATEGORY_META[cat].label}
                   onClick={()=>setActiveCategory(cat)}>
-                  {cat}
+                  <span className="cat-icon">{CATEGORY_META[cat].icon}</span>
+                  <span className="cat-tooltip">{CATEGORY_META[cat].label}</span>
                 </button>
               ))}
+              {totalPages>1&&(
+                <button type="button" className="gallery-next-btn"
+                  onClick={goNextGalleryPage}
+                  aria-label="Next gallery page"
+                  title={`Page ${galleryPage+1} of ${totalPages}`}>
+                  <span>›</span>
+                </button>
+              )}
             </div>
           </div>
 
-          
-          <div className="masonry-grid">
-            {filteredPhotos.map(photo=>(
-              <div className="masonry-item" key={photo.id}>
+          <div className={`gallery-page-shell${pageFlipping?" gallery-page-shell--flip":""}`}>
+            <div className="masonry-grid">
+            {visiblePhotos.map((photo,index)=>(
+              <div className="masonry-item" key={photo.id} style={{"--card-delay": `${index * 28}ms`}}>
                 <button type="button" className="masonry-btn" onClick={()=>openLightbox(photo)}>
                   <img src={photo.image} alt={photo.title} loading="lazy"/>
                   <div className="masonry-overlay">
@@ -409,13 +456,13 @@ function ProfilePage() {
                 {starred.includes(photo.id)&&<span className="card-star-badge"><StarFilled/></span>}
               </div>
             ))}
+            </div>
           </div>
 
           <footer className="profile-footer">© axs</footer>
         </div>
       </main>
 
-    
       {previewPhoto&&(
         <div className="portfolio-lightbox" role="dialog" aria-modal="true">
           <button type="button" className="portfolio-lightbox-backdrop" onClick={()=>setPreviewPhoto(null)} aria-label="Close"/>
@@ -434,6 +481,16 @@ function ProfilePage() {
               <h3>{previewPhoto.title}</h3>
               <small>{previewIndex+1} / {filteredPhotos.length}</small>
             </div>
+            <div className="lb-filmstrip">
+              {filteredPhotos.map(photo=>(
+                <button type="button" key={photo.id}
+                  className={previewPhoto.id===photo.id?"active":""}
+                  onClick={()=>openLightbox(photo)}
+                  aria-label={`Preview ${photo.title}`}>
+                  <img src={photo.image} alt=""/>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -441,4 +498,4 @@ function ProfilePage() {
   );
 }
 
-export default ProfilePage; 
+export default ProfilePage;
