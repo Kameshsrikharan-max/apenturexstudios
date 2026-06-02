@@ -1,6 +1,4 @@
-/* ══════════════════════════════════════════════
-   GLOBAL — FONT
-══════════════════════════════════════════════ */
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
 .user-visual-page,
@@ -8,9 +6,7 @@
   font-family: "DM Sans", sans-serif !important;
 }
 
-/* ══════════════════════════════════════════════
-   PAGE SHELL
-══════════════════════════════════════════════ */
+
 .user-visual-page {
   position: relative;
   overflow: hidden;
@@ -53,7 +49,7 @@
   font-weight: 900 !important;
 }
 
-/* ── Stats pills ── */
+
 .user-mini-stats { display: flex; gap: 10px; }
 .user-mini-stats span {
   height: 36px; padding: 0 12px;
@@ -63,9 +59,7 @@
   background: rgba(15, 23, 42, 0.44);
 }
 
-/* ══════════════════════════════════════════════
-   PANEL & HERO
-══════════════════════════════════════════════ */
+
 .user-panel-container {
   position: relative;
   overflow: hidden;
@@ -135,7 +129,7 @@
 .hero-face-stack img:nth-child(4) { right: 0; top: 0; transform: rotate(-3deg); }
 .hero-face-stack img:hover { z-index: 5; transform: translateY(-8px) rotate(0deg) scale(1.04); filter: saturate(1.15); }
 
-/* ── Tabs ── */
+
 .user-tabs-glass {
   position: relative; z-index: 1; padding: 0 20px;
   border-top: 1px solid rgba(8, 139, 245, 0.48);
@@ -163,7 +157,7 @@
   box-shadow: 0 0 15px rgba(59,130,246,0.9);
 }
 
-/* ── Smart filter chips ── */
+
 .smart-filter-row {
   position: relative; z-index: 1;
   display: flex; flex-wrap: wrap; gap: 10px;
@@ -192,7 +186,7 @@
 }
 .smart-chip.active b { background: #3b82f6; }
 
-/* ── Toolbar ── */
+
 .user-toolbar-inline {
   position: relative; z-index: 1; padding: 15px 20px;
   display: flex; justify-content: space-between; gap: 16px;
@@ -229,14 +223,14 @@
 }
 .invite-btn-styled:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(8,139,245,0.75); }
 
-/* ── Highlights ── */
+
 .search-highlight {
   color: #fff; background: rgba(59,130,246,0.7);
   border-radius: 4px; padding: 0 3px;
   box-shadow: 0 0 10px rgba(59,130,246,0.45);
 }
 
-/* ── Table ── */
+
 .clean-user-cell { display: inline-flex; align-items: center; gap: 12px; min-width: 200px; cursor: pointer; transition: transform 0.22s; }
 .clean-user-cell:hover { transform: translateX(4px); }
 .name-avatar { background: linear-gradient(135deg, #3b82f6, #22c55e); color: #fff !important; box-shadow: 0 0 14px rgba(59,130,246,0.55); flex: 0 0 auto; }
@@ -300,9 +294,7 @@
 .footer-copyright { text-align: center; padding: 20px; color: rgb(255,247,247); }
 .footer-copyright .ant-typography { color: rgb(255,247,247); }
 
-/* ══════════════════════════════════════════════
-   MODALS
-══════════════════════════════════════════════ */
+
 .creative-modal .ant-modal-content {
   overflow: hidden;
   background: rgba(255,255,255,0.98) !important;
@@ -332,9 +324,7 @@
 .delete-actions-row { justify-content: center; }
 
 
-/* ══════════════════════════════════════════════════════════════
-   USER VIEW OVERLAY (UVO) — CINEMATIC FULL-PAGE
-══════════════════════════════════════════════════════════════ */
+
 
 .uvo-root {
   position: fixed;
@@ -346,7 +336,7 @@
 
 @keyframes uvoIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* BG */
+
 .uvo-bg-blur { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 .uvo-bg-blur img {
   width: 100%; height: 100%; object-fit: cover; object-position: center 20%;
@@ -359,7 +349,7 @@
 .uvo-bg-noise { position: absolute; inset: 0; z-index: 1; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 200px; pointer-events: none; }
 .uvo-bg-vignette { position: absolute; inset: 0; z-index: 2; background: radial-gradient(ellipse at center, transparent 15%, rgba(1,3,15,0.8) 100%); pointer-events: none; }
 
-/* Particles */
+
 .uvo-particles { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
 .uvo-particle {
   position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s);
@@ -369,7 +359,7 @@
 }
 @keyframes uvoFloat { from { transform: translate(0,0) scale(1); } to { transform: translate(24px,-32px) scale(1.5); opacity: 0.1; } }
 
-/* Orbital decorative rings */
+
 .uvo-orbital-bg { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
 .uvo-orb {
   position: absolute;
@@ -382,7 +372,7 @@
 .uvo-orb-3 { width: 300px; height: 300px; top: 50%; right: 30%; animation-duration: 20s; border-color: rgba(245,158,11,0.06); }
 @keyframes uvoOrb { to { transform: rotate(360deg); } }
 
-/* Close */
+
 .uvo-x {
   position: fixed; top: 22px; right: 26px; z-index: 100;
   width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.18);
@@ -395,7 +385,7 @@
 .uvo-x:hover { background: #dc2626; border-color: #dc2626; transform: rotate(90deg) scale(1.15); }
 @keyframes uvoXIn { from { opacity: 0; transform: scale(0) rotate(-180deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
 
-/* ── Main layout ── */
+
 .uvo-panel {
   position: relative; z-index: 10;
   display: grid;
@@ -404,12 +394,10 @@
   overflow: hidden;
 }
 
-/* ════════════════════════════════
-   LEFT DRAWER — FIXED HEIGHT, NO SCROLL
-════════════════════════════════ */
+
 .uvo-drawer {
   height: 100vh;
-  overflow: hidden;           /* NO scroll */
+  overflow: hidden;           
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -423,7 +411,7 @@
 
 @keyframes uvoDrawIn { from { opacity: 0; transform: translateX(-70px); } to { opacity: 1; transform: translateX(0); } }
 
-/* ── Profile visual section ── */
+
 .uvo-profile-visual {
   display: flex;
   flex-direction: column;
@@ -435,7 +423,7 @@
   margin-bottom: 12px;
 }
 
-/* Avatar glow ring (behind) */
+
 .uvo-avatar-glow {
   width: 130px; height: 130px;
   border-radius: 50%;
@@ -448,12 +436,12 @@
 }
 @keyframes uvoGlowPulse { 0%,100% { transform: scale(1); opacity: 0.75; } 50% { transform: scale(1.2); opacity: 1; } }
 
-/* ROUND avatar shell — strictly circle */
+
 .uvo-avatar-shell {
   position: relative;
   width: 100px;
   height: 100px;
-  border-radius: 50%;        /* ROUND — no other shape */
+  border-radius: 50%;        
   flex-shrink: 0;
   margin-bottom: 12px;
   animation: uvoAvatarIn 0.7s 0.15s cubic-bezier(0.34,1.56,0.64,1) both;
@@ -462,7 +450,7 @@
 
 .uvo-profile-img {
   width: 100%; height: 100%;
-  border-radius: 50%;           /* ROUND */
+  border-radius: 50%;           
   object-fit: cover;
   object-position: center top;
   display: block;
@@ -474,13 +462,13 @@
 
 .uvo-profile-fallback {
   width: 100%; height: 100%;
-  border-radius: 50%;           /* ROUND */
+  border-radius: 50%;           
   display: grid; place-items: center;
   font-size: 40px; font-weight: 900; color: #fff;
   background: linear-gradient(135deg, #3b82f6, #22c55e);
 }
 
-/* Animated rings — always round */
+
 .uvo-ring {
   position: absolute;
   border-radius: 50%;
@@ -493,7 +481,7 @@
 @keyframes uvoRingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); } 50% { box-shadow: 0 0 0 10px transparent; } }
 @keyframes uvoSpin { to { transform: rotate(360deg); } }
 
-/* Name & role */
+
 .uvo-name {
   margin: 0 0 3px !important; color: #fff !important;
   font-size: clamp(14px, 1.5vw, 18px) !important;
@@ -522,14 +510,14 @@
 }
 .uvo-status-badge:hover { transform: scale(1.06); box-shadow: 0 0 12px var(--bg, rgba(59,130,246,0.3)); }
 
-/* ── Info grid — compact, fills remaining height ── */
+
 .uvo-info-grid {
   width: 100%;
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  overflow: hidden;             /* no scroll */
+  overflow: hidden;             
   align-content: start;
   animation: uvoTextIn 0.5s 0.45s both;
 }
@@ -576,9 +564,7 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3;
 }
 
-/* ════════════════════════════════
-   RIGHT GALLERY PANE
-════════════════════════════════ */
+
 .uvo-gallery-pane {
   height: 100vh;
   overflow-y: auto;
@@ -593,7 +579,7 @@
 
 @keyframes uvoGalleryIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
 
-/* Category strip */
+
 .uvo-cat-strip {
   position: sticky;
   top: 0;
@@ -628,7 +614,7 @@
   display: flex; align-items: center; gap: 4px;
 }
 
-/* ── Mosaic grid ── */
+
 .uvo-mosaic {
   padding: 20px 28px 40px;
   display: grid;
@@ -683,9 +669,7 @@
 .uvo-mosaic-tile:hover .uvo-tile-star-toggle { opacity: 1; }
 .uvo-tile-star-toggle:hover { transform: scale(1.2); color: #f5ba5e; }
 
-/* ══════════════════════════════════════════════
-   AI LIGHTBOX
-══════════════════════════════════════════════ */
+
 .ailb-backdrop {
   position: fixed; inset: 0; z-index: 99999;
   display: grid; place-items: center; padding: 20px;
@@ -731,7 +715,7 @@
 .ailb-prev:hover { transform: translateY(-50%) scale(1.1); background: #3b82f6; border-color: #3b82f6; }
 .ailb-next:hover { transform: translateY(-50%) scale(1.1); background: #3b82f6; border-color: #3b82f6; }
 
-/* Image pane */
+
 .ailb-image-pane {
   display: flex; flex-direction: column;
   background: #000; overflow: hidden;
@@ -773,7 +757,7 @@
 .ailb-star-btn:hover { color: #f5ba5e; border-color: rgba(245,186,94,0.5); background: rgba(245,186,94,0.1); }
 .ailb-star-btn.starred { color: #f5ba5e; border-color: rgba(245,186,94,0.6); background: rgba(245,186,94,0.12); }
 
-/* Info pane */
+
 .ailb-info-pane {
   display: flex; flex-direction: column;
   padding: 20px 18px 14px;
@@ -800,7 +784,7 @@
 
 .ailb-divider { height: 1px; background: rgba(59,130,246,0.15); margin: 12px 0; }
 
-/* AI section */
+
 .ailb-ai-section { flex-shrink: 0; margin-bottom: 14px; }
 .ailb-ai-header {
   display: flex; align-items: center; gap: 7px; margin-bottom: 10px;
@@ -835,7 +819,7 @@
   animation: uvoTextIn 0.4s both;
 }
 
-/* Thumbnail strip */
+
 .ailb-thumbs {
   flex: 1;
   display: grid;
@@ -868,9 +852,7 @@
   display: grid; place-items: center;
 }
 
-/* ══════════════════════════════════════════════
-   RESPONSIVE
-══════════════════════════════════════════════ */
+
 @media (max-width: 1100px) {
   .user-hero-strip { grid-template-columns: 1fr; }
   .hero-face-stack { display: none; }

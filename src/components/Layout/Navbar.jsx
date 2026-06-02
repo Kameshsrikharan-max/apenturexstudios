@@ -1,6 +1,20 @@
 import { useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,} from "@ant-design/icons";
+import {
+  MenuOutlined,
+  CalendarOutlined,
+  BellOutlined,
+  SunOutlined,
+  MoonOutlined,
+  LeftOutlined,
+  RightOutlined,
+  DownOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  ProfileOutlined,
+  CloseOutlined,
+  CompassOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
 
@@ -131,9 +145,9 @@ function Navbar({
   };
 
   const openProfileModal = () => {
-  setUserMenuOpen(false);
-  navigate("/profile");
-};
+    setUserMenuOpen(false);
+    navigate("/profile");
+  };
 
   const openNotificationSettings = () => {
     setUserMenuOpen(false);
@@ -151,18 +165,19 @@ function Navbar({
   };
 
   const handleLogout = () => {
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
-  localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("isLoggedIn");
 
-  setUserMenuOpen(false);
+    setUserMenuOpen(false);
 
-  if (onLogout) {
-    onLogout();
-  }
+    if (onLogout) {
+      onLogout();
+    }
 
-  navigate("/login", { replace: true });
-};
+    navigate("/login", { replace: true });
+  };
+
   return (
     <>
       <header className={`top-navbar ${darkMode ? "navbar-dark" : "navbar-light"}`}>
@@ -199,6 +214,10 @@ function Navbar({
 
           <NavLink to="/users" data-tour-id="nav-users">
             Users
+          </NavLink>
+
+          <NavLink to="/events" data-tour-id="nav-events">
+            Events
           </NavLink>
 
           <NavLink to="/enquiry" data-tour-id="nav-enquiry">

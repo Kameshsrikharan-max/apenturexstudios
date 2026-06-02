@@ -41,7 +41,8 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
     {
       key: "events",
       icon: <CalendarOutlined />,
-      label: "Calendar",
+      label: "Events",
+      path: "/events",
     },
     {
       key: "enquiry",
@@ -59,17 +60,11 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
       key: "studio",
       icon: <ShopOutlined />,
       label: "My Studio",
-      path: "/studio",
+      path: "/studio/view",
     },
   ];
 
   const handleMenuClick = ({ key }) => {
-    if (key === "events") {
-      onCalendarOpen?.();
-      onClose?.();
-      return;
-    }
-
     const item = menuItems.find((menuItem) => menuItem.key === key);
 
     if (item?.path) {

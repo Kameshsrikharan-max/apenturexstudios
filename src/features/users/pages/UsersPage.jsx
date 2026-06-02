@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import {
-  Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Avatar,
-  Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty,
-} from "antd";
+import {Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Avatar,Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty,} from "antd";
 import {
   SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,
   EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, CheckCircleOutlined,
@@ -95,9 +92,7 @@ const galleryPhotos = [
   { id: 20, title: "Fashion Frame",        category: "Portraits", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
 ];
 
-/* ══════════════════════════════════════════
-   AI LIGHTBOX — Claude-powered photo insight
-══════════════════════════════════════════ */
+
 const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) => {
   const [idx, setIdx]           = useState(initialIdx);
   const [aiText, setAiText]     = useState("");
@@ -156,7 +151,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
         {/* Close */}
         <button className="ailb-x" onClick={onClose}><CloseOutlined /></button>
 
-        {/* Nav */}
+  
         {photos.length > 1 && (
           <>
             <button className="ailb-nav ailb-prev" onClick={prev}>&#8249;</button>
@@ -164,7 +159,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
           </>
         )}
 
-        {/* Image pane */}
+        
         <div className="ailb-image-pane">
           <div className={`ailb-img-wrap ${imgLoaded ? "loaded" : ""}`}>
             <img
@@ -177,7 +172,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
             {!imgLoaded && <div className="ailb-img-skeleton" />}
           </div>
 
-          {/* Counter + Star */}
+        
           <div className="ailb-img-footer">
             <span className="ailb-counter">{idx + 1} / {photos.length}</span>
             <button
@@ -190,7 +185,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
           </div>
         </div>
 
-        {/* Info + AI pane */}
+      
         <div className="ailb-info-pane">
           <div className="ailb-info-top">
             <span className="ailb-cat-pill">{current.category}</span>
@@ -199,7 +194,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
 
           <div className="ailb-divider" />
 
-          {/* AI Insight */}
+          
           <div className="ailb-ai-section">
             <div className="ailb-ai-header">
               <RobotOutlined />
@@ -231,7 +226,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
             )}
           </div>
 
-          {/* Thumbnail strip */}
+        
           <div className="ailb-thumbs">
             {photos.map((p, i) => (
               <button
@@ -252,9 +247,7 @@ const AILightbox = ({ photo, photos, initialIdx, onClose, onStar, starredIds }) 
   );
 };
 
-/* ════════════════════════════════════════════
-   CINEMATIC FULL-PAGE USER VIEW OVERLAY
-════════════════════════════════════════════ */
+
 const UserViewOverlay = ({ user, onClose }) => {
   const [starredIds, setStarredIds] = useState(() => loadLS("axsStarredPhotos", []));
   const [lbOpen, setLbOpen]         = useState(false);
@@ -262,7 +255,7 @@ const UserViewOverlay = ({ user, onClose }) => {
   const [imgLoaded, setImgLoaded]   = useState(false);
   const [activeFilter, setActiveFilter] = useState("All");
 
-  // Save starred on change
+  
   useEffect(() => { saveLS("axsStarredPhotos", starredIds); }, [starredIds]);
 
   const toggleStar = (id) => {
@@ -335,7 +328,7 @@ const UserViewOverlay = ({ user, onClose }) => {
         <div className="uvo-bg-noise" />
         <div className="uvo-bg-vignette" />
 
-        {/* Particles */}
+      
         <div className="uvo-particles" aria-hidden="true">
           {[...Array(22)].map((_, i) => (
             <span key={i} className="uvo-particle" style={{
@@ -348,26 +341,26 @@ const UserViewOverlay = ({ user, onClose }) => {
           ))}
         </div>
 
-        {/* Orbital rings in background */}
+        
         <div className="uvo-orbital-bg" aria-hidden="true">
           <div className="uvo-orb uvo-orb-1" />
           <div className="uvo-orb uvo-orb-2" />
           <div className="uvo-orb uvo-orb-3" />
         </div>
 
-        {/* Close */}
+      
         <button className="uvo-x" onClick={onClose} aria-label="Close"><CloseOutlined /></button>
 
-        {/* MAIN PANEL — side drawer left, gallery right */}
+        
         <div className="uvo-panel">
 
-          {/* ── LEFT SIDE DRAWER ── */}
+      
           <aside className="uvo-drawer">
-            {/* Profile visual */}
+            
             <div className="uvo-profile-visual">
               <div className="uvo-avatar-glow" style={{ "--gcolor": statusMeta.glow }} />
 
-              {/* ROUND avatar shell */}
+            
               <div className="uvo-avatar-shell">
                 {user.image ? (
                   <>
@@ -401,7 +394,7 @@ const UserViewOverlay = ({ user, onClose }) => {
               </div>
             </div>
 
-            {/* Info grid — compact, no scroll */}
+        
             <div className="uvo-info-grid">
               {infoItems.map(({ icon, label, value, accent }) => (
                 <div key={label} className="uvo-info-card" style={{ "--acc": accent }}>
@@ -415,7 +408,7 @@ const UserViewOverlay = ({ user, onClose }) => {
             </div>
           </aside>
 
-          {/* ── RIGHT GALLERY ── */}
+          
           <main className="uvo-gallery-pane">
             {/* Category filter pills */}
             <div className="uvo-cat-strip">
@@ -440,7 +433,7 @@ const UserViewOverlay = ({ user, onClose }) => {
               </div>
             </div>
 
-            {/* Mosaic gallery grid */}
+            
             <div className="uvo-mosaic">
               {filteredPhotos.map((photo, i) => {
                 const isStarred = starredIds.includes(photo.id);
@@ -478,7 +471,7 @@ const UserViewOverlay = ({ user, onClose }) => {
         </div>
       </div>
 
-      {/* AI Lightbox */}
+    
       {lbOpen && (
         <AILightbox
           photo={filteredPhotos[lbIdx]}
@@ -493,9 +486,7 @@ const UserViewOverlay = ({ user, onClose }) => {
   );
 };
 
-/* ═══════════════════════════════════════════
-   MAIN USERS PAGE
-═══════════════════════════════════════════ */
+
 const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -850,10 +841,10 @@ const UsersPage = () => {
           </Layout>
         </div>
 
-        {/* Overlay */}
+    
         {viewUser && <UserViewOverlay user={viewUser} onClose={() => setViewUser(null)} />}
 
-        {/* Edit Modal */}
+      
         <Modal open={!!editUser} onCancel={() => setEditUser(null)} footer={null} width={660} title={null} className="creative-modal edit-modal" centered>
           {editUser && (
             <div className="modal-shell">
@@ -895,7 +886,7 @@ const UsersPage = () => {
           )}
         </Modal>
 
-        {/* Invite Modal */}
+        
         <Modal open={inviteOpen} onCancel={() => setInviteOpen(false)} footer={null} width={580} title={null} className="creative-modal edit-modal" centered>
           <div className="modal-shell">
             <div className="modal-title-row">
@@ -921,7 +912,7 @@ const UsersPage = () => {
           </div>
         </Modal>
 
-        {/* Delete Modal */}
+        
         <Modal open={!!deleteUser} onCancel={() => setDeleteUser(null)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
           {deleteUser && (
             <div className="modal-shell delete-modal-shell">
@@ -936,7 +927,7 @@ const UsersPage = () => {
           )}
         </Modal>
 
-        {/* Bulk Delete Modal */}
+      
         <Modal open={bulkDeleteOpen} onCancel={() => setBulkDeleteOpen(false)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
           <div className="modal-shell delete-modal-shell">
             <div className="delete-warning-icon"><WarningOutlined /></div>
