@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ArrowRightOutlined,
-  CloseOutlined,
-  LeftOutlined,
-} from "@ant-design/icons";
+import { ArrowRightOutlined,CloseOutlined, LeftOutlined,} from "@ant-design/icons";
 import "./StudioTour.css";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

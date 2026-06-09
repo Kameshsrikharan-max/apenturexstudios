@@ -1,29 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-  ArrowRightOutlined,
-  ArrowLeftOutlined,
-  FolderOpenOutlined,
-  UploadOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  CloseOutlined,
-  ExclamationCircleOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined, ReloadOutlined, ArrowRightOutlined, ArrowLeftOutlined, FolderOpenOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,ExclamationCircleOutlined,FileImageOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import "./MediaManagement.css";
 
-/* ─── Wizard steps ─── */
+
 const STEPS = [
   { label: "Event Details",   icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
@@ -34,45 +14,85 @@ const STEPS = [
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
 
-const INITIAL_SERVICES = [
-  {
-    id: 1,
-    name: "Candid Photography",
-    assigned: "Kamesh srikharan.T",
-    status: "Not Uploaded",
-    images: 0,
-    videos: 0,
-    thumbnail: null,
-    lastUploaded: null,
-  },
-  {
-    id: 2,
-    name: "Candid Videography",
+
+const STORAGE_KEY = "mediaManagement__state";
+
+function loadPersistedState() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveState(state) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("MediaManagement: could not persist state", e);
+  }
+}
+
+
+function buildServicesFromEvent(selectedServices) {
+  return selectedServices.map((name, idx) => ({
+    id: idx + 1,
+    name,
     assigned: "Unassigned",
     status: "Not Uploaded",
     images: 0,
     videos: 0,
     thumbnail: null,
     lastUploaded: null,
-  },
-];
+  }));
+}
 
-/* ══════════════════════════════════════════
-   BADGE RIBBON
-══════════════════════════════════════════ */
+
+function resolveInitialState() {
+  const persisted = loadPersistedState();
+
+  let eventServices = [];
+  try {
+    const raw = sessionStorage.getItem("currentEvent");
+    if (raw) {
+      const evt = JSON.parse(raw);
+      if (Array.isArray(evt.selectedServices)) {
+        eventServices = evt.selectedServices;
+      }
+    }
+  } catch {}
+
+  if (persisted && persisted.services) {
+    const persistedNames = persisted.services.map((s) => s.name).sort().join(",");
+    const eventNames     = [...eventServices].sort().join(",");
+    if (persistedNames === eventNames) {
+      return persisted;
+    }
+  }
+
+  const services =
+    eventServices.length > 0
+      ? buildServicesFromEvent(eventServices)
+      : [
+          { id: 1, name: "Candid Photography", assigned: "Unassigned", status: "Not Uploaded", images: 0, videos: 0, thumbnail: null, lastUploaded: null },
+          { id: 2, name: "Candid Videography", assigned: "Unassigned", status: "Not Uploaded", images: 0, videos: 0, thumbnail: null, lastUploaded: null },
+        ];
+
+  return { services, uploadedFilesMap: {}, selectedFilesMap: {} };
+}
+
+
 function BadgeRibbon({ status }) {
   const cls =
-    status === "Acknowledged"
-      ? "acknowledged"
-      : status === "Uploaded"
-      ? "uploaded"
-      : "not-uploaded";
+    status === "Acknowledged" ? "acknowledged"
+    : status === "Uploaded"   ? "uploaded"
+    :                           "not-uploaded";
   return <div className={`mm-badge-ribbon ${cls}`}>{status}</div>;
 }
 
-/* ══════════════════════════════════════════
-   FOLDER CARD
-══════════════════════════════════════════ */
+
 function FolderCard({ service, onClick }) {
   return (
     <div className="mm-folder-card" onClick={onClick}>
@@ -105,9 +125,7 @@ function FolderCard({ service, onClick }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   EMPTY STATE
-══════════════════════════════════════════ */
+
 function EmptyState({ message }) {
   return (
     <div className="mm-empty">
@@ -117,10 +135,8 @@ function EmptyState({ message }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   FILE DISPLAY (grid or list)
-══════════════════════════════════════════ */
-function FileDisplay({ files, viewMode }) {
+
+function FileDisplay({ files, viewMode, onRemove }) {
   if (!files.length) return null;
 
   if (viewMode === "list") {
@@ -135,6 +151,11 @@ function FileDisplay({ files, viewMode }) {
             )}
             <span className="mm-file-row-name">{f.name}</span>
             <span className="mm-file-row-size">{f.size}</span>
+            {onRemove && (
+              <button className="mm-file-remove" title="Remove" onClick={() => onRemove(i)}>
+                <CloseOutlined />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -151,15 +172,18 @@ function FileDisplay({ files, viewMode }) {
             <VideoCameraOutlined className="mm-file-thumb-icon" />
           )}
           <div className="mm-file-thumb-label">{f.name}</div>
+          {onRemove && (
+            <button className="mm-file-thumb-remove" title="Remove" onClick={() => onRemove(i)}>
+              <CloseOutlined />
+            </button>
+          )}
         </div>
       ))}
     </div>
   );
 }
 
-/* ══════════════════════════════════════════
-   CONFIRM MODAL
-══════════════════════════════════════════ */
+
 function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledge }) {
   const hasPending = pendingCount > 0;
   return (
@@ -185,13 +209,12 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
                 Pending uploads: {pendingCount} file{pendingCount > 1 ? "s" : ""}
               </div>
               <div className="mm-modal-warn-body">
-                Choose to finish uploading first, continue without uploading pending files, or cancel.
+                Choose to finish uploading first, continue without uploading pending
+                files, or cancel.
               </div>
             </div>
             <div className="mm-modal-actions">
-              <button className="mm-btn-secondary" onClick={onCancel}>
-                Cancel
-              </button>
+              <button className="mm-btn-secondary" onClick={onCancel}>Cancel</button>
               <button className="mm-btn-danger-outline" onClick={onSkip}>
                 Skip upload and acknowledge
               </button>
@@ -206,12 +229,8 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
               Are you sure you want to acknowledge this media?
             </div>
             <div className="mm-modal-actions" style={{ justifyContent: "flex-end" }}>
-              <button className="mm-btn-secondary" onClick={onCancel}>
-                Cancel
-              </button>
-              <button className="mm-btn-primary" onClick={onAcknowledge}>
-                Acknowledge
-              </button>
+              <button className="mm-btn-secondary" onClick={onCancel}>Cancel</button>
+              <button className="mm-btn-primary" onClick={onAcknowledge}>Acknowledge</button>
             </div>
           </>
         )}
@@ -220,9 +239,7 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
   );
 }
 
-/* ══════════════════════════════════════════
-   FOLDER SELECTION VIEW
-══════════════════════════════════════════ */
+
 function FolderSelectionView({ services, onOpen }) {
   return (
     <div className="mm-view">
@@ -243,36 +260,35 @@ function FolderSelectionView({ services, onOpen }) {
             Uploads and listings will be scoped to the selected service.
           </span>
         </div>
-        <div className="mm-folder-grid">
-          {services.map((svc) => (
-            <FolderCard key={svc.id} service={svc} onClick={() => onOpen(svc)} />
-          ))}
-        </div>
+        {services.length === 0 ? (
+          <EmptyState message="No services selected for this event. Go back to Event Details and select at least one service." />
+        ) : (
+          <div className="mm-folder-grid">
+            {services.map((svc) => (
+              <FolderCard key={svc.id} service={svc} onClick={() => onOpen(svc)} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════════
-   UPLOAD VIEW
-   — uploadedFiles and selectedFiles are now
-     received from / saved to the parent so
-     they survive back-navigation.
-══════════════════════════════════════════ */
+
 function UploadView({
   service,
   onBack,
   onServicesUpdate,
-  /* ↓ NEW — lifted state from parent */
   uploadedFiles,
   selectedFiles,
   onUploadedFilesChange,
   onSelectedFilesChange,
 }) {
-  const [activeTab, setActiveTab] = useState("selected");
-  const [subTab,    setSubTab]    = useState("images");
-  const [viewMode,  setViewMode]  = useState("grid");
-  const [showModal, setShowModal] = useState(false);
+  const [activeTab,  setActiveTab]  = useState("selected");
+  const [subTab,     setSubTab]     = useState("images");
+  const [viewMode,   setViewMode]   = useState("grid");
+  const [showModal,  setShowModal]  = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   const imgRef = useRef();
   const vidRef = useRef();
@@ -283,24 +299,39 @@ function UploadView({
     return (b / 1048576).toFixed(1) + " MB";
   };
 
-  /* Pick files → save to parent selected-files map */
-  const pickFiles = (e, type) => {
-    const picked = Array.from(e.target.files).map((f) => ({
-      name:    f.name,
-      size:    formatBytes(f.size),
-      type,
-      preview: type === "image" ? URL.createObjectURL(f) : null,
-    }));
-    onSelectedFilesChange([...selectedFiles, ...picked]);
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const pickFiles = async (e, type) => {
+    const raw = Array.from(e.target.files);
+    if (!raw.length) return;
+    setProcessing(true);
+    try {
+      const picked = await Promise.all(
+        raw.map(async (f) => ({
+          name:    f.name,
+          size:    formatBytes(f.size),
+          type,
+          preview: type === "image" ? await fileToBase64(f) : null,
+        }))
+      );
+      onSelectedFilesChange([...selectedFiles, ...picked]);
+    } finally {
+      setProcessing(false);
+    }
     e.target.value = "";
   };
 
-  /* Move selected → uploaded; persist both in parent */
   const doUpload = () => {
     if (!selectedFiles.length) return;
     const merged = [...uploadedFiles, ...selectedFiles];
-    onUploadedFilesChange(merged);          // ← save uploaded list to parent
-    onSelectedFilesChange([]);              // ← clear selected list in parent
+    onUploadedFilesChange(merged);
+    onSelectedFilesChange([]);
 
     const imgs  = merged.filter((f) => f.type === "image").length;
     const vids  = merged.filter((f) => f.type === "video").length;
@@ -323,18 +354,43 @@ function UploadView({
     onBack();
   };
 
+  const removeSelected = (idx) => {
+    onSelectedFilesChange(selectedFiles.filter((_, i) => i !== idx));
+  };
+
+  const removeUploaded = (idx) => {
+    const updated = uploadedFiles.filter((_, i) => i !== idx);
+    onUploadedFilesChange(updated);
+    const imgs  = updated.filter((f) => f.type === "image").length;
+    const vids  = updated.filter((f) => f.type === "video").length;
+    const thumb = updated.find((f) => f.type === "image")?.preview || null;
+    onServicesUpdate(service.id, {
+      images:    imgs,
+      videos:    vids,
+      thumbnail: thumb,
+      status:    updated.length > 0 ? "Uploaded" : "Not Uploaded",
+    });
+  };
+
   const filteredUploaded = uploadedFiles.filter((f) =>
     subTab === "images" ? f.type === "image" : f.type === "video"
   );
 
+  const badgeCls =
+    service.status === "Acknowledged" ? "acknowledged"
+    : service.status === "Uploaded"   ? "uploaded"
+    :                                   "not-uploaded";
+
   return (
     <div className="mm-view">
-      {/* header */}
       <div className="mm-hero-card">
         <div className="mm-hero-left">
           <CameraOutlined className="mm-hero-icon" />
           <div>
-            <h2>Media Management</h2>
+            <h2>
+              {service.name}&nbsp;
+              <span className={`mm-inline-badge ${badgeCls}`}>{service.status}</span>
+            </h2>
             <p>Upload and organize event photos and videos.</p>
           </div>
         </div>
@@ -344,16 +400,17 @@ function UploadView({
       </div>
 
       <div className="mm-panel">
-        {/* action bar */}
         <div className="mm-upload-topbar">
           <div className="mm-upload-actions">
             <button
-              className="mm-btn-outline"
+              className="mm-btn-primary-sm"
               onClick={doUpload}
-              disabled={!selectedFiles.length}
-              style={!selectedFiles.length ? { opacity: 0.45, cursor: "not-allowed" } : {}}
+              disabled={!selectedFiles.length || processing}
             >
               <UploadOutlined /> Upload Selected Files
+              {selectedFiles.length > 0 && (
+                <span style={{ marginLeft: 4, opacity: 0.8 }}>({selectedFiles.length})</span>
+              )}
             </button>
             <button className="mm-btn-outline" onClick={() => setShowModal(true)}>
               Acknowledge Media
@@ -375,7 +432,6 @@ function UploadView({
           </div>
         </div>
 
-        {/* tabs */}
         <div className="mm-tabs">
           <button
             className={`mm-tab ${activeTab === "selected" ? "active" : ""}`}
@@ -393,7 +449,6 @@ function UploadView({
           </button>
         </div>
 
-        {/* tab content */}
         <div className="mm-tab-body">
           {activeTab === "selected" && (
             <>
@@ -428,10 +483,17 @@ function UploadView({
                 </button>
               </div>
 
-              {selectedFiles.length === 0 ? (
+              {processing && (
+                <div className="mm-processing-bar">
+                  <span>Processing files…</span>
+                  <div className="mm-processing-fill" />
+                </div>
+              )}
+
+              {selectedFiles.length === 0 && !processing ? (
                 <EmptyState message="No files selected yet. Choose images or videos above to begin uploading." />
               ) : (
-                <FileDisplay files={selectedFiles} viewMode={viewMode} />
+                <FileDisplay files={selectedFiles} viewMode={viewMode} onRemove={removeSelected} />
               )}
             </>
           )}
@@ -453,11 +515,17 @@ function UploadView({
                 </button>
               </div>
               {filteredUploaded.length === 0 ? (
-                <EmptyState
-                  message={`No ${subTab} uploaded yet. Uploaded media will appear here.`}
-                />
+                <EmptyState message={`No ${subTab} uploaded yet. Uploaded media will appear here.`} />
               ) : (
-                <FileDisplay files={filteredUploaded} viewMode={viewMode} />
+                <FileDisplay
+                  files={filteredUploaded}
+                  viewMode={viewMode}
+                  onRemove={(idx) => {
+                    const target  = filteredUploaded[idx];
+                    const fullIdx = uploadedFiles.findIndex((f) => f === target);
+                    if (fullIdx !== -1) removeUploaded(fullIdx);
+                  }}
+                />
               )}
             </>
           )}
@@ -469,10 +537,7 @@ function UploadView({
           pendingCount={selectedFiles.length}
           onCancel={() => setShowModal(false)}
           onSkip={doAcknowledge}
-          onContinue={() => {
-            doUpload();
-            setTimeout(doAcknowledge, 200);
-          }}
+          onContinue={() => { doUpload(); setTimeout(doAcknowledge, 200); }}
           onAcknowledge={doAcknowledge}
         />
       )}
@@ -480,102 +545,78 @@ function UploadView({
   );
 }
 
-/* ══════════════════════════════════════════
-   MAIN PAGE
-   All state that must survive back-navigation
-   is kept here (services, uploadedFilesMap,
-   selectedFilesMap, activeStep, openService).
-══════════════════════════════════════════ */
+
 export default function MediaManagement() {
   const navigate = useNavigate();
 
-  /* ── Wizard step (persists across renders) ── */
-  const [activeStep, setActiveStep] = useState(4);
+  const initialState = resolveInitialState();
 
-  /* ── Service metadata (status, counts, thumbnail) ── */
-  const [services, setServices] = useState(INITIAL_SERVICES);
+  const [activeStep,       setActiveStep]       = useState(4);
+  const [services,         setServices]         = useState(initialState.services);
+  const [openServiceId,    setOpenServiceId]    = useState(null); // store ID only, not object
+  const [uploadedFilesMap, setUploadedFilesMap] = useState(initialState.uploadedFilesMap || {});
+  const [selectedFilesMap, setSelectedFilesMap] = useState(initialState.selectedFilesMap || {});
 
-  /* ── Which folder is open (null = folder list view) ── */
-  const [openService, setOpenService] = useState(null);
+  
+  const openService = openServiceId != null
+    ? services.find((s) => s.id === openServiceId) ?? null
+    : null;
 
-  /* ── Per-service uploaded files map: { [serviceId]: File[] } ──
-       Lifted from UploadView so files survive back-navigation.   */
-  const [uploadedFilesMap, setUploadedFilesMap] = useState({});
 
-  /* ── Per-service selected (pending) files map: { [serviceId]: File[] } ──
-       Lifted so pending selections are not lost on tab switch.   */
-  const [selectedFilesMap, setSelectedFilesMap] = useState({});
+  useEffect(() => {
+    saveState({ services, uploadedFilesMap, selectedFilesMap });
+  }, [services, uploadedFilesMap, selectedFilesMap]);
 
-  /* ─── Helpers ─── */
   const handleServicesUpdate = (id, patch) => {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...patch } : s))
-    );
+    setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
 
-  const handleOpenService = (svc) => {
-    // Always read fresh service object from state so status is current
-    setOpenService(services.find((s) => s.id === svc.id) ?? svc);
-  };
-
-  /* Update uploaded files for the open service */
   const handleUploadedFilesChange = (serviceId, files) => {
     setUploadedFilesMap((prev) => ({ ...prev, [serviceId]: files }));
   };
 
-  /* Update selected (pending) files for the open service */
   const handleSelectedFilesChange = (serviceId, files) => {
     setSelectedFilesMap((prev) => ({ ...prev, [serviceId]: files }));
   };
 
-  /* When going back, re-sync openService object from latest services state */
-  const handleBack = () => {
-    setOpenService(null);
-  };
+  
+  const uploadedCount     = services.filter((s) => s.status === "Uploaded").length;
+  const acknowledgedCount = services.filter((s) => s.status === "Acknowledged").length;
+  const pct = services.length
+    ? Math.round(((uploadedCount + acknowledgedCount) / services.length) * 100)
+    : 0;
 
   return (
     <main className="mm-page">
       <section className="mm-stage">
 
-        {/* ── Top bar ── */}
         <header className="mm-topbar">
           <button className="mm-back" type="button" onClick={() => navigate(-1)}>
             <DoubleLeftOutlined /> Back
           </button>
-
           <div className="mm-title-wrap">
-            <span className="mm-title-icon">
-              <CameraOutlined />
-            </span>
+            <span className="mm-title-icon"><CameraOutlined /></span>
             <div>
               <p className="mm-subtitle">Step 5 of 7 · Media</p>
               <h1 className="mm-heading">Media Management</h1>
             </div>
           </div>
-
           <div className="mm-progress" aria-label="Event progress">
             {[1, 2, 3, 4, 5].map((s) => (
               <span className={s <= 5 ? "done" : ""} key={s}>
                 {s <= 5 ? <CheckCircleOutlined /> : s}
               </span>
             ))}
-            <button type="button" aria-label="Refresh">
-              <ReloadOutlined />
-            </button>
+            <button type="button" aria-label="Refresh"><ReloadOutlined /></button>
           </div>
         </header>
 
-        {/* ── Body ── */}
         <div className="mm-body">
-
-          {/* Side rail */}
           <aside className="mm-rail">
             {STEPS.map((step, i) => (
               <div className="mm-step-wrap" key={step.label}>
                 <button
-                  className={`mm-step ${i === activeStep ? "active" : ""} ${
-                    i < activeStep ? "done" : ""
-                  }`}
+                  className={`mm-step ${i === activeStep ? "active" : ""} ${i < activeStep ? "done" : ""}`}
                   type="button"
                   onClick={() => setActiveStep(i)}
                   aria-label={step.label}
@@ -588,32 +629,26 @@ export default function MediaManagement() {
             ))}
           </aside>
 
-          {/* Content */}
           <div className="mm-content">
             <div className="mm-progress-bar">
-              <div className="mm-progress-fill" style={{ width: "57%" }} />
-              <span className="mm-progress-pct">57%</span>
+              <div className="mm-progress-fill" style={{ width: `${pct}%` }} />
+              <span className="mm-progress-pct">{pct}%</span>
             </div>
 
             {openService === null ? (
               <FolderSelectionView
                 services={services}
-                onOpen={handleOpenService}
+                onOpen={(svc) => setOpenServiceId(svc.id)}
               />
             ) : (
               <UploadView
                 service={openService}
-                onBack={handleBack}
+                onBack={() => setOpenServiceId(null)}
                 onServicesUpdate={handleServicesUpdate}
-                /* ↓ Lifted state — files survive back-navigation */
                 uploadedFiles={uploadedFilesMap[openService.id] ?? []}
                 selectedFiles={selectedFilesMap[openService.id] ?? []}
-                onUploadedFilesChange={(files) =>
-                  handleUploadedFilesChange(openService.id, files)
-                }
-                onSelectedFilesChange={(files) =>
-                  handleSelectedFilesChange(openService.id, files)
-                }
+                onUploadedFilesChange={(files) => handleUploadedFilesChange(openService.id, files)}
+                onSelectedFilesChange={(files) => handleSelectedFilesChange(openService.id, files)}
               />
             )}
 

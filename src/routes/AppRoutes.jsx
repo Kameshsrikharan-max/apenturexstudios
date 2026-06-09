@@ -19,9 +19,7 @@ import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
 import MainLayout           from "../components/Layout/MainLayout";
 
-/* ─────────────────────────────────────────
-   Protected layout wrapper
-───────────────────────────────────────── */
+
 function ProtectedLayout({ isAuthenticated, user, onLogout }) {
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
@@ -34,9 +32,7 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }) {
   );
 }
 
-/* ─────────────────────────────────────────
-   App routes
-───────────────────────────────────────── */
+
 export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,7 +46,7 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
   return (
     <Routes>
 
-      {/* ── Public ── */}
+  
       <Route
         path="/"
         element={
@@ -62,7 +58,7 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
         }
       />
 
-      {/* ── Protected ── */}
+    
       <Route
         element={
           <ProtectedLayout
@@ -72,20 +68,20 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
           />
         }
       >
-        {/* Dashboard */}
+      
         <Route path="/dashboard" element={<DashboardPage user={user} />} />
 
-        {/* Review */}
+      
         <Route path="/review" element={<ReviewPage user={user} />} />
 
-        {/* Users */}
+        
         <Route path="/users" element={<UsersPage user={user} />} />
 
-        {/* ── Events ── */}
+      
         <Route path="/events"        element={<EventPage user={user} />} />
         <Route path="/events/create" element={<CreateEventPage user={user} />} />
 
-        {/* Event wizard steps */}
+    
         <Route
           path="/events/create/team-assignment"
           element={<TeamAssignmentPage user={user} />}
@@ -107,24 +103,24 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
           element={<AlbumSelectionPage user={user} />}
         />
 
-        {/* ── Event Closure ── UPDATED: now renders the real page */}
+      
         <Route
           path="/events/create/closure"
           element={<EventClosurePage user={user} />}
         />
 
-        {/* ── Enquiry ── */}
+      
         <Route path="/enquiry" element={<EnquiryPage user={user} />} />
 
-        {/* ── Media Library ── */}
+      
         <Route path="/media" element={<MediaLibraryPage user={user} />} />
 
-        {/* ── Misc ── */}
+        
         <Route path="/profile"     element={<ProfilePage user={user} />} />
         <Route path="/studio/view" element={<ViewStudioPage user={user} />} />
       </Route>
 
-      {/* ── Catch-all ── */}
+    
       <Route
         path="*"
         element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />}

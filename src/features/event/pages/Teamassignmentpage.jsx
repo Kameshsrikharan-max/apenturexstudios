@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {CheckCircleOutlined, ClockCircleOutlined, DollarOutlined, DoubleLeftOutlined, CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined, ReloadOutlined, SearchOutlined, EnvironmentOutlined, UserOutlined, CloseOutlined, DownOutlined, ArrowRightOutlined, ArrowLeftOutlined,} from "@ant-design/icons";
+import {
+  CheckCircleOutlined, ClockCircleOutlined, DollarOutlined, DoubleLeftOutlined,
+  CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined, ReloadOutlined,
+  SearchOutlined, EnvironmentOutlined, UserOutlined, CloseOutlined, DownOutlined,
+  ArrowRightOutlined, ArrowLeftOutlined,
+} from "@ant-design/icons";
 import "./TeamAssignmentPage.css";
-
 
 const STEPS = [
   { label: "Event Details",   icon: <PlusOutlined /> },
@@ -12,13 +16,6 @@ const STEPS = [
   { label: "Media",           icon: <CameraOutlined /> },
   { label: "Album",           icon: <PictureOutlined /> },
   { label: "Closure",         icon: <CheckCircleOutlined /> },
-];
-
-const SERVICES = [
-  "Traditional Photography",
-  "Candid Photography",
-  "Candid Videography",
-  "Drone",
 ];
 
 const ROLES = ["Photographer", "Videographer", "Drone Operator", "Assistant"];
@@ -37,83 +34,115 @@ const FREELANCE_MEMBERS = [
 ];
 
 
-function Avatar({ name }) {
-  const initials = name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-  const colors = ["#5b6bff","#7c3aed","#0ea5e9","#10b981","#f59e0b","#ef4444"];
-  const bg = colors[name.charCodeAt(0) % colors.length];
+
+function Avatar({ name, size = 36 }) {
+  const initials = name.split(" ").slice(0, 2).map(w => w[0].toUpperCase()).join("");
+  const PALETTES = [
+    { bg: "#EEEDFE", color: "#534AB7" },
+    { bg: "#E1F5EE", color: "#0F6E56" },
+    { bg: "#E6F1FB", color: "#185FA5" },
+    { bg: "#FAEEDA", color: "#854F0B" },
+    { bg: "#FAECE7", color: "#993C1D" },
+    { bg: "#FBEAF0", color: "#993556" },
+  ];
+  const p = PALETTES[name.charCodeAt(0) % PALETTES.length];
   return (
-    <span className="tap-avatar" style={{ background: bg }}>
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: size, height: size, borderRadius: "50%",
+      background: p.bg, color: p.color,
+      fontSize: size * 0.38, fontWeight: 500, flexShrink: 0,
+      border: `1.5px solid ${p.color}33`, lineHeight: 1,
+    }}>
       {initials}
     </span>
   );
 }
 
+
+
 export default function TeamAssignmentPage({ user }) {
   const navigate = useNavigate();
 
-  const [activeStep, setActiveStep]       = useState(1);
-  const [tab, setTab]                     = useState("internal");
-  const [serviceFilter, setServiceFilter] = useState("");
-  const [search, setSearch]               = useState("");
-  const [cityFilter, setCityFilter]       = useState("");
-  const [serviceTag, setServiceTag]       = useState("Drone");
-  const [showAvailOnly, setShowAvailOnly] = useState(false);
-  const [assignedTeam, setAssignedTeam]   = useState([]);
-  const [serviceOpen, setServiceOpen]     = useState(false);
-  const [roleMap, setRoleMap]             = useState({});   
+  const [event, setEvent] = useState(null);
 
-  
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("currentEvent");
+      if (raw) setEvent(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const eventServices = event?.selectedServices || [];
+  const serviceOptions = eventServices.length > 0
+    ? eventServices
+    : ["Traditional Photography","Candid Photography","Candid Videography","Drone"];
+
+  const restoreTeam = () => {
+    try {
+      const raw = sessionStorage.getItem("currentEvent");
+      if (!raw) return [];
+      return JSON.parse(raw)._assignedTeam || [];
+    } catch { return []; }
+  };
+
+  const [activeStep,    setActiveStep]    = useState(1);
+  const [tab,           setTab]           = useState("internal");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [search,        setSearch]        = useState("");
+  const [cityFilter,    setCityFilter]    = useState("");
+  const [serviceTag,    setServiceTag]    = useState("");
+  const [showAvailOnly, setShowAvailOnly] = useState(false);
+  const [assignedTeam,  setAssignedTeam]  = useState(restoreTeam);
+  const [serviceOpen,   setServiceOpen]   = useState(false);
+  const [roleMap,       setRoleMap]       = useState({});
+
   const assignMember = (member) => {
-    if (assignedTeam.find((m) => m.id === member.id)) return;
+    if (assignedTeam.find(m => m.id === member.id)) return;
     const role = roleMap[member.id] || "Photographer";
-    setAssignedTeam((prev) => [
+    setAssignedTeam(prev => [
       ...prev,
       { ...member, role, service: serviceFilter || "General", status: "Confirmed" },
     ]);
   };
 
-  const removeMember = (id) =>
-    setAssignedTeam((prev) => prev.filter((m) => m.id !== id));
+  const removeMember  = (id) => setAssignedTeam(prev => prev.filter(m => m.id !== id));
+  const updateRole    = (id, role)    => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, role }    : m));
+  const updateService = (id, service) => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, service } : m));
 
-  const updateRole = (id, role) =>
-    setAssignedTeam((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, role } : m))
-    );
+  const handleSaveAndContinue = () => {
+    try {
+      const raw  = sessionStorage.getItem("currentEvent");
+      const curr = raw ? JSON.parse(raw) : {};
+      sessionStorage.setItem("currentEvent", JSON.stringify({
+        ...curr, _assignedTeam: assignedTeam, _step: "team-assignment",
+      }));
+    } catch {}
+    navigate("/events/create/payment");
+  };
 
-  
-  const filteredInternal = INTERNAL_MEMBERS.filter((m) => {
+  const filteredInternal = INTERNAL_MEMBERS.filter(m => {
+    const q = search.toLowerCase();
+    return m.name.toLowerCase().includes(q) || m.mobile.includes(q) || m.email.toLowerCase().includes(q);
+  });
+
+  const filteredFreelance = FREELANCE_MEMBERS.filter(m => {
     const q = search.toLowerCase();
     return (
-      m.name.toLowerCase().includes(q) ||
-      m.mobile.includes(q) ||
-      m.email.toLowerCase().includes(q)
+      (m.name.toLowerCase().includes(q) || m.mobile.includes(q)) &&
+      (cityFilter ? m.city.toLowerCase().includes(cityFilter.toLowerCase()) : true) &&
+      (serviceTag ? m.services?.some(s => s.toLowerCase().includes(serviceTag.toLowerCase())) : true)
     );
   });
 
-  const filteredFreelance = FREELANCE_MEMBERS.filter((m) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      m.name.toLowerCase().includes(q) || m.mobile.includes(q);
-    const matchCity = cityFilter
-      ? m.city.toLowerCase().includes(cityFilter.toLowerCase())
-      : true;
-    const matchService = serviceTag
-      ? m.services?.some((s) => s.toLowerCase().includes(serviceTag.toLowerCase()))
-      : true;
-    return matchSearch && matchCity && matchService;
-  });
-
-  const isAssigned = (id) => !!assignedTeam.find((a) => a.id === id);
+  const isAssigned = (id) => !!assignedTeam.find(a => a.id === id);
+  const listData   = tab === "internal" ? filteredInternal : filteredFreelance;
 
   return (
     <main className="tap-page">
       <section className="tap-stage">
 
-        
+      
         <header className="tap-topbar">
           <button className="tap-back" type="button" onClick={() => navigate("/events/create")}>
             <DoubleLeftOutlined /> Back
@@ -123,12 +152,20 @@ export default function TeamAssignmentPage({ user }) {
             <span className="tap-title-icon"><TeamOutlined /></span>
             <div>
               <p className="tap-subtitle">Step 2 of 7 · Team Assignment</p>
-              <h1 className="tap-heading">Assign Your Team</h1>
+              <div className="tap-heading-row">
+                <h1 className="tap-heading">Assign Your Team</h1>
+                {event && (
+                  <>
+                    <span className="tap-heading-sep">—</span>
+                    <span className="tap-heading-event">{event.eventName}</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="tap-topbar-progress">
-            {[1, 2, 3, 4, 5].map((s) => (
+            {[1,2,3,4,5].map(s => (
               <span className={s <= 2 ? "done" : ""} key={s}>
                 {s <= 2 ? <CheckCircleOutlined /> : s}
               </span>
@@ -137,18 +174,14 @@ export default function TeamAssignmentPage({ user }) {
           </div>
         </header>
 
-      
-        <div className="tap-body">
-
         
+        <div className="tap-body">
           <aside className="tap-rail">
             {STEPS.map((step, i) => (
               <div className="tap-step-wrap" key={step.label}>
                 <button
                   className={`tap-step ${i === activeStep ? "active" : ""} ${i < activeStep ? "done" : ""}`}
-                  type="button"
-                  onClick={() => setActiveStep(i)}
-                  aria-label={step.label}
+                  type="button" onClick={() => setActiveStep(i)} aria-label={step.label}
                 >
                   {i < activeStep ? <CheckCircleOutlined /> : step.icon}
                   {i === activeStep && <span className="tap-step-dot" />}
@@ -158,16 +191,13 @@ export default function TeamAssignmentPage({ user }) {
             ))}
           </aside>
 
-          
           <div className="tap-content">
-
-          
             <div className="tap-progress-bar">
               <div className="tap-progress-fill" style={{ width: "28%" }} />
               <span className="tap-progress-pct">28%</span>
             </div>
 
-            
+      
             <div className="tap-hero-card">
               <div className="tap-hero-left">
                 <TeamOutlined className="tap-hero-icon" />
@@ -181,16 +211,14 @@ export default function TeamAssignmentPage({ user }) {
               </button>
             </div>
 
-            
+          
             <section className="tap-panel">
               <div className="tap-panel-head">
                 <h3>
-                  <UserOutlined />
-                  Assigned Team
+                  <UserOutlined /> Assigned Team
                   <span className="tap-count-badge">{assignedTeam.length}</span>
                 </h3>
               </div>
-
               <div className="tap-table-wrap">
                 <table className="tap-table">
                   <thead>
@@ -212,7 +240,7 @@ export default function TeamAssignmentPage({ user }) {
                         </td>
                       </tr>
                     ) : (
-                      assignedTeam.map((m) => (
+                      assignedTeam.map(m => (
                         <tr key={m.id}>
                           <td>
                             <div className="tap-member-cell">
@@ -224,15 +252,18 @@ export default function TeamAssignmentPage({ user }) {
                             </div>
                           </td>
                           <td>
-                            <select
-                              className="tap-role-select"
-                              value={m.role}
-                              onChange={(e) => updateRole(m.id, e.target.value)}
-                            >
-                              {ROLES.map((r) => <option key={r}>{r}</option>)}
+                            <select className="tap-role-select" value={m.role}
+                              onChange={e => updateRole(m.id, e.target.value)}>
+                              {ROLES.map(r => <option key={r}>{r}</option>)}
                             </select>
                           </td>
-                          <td><span className="tap-badge tap-badge-service">{m.service}</span></td>
+                          <td>
+                            <select className="tap-role-select" value={m.service}
+                              onChange={e => updateService(m.id, e.target.value)}>
+                              <option value="General">General</option>
+                              {serviceOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </td>
                           <td>{m.mobile}</td>
                           <td>{m.city}</td>
                           <td><span className="tap-badge tap-badge-confirmed">{m.status}</span></td>
@@ -249,79 +280,59 @@ export default function TeamAssignmentPage({ user }) {
               </div>
             </section>
 
-        
+          
             <section className="tap-panel">
               <div className="tap-panel-head">
                 <h3><TeamOutlined /> Assign Team</h3>
               </div>
 
-              
               <div className="tap-tabs">
-                <button
-                  className={`tap-tab ${tab === "internal" ? "active" : ""}`}
-                  onClick={() => { setTab("internal"); setSearch(""); }}
-                >
+                <button className={`tap-tab ${tab === "internal" ? "active" : ""}`}
+                  onClick={() => { setTab("internal"); setSearch(""); }}>
                   Internal Team
                 </button>
-                <button
-                  className={`tap-tab ${tab === "freelance" ? "active" : ""}`}
-                  onClick={() => { setTab("freelance"); setSearch(""); }}
-                >
+                <button className={`tap-tab ${tab === "freelance" ? "active" : ""}`}
+                  onClick={() => { setTab("freelance"); setSearch(""); }}>
                   Freelance Photographers
                 </button>
               </div>
 
               <div className="tap-tab-body">
-
-                
                 <div className="tap-filter-row">
                   <label className="tap-filter-label">Select Service</label>
-                  <div
-                    className="tap-select-wrap"
-                    onClick={() => setServiceOpen((o) => !o)}
-                  >
+                  <div className="tap-select-wrap" onClick={() => setServiceOpen(o => !o)}>
                     <span className={serviceFilter ? "tap-select-val" : "tap-select-placeholder"}>
-                      {serviceFilter || (tab === "internal"
-                        ? "Choose a service to assign team members"
-                        : "Choose a service to assign photographers")}
+                      {serviceFilter || "Choose a service to assign team members"}
                     </span>
                     <DownOutlined className={`tap-select-arrow ${serviceOpen ? "open" : ""}`} />
                     {serviceOpen && (
                       <ul className="tap-dropdown">
-                        <li onClick={() => { setServiceFilter(""); setServiceOpen(false); }}>
-                          — None —
-                        </li>
-                        {SERVICES.map((s) => (
-                          <li
-                            key={s}
-                            className={serviceFilter === s ? "selected" : ""}
-                            onClick={() => { setServiceFilter(s); setServiceOpen(false); }}
-                          >
-                            {s}
-                            {serviceFilter === s && <CheckCircleOutlined />}
+                        <li onClick={() => { setServiceFilter(""); setServiceOpen(false); }}>— None —</li>
+                        {serviceOptions.map(s => (
+                          <li key={s} className={serviceFilter === s ? "selected" : ""}
+                            onClick={() => { setServiceFilter(s); setServiceOpen(false); }}>
+                            {s} {serviceFilter === s && <CheckCircleOutlined />}
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
+                  {serviceFilter && (
+                    <span className="ec-filter-chip">
+                      {serviceFilter}
+                      <button onClick={() => setServiceFilter("")}><CloseOutlined /></button>
+                    </span>
+                  )}
                 </div>
 
-                
                 {tab === "internal" ? (
                   <div className="tap-search-row">
                     <label className="tap-filter-label">Search</label>
                     <div className="tap-search-box">
                       <SearchOutlined />
-                      <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by Name, Email, or Mobile Number"
-                      />
-                      {search && (
-                        <button className="tap-clear-search" onClick={() => setSearch("")}>
-                          <CloseOutlined />
-                        </button>
-                      )}
+                      <input value={search} onChange={e => setSearch(e.target.value)}
+                        placeholder="Search by Name, Email, or Mobile Number" />
+                      {search && <button className="tap-clear-search" onClick={() => setSearch("")}><CloseOutlined /></button>}
                     </div>
                   </div>
                 ) : (
@@ -331,52 +342,31 @@ export default function TeamAssignmentPage({ user }) {
                         <label className="tap-filter-label">Search</label>
                         <div className="tap-search-box">
                           <SearchOutlined />
-                          <input
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by Name, Email, or Mobile…"
-                          />
-                          {search && (
-                            <button className="tap-clear-search" onClick={() => setSearch("")}>
-                              <CloseOutlined />
-                            </button>
-                          )}
+                          <input value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Search by Name, Email, or Mobile…" />
+                          {search && <button className="tap-clear-search" onClick={() => setSearch("")}><CloseOutlined /></button>}
                         </div>
                       </div>
                       <div>
                         <label className="tap-filter-label">Filter by City</label>
                         <div className="tap-search-box">
                           <EnvironmentOutlined />
-                          <input
-                            value={cityFilter}
-                            onChange={(e) => setCityFilter(e.target.value)}
-                            placeholder="Enter city name"
-                          />
-                          {cityFilter && (
-                            <button className="tap-clear-search" onClick={() => setCityFilter("")}>
-                              <CloseOutlined />
-                            </button>
-                          )}
+                          <input value={cityFilter} onChange={e => setCityFilter(e.target.value)}
+                            placeholder="Enter city name" />
+                          {cityFilter && <button className="tap-clear-search" onClick={() => setCityFilter("")}><CloseOutlined /></button>}
                         </div>
                       </div>
                       <div>
                         <label className="tap-filter-label">Filter by Service</label>
                         <div className="tap-tag-select">
-                          {serviceTag ? (
-                            <span className="tap-tag">
-                              {serviceTag}
-                              <button onClick={() => setServiceTag("")}><CloseOutlined /></button>
-                            </span>
-                          ) : (
-                            <span className="tap-select-placeholder" style={{ fontSize: 13, color: "#aaa" }}>
-                              All services
-                            </span>
-                          )}
+                          {serviceTag
+                            ? <span className="tap-tag">{serviceTag}<button onClick={() => setServiceTag("")}><CloseOutlined /></button></span>
+                            : <span className="tap-select-placeholder" style={{ fontSize: 13, color: "#aaa" }}>All services</span>
+                          }
                           <DownOutlined className="tap-select-arrow-inline" />
                         </div>
                       </div>
                     </div>
-
                     <div className="tap-avail-row">
                       <label className="tap-filter-label">Specialization</label>
                       <div className="tap-avail-wrap">
@@ -385,11 +375,8 @@ export default function TeamAssignmentPage({ user }) {
                           <DownOutlined className="tap-select-arrow" />
                         </div>
                         <label className="tap-checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={showAvailOnly}
-                            onChange={(e) => setShowAvailOnly(e.target.checked)}
-                          />
+                          <input type="checkbox" checked={showAvailOnly}
+                            onChange={e => setShowAvailOnly(e.target.checked)} />
                           Show Available Photographers Only
                         </label>
                       </div>
@@ -397,7 +384,6 @@ export default function TeamAssignmentPage({ user }) {
                   </>
                 )}
 
-              
                 <div className="tap-table-wrap tap-mt">
                   <table className="tap-table">
                     <thead>
@@ -411,14 +397,14 @@ export default function TeamAssignmentPage({ user }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {(tab === "internal" ? filteredInternal : filteredFreelance).length === 0 ? (
+                      {listData.length === 0 ? (
                         <tr>
                           <td colSpan={tab === "internal" ? 5 : 6} className="tap-empty">
                             No results found. Try adjusting your search or filters.
                           </td>
                         </tr>
                       ) : (
-                        (tab === "internal" ? filteredInternal : filteredFreelance).map((m) => (
+                        listData.map(m => (
                           <tr key={m.id} className={isAssigned(m.id) ? "tap-row-assigned" : ""}>
                             <td>
                               <div className="tap-member-cell">
@@ -435,20 +421,14 @@ export default function TeamAssignmentPage({ user }) {
                               <>
                                 <td>
                                   <div className="tap-service-tags">
-                                    {m.services?.map((s) => (
-                                      <span key={s} className="tap-badge tap-badge-service">{s}</span>
-                                    ))}
+                                    {m.services?.map(s => <span key={s} className="tap-badge tap-badge-service">{s}</span>)}
                                   </div>
                                 </td>
-                                <td>
-                                  <span className="tap-spec-pill">{m.specialization}</span>
-                                </td>
+                                <td><span className="tap-spec-pill">{m.specialization}</span></td>
                               </>
                             )}
                             {tab === "internal" && (
-                              <td>
-                                <span className="tap-avail-dot avail" /> Available
-                              </td>
+                              <td><span className="tap-avail-dot avail" /> Available</td>
                             )}
                             <td>
                               <button
@@ -456,11 +436,10 @@ export default function TeamAssignmentPage({ user }) {
                                 onClick={() => assignMember(m)}
                                 disabled={isAssigned(m.id)}
                               >
-                                {isAssigned(m.id) ? (
-                                  <><CheckCircleOutlined /> Assigned</>
-                                ) : (
-                                  <><UserOutlined /> Assign</>
-                                )}
+                                {isAssigned(m.id)
+                                  ? <><CheckCircleOutlined /> Assigned</>
+                                  : <><UserOutlined /> Assign</>
+                                }
                               </button>
                             </td>
                           </tr>
@@ -470,33 +449,20 @@ export default function TeamAssignmentPage({ user }) {
                   </table>
                 </div>
 
-                
                 <div className="tap-result-meta">
-                  Showing {(tab === "internal" ? filteredInternal : filteredFreelance).length}{" "}
-                  {tab === "internal" ? "internal member" : "freelancer"}
-                  {(tab === "internal" ? filteredInternal : filteredFreelance).length !== 1 ? "s" : ""}
+                  Showing {listData.length} {tab === "internal" ? "internal member" : "freelancer"}{listData.length !== 1 ? "s" : ""}
                 </div>
               </div>
             </section>
 
-            
             <footer className="tap-actions">
-              <button
-                className="tap-secondary"
-                type="button"
-                onClick={() => navigate("/events/create")}
-              >
+              <button className="tap-secondary" type="button" onClick={() => navigate("/events/create")}>
                 <ArrowLeftOutlined /> Previous
               </button>
-              <button
-                className="tap-primary"
-                type="button"
-                onClick={() => navigate("/events/create/payment")}
-              >
+              <button className="tap-primary" type="button" onClick={handleSaveAndContinue}>
                 Save &amp; Continue <ArrowRightOutlined />
               </button>
             </footer>
-
           </div>
         </div>
       </section>

@@ -1,14 +1,6 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  DashboardOutlined,
-  StarOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  MailOutlined,
-  ShopOutlined,
-  CameraOutlined,
-} from "@ant-design/icons";
+import {DashboardOutlined, StarOutlined,UserOutlined,CalendarOutlined, MailOutlined,ShopOutlined,CameraOutlined,} from "@ant-design/icons";
 
 import "./Sidebar.css";
 
