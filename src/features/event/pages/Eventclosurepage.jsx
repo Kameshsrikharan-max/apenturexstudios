@@ -49,6 +49,16 @@ const DELIVERABLE_OPTIONS = [
 function CustomSelect({ placeholder, options, value, onChange }) {
   const [open, setOpen] = useState(false);
 
+  // Close when clicking outside
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (!e.target.closest(".ec-select-wrap")) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
   return (
     <div className="ec-select-wrap">
       <button
@@ -131,9 +141,8 @@ function StarRating({ value, onChange }) {
 
 export default function EventClosurePage() {
   const navigate = useNavigate();
-  const [activeStep, setActiveStep] = useState(6); // step index 6 = Closure
+  const [activeStep, setActiveStep] = useState(6);
 
-  /* Form state */
   const [paymentStatus,     setPaymentStatus]     = useState("");
   const [deliverableStatus, setDeliverableStatus] = useState("");
   const [rating,            setRating]            = useState(0);
@@ -142,7 +151,6 @@ export default function EventClosurePage() {
   const MAX_NOTES = 1000;
 
   const handleClose = () => {
-    
     if (!paymentStatus || !deliverableStatus) return;
     // TODO: submit to API
     navigate("/events");
@@ -154,7 +162,6 @@ export default function EventClosurePage() {
     <main className="ec-page">
       <section className="ec-stage">
 
-        
         <header className="ec-topbar">
           <button className="ec-back" type="button" onClick={() => navigate(-1)}>
             <DoubleLeftOutlined /> Back
@@ -182,10 +189,8 @@ export default function EventClosurePage() {
           </div>
         </header>
 
-      
         <div className="ec-body">
 
-          
           <aside className="ec-rail">
             {STEPS.map((step, i) => (
               <div className="ec-step-wrap" key={step.label}>
@@ -203,16 +208,13 @@ export default function EventClosurePage() {
             ))}
           </aside>
 
-          
           <div className="ec-content">
 
-            
             <div className="ec-progress-bar">
               <div className="ec-progress-fill" style={{ width: "86%" }} />
               <span className="ec-progress-pct">86%</span>
             </div>
 
-          
             <div className="ec-page-header">
               <div className="ec-page-header-left">
                 <CheckCircleOutlined className="ec-page-header-icon" />
@@ -226,14 +228,12 @@ export default function EventClosurePage() {
               </button>
             </div>
 
-        
             <div className="ec-form-grid">
 
-              
               <div className="ec-form-col">
 
-                
-                <div className="ec-section-card">
+                {/* Payment Status Card — overflow visible so dropdown shows */}
+                <div className="ec-section-card ec-section-card--overflow">
                   <div className="ec-section-head">
                     <DollarCircleOutlined className="ec-section-icon" />
                     <span className="ec-section-title">Payment Status</span>
@@ -248,8 +248,8 @@ export default function EventClosurePage() {
                   </div>
                 </div>
 
-                
-                <div className="ec-section-card">
+                {/* Deliverable Status Card — overflow visible so dropdown shows */}
+                <div className="ec-section-card ec-section-card--overflow">
                   <div className="ec-section-head">
                     <FileOutlined className="ec-section-icon" />
                     <span className="ec-section-title">Deliverable Status</span>
@@ -266,14 +266,12 @@ export default function EventClosurePage() {
 
               </div>
 
-            
               <div className="ec-form-col">
                 <div className="ec-section-card ec-additional">
                   <div className="ec-section-head">
                     <span className="ec-section-title">Additional Information</span>
                   </div>
 
-                  
                   <div className="ec-section-body">
                     <div className="ec-field-head">
                       <StarFilled className="ec-star-icon-head" />
@@ -288,7 +286,6 @@ export default function EventClosurePage() {
 
                   <div className="ec-divider" />
 
-                  
                   <div className="ec-section-body">
                     <div className="ec-field-head">
                       <FileTextOutlined className="ec-notes-icon-head" />
@@ -311,7 +308,6 @@ export default function EventClosurePage() {
               </div>
             </div>
 
-          
             <footer className="ec-actions">
               <button
                 className="ec-btn-secondary"

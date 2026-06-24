@@ -378,45 +378,14 @@ function App() {
             </div>
 
             
-            <motion.div
-              animate={{
-                opacity: [0, 0.08, 0],
-              }}
-              transition={{
-                duration: 4,
-                repeat: Infinity,
-              }}
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.08), transparent 80%)",
-              }}
-            />
-          </motion.div>
-        )}
+            <motion.div animate={{ opacity: [0, 0.08, 0],}} transition={{duration: 4,repeat: Infinity,}}style={{position: "absolute",inset: 0,background:"linear-gradient(120deg, transparent 20%, rgba(255,255,255,0.08), transparent 80%)",}}/>
+            </motion.div>)}
       </AnimatePresence>
 
       
-      <motion.div
-        initial={{
-          opacity: 0,
-          scale: 1.05,
-        }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-        }}
-        transition={{
-          duration: 1,
-        }}
-      >
-        <AppRoutes
-          isAuthenticated={isAuthenticated}
-          onLogin={handleLoginSuccess}
-          onLogout={handleLogout}
-          user={user}
-        />
+      <motion.div initial={{opacity: 0,scale: 1.05,}} animate={{opacity: 1,scale: 1,}}transition={{duration: 1,}}>
+
+        <AppRoutes isAuthenticated={isAuthenticated} onLogin={handleLoginSuccess} onLogout={handleLogout} user={user}/>
       </motion.div>
     </div>
   );

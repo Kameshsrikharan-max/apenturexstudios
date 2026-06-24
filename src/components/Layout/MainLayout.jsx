@@ -55,7 +55,7 @@ const MainLayout = ({ children, user }) => {
           onClose={() => setCalendarOpen(false)}
         />
 
-        <StudioTour />
+        {/* <StudioTour /> */}
       </div>
     </ConfigProvider>
   );
