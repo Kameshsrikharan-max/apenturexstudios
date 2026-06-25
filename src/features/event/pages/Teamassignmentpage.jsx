@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircleOutlined, ClockCircleOutlined, DollarOutlined, DoubleLeftOutlined,
@@ -151,12 +151,12 @@ export default function TeamAssignmentPage({ user }) {
           <div className="tap-title-wrap">
             <span className="tap-title-icon"><TeamOutlined /></span>
             <div>
-              <p className="tap-subtitle">Step 2 of 7 · Team Assignment</p>
+              <p className="tap-subtitle">Step 2 of 7 / Team Assignment</p>
               <div className="tap-heading-row">
                 <h1 className="tap-heading">Assign Your Team</h1>
                 {event && (
                   <>
-                    <span className="tap-heading-sep">—</span>
+                    <span className="tap-heading-sep">-</span>
                     <span className="tap-heading-event">{event.eventName}</span>
                   </>
                 )}
@@ -307,7 +307,7 @@ export default function TeamAssignmentPage({ user }) {
                     <DownOutlined className={`tap-select-arrow ${serviceOpen ? "open" : ""}`} />
                     {serviceOpen && (
                       <ul className="tap-dropdown">
-                        <li onClick={() => { setServiceFilter(""); setServiceOpen(false); }}>— None —</li>
+                        <li onClick={() => { setServiceFilter(""); setServiceOpen(false); }}>None</li>
                         {serviceOptions.map(s => (
                           <li key={s} className={serviceFilter === s ? "selected" : ""}
                             onClick={() => { setServiceFilter(s); setServiceOpen(false); }}>
@@ -318,7 +318,7 @@ export default function TeamAssignmentPage({ user }) {
                     )}
                   </div>
                   {serviceFilter && (
-                    <span className="ec-filter-chip">
+                    <span className="tap-filter-chip">
                       {serviceFilter}
                       <button onClick={() => setServiceFilter("")}><CloseOutlined /></button>
                     </span>
@@ -343,7 +343,7 @@ export default function TeamAssignmentPage({ user }) {
                         <div className="tap-search-box">
                           <SearchOutlined />
                           <input value={search} onChange={e => setSearch(e.target.value)}
-                            placeholder="Search by Name, Email, or Mobile…" />
+                            placeholder="Search by Name, Email, or Mobile..." />
                           {search && <button className="tap-clear-search" onClick={() => setSearch("")}><CloseOutlined /></button>}
                         </div>
                       </div>

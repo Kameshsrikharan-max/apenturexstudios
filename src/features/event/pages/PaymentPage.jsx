@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, DollarOutlined,
@@ -42,7 +42,9 @@ function getPaymentKey(event) {
 function savePayments(payments, event) {
   try {
     sessionStorage.setItem(getPaymentKey(event), JSON.stringify(payments));
-  } catch {}
+  } catch(error){
+   console.error(error);
+}
 }
 
 /**

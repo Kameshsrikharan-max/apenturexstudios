@@ -3,7 +3,6 @@ import { ConfigProvider } from "antd";
 import Navbar from "./Navbar";
 import Sidebar from "../UI/Sidebar";
 import CalendarModal from "../UI/CalendarModal";
-import StudioTour from "../StudioTour/StudioTour";
 import "./MainLayout.css";
 
 const MainLayout = ({ children, user }) => {

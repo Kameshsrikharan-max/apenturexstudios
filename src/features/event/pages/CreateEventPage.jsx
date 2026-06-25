@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
@@ -106,7 +106,9 @@ function clearAllEventPayments() {
     }
     keysToRemove.forEach(key => sessionStorage.removeItem(key));
     sessionStorage.removeItem("eventPayments");
-  } catch {}
+  } catch (error) {
+   console.error(error);
+}
 }
 
 function usePopupPos(anchorRef, popupHeight) {

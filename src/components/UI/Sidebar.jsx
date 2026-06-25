@@ -1,13 +1,26 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {DashboardOutlined, StarOutlined,UserOutlined,CalendarOutlined, MailOutlined,ShopOutlined,CameraOutlined,} from "@ant-design/icons";
+import {
+  DashboardOutlined,
+  StarOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  MailOutlined,
+  ShopOutlined,
+  CameraOutlined,
+} from "@ant-design/icons";
 
 import "./Sidebar.css";
 
 const { Sider } = Layout;
 const { Text } = Typography;
 
-const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
+const Sidebar = ({
+  dark = false,
+  open = false,
+  onClose,
+  onCalendarOpen,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,7 +70,14 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
   ];
 
   const handleMenuClick = ({ key }) => {
-    const item = menuItems.find((menuItem) => menuItem.key === key);
+    // Open calendar when Events is clicked
+    if (key === "events") {
+      onCalendarOpen?.();
+    }
+
+    const item = menuItems.find(
+      (menuItem) => menuItem.key === key
+    );
 
     if (item?.path) {
       navigate(item.path);
@@ -66,14 +86,19 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
   };
 
   const getSelectedKey = () => {
-    const activeItem = menuItems.find((item) => item.path === location.pathname);
+    const activeItem = menuItems.find(
+      (item) => item.path === location.pathname
+    );
+
     return activeItem ? [activeItem.key] : ["dashboard"];
   };
 
   return (
     <>
       <div
-        className={`sidebar-backdrop ${open ? "sidebar-backdrop-open" : ""}`}
+        className={`sidebar-backdrop ${
+          open ? "sidebar-backdrop-open" : ""
+        }`}
         onClick={onClose}
       />
 
@@ -81,12 +106,17 @@ const Sidebar = ({ dark = false, open = false, onClose, onCalendarOpen }) => {
         width={96}
         className={[
           "studio-sidebar",
-          dark ? "studio-sidebar-dark" : "studio-sidebar-light",
+          dark
+            ? "studio-sidebar-dark"
+            : "studio-sidebar-light",
           open ? "studio-sidebar-open" : "",
         ].join(" ")}
       >
         <div className="studio-sidebar-brand">
-          <Tooltip title="Aperture X Studios" placement="right">
+          <Tooltip
+            title="Aperture X Studios"
+            placement="right"
+          >
             <div className="studio-brand-stack">
               <div className="studio-brand-mark">
                 <CameraOutlined />

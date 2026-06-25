@@ -144,12 +144,19 @@ function CuratedGallery({ photos, required }) {
       <div className="as-no-curated">
         <FileImageOutlined className="as-no-curated-icon" />
         <div>
-          <strong>No curated photos yet</strong>
-          <p>Stage photos above and click Upload to populate the gallery.</p>
+          <strong>
+            {required
+              ? "Curated photos are required"
+              : "No curated photos yet"}
+          </strong>
+          <p>
+            Stage photos above and click Upload to populate the gallery.
+          </p>
         </div>
       </div>
     );
   }
+
   return (
     <div className="as-curated-grid">
       {photos.map((p, i) => (
@@ -164,7 +171,6 @@ function CuratedGallery({ photos, required }) {
     </div>
   );
 }
-
 /* ══════════════════════════════════════════
    TEMPLATE CARD
 ══════════════════════════════════════════ */

@@ -1,6 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined, ReloadOutlined, ArrowRightOutlined, ArrowLeftOutlined, FolderOpenOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,ExclamationCircleOutlined,FileImageOutlined,VideoCameraOutlined,} from "@ant-design/icons";
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
+  DoubleLeftOutlined,
+  CameraOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  TeamOutlined,
+  ReloadOutlined,
+  ArrowRightOutlined,
+  ArrowLeftOutlined,
+  FolderOpenOutlined,
+  UploadOutlined,
+  AppstoreOutlined,
+  BarsOutlined,
+  CloseOutlined,
+  ExclamationCircleOutlined,
+  FileImageOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 import "./MediaManagement.css";
 
 
@@ -62,8 +82,9 @@ function resolveInitialState() {
         eventServices = evt.selectedServices;
       }
     }
-  } catch {}
-
+  } catch(error){
+   console.error(error);
+}
   if (persisted && persisted.services) {
     const persistedNames = persisted.services.map((s) => s.name).sort().join(",");
     const eventNames     = [...eventServices].sort().join(",");
@@ -152,7 +173,7 @@ function FileDisplay({ files, viewMode, onRemove }) {
             <span className="mm-file-row-name">{f.name}</span>
             <span className="mm-file-row-size">{f.size}</span>
             {onRemove && (
-              <button className="mm-file-remove" title="Remove" onClick={() => onRemove(i)}>
+              <button className="mm-file-remove" type="button" title="Remove" onClick={() => onRemove(i)}>
                 <CloseOutlined />
               </button>
             )}
@@ -173,7 +194,7 @@ function FileDisplay({ files, viewMode, onRemove }) {
           )}
           <div className="mm-file-thumb-label">{f.name}</div>
           {onRemove && (
-            <button className="mm-file-thumb-remove" title="Remove" onClick={() => onRemove(i)}>
+            <button className="mm-file-thumb-remove" type="button" title="Remove" onClick={() => onRemove(i)}>
               <CloseOutlined />
             </button>
           )}
@@ -197,7 +218,7 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
             <ExclamationCircleOutlined />
             Confirm media acknowledgment
           </div>
-          <button className="mm-modal-close" onClick={onCancel}>
+          <button className="mm-modal-close" type="button" onClick={onCancel}>
             <CloseOutlined />
           </button>
         </div>
@@ -214,11 +235,11 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
               </div>
             </div>
             <div className="mm-modal-actions">
-              <button className="mm-btn-secondary" onClick={onCancel}>Cancel</button>
-              <button className="mm-btn-danger-outline" onClick={onSkip}>
+              <button className="mm-btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+              <button className="mm-btn-danger-outline" type="button" onClick={onSkip}>
                 Skip upload and acknowledge
               </button>
-              <button className="mm-btn-primary" onClick={onContinue}>
+              <button className="mm-btn-primary" type="button" onClick={onContinue}>
                 <UploadOutlined /> Continue uploading and then acknowledge
               </button>
             </div>
@@ -229,8 +250,8 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
               Are you sure you want to acknowledge this media?
             </div>
             <div className="mm-modal-actions" style={{ justifyContent: "flex-end" }}>
-              <button className="mm-btn-secondary" onClick={onCancel}>Cancel</button>
-              <button className="mm-btn-primary" onClick={onAcknowledge}>Acknowledge</button>
+              <button className="mm-btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+              <button className="mm-btn-primary" type="button" onClick={onAcknowledge}>Acknowledge</button>
             </div>
           </>
         )}
@@ -292,6 +313,8 @@ function UploadView({
 
   const imgRef = useRef();
   const vidRef = useRef();
+  const imgFolderRef = useRef();
+  const vidFolderRef = useRef();
 
   const formatBytes = (b) => {
     if (b < 1024)    return b + " B";
@@ -394,7 +417,7 @@ function UploadView({
             <p>Upload and organize event photos and videos.</p>
           </div>
         </div>
-        <button className="mm-btn-outline" onClick={onBack}>
+        <button className="mm-btn-outline" type="button" onClick={onBack}>
           <ArrowLeftOutlined /> Back to Service Folders
         </button>
       </div>
@@ -404,6 +427,7 @@ function UploadView({
           <div className="mm-upload-actions">
             <button
               className="mm-btn-primary-sm"
+              type="button"
               onClick={doUpload}
               disabled={!selectedFiles.length || processing}
             >
@@ -412,19 +436,21 @@ function UploadView({
                 <span style={{ marginLeft: 4, opacity: 0.8 }}>({selectedFiles.length})</span>
               )}
             </button>
-            <button className="mm-btn-outline" onClick={() => setShowModal(true)}>
+            <button className="mm-btn-outline" type="button" onClick={() => setShowModal(true)}>
               Acknowledge Media
             </button>
           </div>
           <div className="mm-view-toggle">
             <button
               className={`mm-btn-toggle ${viewMode === "grid" ? "active" : ""}`}
+              type="button"
               onClick={() => setViewMode("grid")}
             >
               <AppstoreOutlined /> Grid
             </button>
             <button
               className={`mm-btn-toggle ${viewMode === "list" ? "active" : ""}`}
+              type="button"
               onClick={() => setViewMode("list")}
             >
               <BarsOutlined /> List
@@ -435,6 +461,7 @@ function UploadView({
         <div className="mm-tabs">
           <button
             className={`mm-tab ${activeTab === "selected" ? "active" : ""}`}
+            type="button"
             onClick={() => setActiveTab("selected")}
           >
             <FileImageOutlined /> Selected Files
@@ -442,6 +469,7 @@ function UploadView({
           </button>
           <button
             className={`mm-tab ${activeTab === "uploaded" ? "active" : ""}`}
+            type="button"
             onClick={() => setActiveTab("uploaded")}
           >
             <UploadOutlined /> Uploaded Files
@@ -468,24 +496,44 @@ function UploadView({
                 style={{ display: "none" }}
                 onChange={(e) => pickFiles(e, "video")}
               />
+              <input
+                ref={imgFolderRef}
+                type="file"
+                accept="image/*"
+                multiple
+                webkitdirectory=""
+                directory=""
+                style={{ display: "none" }}
+                onChange={(e) => pickFiles(e, "image")}
+              />
+              <input
+                ref={vidFolderRef}
+                type="file"
+                accept="video/*"
+                multiple
+                webkitdirectory=""
+                directory=""
+                style={{ display: "none" }}
+                onChange={(e) => pickFiles(e, "video")}
+              />
               <div className="mm-picker-row">
-                <button className="mm-picker-pill" onClick={() => imgRef.current?.click()}>
+                <button className="mm-picker-pill" type="button" onClick={() => imgRef.current?.click()}>
                   <FileImageOutlined /> Select Images
                 </button>
-                <button className="mm-picker-pill" onClick={() => imgRef.current?.click()}>
+                <button className="mm-picker-pill" type="button" onClick={() => imgFolderRef.current?.click()}>
                   <FolderOpenOutlined /> Image Folder
                 </button>
-                <button className="mm-picker-pill" onClick={() => vidRef.current?.click()}>
+                <button className="mm-picker-pill" type="button" onClick={() => vidRef.current?.click()}>
                   <VideoCameraOutlined /> Select Videos
                 </button>
-                <button className="mm-picker-pill" onClick={() => vidRef.current?.click()}>
+                <button className="mm-picker-pill" type="button" onClick={() => vidFolderRef.current?.click()}>
                   <FolderOpenOutlined /> Video Folder
                 </button>
               </div>
 
               {processing && (
                 <div className="mm-processing-bar">
-                  <span>Processing files…</span>
+                  <span>Processing files...</span>
                   <div className="mm-processing-fill" />
                 </div>
               )}
@@ -503,12 +551,14 @@ function UploadView({
               <div className="mm-sub-tabs">
                 <button
                   className={`mm-sub-tab ${subTab === "images" ? "active" : ""}`}
+                  type="button"
                   onClick={() => setSubTab("images")}
                 >
                   Images ({uploadedFiles.filter((f) => f.type === "image").length})
                 </button>
                 <button
                   className={`mm-sub-tab ${subTab === "videos" ? "active" : ""}`}
+                  type="button"
                   onClick={() => setSubTab("videos")}
                 >
                   Videos ({uploadedFiles.filter((f) => f.type === "video").length})
@@ -597,7 +647,7 @@ export default function MediaManagement() {
           <div className="mm-title-wrap">
             <span className="mm-title-icon"><CameraOutlined /></span>
             <div>
-              <p className="mm-subtitle">Step 5 of 7 · Media</p>
+              <p className="mm-subtitle">Step 5 of 7 / Media</p>
               <h1 className="mm-heading">Media Management</h1>
             </div>
           </div>
