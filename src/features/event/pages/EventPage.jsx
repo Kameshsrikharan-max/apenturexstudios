@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Avatar,
@@ -90,6 +90,25 @@ const initialEvents = [
   },
 ];
 
+const EVENTS_STORAGE_KEY = "ax.events.v1";
+
+const readStoredEvents = () => {
+  if (typeof window === "undefined") return initialEvents;
+
+  try {
+    const saved = window.localStorage.getItem(EVENTS_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : null;
+    return Array.isArray(parsed) && parsed.length ? parsed : initialEvents;
+  } catch {
+    return initialEvents;
+  }
+};
+
+const saveStoredEvents = (events) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
+};
+
 const statuses = ["DRAFT", "PLANNED", "LIVE", "DONE"];
 const eventTypes = [
   "Wedding",
@@ -135,7 +154,7 @@ const escapeRegExp = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export default function EventPage() {
   const navigate = useNavigate();
 
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState(() => readStoredEvents());
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [viewMode, setViewMode] = useState("table");
@@ -147,6 +166,22 @@ export default function EventPage() {
   const [assignEvent, setAssignEvent] = useState(null);
 
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    saveStoredEvents(events);
+  }, [events]);
+
+  useEffect(() => {
+    const syncEvents = () => setEvents(readStoredEvents());
+
+    window.addEventListener("focus", syncEvents);
+    window.addEventListener("storage", syncEvents);
+
+    return () => {
+      window.removeEventListener("focus", syncEvents);
+      window.removeEventListener("storage", syncEvents);
+    };
+  }, []);
 
   const counts = useMemo(
     () =>

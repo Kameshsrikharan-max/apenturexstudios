@@ -1,21 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
-import {
-  CalendarOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  EnvironmentOutlined,
-  InfoCircleOutlined,
-  LeftOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  PictureOutlined,
-  PlusOutlined,
+import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,DoubleLeftOutlined,EnvironmentOutlined,InfoCircleOutlined,LeftOutlined,MailOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,
   ReloadOutlined,
   RightOutlined,
   TeamOutlined,
