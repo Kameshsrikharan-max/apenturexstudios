@@ -97,6 +97,65 @@ function clearAllEventPayments() {
 }
 }
 
+// --- Calendar sync helpers -------------------------------------------------
+// These convert the wizard's date/time shapes into the format CalendarModal
+// expects in localStorage ("calendarEvents", keyed by "YYYY-MM-DD").
+
+function dateToISODate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function timeObjTo24(time) {
+  if (!time) return "";
+  let hour = parseInt(time.h, 10);
+  if (time.ap === "PM" && hour !== 12) hour += 12;
+  if (time.ap === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${time.m}`;
+}
+
+function addOneHour(time24) {
+  if (!time24) return "";
+  const [hour, minute] = time24.split(":").map(Number);
+  const total = (hour * 60 + minute + 60) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function syncEventToCalendar(form, createdAt) {
+  if (!form.eventDate) return;
+
+  try {
+    const dateKey = dateToISODate(form.eventDate);
+    const startTime24 = timeObjTo24(form.startTime);
+    const endTime24 = startTime24 ? addOneHour(startTime24) : "";
+
+    const calendarEvent = {
+      title: form.eventName.trim(),
+      description: [form.customerName.trim(), form.selectedServices.join(", ")]
+        .filter(Boolean)
+        .join(" • "),
+      startTime: startTime24,
+      endTime: endTime24,
+      color: "blue",
+      category: "Booked Event",
+      isHoliday: false,
+      eventId: createdAt,
+    };
+
+    const existingRaw = localStorage.getItem("calendarEvents");
+    const existing = existingRaw ? JSON.parse(existingRaw) : {};
+    existing[dateKey] = [...(existing[dateKey] || []), calendarEvent];
+    localStorage.setItem("calendarEvents", JSON.stringify(existing));
+
+    // Native "storage" events don't fire in the tab that made the change,
+    // so notify any mounted CalendarModal in this same tab too.
+    window.dispatchEvent(new Event("calendarEventsUpdated"));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function usePopupPos(anchorRef, popupHeight) {
   const [pos, setPos] = useState(null);
 
@@ -180,6 +239,7 @@ function CalendarPicker({ anchorRef, value, onChange, onClose }) {
       className="cal-popup"
       style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 9999 }}
       onMouseDown={event => event.stopPropagation()}
+      onClick={event => event.stopPropagation()}
     >
       <div className="cal-nav">
         <button type="button" onClick={prevMonth} aria-label="Previous month">
@@ -266,6 +326,7 @@ function TimePicker({ anchorRef, value, onChange, onClose }) {
       className="time-popup"
       style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 9999 }}
       onMouseDown={event => event.stopPropagation()}
+      onClick={event => event.stopPropagation()}
     >
       <div className="time-readout">
         <ClockCircleOutlined />
@@ -631,6 +692,10 @@ export default function CreateEventPage() {
     sessionStorage.setItem("currentEvent", JSON.stringify(eventPayload));
     clearAllEventPayments();
     sessionStorage.removeItem("eventDraft");
+
+    // Push this booking onto the shared calendar so CalendarModal picks it up.
+    syncEventToCalendar(form, createdAt);
+
     navigate("/events/create/team-assignment");
   };
 

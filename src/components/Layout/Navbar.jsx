@@ -164,18 +164,17 @@ function Navbar({
     setNotificationSettingsOpen(false);
   };
 
+  // FIXED: navigate to "/" (your actual login route), not "/login"
+  // Also removed manual localStorage clearing — Redux logout() already
+  // clears user/token from state. We'll add real persistence later.
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("isLoggedIn");
-
     setUserMenuOpen(false);
 
     if (onLogout) {
       onLogout();
     }
 
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (

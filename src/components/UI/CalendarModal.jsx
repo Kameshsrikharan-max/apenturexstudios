@@ -105,6 +105,31 @@ const CalendarModal = ({ open, onClose }) => {
     localStorage.setItem("calendarEvents", JSON.stringify(userEvents));
   }, [userEvents]);
 
+  // Pick up events created elsewhere (e.g. CreateEventPage's wizard).
+  // The native "storage" event only fires in *other* tabs, so a custom
+  // "calendarEventsUpdated" event covers same-tab updates too.
+  useEffect(() => {
+    const syncFromStorage = () => {
+      setUserEvents(getSavedEvents());
+    };
+
+    window.addEventListener("calendarEventsUpdated", syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
+
+    return () => {
+      window.removeEventListener("calendarEventsUpdated", syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
+    };
+  }, []);
+
+  // Re-read whenever the modal is opened, in case events were created
+  // while it was closed/unmounted.
+  useEffect(() => {
+    if (open) {
+      setUserEvents(getSavedEvents());
+    }
+  }, [open]);
+
   useEffect(() => {
     let mounted = true;
 

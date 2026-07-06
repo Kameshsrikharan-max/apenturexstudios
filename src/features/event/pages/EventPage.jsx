@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Avatar,
   Button,
@@ -36,6 +37,7 @@ import {
 } from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./TeamAssignmentPage";
+import { getEvents } from "../../../redux/event/eventActions";
 
 const { Title, Text } = Typography;
 
@@ -153,6 +155,12 @@ const escapeRegExp = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export default function EventPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Redux event list (fetched via mock API for now)
+  const { events: reduxEvents, loading: reduxLoading } = useSelector(
+    (state) => state.event
+  );
 
   const [events, setEvents] = useState(() => readStoredEvents());
   const [searchTerm, setSearchTerm] = useState("");
@@ -166,6 +174,11 @@ export default function EventPage() {
   const [assignEvent, setAssignEvent] = useState(null);
 
   const [form] = Form.useForm();
+
+  // Fetch events from Redux/saga on mount
+  useEffect(() => {
+    dispatch(getEvents());
+  }, [dispatch]);
 
   useEffect(() => {
     saveStoredEvents(events);
@@ -254,6 +267,7 @@ export default function EventPage() {
 
   const handleRefresh = () => {
     setIsLoading(true);
+    dispatch(getEvents());
     setTimeout(() => {
       setIsLoading(false);
       message.success("Events refreshed");
@@ -486,7 +500,7 @@ export default function EventPage() {
               <Tooltip title="Refresh">
                 <Button
                   type="text"
-                  icon={<ReloadOutlined spin={isLoading} />}
+                  icon={<ReloadOutlined spin={isLoading || reduxLoading} />}
                   className="event-hero-refresh"
                   onClick={handleRefresh}
                 />
@@ -539,7 +553,7 @@ export default function EventPage() {
               <Tooltip title="Refresh">
                 <Button
                   type="text"
-                  icon={<ReloadOutlined spin={isLoading} />}
+                  icon={<ReloadOutlined spin={isLoading || reduxLoading} />}
                   className="event-tool-btn"
                   onClick={handleRefresh}
                 />

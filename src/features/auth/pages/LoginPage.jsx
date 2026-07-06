@@ -1,9 +1,20 @@
 import { useState, useEffect } from "react";
-import { motion,AnimatePresence,useSpring,useMotionValue, useTransform,} from "framer-motion";
+import { motion, AnimatePresence, useSpring, useMotionValue, useTransform } from "framer-motion";
 
-import {Button, Input, Space,Typography,Card,message,ConfigProvider,Row,Col,} from "antd";
+import { Button, Input, Space, Typography, Card, message, ConfigProvider, Row, Col } from "antd";
 
-import {CameraOutlined,ScanOutlined,UserOutlined,LoadingOutlined,GoogleOutlined,TwitterOutlined,FacebookOutlined,} from "@ant-design/icons";
+import {
+  CameraOutlined,
+  ScanOutlined,
+  UserOutlined,
+  LoadingOutlined,
+  GoogleOutlined,
+  TwitterOutlined,
+  FacebookOutlined,
+} from "@ant-design/icons";
+
+import { useDispatch, useSelector } from "react-redux";
+import { loginRequest } from "../../../redux/auth/authActions";
 
 const { Title, Text } = Typography;
 
@@ -17,6 +28,9 @@ const quotes = [
 
 export default function LoginPage({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
+
+  const dispatch = useDispatch();
+  const { loading, error, user } = useSelector((state) => state.auth);
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [identifier, setIdentifier] = useState("");
@@ -69,7 +83,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
       );
   }, [mouseX, mouseY]);
 
-  
+  // Fires the real login request via Redux + Saga
   const triggerAdvancedSequence = () => {
     if (!identifier) {
       return msgApi.warning(
@@ -77,15 +91,32 @@ export default function LoginPage({ onLogin, onSignUp }) {
       );
     }
 
-    setIsAnimating(true);
-
-    setTimeout(() => {
-      if (onLogin) {
-        onLogin({ identifier });
-      }
-    }, 5000);
+    dispatch(loginRequest({ identifier }));
   };
 
+  // When the saga succeeds and `user` lands in the store,
+  // play the welcome animation, then hand off to the parent
+  useEffect(() => {
+    if (user) {
+      setIsAnimating(true);
+
+      const timer = setTimeout(() => {
+        if (onLogin) {
+          onLogin(user);
+        }
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  // If the saga fails, surface the error and stop any animation
+  useEffect(() => {
+    if (error) {
+      setIsAnimating(false);
+      msgApi.error(error);
+    }
+  }, [error]);
 
   const formBoxVariants = {
     hidden: {
@@ -704,6 +735,8 @@ export default function LoginPage({ onLogin, onSignUp }) {
                       onChange={(e) =>
                         setIdentifier(e.target.value)
                       }
+                      onPressEnter={triggerAdvancedSequence}
+                      disabled={loading || isAnimating}
                       className="creative-input"
                     />
                   </motion.div>
@@ -713,8 +746,9 @@ export default function LoginPage({ onLogin, onSignUp }) {
                     <Button
                       block
                       onClick={triggerAdvancedSequence}
+                      disabled={loading || isAnimating}
                       icon={
-                        isAnimating ? (
+                        loading || isAnimating ? (
                           <LoadingOutlined />
                         ) : (
                           <ScanOutlined />
@@ -722,7 +756,9 @@ export default function LoginPage({ onLogin, onSignUp }) {
                       }
                       className="submit-button-innovative"
                     >
-                      {isAnimating
+                      {loading
+                        ? "AUTHENTICATING..."
+                        : isAnimating
                         ? "WELCOME TO ..."
                         : "LOG IN"}
                     </Button>

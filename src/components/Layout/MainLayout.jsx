@@ -5,7 +5,7 @@ import Sidebar from "../UI/Sidebar";
 import CalendarModal from "../UI/CalendarModal";
 import "./MainLayout.css";
 
-const MainLayout = ({ children, user }) => {
+const MainLayout = ({ children, user, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -27,6 +27,7 @@ const MainLayout = ({ children, user }) => {
       <div className={`site-layout ${darkMode ? "site-dark" : "site-light"}`}>
         <Navbar
           user={user}
+          onLogout={onLogout}
           darkMode={darkMode}
           onToggleTheme={() => setDarkMode((value) => !value)}
           onSidebarOpen={() => setSidebarOpen(true)}
@@ -60,4 +61,4 @@ const MainLayout = ({ children, user }) => {
   );
 };
 
-export default MainLayout;
+export default MainLayout; 
