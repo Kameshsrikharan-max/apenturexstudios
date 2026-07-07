@@ -6,7 +6,8 @@ import "./ViewStudioPage.css";
 
 const { TextArea } = Input;
 
-const studioData = {
+/* Fallback data — only used the very first time, before onboarding/edits exist */
+const DEFAULT_STUDIO_DATA = {
   studioName: "Wave Studios",
   phoneNumber: "8888888888",
   address: "3rd street",
@@ -18,6 +19,22 @@ const studioData = {
     "Learn photography by practicing daily, studying light, and building a strong portfolio.\nExperiment with genres: portrait, landscape, street, wedding, commercial, wildlife, or documentary.\nKey lesson: Technical skills matter, but vision and storytelling are what separate good photos from great ones.",
   services: ["69b7ade8b5ffe89ff5lef187"],
   specializations: ["Portrait Photography"],
+};
+
+const loadLS = (k, fb) => {
+  try {
+    const v = localStorage.getItem(k);
+    return v ? JSON.parse(v) : fb;
+  } catch {
+    return fb;
+  }
+};
+const saveLS = (k, v) => {
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* no-op */
+  }
 };
 
 const serviceOptions = [
@@ -75,7 +92,9 @@ export default function ViewStudioPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isRailOpen, setIsRailOpen] = useState(false);
 
-  const initialValues = useMemo(() => studioData, []);
+  // Loaded once on mount: whatever onboarding (or a previous edit) saved,
+  // falling back to the placeholder DEFAULT_STUDIO_DATA the very first time.
+  const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
 
   const handleReset = () => {
     form.resetFields();
@@ -87,7 +106,7 @@ export default function ViewStudioPage() {
   };
 
   const handleSubmit = (values) => {
-    console.log("Studio form values:", values);
+    saveLS("axsStudio", values);
     setIsEditing(false);
   };
 
@@ -247,21 +266,23 @@ export default function ViewStudioPage() {
 
               <Field name="services" label="Services">
                 <Select
-                  mode="multiple"
+                  mode="tags"
                   options={serviceOptions}
-                  placeholder="Select services"
+                  placeholder="Select or type services"
                   maxTagCount="responsive"
                   showSearch
+                  tokenSeparators={[","]}
                 />
               </Field>
 
               <Field name="specializations" label="Specializations">
                 <Select
-                  mode="multiple"
+                  mode="tags"
                   options={specializationOptions}
-                  placeholder="Select specializations"
+                  placeholder="Select or type specializations"
                   maxTagCount="responsive"
                   showSearch
+                  tokenSeparators={[","]}
                 />
               </Field>
             </div>

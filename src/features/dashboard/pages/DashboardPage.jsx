@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   Avatar,
   Badge,
@@ -70,17 +71,6 @@ const featureCards = [
     value: "+27%",
     icon: <FireOutlined />,
     background: "linear-gradient(135deg, #38BDF8, #f59e0b)",
-  },
-];
-
-const userData = [
-  {
-    key: "1",
-    name: "Kamesh Srikharan.T",
-    email: "kameshsrikharan.t@gmail.com",
-    phone: "8888...",
-    createdAt: "2026-04-15",
-    role: "Studio Admin",
   },
 ];
 
@@ -161,10 +151,30 @@ const metricCards = [
 ];
 
 const DashboardPage = () => {
+  const { user } = useSelector((state) => state.auth);
+  const displayEmail = user?.email || "guest@apenturexstudios.com";
+  // Only show the part before "@" as the display name
+  const displayName = displayEmail.split("@")[0];
+
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState(null);
+
+
+  const userData = useMemo(
+    () => [
+      {
+        key: "1",
+        name: displayName,
+        email: displayEmail,
+        phone: user?.phone || "N/A",
+        createdAt: user?.createdAt || "2026-04-15",
+        role: user?.role || "Studio Admin",
+      },
+    ],
+    [displayName, displayEmail, user]
+  );
 
   useEffect(() => {
     const featureTimer = setInterval(() => {
@@ -182,7 +192,7 @@ const DashboardPage = () => {
         field.toLowerCase().includes(value)
       )
     );
-  }, [searchText]);
+  }, [searchText, userData]);
 
   const filteredEvents = useMemo(() => {
     const value = searchText.toLowerCase();
@@ -352,7 +362,7 @@ const DashboardPage = () => {
               <ThunderboltFilled /> Live
             </Tag>
 
-            <Title level={1}>Welcome, Kamesh</Title>
+            <Title level={1}>Welcome, {displayName}</Title>
 
             <div className="hero-mini-stats">
               <div>

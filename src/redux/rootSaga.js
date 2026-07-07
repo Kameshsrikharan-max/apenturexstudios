@@ -7,6 +7,7 @@ import { dashboardSaga } from "./dashboard/dashboardSaga";
 import { mediaSaga } from "./media/mediaSaga";
 import { profileSaga } from "./profile/profileSaga";
 import { reviewSaga } from "./review/reviewSaga";
+import { calendarSaga } from "./calendar/calendarSaga";
 
 export default function* rootSaga() {
   yield all([
@@ -17,5 +18,6 @@ export default function* rootSaga() {
     mediaSaga(),
     profileSaga(),
     reviewSaga(),
+    calendarSaga(),
   ]);
 }

@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {Modal,Input,Select,Button,Empty,Spin,Segmented,TimePicker,} from "antd";
 import {PlusOutlined,DeleteOutlined,EditOutlined,SaveOutlined,CalendarOutlined,LeftOutlined,RightOutlined,AimOutlined,EyeOutlined,CloseOutlined,ClockCircleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./CalendarModal.css";
 
-const { Option } = Select;
+import {
+  getEvents,
+  createEvent as createEventAction,
+  updateEvent,
+  deleteEvent as deleteEventAction,
+  syncEvents,
+  getHolidays,
+} from "../../redux/calendar/calendaractions";
 
-const API_KEY = "WJTWQRzs553ZRynmQvY6P2WSSXCVDub5";
+const { Option } = Select;
 
 const COLORS = [
   { value: "blue", label: "Ocean Blue" },
@@ -14,23 +22,6 @@ const COLORS = [
   { value: "red", label: "Coral Red" },
   { value: "violet", label: "Festival Violet" },
   { value: "gold", label: "National Gold" },
-];
-
-const TAMIL_HOLIDAY_KEYWORDS = [
-  "pongal",
-  "thai pongal",
-  "mattu pongal",
-  "kanum pongal",
-  "tamil new year",
-  "puthandu",
-  "thiruvalluvar",
-  "thaipusam",
-  "deepavali",
-  "diwali",
-  "ayudha pooja",
-  "vijaya dashami",
-  "maha shivaratri",
-  "vinayaka chaturthi",
 ];
 
 const makeTime = (hour, minute = 0) =>
@@ -54,25 +45,20 @@ const formatEventTime = (event) => {
   return event.startTime || event.endTime;
 };
 
-const getSavedEvents = () => {
-  try {
-    const saved = localStorage.getItem("calendarEvents");
-    return saved ? JSON.parse(saved) : {};
-  } catch {
-    return {};
-  }
-};
-
 const splitEvents = (list) => ({
   created: list.filter((event) => !event.isHoliday),
   other: list.filter((event) => event.isHoliday),
 });
 
 const CalendarModal = ({ open, onClose }) => {
+  const dispatch = useDispatch();
+
+ 
+  const userEvents = useSelector((state) => state.calendar.events);
+  const holidayEvents = useSelector((state) => state.calendar.holidays);
+  const loading = useSelector((state) => state.calendar.holidaysLoading);
+
   const [currentMonth, setCurrentMonth] = useState(dayjs());
-  const [userEvents, setUserEvents] = useState(getSavedEvents);
-  const [holidayEvents, setHolidayEvents] = useState({});
-  const [loading, setLoading] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [dayPageOpen, setDayPageOpen] = useState(false);
@@ -101,16 +87,10 @@ const CalendarModal = ({ open, onClose }) => {
 
   const dayHours = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
 
-  useEffect(() => {
-    localStorage.setItem("calendarEvents", JSON.stringify(userEvents));
-  }, [userEvents]);
-
-  // Pick up events created elsewhere (e.g. CreateEventPage's wizard).
-  // The native "storage" event only fires in *other* tabs, so a custom
-  // "calendarEventsUpdated" event covers same-tab updates too.
+  
   useEffect(() => {
     const syncFromStorage = () => {
-      setUserEvents(getSavedEvents());
+      dispatch(syncEvents());
     };
 
     window.addEventListener("calendarEventsUpdated", syncFromStorage);
@@ -120,73 +100,18 @@ const CalendarModal = ({ open, onClose }) => {
       window.removeEventListener("calendarEventsUpdated", syncFromStorage);
       window.removeEventListener("storage", syncFromStorage);
     };
-  }, []);
+  }, [dispatch]);
 
-  // Re-read whenever the modal is opened, in case events were created
-  // while it was closed/unmounted.
+
   useEffect(() => {
     if (open) {
-      setUserEvents(getSavedEvents());
+      dispatch(getEvents());
     }
-  }, [open]);
+  }, [open, dispatch]);
 
   useEffect(() => {
-    let mounted = true;
-
-    const fetchIndianEvents = async () => {
-      try {
-        setLoading(true);
-
-        const response = await fetch(
-          `https://calendarific.com/api/v2/holidays?api_key=${API_KEY}&country=IN&year=${currentYear}`
-        );
-
-        const json = await response.json();
-        const holidays = json?.response?.holidays || [];
-        const holidayMap = {};
-
-        holidays.forEach((holiday) => {
-          const date = holiday.date.iso;
-          if (!holidayMap[date]) holidayMap[date] = [];
-
-          const types = holiday.type || [];
-          const name = holiday.name?.toLowerCase() || "";
-          const descriptionText = holiday.description?.toLowerCase() || "";
-
-          const isNational =
-            types.includes("National holiday") || types.includes("national");
-
-          const isTamilHoliday = TAMIL_HOLIDAY_KEYWORDS.some(
-            (keyword) => name.includes(keyword) || descriptionText.includes(keyword)
-          );
-
-          holidayMap[date].push({
-            title: holiday.name,
-            color: isTamilHoliday ? "violet" : isNational ? "gold" : "blue",
-            isHoliday: true,
-            isTamilHoliday,
-            category: isTamilHoliday
-              ? "Tamil Holiday"
-              : isNational
-                ? "National Holiday"
-                : "Festival / Religious",
-          });
-        });
-
-        if (mounted) setHolidayEvents(holidayMap);
-      } catch (error) {
-        console.error("Holiday Fetch Error:", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchIndianEvents();
-
-    return () => {
-      mounted = false;
-    };
-  }, [currentYear]);
+    dispatch(getHolidays(currentYear));
+  }, [currentYear, dispatch]);
 
   const events = useMemo(() => {
     const merged = { ...userEvents };
@@ -226,11 +151,9 @@ const CalendarModal = ({ open, onClose }) => {
     });
   }, [currentMonth]);
 
- 
-
- const selectedEvents = useMemo(() => {
-  return events[selectedDate] || [];
-}, [events, selectedDate]);
+  const selectedEvents = useMemo(() => {
+    return events[selectedDate] || [];
+  }, [events, selectedDate]);
   const selectedWeekInfo = weeks.find((week) => week.value === selectedWeek);
 
   const displayedDates = useMemo(() => {
@@ -366,21 +289,17 @@ const CalendarModal = ({ open, onClose }) => {
 
     if (start && end && getMinutes(end) <= getMinutes(start)) return;
 
-    setUserEvents((prev) => ({
-      ...prev,
-      [selectedDate]: [
-        ...(prev[selectedDate] || []),
-        {
-          title: title.trim(),
-          description: description.trim(),
-          startTime: start,
-          endTime: end,
-          color,
-          category: "Personal Event",
-          isHoliday: false,
-        },
-      ],
-    }));
+    dispatch(
+      createEventAction(selectedDate, {
+        title: title.trim(),
+        description: description.trim(),
+        startTime: start,
+        endTime: end,
+        color,
+        category: "Personal Event",
+        isHoliday: false,
+      })
+    );
 
     resetCreateForm();
     setCreateOpen(false);
@@ -392,21 +311,7 @@ const CalendarModal = ({ open, onClose }) => {
     const userIndex = getUserEventIndex(selectedDate, index);
     if (userIndex < 0) return;
 
-    setUserEvents((prev) => {
-      const updated = [...(prev[selectedDate] || [])];
-      updated.splice(userIndex, 1);
-
-      const next = { ...prev };
-
-      if (updated.length === 0) {
-        delete next[selectedDate];
-      } else {
-        next[selectedDate] = updated;
-      }
-
-      return next;
-    });
-
+    dispatch(deleteEventAction(selectedDate, userIndex));
     setEditingIndex(null);
   };
 
@@ -439,23 +344,15 @@ const CalendarModal = ({ open, onClose }) => {
     const userIndex = getUserEventIndex(selectedDate, index);
     if (userIndex < 0) return;
 
-    setUserEvents((prev) => {
-      const updated = [...(prev[selectedDate] || [])];
-
-      updated[userIndex] = {
-        ...updated[userIndex],
+    dispatch(
+      updateEvent(selectedDate, userIndex, {
         title: editTitle.trim(),
         description: editDescription.trim(),
         color: editColor,
         startTime: start,
         endTime: end,
-      };
-
-      return {
-        ...prev,
-        [selectedDate]: updated,
-      };
-    });
+      })
+    );
 
     setEditingIndex(null);
   };

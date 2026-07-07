@@ -18,7 +18,6 @@ import {
 import dayjs from "dayjs";
 import "./Navbar.css";
 
-const DEFAULT_NAME = "Kamesh Srikharan.T";
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
 
@@ -61,10 +60,11 @@ function Navbar({
 }) {
   const navigate = useNavigate();
 
-  const displayName = user?.name || DEFAULT_NAME;
-  const displayRole = user?.role || DEFAULT_ROLE;
+
   const displayEmail =
     user?.email || (user?.identifier?.includes("@") ? user.identifier : DEFAULT_EMAIL);
+  const displayName = displayEmail.split("@")[0];
+  const displayRole = user?.role || DEFAULT_ROLE;
 
   const [miniCalendarOpen, setMiniCalendarOpen] = useState(false);
   const [miniMonth, setMiniMonth] = useState(dayjs());

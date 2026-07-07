@@ -7,6 +7,7 @@ import dashboardReducer from "./dashboard/dashboardReducer";
 import mediaReducer from "./media/mediaReducer";
 import profileReducer from "./profile/profileReducer";
 import reviewReducer from "./review/reviewReducer";
+import calendarReducer from "./calendar/calendarReducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,
@@ -16,6 +17,7 @@ const rootReducer = combineReducers({
   media: mediaReducer,
   profile: profileReducer,
   review: reviewReducer,
+  calendar: calendarReducer,
 });
 
 export default rootReducer;

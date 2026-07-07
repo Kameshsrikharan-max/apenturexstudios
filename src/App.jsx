@@ -10,6 +10,7 @@ import { logout } from "./redux/auth/authActions";
 
 import AppRoutes from "./routes/AppRoutes";
 import StudioTour from "./components/StudioTour/StudioTour.jsx";
+import OnboardingGate from "./components/Onboarding/OnboardingGate";
 
 function App() {
   const dispatch = useDispatch();
@@ -164,7 +165,13 @@ function App() {
 
       <motion.div initial={{opacity: 0,scale: 1.05,}} animate={{opacity: 1,scale: 1,}}transition={{duration: 1,}}>
 
-        <AppRoutes isAuthenticated={isAuthenticated} onLogin={handleLoginSuccess} onLogout={handleLogout} user={user}/>
+        {isAuthenticated ? (
+          <OnboardingGate>
+            <AppRoutes isAuthenticated={isAuthenticated} onLogin={handleLoginSuccess} onLogout={handleLogout} user={user}/>
+          </OnboardingGate>
+        ) : (
+          <AppRoutes isAuthenticated={isAuthenticated} onLogin={handleLoginSuccess} onLogout={handleLogout} user={user}/>
+        )}
       </motion.div>
 
 
