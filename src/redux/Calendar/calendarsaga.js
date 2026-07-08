@@ -1,11 +1,20 @@
 import { call, put, select, takeEvery, takeLatest } from "redux-saga/effects";
 import axios from "axios";
 
-import {GET_EVENTS,CREATE_EVENT,UPDATE_EVENT,DELETE_EVENT,SYNC_EVENTS,GET_HOLIDAYS,} from "./calendarTypes";
+import {GET_EVENTS,CREATE_EVENT,UPDATE_EVENT,DELETE_EVENT,SYNC_EVENTS,GET_HOLIDAYS,GET_PANCHANG,} from "./calendarTypes";
 
-import {getEventsSuccess,getEventsFailure,createEventSuccess,createEventFailure,updateEventSuccess,updateEventFailure,deleteEventSuccess,deleteEventFailure,getHolidaysSuccess,getHolidaysFailure,} from "./calendarActions";
+import {getEventsSuccess,getEventsFailure,createEventSuccess,createEventFailure,updateEventSuccess,updateEventFailure,deleteEventSuccess,deleteEventFailure,getHolidaysSuccess,getHolidaysFailure,getPanchangSuccess,getPanchangFailure,} from "./calendarActions";
 
 const STORAGE_KEY = "calendarEvents";
+
+const CALENDARIFIC_API_KEY = "WJTWQRzs553ZRynmQvY6P2WSSXCVDub5";
+
+const ASTROLOGY_USER_ID = "655179";
+const ASTROLOGY_API_KEY = "ak-defa59b3ea80bf9f7f2c168723b57ad0973631db";
+
+const DEFAULT_LAT = 13.0827;
+const DEFAULT_LON = 80.2707;
+const DEFAULT_TZONE = 5.5;
 
 const TAMIL_HOLIDAY_KEYWORDS = [
   "pongal",
@@ -166,10 +175,15 @@ function* removeEvent(action) {
 }
 
 
+
 const fetchHolidaysAPI = (year) => {
-  return axios.get(
-    `https://date.nager.at/api/v3/PublicHolidays/${year}/IN`
-  );
+  return axios.get("https://calendarific.com/api/v2/holidays", {
+    params: {
+      api_key: CALENDARIFIC_API_KEY,
+      country: "IN",
+      year,
+    },
+  });
 };
 
 
@@ -177,21 +191,23 @@ const buildHolidayMap = (holidays) => {
   const holidayMap = {};
 
   holidays.forEach((holiday) => {
-    const date = holiday.date;
+    const date = holiday.date?.iso;
+    if (!date) return;
+
     if (!holidayMap[date]) holidayMap[date] = [];
 
     const name = holiday.name?.toLowerCase() || "";
-    const localName = holiday.localName?.toLowerCase() || "";
+    const description = holiday.description?.toLowerCase() || "";
 
-  
-    const isNational = holiday.global === true;
+    const types = (holiday.type || []).map((t) => t.toLowerCase());
+    const isNational = types.some((t) => t.includes("national"));
 
     const isTamilHoliday = TAMIL_HOLIDAY_KEYWORDS.some(
-      (keyword) => name.includes(keyword) || localName.includes(keyword)
+      (keyword) => name.includes(keyword) || description.includes(keyword)
     );
 
     holidayMap[date].push({
-      title: holiday.localName || holiday.name,
+      title: holiday.name,
       color: isTamilHoliday ? "violet" : isNational ? "gold" : "blue",
       isHoliday: true,
       isTamilHoliday,
@@ -219,7 +235,7 @@ function* fetchHolidays(action) {
       year
     );
 
-    const holidays = response.data || [];
+    const holidays = response.data?.response?.holidays || [];
     const holidayMap = yield call(buildHolidayMap, holidays);
 
     yield put(
@@ -235,6 +251,60 @@ function* fetchHolidays(action) {
   }
 }
 
+
+const fetchPanchangAPI = (date) => {
+  const [year, month, day] = date.split("-").map(Number);
+
+  const auth =
+    "Basic " + btoa(`${ASTROLOGY_USER_ID}:${ASTROLOGY_API_KEY}`);
+
+  return axios.post(
+    "https://json.astrologyapi.com/v1/advanced_panchang",
+    {
+      day,
+      month,
+      year,
+      hour: 6,
+      min: 0,
+      lat: DEFAULT_LAT,
+      lon: DEFAULT_LON,
+      tzone: DEFAULT_TZONE,
+    },
+    {
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+        "Accept-Language": "ta", 
+      },
+    }
+  );
+};
+
+function* fetchPanchang(action) {
+
+  try {
+
+    const { date } = action.payload;
+
+    const response = yield call(
+      fetchPanchangAPI,
+      date
+    );
+
+    yield put(
+      getPanchangSuccess(response.data)
+    );
+
+  } catch (error) {
+
+    yield put(
+      getPanchangFailure(error.message)
+    );
+
+  }
+}
+
+
 export function* calendarSaga() {
 
   yield takeLatest(GET_EVENTS, fetchEvents);
@@ -243,5 +313,6 @@ export function* calendarSaga() {
   yield takeEvery(UPDATE_EVENT, editEvent);
   yield takeEvery(DELETE_EVENT, removeEvent);
   yield takeLatest(GET_HOLIDAYS, fetchHolidays);
+  yield takeLatest(GET_PANCHANG, fetchPanchang);
 
 }

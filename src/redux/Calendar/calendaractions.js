@@ -1,88 +1,100 @@
-import {
-  GET_EVENTS,GET_EVENTS_SUCCESS,GET_EVENTS_FAILURE,
-  CREATE_EVENT,CREATE_EVENT_SUCCESS,CREATE_EVENT_FAILURE,
-  UPDATE_EVENT,UPDATE_EVENT_SUCCESS,UPDATE_EVENT_FAILURE,
-  DELETE_EVENT,DELETE_EVENT_SUCCESS,DELETE_EVENT_FAILURE,
-  SYNC_EVENTS,GET_HOLIDAYS,GET_HOLIDAYS_SUCCESS,GET_HOLIDAYS_FAILURE,} from "./calendarTypes";
+import * as types from "./calendarTypes";
 
-//Events
+// --- Events ---
 
 export const getEvents = () => ({
-  type: GET_EVENTS,
+  type: types.GET_EVENTS,
 });
 
-export const getEventsSuccess = (data) => ({
-  type: GET_EVENTS_SUCCESS,
-  payload: data,
+export const getEventsSuccess = (events) => ({
+  type: types.GET_EVENTS_SUCCESS,
+  payload: events,
 });
 
 export const getEventsFailure = (error) => ({
-  type: GET_EVENTS_FAILURE,
-  payload: error,
-});
-
-export const createEvent = (date, event) => ({
-  type: CREATE_EVENT,
-  payload: { date, event },
-});
-
-export const createEventSuccess = (data) => ({
-  type: CREATE_EVENT_SUCCESS,
-  payload: data,
-});
-
-export const createEventFailure = (error) => ({
-  type: CREATE_EVENT_FAILURE,
-  payload: error,
-});
-
-export const updateEvent = (date, index, changes) => ({
-  type: UPDATE_EVENT,
-  payload: { date, index, changes },
-});
-
-export const updateEventSuccess = (data) => ({
-  type: UPDATE_EVENT_SUCCESS,
-  payload: data,
-});
-
-export const updateEventFailure = (error) => ({
-  type: UPDATE_EVENT_FAILURE,
-  payload: error,
-});
-
-export const deleteEvent = (date, index) => ({
-  type: DELETE_EVENT,
-  payload: { date, index },
-});
-
-export const deleteEventSuccess = (data) => ({
-  type: DELETE_EVENT_SUCCESS,
-  payload: data,
-});
-
-export const deleteEventFailure = (error) => ({
-  type: DELETE_EVENT_FAILURE,
+  type: types.GET_EVENTS_FAILURE,
   payload: error,
 });
 
 export const syncEvents = () => ({
-  type: SYNC_EVENTS,
+  type: types.SYNC_EVENTS,
 });
 
-//Holidays
+export const createEvent = (date, eventData) => ({
+  type: types.CREATE_EVENT,
+  payload: { date, eventData },
+});
+
+export const createEventSuccess = (events) => ({
+  type: types.CREATE_EVENT_SUCCESS,
+  payload: events,
+});
+
+export const createEventFailure = (error) => ({
+  type: types.CREATE_EVENT_FAILURE,
+  payload: error,
+});
+
+export const updateEvent = (date, index, updates) => ({
+  type: types.UPDATE_EVENT,
+  payload: { date, index, updates },
+});
+
+export const updateEventSuccess = (events) => ({
+  type: types.UPDATE_EVENT_SUCCESS,
+  payload: events,
+});
+
+export const updateEventFailure = (error) => ({
+  type: types.UPDATE_EVENT_FAILURE,
+  payload: error,
+});
+
+export const deleteEvent = (date, index) => ({
+  type: types.DELETE_EVENT,
+  payload: { date, index },
+});
+
+export const deleteEventSuccess = (events) => ({
+  type: types.DELETE_EVENT_SUCCESS,
+  payload: events,
+});
+
+export const deleteEventFailure = (error) => ({
+  type: types.DELETE_EVENT_FAILURE,
+  payload: error,
+});
+
+// --- Holidays ---
 
 export const getHolidays = (year) => ({
-  type: GET_HOLIDAYS,
+  type: types.GET_HOLIDAYS,
   payload: { year },
 });
 
-export const getHolidaysSuccess = (data) => ({
-  type: GET_HOLIDAYS_SUCCESS,
-  payload: data,
+export const getHolidaysSuccess = (holidays) => ({
+  type: types.GET_HOLIDAYS_SUCCESS,
+  payload: holidays,
 });
 
 export const getHolidaysFailure = (error) => ({
-  type: GET_HOLIDAYS_FAILURE,
+  type: types.GET_HOLIDAYS_FAILURE,
+  payload: error,
+});
+
+// --- Panchang ---
+
+export const getPanchang = (date) => ({
+  type: types.GET_PANCHANG,
+  payload: { date },
+});
+
+export const getPanchangSuccess = (panchang) => ({
+  type: types.GET_PANCHANG_SUCCESS,
+  payload: panchang,
+});
+
+export const getPanchangFailure = (error) => ({
+  type: types.GET_PANCHANG_FAILURE,
   payload: error,
 });

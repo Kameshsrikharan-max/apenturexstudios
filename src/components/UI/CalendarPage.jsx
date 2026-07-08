@@ -1,20 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import {Modal,Input,Select,Button,Empty,Spin,Segmented,TimePicker,} from "antd";
-import {PlusOutlined,DeleteOutlined,EditOutlined,SaveOutlined,CalendarOutlined,LeftOutlined,RightOutlined,AimOutlined,EyeOutlined,CloseOutlined,ClockCircleOutlined,} from "@ant-design/icons";
+import {PlusOutlined,DeleteOutlined,EditOutlined,SaveOutlined,CalendarOutlined,LeftOutlined,RightOutlined,AimOutlined,EyeOutlined,CloseOutlined,ClockCircleOutlined,ArrowLeftOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
-import "./CalendarModal.css";
+import "./CalendarPage.css";
 
-import {
-  getEvents,
-  createEvent as createEventAction,
-  updateEvent,
-  deleteEvent as deleteEventAction,
-  syncEvents,
-  getHolidays,
-} from "../../redux/calendar/calendaractions";
+import { getHolidays, getPanchang } from "../../redux/calendar/calendarActions";
 
 const { Option } = Select;
+
+const STORAGE_KEY = "calendarEvents";
 
 const COLORS = [
   { value: "blue", label: "Ocean Blue" },
@@ -23,6 +19,71 @@ const COLORS = [
   { value: "violet", label: "Festival Violet" },
   { value: "gold", label: "National Gold" },
 ];
+
+// ---- Tamil solar-calendar month //
+const TAMIL_MONTHS = [
+  { en: "Chithirai", ta: "சித்திரை", startMonth: 4, startDay: 14 },
+  { en: "Vaikasi", ta: "வைகாசி", startMonth: 5, startDay: 15 },
+  { en: "Aani", ta: "ஆனி", startMonth: 6, startDay: 15 },
+  { en: "Aadi", ta: "ஆடி", startMonth: 7, startDay: 17 },
+  { en: "Aavani", ta: "ஆவணி", startMonth: 8, startDay: 17 },
+  { en: "Purattasi", ta: "புரட்டாசி", startMonth: 9, startDay: 17 },
+  { en: "Aippasi", ta: "ஐப்பசி", startMonth: 10, startDay: 18 },
+  { en: "Karthigai", ta: "கார்த்திகை", startMonth: 11, startDay: 16 },
+  { en: "Margazhi", ta: "மார்கழி", startMonth: 12, startDay: 16 },
+  { en: "Thai", ta: "தை", startMonth: 1, startDay: 14 },
+  { en: "Maasi", ta: "மாசி", startMonth: 2, startDay: 13 },
+  { en: "Panguni", ta: "பங்குனி", startMonth: 3, startDay: 14 },
+];
+
+const getTamilMonthInfo = (date) => {
+  const year = date.year();
+  const boundaries = [];
+
+  TAMIL_MONTHS.forEach((month) => {
+    [year - 1, year, year + 1].forEach((y) => {
+      boundaries.push({
+        month,
+        start: dayjs(
+          `${y}-${String(month.startMonth).padStart(2, "0")}-${String(
+            month.startDay
+          ).padStart(2, "0")}`
+        ),
+      });
+    });
+  });
+
+  boundaries.sort((a, b) => a.start.valueOf() - b.start.valueOf());
+
+  let current = boundaries[0];
+  for (const boundary of boundaries) {
+    if (boundary.start.isAfter(date, "day")) break;
+    current = boundary;
+  }
+
+  const day = date.startOf("day").diff(current.start, "day") + 1;
+  return { month: current.month, day };
+};
+// -------------------------------------------------------------------------
+
+const readEventsFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.error("Failed to read calendar events", error);
+    return {};
+  }
+};
+
+const writeEventsToStorage = (events) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    window.dispatchEvent(new Event("calendarEventsUpdated"));
+  } catch (error) {
+    console.error("Failed to write calendar events", error);
+  }
+};
 
 const makeTime = (hour, minute = 0) =>
   dayjs().hour(hour).minute(minute).second(0).millisecond(0);
@@ -50,13 +111,75 @@ const splitEvents = (list) => ({
   other: list.filter((event) => event.isHoliday),
 });
 
-const CalendarModal = ({ open, onClose }) => {
-  const dispatch = useDispatch();
+const asPrimitive = (val) => {
+  if (typeof val === "string" || typeof val === "number") return val;
+  return null;
+};
 
- 
-  const userEvents = useSelector((state) => state.calendar.events);
+const extractPanchangFields = (data) => {
+  if (!data || typeof data !== "object") return null;
+
+  const rahukaal =
+    data.rahukaal && typeof data.rahukaal === "object"
+      ? {
+          start: asPrimitive(data.rahukaal.start),
+          end: asPrimitive(data.rahukaal.end),
+        }
+      : null;
+
+  const rawMurtham =
+    data.murtham ??
+    data.muhurtham ??
+    data.abhijit_muhurat ??
+    data.abhijit_muhurta ??
+    null;
+
+  const murtham =
+    rawMurtham && typeof rawMurtham === "object"
+      ? {
+          start: asPrimitive(rawMurtham.start),
+          end: asPrimitive(rawMurtham.end),
+        }
+      : null;
+
+  if (
+    !murtham &&
+    (data.murtham || data.muhurtham || data.abhijit_muhurat || data.abhijit_muhurta)
+  ) {
+    console.warn(
+      "[Panchang] Could not find start/end fields for murtham. Raw object:",
+      data.murtham || data.muhurtham || data.abhijit_muhurat || data.abhijit_muhurta
+    );
+  }
+
+  return {
+    day: asPrimitive(data.day),
+    rahukaal,
+    murtham,
+  };
+};
+// -------------------------------------------------------------------------
+
+const CalendarPage = ({ onClose }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleBack = useCallback(() => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate(-1);
+    }
+  }, [onClose, navigate]);
+
+  const [userEvents, setUserEvents] = useState(() => readEventsFromStorage());
+
   const holidayEvents = useSelector((state) => state.calendar.holidays);
   const loading = useSelector((state) => state.calendar.holidaysLoading);
+
+
+  const rawPanchang = useSelector((state) => state.calendar.panchang);
+  const panchangLoading = useSelector((state) => state.calendar.panchangLoading);
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
 
@@ -81,33 +204,93 @@ const CalendarModal = ({ open, onClose }) => {
   const [editStartTime, setEditStartTime] = useState(makeTime(9));
   const [editEndTime, setEditEndTime] = useState(makeTime(10));
 
+  // ---- Tamil / Panchang reveal state ----
+  const [tamilRevealDate, setTamilRevealDate] = useState(null);
+  const [panchangCache, setPanchangCache] = useState({}); 
+  const tamilTimeoutRef = useRef(null);
+  const pendingPanchangDateRef = useRef(null);
+
+  const clearTamilTimeout = useCallback(() => {
+    if (tamilTimeoutRef.current) {
+      clearTimeout(tamilTimeoutRef.current);
+      tamilTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showTamilReveal = useCallback(
+    (fullDate, autoHide = false) => {
+      clearTamilTimeout();
+      setTamilRevealDate(fullDate);
+
+      if (!panchangCache[fullDate]) {
+        pendingPanchangDateRef.current = fullDate;
+        dispatch(getPanchang(fullDate));
+      }
+
+      if (autoHide) {
+        tamilTimeoutRef.current = setTimeout(() => {
+          setTamilRevealDate(null);
+        }, 5000);
+      }
+    },
+    [clearTamilTimeout, dispatch, panchangCache]
+  );
+
+  const hideTamilReveal = useCallback(() => {
+    clearTamilTimeout();
+    setTamilRevealDate(null);
+  }, [clearTamilTimeout]);
+
+  useEffect(() => clearTamilTimeout, [clearTamilTimeout]);
+
+  useEffect(() => {
+    if (!rawPanchang || !pendingPanchangDateRef.current) return;
+
+    const date = pendingPanchangDateRef.current;
+    const fields = extractPanchangFields(rawPanchang);
+
+    setPanchangCache((prev) => ({ ...prev, [date]: fields }));
+    pendingPanchangDateRef.current = null;
+  }, [rawPanchang]);
+
+  const revealedTamilInfo = useMemo(() => {
+    if (!tamilRevealDate) return null;
+    return getTamilMonthInfo(dayjs(tamilRevealDate));
+  }, [tamilRevealDate]);
+
+  const revealedPanchang = tamilRevealDate ? panchangCache[tamilRevealDate] : null;
+  const isPanchangPending =
+    tamilRevealDate &&
+    !revealedPanchang &&
+    (panchangLoading || pendingPanchangDateRef.current === tamilRevealDate);
+  const hasPanchangInfo =
+    !!revealedPanchang?.rahukaal?.start || !!revealedPanchang?.murtham?.start;
+  // ---- end Tamil / Panchang reveal state ----
+
   const currentYear = currentMonth.format("YYYY");
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = currentMonth.format("YYYY-MM");
 
   const dayHours = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
 
-  
+  const refreshEventsFromStorage = useCallback(() => {
+    setUserEvents(readEventsFromStorage());
+  }, []);
   useEffect(() => {
-    const syncFromStorage = () => {
-      dispatch(syncEvents());
-    };
-
-    window.addEventListener("calendarEventsUpdated", syncFromStorage);
-    window.addEventListener("storage", syncFromStorage);
+    window.addEventListener("calendarEventsUpdated", refreshEventsFromStorage);
+    window.addEventListener("storage", refreshEventsFromStorage);
 
     return () => {
-      window.removeEventListener("calendarEventsUpdated", syncFromStorage);
-      window.removeEventListener("storage", syncFromStorage);
+      window.removeEventListener("calendarEventsUpdated", refreshEventsFromStorage);
+      window.removeEventListener("storage", refreshEventsFromStorage);
     };
-  }, [dispatch]);
-
+  }, [refreshEventsFromStorage]);
 
   useEffect(() => {
     if (open) {
-      dispatch(getEvents());
+      refreshEventsFromStorage();
     }
-  }, [open, dispatch]);
+  }, [open, refreshEventsFromStorage]);
 
   useEffect(() => {
     dispatch(getHolidays(currentYear));
@@ -116,7 +299,7 @@ const CalendarModal = ({ open, onClose }) => {
   const events = useMemo(() => {
     const merged = { ...userEvents };
 
-    Object.keys(holidayEvents).forEach((date) => {
+    Object.keys(holidayEvents || {}).forEach((date) => {
       merged[date] = [...(holidayEvents[date] || []), ...(userEvents[date] || [])];
     });
 
@@ -277,9 +460,11 @@ const CalendarModal = ({ open, onClose }) => {
   };
 
   const getUserEventIndex = (date, mergedIndex) => {
-    const holidayCount = holidayEvents[date]?.length || 0;
+    const holidayCount = holidayEvents?.[date]?.length || 0;
     return mergedIndex - holidayCount;
   };
+
+
 
   const createEvent = () => {
     if (!selectedDate || !title.trim()) return;
@@ -289,17 +474,25 @@ const CalendarModal = ({ open, onClose }) => {
 
     if (start && end && getMinutes(end) <= getMinutes(start)) return;
 
-    dispatch(
-      createEventAction(selectedDate, {
-        title: title.trim(),
-        description: description.trim(),
-        startTime: start,
-        endTime: end,
-        color,
-        category: "Personal Event",
-        isHoliday: false,
-      })
-    );
+    const current = readEventsFromStorage();
+    const next = {
+      ...current,
+      [selectedDate]: [
+        ...(current[selectedDate] || []),
+        {
+          title: title.trim(),
+          description: description.trim(),
+          startTime: start,
+          endTime: end,
+          color,
+          category: "Personal Event",
+          isHoliday: false,
+        },
+      ],
+    };
+
+    writeEventsToStorage(next);
+    setUserEvents(next);
 
     resetCreateForm();
     setCreateOpen(false);
@@ -311,7 +504,19 @@ const CalendarModal = ({ open, onClose }) => {
     const userIndex = getUserEventIndex(selectedDate, index);
     if (userIndex < 0) return;
 
-    dispatch(deleteEventAction(selectedDate, userIndex));
+    const current = readEventsFromStorage();
+    const dayEvents = current[selectedDate] || [];
+    const nextDayEvents = dayEvents.filter((_, eventIndex) => eventIndex !== userIndex);
+
+    const next = { ...current };
+    if (nextDayEvents.length > 0) {
+      next[selectedDate] = nextDayEvents;
+    } else {
+      delete next[selectedDate];
+    }
+
+    writeEventsToStorage(next);
+    setUserEvents(next);
     setEditingIndex(null);
   };
 
@@ -344,16 +549,25 @@ const CalendarModal = ({ open, onClose }) => {
     const userIndex = getUserEventIndex(selectedDate, index);
     if (userIndex < 0) return;
 
-    dispatch(
-      updateEvent(selectedDate, userIndex, {
-        title: editTitle.trim(),
-        description: editDescription.trim(),
-        color: editColor,
-        startTime: start,
-        endTime: end,
-      })
+    const current = readEventsFromStorage();
+    const dayEvents = current[selectedDate] || [];
+    const nextDayEvents = dayEvents.map((event, eventIndex) =>
+      eventIndex === userIndex
+        ? {
+            ...event,
+            title: editTitle.trim(),
+            description: editDescription.trim(),
+            color: editColor,
+            startTime: start,
+            endTime: end,
+          }
+        : event
     );
 
+    const next = { ...current, [selectedDate]: nextDayEvents };
+
+    writeEventsToStorage(next);
+    setUserEvents(next);
     setEditingIndex(null);
   };
 
@@ -506,17 +720,13 @@ const CalendarModal = ({ open, onClose }) => {
 
   return (
     <>
-      <Modal
-        open={open}
-        onCancel={onClose}
-        footer={null}
-        width="100vw"
-        style={{ top: 0, paddingBottom: 0 }}
-        className="calendar-modal"
-      >
-        <div className="calendar-root">
+      <div className="calendar-root">
           <aside className="sidebar">
             <div className="sidebar-heading">
+              <button type="button" className="sidebar-back" onClick={handleBack} aria-label="Back">
+                <ArrowLeftOutlined />
+              </button>
+
               <span>
                 <CalendarOutlined /> Indian Calendar
               </span>
@@ -712,14 +922,17 @@ const CalendarModal = ({ open, onClose }) => {
                     const dayEvents = fullDate ? events[fullDate] || [] : [];
                     const visibleEvents = dayEvents.slice(0, 3);
                     const hiddenCount = dayEvents.length - visibleEvents.length;
+                    const isTamilActive = fullDate && tamilRevealDate === fullDate;
 
                     return (
                       <div
                         key={index}
                         className={`cell ${!date ? "empty" : ""} ${fullDate === today ? "today" : ""} ${
                           fullDate === selectedDate ? "selected-cell" : ""
-                        }`}
+                        } ${isTamilActive ? "cell-tamil-active" : ""}`}
                         onClick={() => openEventList(date)}
+                        onMouseEnter={() => fullDate && showTamilReveal(fullDate)}
+                        onMouseLeave={() => fullDate && hideTamilReveal()}
                         style={{ animationDelay: `${index * 16}ms` }}
                       >
                         {date && (
@@ -738,6 +951,83 @@ const CalendarModal = ({ open, onClose }) => {
 
                               {dayEvents.length > 0 && <span className="event-count">{dayEvents.length}</span>}
                             </div>
+
+                            <button
+                              type="button"
+                              className="tamil-badge"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (isTamilActive) {
+                                  hideTamilReveal();
+                                } else {
+                                  showTamilReveal(fullDate, true);
+                                }
+                              }}
+                              aria-label="Show Tamil panchang"
+                            >
+                              த
+                            </button>
+
+                            {isTamilActive && revealedTamilInfo && (
+                              <div
+                                className="tamil-scroll-reveal"
+                                onClick={(event) => event.stopPropagation()}
+                                onMouseEnter={() => showTamilReveal(fullDate)}
+                                onMouseLeave={hideTamilReveal}
+                              >
+                                <div className="tamil-scroll-rod tamil-scroll-rod-top" />
+
+                                <div className="tamil-scroll-content">
+                                  <span className="tamil-scroll-daynum">
+                                    {revealedTamilInfo.day}
+                                  </span>
+
+                                  <span className="tamil-scroll-month">
+                                    {revealedTamilInfo.month.ta}
+                                    <small>{revealedTamilInfo.month.en} {revealedTamilInfo.day}</small>
+                                  </span>
+
+                                  <div className="tamil-scroll-divider" />
+
+                                  {isPanchangPending && (
+                                    <div className="tamil-scroll-loading">
+                                      <Spin size="small" />
+                                      <small>Panchangam...</small>
+                                    </div>
+                                  )}
+
+                                  {!isPanchangPending && hasPanchangInfo && (
+                                    <div className="tamil-scroll-panchang">
+                                      {revealedPanchang.murtham?.start && (
+                                        <div className="panchang-murtham">
+                                          முர்த்தம் {revealedPanchang.murtham.start}
+                                          {revealedPanchang.murtham.end
+                                            ? ` - ${revealedPanchang.murtham.end}`
+                                            : ""}
+                                        </div>
+                                      )}
+
+                                      {revealedPanchang.rahukaal?.start && (
+                                        <div className="panchang-rahukaal">
+                                          ராகு காலம் {revealedPanchang.rahukaal.start}
+                                          {revealedPanchang.rahukaal.end
+                                            ? ` - ${revealedPanchang.rahukaal.end}`
+                                            : ""}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {!isPanchangPending && !hasPanchangInfo && (
+                                    <div className="tamil-scroll-unavailable">
+                                      பஞ்சாங்க தகவல் இல்லை
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="tamil-scroll-rod tamil-scroll-rod-bottom" />
+                              </div>
+                            )}
 
                             <div className="cell-events-scroll">
                               {visibleEvents.map((event, eventIndex) => (
@@ -761,8 +1051,7 @@ const CalendarModal = ({ open, onClose }) => {
               </>
             )}
           </main>
-        </div>
-      </Modal>
+      </div>
 
       <Modal open={detailsOpen} onCancel={() => setDetailsOpen(false)} footer={null} className="creative-modal details-modal" title={null}>
         <h3 className="modal-heading black-heading">
@@ -904,4 +1193,4 @@ const CalendarModal = ({ open, onClose }) => {
   );
 };
 
-export default CalendarModal;
+export default CalendarPage;

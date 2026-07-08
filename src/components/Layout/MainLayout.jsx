@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { ConfigProvider } from "antd";
+import { useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "../UI/Sidebar";
-import CalendarModal from "../UI/CalendarModal";
 import "./MainLayout.css";
 
 const MainLayout = ({ children, user, onLogout }) => {
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+
+  const goToCalendar = () => navigate("/calendar");
 
   return (
     <ConfigProvider
@@ -31,14 +33,14 @@ const MainLayout = ({ children, user, onLogout }) => {
           darkMode={darkMode}
           onToggleTheme={() => setDarkMode((value) => !value)}
           onSidebarOpen={() => setSidebarOpen(true)}
-          onCalendarOpen={() => setCalendarOpen(true)}
+          onCalendarOpen={goToCalendar}
         />
 
         <Sidebar
           dark={darkMode}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          onCalendarOpen={() => setCalendarOpen(true)}
+          onCalendarOpen={goToCalendar}
         />
 
         <main className="site-content">{children}</main>
@@ -50,15 +52,10 @@ const MainLayout = ({ children, user, onLogout }) => {
           </div>
         </footer>
 
-        <CalendarModal
-          open={calendarOpen}
-          onClose={() => setCalendarOpen(false)}
-        />
-
         {/* <StudioTour /> */}
       </div>
     </ConfigProvider>
   );
 };
 
-export default MainLayout; 
+export default MainLayout;

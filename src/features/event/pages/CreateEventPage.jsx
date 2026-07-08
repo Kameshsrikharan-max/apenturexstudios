@@ -97,9 +97,6 @@ function clearAllEventPayments() {
 }
 }
 
-// --- Calendar sync helpers -------------------------------------------------
-// These convert the wizard's date/time shapes into the format CalendarModal
-// expects in localStorage ("calendarEvents", keyed by "YYYY-MM-DD").
 
 function dateToISODate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -148,8 +145,6 @@ function syncEventToCalendar(form, createdAt) {
     existing[dateKey] = [...(existing[dateKey] || []), calendarEvent];
     localStorage.setItem("calendarEvents", JSON.stringify(existing));
 
-    // Native "storage" events don't fire in the tab that made the change,
-    // so notify any mounted CalendarModal in this same tab too.
     window.dispatchEvent(new Event("calendarEventsUpdated"));
   } catch (error) {
     console.error(error);
@@ -693,7 +688,6 @@ export default function CreateEventPage() {
     clearAllEventPayments();
     sessionStorage.removeItem("eventDraft");
 
-    // Push this booking onto the shared calendar so CalendarModal picks it up.
     syncEventToCalendar(form, createdAt);
 
     navigate("/events/create/team-assignment");

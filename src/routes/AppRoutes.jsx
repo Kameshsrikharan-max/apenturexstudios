@@ -12,11 +12,12 @@ import PaymentPage          from "../features/event/pages/PaymentPage";
 import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.jsx";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
-import EventClosurePage     from "../features/event/pages/Eventclosurepage";   // ← NEW
+import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.jsx";
 import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
+import CalendarPage         from "../components/UI/CalendarPage";              
 import MainLayout           from "../components/Layout/MainLayout";
 
 
@@ -118,6 +119,9 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
         
         <Route path="/profile"     element={<ProfilePage user={user} />} />
         <Route path="/studio/view" element={<ViewStudioPage user={user} />} />
+
+      
+        <Route path="/calendar" element={<CalendarPage />} />
       </Route>
 
     

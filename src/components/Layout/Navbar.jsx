@@ -132,13 +132,10 @@ function Navbar({
     setUserMenuOpen(false);
   };
 
-  const openFullCalendar = () => {
-    setMiniCalendarOpen(false);
-
-    if (onCalendarOpen) {
-      onCalendarOpen();
-    }
-  };
+ const openFullCalendar = () => {
+  setMiniCalendarOpen(false);
+  navigate("/calendar");
+};
 
   const getFullDate = (date) => {
     return `${monthKey}-${String(date).padStart(2, "0")}`;
@@ -164,9 +161,6 @@ function Navbar({
     setNotificationSettingsOpen(false);
   };
 
-  // FIXED: navigate to "/" (your actual login route), not "/login"
-  // Also removed manual localStorage clearing — Redux logout() already
-  // clears user/token from state. We'll add real persistence later.
   const handleLogout = () => {
     setUserMenuOpen(false);
 
