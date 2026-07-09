@@ -6,7 +6,7 @@ import {
   SIGNUP_SUCCESS,
   SIGNUP_FAILURE,
   LOGOUT,
-} from "./authTypes";
+} from "../types/authTypes";
 
 // Try to load saved login from localStorage when the app starts
 const savedUser = localStorage.getItem("user");

@@ -37,7 +37,7 @@ import {
 } from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./TeamAssignmentPage";
-import { getEvents } from "../../../redux/event/eventActions";
+import { getEvents } from "../../../redux/actions/eventActions";
 
 const { Title, Text } = Typography;
 

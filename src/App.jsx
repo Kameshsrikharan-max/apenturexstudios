@@ -6,7 +6,7 @@ import {
   motion,
 } from "framer-motion";
 
-import { logout } from "./redux/auth/authActions";
+import { logout } from "./redux/actions/authActions";
 
 import AppRoutes from "./routes/AppRoutes";
 import StudioTour from "./components/StudioTour/StudioTour.jsx";

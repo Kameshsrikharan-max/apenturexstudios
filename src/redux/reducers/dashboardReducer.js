@@ -2,7 +2,7 @@ import {
   GET_DASHBOARD_STATS,
   GET_DASHBOARD_STATS_SUCCESS,
   GET_DASHBOARD_STATS_FAILURE,
-} from "./dashboardTypes";
+} from "../types/dashboardTypes";
 
 const initialState = {
   loading: false,

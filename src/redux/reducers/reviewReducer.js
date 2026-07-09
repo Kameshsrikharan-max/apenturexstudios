@@ -8,8 +8,7 @@ import {
   DELETE_REVIEW,
   DELETE_REVIEW_SUCCESS,
   DELETE_REVIEW_FAILURE,
-} from "./reviewTypes";
-
+} from "../types/reviewTypes";
 const initialState = {
   loading: false,
   reviews: [],

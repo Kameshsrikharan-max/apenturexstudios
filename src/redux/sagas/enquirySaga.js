@@ -1,12 +1,13 @@
 import { call, put, takeLatest } from "redux-saga/effects";
 import axios from "axios";
 
-import { GET_ENQUIRIES } from "./enquiryTypes";
+import { GET_ENQUIRIES } from "../types/enquiryTypes";
 
 import {
   getEnquiriesSuccess,
   getEnquiriesFailure,
-} from "./enquiryActions";
+} from "../actions/enquiryActions";
+
 
 const fetchEnquiriesAPI = () => {
   return axios.get(

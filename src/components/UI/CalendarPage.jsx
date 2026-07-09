@@ -6,7 +6,7 @@ import {PlusOutlined,DeleteOutlined,EditOutlined,SaveOutlined,CalendarOutlined,L
 import dayjs from "dayjs";
 import "./CalendarPage.css";
 
-import { getHolidays, getPanchang } from "../../redux/calendar/calendarActions";
+import { getHolidays, getPanchang } from "../../redux/actions/calendarActions";
 
 const { Option } = Select;
 
@@ -64,7 +64,7 @@ const getTamilMonthInfo = (date) => {
   const day = date.startOf("day").diff(current.start, "day") + 1;
   return { month: current.month, day };
 };
-// -------------------------------------------------------------------------
+// --------------------------------------
 
 const readEventsFromStorage = () => {
   try {

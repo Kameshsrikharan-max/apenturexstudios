@@ -4,14 +4,15 @@ import axios from "axios";
 import {
   GET_PROFILE,
   UPDATE_PROFILE,
-} from "./profileTypes";
+} from "../types/profileTypes";
 
 import {
   getProfileSuccess,
   getProfileFailure,
   updateProfileSuccess,
   updateProfileFailure,
-} from "./profileActions";
+} from "../actions/profileActions";
+
 
 const fetchProfileAPI = () => {
   return axios.get(

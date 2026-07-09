@@ -8,7 +8,7 @@ import {
   DELETE_MEDIA,
   DELETE_MEDIA_SUCCESS,
   DELETE_MEDIA_FAILURE,
-} from "./mediaTypes";
+} from "../types/mediaTypes";
 
 const initialState = {
   loading: false,

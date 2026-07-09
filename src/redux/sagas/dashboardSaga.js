@@ -1,12 +1,12 @@
 import { call, put, takeLatest } from "redux-saga/effects";
 import axios from "axios";
 
-import { GET_DASHBOARD_STATS } from "./dashboardTypes";
+import { GET_DASHBOARD_STATS } from "../types/dashboardTypes";
 
 import {
   getDashboardStatsSuccess,
   getDashboardStatsFailure,
-} from "./dashboardActions";
+} from "../actions/dashboardActions";
 
 const fetchDashboardStatsAPI = () => {
   return axios.get(

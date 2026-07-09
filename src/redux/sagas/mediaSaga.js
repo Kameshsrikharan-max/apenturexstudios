@@ -5,7 +5,7 @@ import {
   GET_MEDIA,
   UPLOAD_MEDIA,
   DELETE_MEDIA,
-} from "./mediaTypes";
+} from "../types/mediaTypes";
 
 import {
   getMediaSuccess,
@@ -14,7 +14,9 @@ import {
   uploadMediaFailure,
   deleteMediaSuccess,
   deleteMediaFailure,
-} from "./mediaActions";
+} from "../actions/mediaActions";
+
+// ... rest of file unchanged
 
 const fetchMediaAPI = (eventId) => {
   return axios.get(

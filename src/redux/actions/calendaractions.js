@@ -1,4 +1,4 @@
-import * as types from "./calendarTypes";
+import * as types from "../types/calendartypes";
 
 // --- Events ---
 

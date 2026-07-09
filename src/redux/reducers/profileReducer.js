@@ -5,7 +5,8 @@ import {
   UPDATE_PROFILE,
   UPDATE_PROFILE_SUCCESS,
   UPDATE_PROFILE_FAILURE,
-} from "./profileTypes";
+} from "../types/profileTypes";
+
 
 const initialState = {
   loading: false,

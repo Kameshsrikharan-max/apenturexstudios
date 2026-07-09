@@ -6,7 +6,7 @@ import {
   SIGNUP_SUCCESS,
   SIGNUP_FAILURE,
   LOGOUT,
-} from "./authTypes";
+} from "../types/authTypes";
 
 export const loginRequest = (credentials) => ({
   type: LOGIN_REQUEST,

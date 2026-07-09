@@ -2,7 +2,7 @@ import {
   GET_ENQUIRIES,
   GET_ENQUIRIES_SUCCESS,
   GET_ENQUIRIES_FAILURE,
-} from "./enquiryTypes";
+} from "../types/enquiryTypes";
 
 export const getEnquiries = () => ({
   type: GET_ENQUIRIES,

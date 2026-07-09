@@ -8,7 +8,7 @@ import {
   ASSIGN_TEAM,
   UPLOAD_EVENT_MEDIA,
   CLOSE_EVENT,
-} from "./eventTypes";
+} from "../types/eventTypes";
 
 import {
   getEventsSuccess,
@@ -25,7 +25,8 @@ import {
   uploadEventMediaFailure,
   closeEventSuccess,
   closeEventFailure,
-} from "./eventActions";
+} from "../actions/eventActions";
+
 
 // ---- MOCK APIs (no backend yet — replace with axios calls later) ----
 

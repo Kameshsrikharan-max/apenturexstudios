@@ -5,7 +5,7 @@ import {
   UPDATE_PROFILE,
   UPDATE_PROFILE_SUCCESS,
   UPDATE_PROFILE_FAILURE,
-} from "./profileTypes";
+} from "../types/profileTypes";
 
 export const getProfile = () => ({
   type: GET_PROFILE,

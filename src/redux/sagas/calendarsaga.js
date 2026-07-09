@@ -1,9 +1,9 @@
 import { call, put, select, takeEvery, takeLatest } from "redux-saga/effects";
 import axios from "axios";
 
-import {GET_EVENTS,CREATE_EVENT,UPDATE_EVENT,DELETE_EVENT,SYNC_EVENTS,GET_HOLIDAYS,GET_PANCHANG,} from "./calendarTypes";
+import {GET_EVENTS,CREATE_EVENT,UPDATE_EVENT,DELETE_EVENT,SYNC_EVENTS,GET_HOLIDAYS,GET_PANCHANG,} from "../types/calendartypes";
 
-import {getEventsSuccess,getEventsFailure,createEventSuccess,createEventFailure,updateEventSuccess,updateEventFailure,deleteEventSuccess,deleteEventFailure,getHolidaysSuccess,getHolidaysFailure,getPanchangSuccess,getPanchangFailure,} from "./calendarActions";
+import {getEventsSuccess,getEventsFailure,createEventSuccess,createEventFailure,updateEventSuccess,updateEventFailure,deleteEventSuccess,deleteEventFailure,getHolidaysSuccess,getHolidaysFailure,getPanchangSuccess,getPanchangFailure,} from "../actions/calendaractions";
 
 const STORAGE_KEY = "calendarEvents";
 

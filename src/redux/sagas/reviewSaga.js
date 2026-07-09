@@ -5,7 +5,7 @@ import {
   GET_REVIEWS,
   ADD_REVIEW,
   DELETE_REVIEW,
-} from "./reviewTypes";
+} from "../types/reviewTypes";
 
 import {
   getReviewsSuccess,
@@ -14,7 +14,8 @@ import {
   addReviewFailure,
   deleteReviewSuccess,
   deleteReviewFailure,
-} from "./reviewActions";
+} from "../actions/reviewActions";
+
 
 const fetchReviewsAPI = (eventId) => {
   return axios.get(

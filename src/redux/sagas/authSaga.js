@@ -1,15 +1,15 @@
 import { call, put, takeLatest } from "redux-saga/effects";
 
-import { LOGIN_REQUEST, SIGNUP_REQUEST, LOGOUT } from "./authTypes";
+import { LOGIN_REQUEST, SIGNUP_REQUEST, LOGOUT } from "../types/authTypes";
 
 import {
   loginSuccess,
   loginFailure,
   signupSuccess,
   signupFailure,
-} from "./authActions";
+} from "../actions/authActions";
 
-import { loginApi, signupApi } from "./authApi";
+import { loginApi, signupApi } from "../api/authApi";
 
 function* handleLogin(action) {
   try {

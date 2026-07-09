@@ -14,7 +14,7 @@ import {
 } from "@ant-design/icons";
 
 import { useDispatch, useSelector } from "react-redux";
-import { loginRequest } from "../../../redux/auth/authActions";
+import { loginRequest } from "../../../redux/actions/authActions";
 
 const { Title, Text } = Typography;
 

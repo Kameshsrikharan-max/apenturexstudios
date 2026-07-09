@@ -1,13 +1,13 @@
 import { combineReducers } from "redux";
 
-import enquiryReducer from "./enquiry/enquiryReducer";
-import authReducer from "./auth/authReducer";
-import eventReducer from "./event/eventReducer";
-import dashboardReducer from "./dashboard/dashboardReducer";
-import mediaReducer from "./media/mediaReducer";
-import profileReducer from "./profile/profileReducer";
-import reviewReducer from "./review/reviewReducer";
-import calendarReducer from "./calendar/calendarReducer";
+import enquiryReducer from "./reducers/enquiryReducer";
+import authReducer from "./reducers/authReducer";
+import eventReducer from "./reducers/eventReducer";
+import dashboardReducer from "./reducers/dashboardReducer";
+import mediaReducer from "./reducers/mediaReducer";
+import profileReducer from "./reducers/profileReducer";
+import reviewReducer from "./reducers/reviewReducer";
+import calendarReducer from "./reducers/calendarreducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,

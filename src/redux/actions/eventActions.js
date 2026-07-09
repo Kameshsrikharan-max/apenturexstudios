@@ -20,7 +20,7 @@ import {
   CLOSE_EVENT,
   CLOSE_EVENT_SUCCESS,
   CLOSE_EVENT_FAILURE,
-} from "./eventTypes";
+} from "../types/eventTypes";
 
 // Get Events
 export const getEvents = () => ({
