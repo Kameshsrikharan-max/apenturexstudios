@@ -9,14 +9,14 @@ import {
 import { logout } from "./redux/actions/authActions";
 
 import AppRoutes from "./routes/AppRoutes";
-import StudioTour from "./components/StudioTour/StudioTour.jsx";
+import StudioTour from "./components/StudioTour/StudioTour.js";
 import OnboardingGate from "./components/Onboarding/OnboardingGate";
 
 function App() {
   const dispatch = useDispatch();
 
   
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: any) => state.auth);
   const isAuthenticated = !!user;
 
   const [isTransitioning, setIsTransitioning] =

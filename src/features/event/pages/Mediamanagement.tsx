@@ -1,26 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-  ArrowRightOutlined,
-  ArrowLeftOutlined,
-  FolderOpenOutlined,
-  UploadOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  CloseOutlined,
-  ExclamationCircleOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,FolderOpenOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,ExclamationCircleOutlined,FileImageOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import "./MediaManagement.css";
 
 
@@ -47,7 +27,7 @@ function loadPersistedState() {
   }
 }
 
-function saveState(state) {
+function saveState(state: any) {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
@@ -56,7 +36,7 @@ function saveState(state) {
 }
 
 
-function buildServicesFromEvent(selectedServices) {
+function buildServicesFromEvent(selectedServices: string[]) {
   return selectedServices.map((name, idx) => ({
     id: idx + 1,
     name,
@@ -64,8 +44,8 @@ function buildServicesFromEvent(selectedServices) {
     status: "Not Uploaded",
     images: 0,
     videos: 0,
-    thumbnail: null,
-    lastUploaded: null,
+    thumbnail: null as string | null,
+    lastUploaded: null as string | null,
   }));
 }
 
@@ -73,7 +53,7 @@ function buildServicesFromEvent(selectedServices) {
 function resolveInitialState() {
   const persisted = loadPersistedState();
 
-  let eventServices = [];
+  let eventServices: string[] = [];
   try {
     const raw = sessionStorage.getItem("currentEvent");
     if (raw) {
@@ -86,7 +66,7 @@ function resolveInitialState() {
    console.error(error);
 }
   if (persisted && persisted.services) {
-    const persistedNames = persisted.services.map((s) => s.name).sort().join(",");
+    const persistedNames = persisted.services.map((s: any) => s.name).sort().join(",");
     const eventNames     = [...eventServices].sort().join(",");
     if (persistedNames === eventNames) {
       return persisted;
@@ -105,7 +85,7 @@ function resolveInitialState() {
 }
 
 
-function BadgeRibbon({ status }) {
+function BadgeRibbon({ status }: { status: string }) {
   const cls =
     status === "Acknowledged" ? "acknowledged"
     : status === "Uploaded"   ? "uploaded"
@@ -114,7 +94,7 @@ function BadgeRibbon({ status }) {
 }
 
 
-function FolderCard({ service, onClick }) {
+function FolderCard({ service, onClick }: { service: any; onClick: () => void }) {
   return (
     <div className="mm-folder-card" onClick={onClick}>
       <BadgeRibbon status={service.status} />
@@ -147,7 +127,7 @@ function FolderCard({ service, onClick }) {
 }
 
 
-function EmptyState({ message }) {
+function EmptyState({ message }: { message: string }) {
   return (
     <div className="mm-empty">
       <FolderOpenOutlined className="mm-empty-icon" />
@@ -157,7 +137,17 @@ function EmptyState({ message }) {
 }
 
 
-function FileDisplay({ files, viewMode, onRemove }) {
+type MediaFile = { name: string; size: string; type: "image" | "video"; preview: string | null };
+
+function FileDisplay({
+  files,
+  viewMode,
+  onRemove,
+}: {
+  files: MediaFile[];
+  viewMode: string;
+  onRemove?: (idx: number) => void;
+}) {
   if (!files.length) return null;
 
   if (viewMode === "list") {
@@ -205,7 +195,19 @@ function FileDisplay({ files, viewMode, onRemove }) {
 }
 
 
-function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledge }) {
+function ConfirmModal({
+  pendingCount,
+  onCancel,
+  onSkip,
+  onContinue,
+  onAcknowledge,
+}: {
+  pendingCount: number;
+  onCancel: () => void;
+  onSkip: () => void;
+  onContinue: () => void;
+  onAcknowledge: () => void;
+}) {
   const hasPending = pendingCount > 0;
   return (
     <div
@@ -261,7 +263,7 @@ function ConfirmModal({ pendingCount, onCancel, onSkip, onContinue, onAcknowledg
 }
 
 
-function FolderSelectionView({ services, onOpen }) {
+function FolderSelectionView({ services, onOpen }: { services: any[]; onOpen: (svc: any) => void }) {
   return (
     <div className="mm-view">
       <div className="mm-hero-card">
@@ -304,6 +306,14 @@ function UploadView({
   selectedFiles,
   onUploadedFilesChange,
   onSelectedFilesChange,
+}: {
+  service: any;
+  onBack: () => void;
+  onServicesUpdate: (id: number, patch: Record<string, any>) => void;
+  uploadedFiles: MediaFile[];
+  selectedFiles: MediaFile[];
+  onUploadedFilesChange: (files: MediaFile[]) => void;
+  onSelectedFilesChange: (files: MediaFile[]) => void;
 }) {
   const [activeTab,  setActiveTab]  = useState("selected");
   const [subTab,     setSubTab]     = useState("images");
@@ -311,32 +321,32 @@ function UploadView({
   const [showModal,  setShowModal]  = useState(false);
   const [processing, setProcessing] = useState(false);
 
-  const imgRef = useRef();
-  const vidRef = useRef();
-  const imgFolderRef = useRef();
-  const vidFolderRef = useRef();
+  const imgRef = useRef<HTMLInputElement>(null);
+  const vidRef = useRef<HTMLInputElement>(null);
+  const imgFolderRef = useRef<HTMLInputElement>(null);
+  const vidFolderRef = useRef<HTMLInputElement>(null);
 
-  const formatBytes = (b) => {
+  const formatBytes = (b: number) => {
     if (b < 1024)    return b + " B";
     if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
     return (b / 1048576).toFixed(1) + " MB";
   };
 
-  const fileToBase64 = (file) =>
+  const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result);
+      reader.onload  = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
 
-  const pickFiles = async (e, type) => {
-    const raw = Array.from(e.target.files);
+  const pickFiles = async (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video") => {
+    const raw = Array.from(e.target.files ?? []);
     if (!raw.length) return;
     setProcessing(true);
     try {
-      const picked = await Promise.all(
-        raw.map(async (f) => ({
+      const picked: MediaFile[] = await Promise.all(
+        raw.map(async (f: File) => ({
           name:    f.name,
           size:    formatBytes(f.size),
           type,
@@ -377,11 +387,11 @@ function UploadView({
     onBack();
   };
 
-  const removeSelected = (idx) => {
+  const removeSelected = (idx: number) => {
     onSelectedFilesChange(selectedFiles.filter((_, i) => i !== idx));
   };
 
-  const removeUploaded = (idx) => {
+  const removeUploaded = (idx: number) => {
     const updated = uploadedFiles.filter((_, i) => i !== idx);
     onUploadedFilesChange(updated);
     const imgs  = updated.filter((f) => f.type === "image").length;
@@ -501,20 +511,18 @@ function UploadView({
                 type="file"
                 accept="image/*"
                 multiple
-                webkitdirectory=""
-                directory=""
                 style={{ display: "none" }}
                 onChange={(e) => pickFiles(e, "image")}
+                {...({ webkitdirectory: "", directory: "" } as any)}
               />
               <input
                 ref={vidFolderRef}
                 type="file"
                 accept="video/*"
                 multiple
-                webkitdirectory=""
-                directory=""
                 style={{ display: "none" }}
                 onChange={(e) => pickFiles(e, "video")}
+                {...({ webkitdirectory: "", directory: "" } as any)}
               />
               <div className="mm-picker-row">
                 <button className="mm-picker-pill" type="button" onClick={() => imgRef.current?.click()}>
@@ -602,10 +610,10 @@ export default function MediaManagement() {
   const initialState = resolveInitialState();
 
   const [activeStep,       setActiveStep]       = useState(4);
-  const [services,         setServices]         = useState(initialState.services);
-  const [openServiceId,    setOpenServiceId]    = useState(null); // store ID only, not object
-  const [uploadedFilesMap, setUploadedFilesMap] = useState(initialState.uploadedFilesMap || {});
-  const [selectedFilesMap, setSelectedFilesMap] = useState(initialState.selectedFilesMap || {});
+  const [services,         setServices]         = useState<any[]>(initialState.services);
+  const [openServiceId,    setOpenServiceId]    = useState<number | null>(null); // store ID only, not object
+  const [uploadedFilesMap, setUploadedFilesMap] = useState<Record<number, MediaFile[]>>(initialState.uploadedFilesMap || {});
+  const [selectedFilesMap, setSelectedFilesMap] = useState<Record<number, MediaFile[]>>(initialState.selectedFilesMap || {});
 
   
   const openService = openServiceId != null
@@ -617,15 +625,15 @@ export default function MediaManagement() {
     saveState({ services, uploadedFilesMap, selectedFilesMap });
   }, [services, uploadedFilesMap, selectedFilesMap]);
 
-  const handleServicesUpdate = (id, patch) => {
+  const handleServicesUpdate = (id: number, patch: Record<string, any>) => {
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   };
 
-  const handleUploadedFilesChange = (serviceId, files) => {
+  const handleUploadedFilesChange = (serviceId: number, files: MediaFile[]) => {
     setUploadedFilesMap((prev) => ({ ...prev, [serviceId]: files }));
   };
 
-  const handleSelectedFilesChange = (serviceId, files) => {
+  const handleSelectedFilesChange = (serviceId: number, files: MediaFile[]) => {
     setSelectedFilesMap((prev) => ({ ...prev, [serviceId]: files }));
   };
 

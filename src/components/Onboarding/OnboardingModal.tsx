@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import {BankOutlined,CameraOutlined,CheckCircleOutlined,EnvironmentOutlined,FileTextOutlined,GlobalOutlined,HomeOutlined,IdcardOutlined,MailOutlined,NumberOutlined,PhoneOutlined,SafetyCertificateOutlined,StarOutlined,ThunderboltFilled,ToolOutlined,UserOutlined,} from "@ant-design/icons";
 import "./OnboardingModal.css";
 
-const DOC_FIELDS = {
+const DOC_FIELDS: Record<
+  string,
+  { key: string; label: string; required: boolean; placeholder?: string }[]
+> = {
   aadhaar: [],
   pan: [{ key: "panNumber", label: "PAN Number", required: true }],
   dl: [
@@ -18,8 +21,14 @@ const DOC_FIELDS = {
   ],
 };
 
+type FieldProps = {
+  icon?: React.ReactNode;
+  label: string;
+  required?: boolean;
+  children?: React.ReactNode;
+};
 
-function Field({ icon, label, required, children }) {
+function Field({ icon, label, required, children }: FieldProps) {
   return (
     <div className="ob-field">
       <label className="ob-field-label">
@@ -33,7 +42,17 @@ function Field({ icon, label, required, children }) {
   );
 }
 
-function TextInput({ icon, label, required, value, onChange, placeholder, type = "text" }) {
+type TextInputProps = {
+  icon?: React.ReactNode;
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+};
+
+function TextInput({ icon, label, required, value, onChange, placeholder, type = "text" }: TextInputProps) {
   return (
     <Field icon={icon} label={label} required={required}>
       <input
@@ -47,7 +66,17 @@ function TextInput({ icon, label, required, value, onChange, placeholder, type =
   );
 }
 
-function TextArea({ icon, label, required, value, onChange, placeholder, rows = 4 }) {
+type TextAreaProps = {
+  icon?: React.ReactNode;
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+};
+
+function TextArea({ icon, label, required, value, onChange, placeholder, rows = 4 }: TextAreaProps) {
   return (
     <Field icon={icon} label={label} required={required}>
       <textarea
@@ -61,7 +90,12 @@ function TextArea({ icon, label, required, value, onChange, placeholder, rows = 
   );
 }
 
-function OnboardingModal({ prefill, onComplete }) {
+type OnboardingModalProps = {
+  prefill?: { name?: string; email?: string; phone?: string };
+  onComplete: (data: any) => void;
+};
+
+function OnboardingModal({ prefill, onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
 
@@ -73,7 +107,11 @@ function OnboardingModal({ prefill, onComplete }) {
     studioName: "",
     address: "",
   });
-  const [kyc, setKyc] = useState({ docType: "", vals: {}, consent: false });
+  const [kyc, setKyc] = useState<{
+    docType: string;
+    vals: Record<string, string>;
+    consent: boolean;
+  }>({ docType: "", vals: {}, consent: false });
 
   /* ---------------- Step 2 state ---------------- */
   const [studio, setStudio] = useState({
@@ -91,9 +129,12 @@ function OnboardingModal({ prefill, onComplete }) {
     services: "",
   });
 
-  const setBasicField = (field) => (value) => setBasic((p) => ({ ...p, [field]: value }));
-  const setStudioField = (field) => (value) => setStudio((p) => ({ ...p, [field]: value }));
-  const setPortfolioField = (field) => (value) => setPortfolio((p) => ({ ...p, [field]: value }));
+  const setBasicField = (field: keyof typeof basic) => (value: string) =>
+    setBasic((p) => ({ ...p, [field]: value }));
+  const setStudioField = (field: keyof typeof studio) => (value: string) =>
+    setStudio((p) => ({ ...p, [field]: value }));
+  const setPortfolioField = (field: keyof typeof portfolio) => (value: string) =>
+    setPortfolio((p) => ({ ...p, [field]: value }));
 
   const kycFields = DOC_FIELDS[kyc.docType] || [];
 
@@ -222,6 +263,7 @@ function OnboardingModal({ prefill, onComplete }) {
                   {kycFields.map((f) => (
                     <TextInput
                       key={f.key}
+                      icon={undefined}
                       label={f.label}
                       required={f.required}
                       placeholder={f.placeholder}

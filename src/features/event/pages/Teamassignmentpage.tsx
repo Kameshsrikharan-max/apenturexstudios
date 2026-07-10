@@ -20,14 +20,24 @@ const STEPS = [
 
 const ROLES = ["Photographer", "Videographer", "Drone Operator", "Assistant"];
 
-const INTERNAL_MEMBERS = [
+type Member = {
+  id: number;
+  name: string;
+  email: string;
+  mobile: string;
+  city: string;
+  services?: string[];
+  specialization?: string;
+};
+
+const INTERNAL_MEMBERS: Member[] = [
   { id: 1, name: "Chan Admin",   email: "dojiji1640@availors.com", mobile: "8383838383", city: "Gowriwakkam, Sembakkam" },
   { id: 2, name: "Studio Admin", email: "nacene4338@availors.com", mobile: "8383838383", city: "Gowriwakkam, Sembakkam" },
   { id: 3, name: "Ravi Kumar",   email: "ravi.kumar@availors.com", mobile: "9900112233", city: "Chennai, Adyar" },
   { id: 4, name: "Priya Sharma", email: "priya.s@availors.com",    mobile: "9812345678", city: "Bangalore, Koramangala" },
 ];
 
-const FREELANCE_MEMBERS = [
+const FREELANCE_MEMBERS: Member[] = [
   { id: 10, name: "Photographer Chandran", email: "netimili94@bmoar.com", mobile: "3838383678", city: "Gowriwakkam, Sembakkam", services: ["Photoshoot", "+8 more"], specialization: "Portrait" },
   { id: 11, name: "Arjun Freelance",       email: "arjun.free@mail.com",  mobile: "9988776655", city: "Chennai, T.Nagar",        services: ["Drone", "Candid"],         specialization: "Wedding" },
   { id: 12, name: "Lakshmi Captures",      email: "lakshmi@capture.io",   mobile: "8877665544", city: "Coimbatore, RS Puram",    services: ["Traditional"],             specialization: "Events" },
@@ -61,17 +71,28 @@ function Avatar({ name, size = 36 }) {
 
 
 
-export default function TeamAssignmentPage({ user }) {
+type TeamAssignmentPageProps = {
+  user?: any;
+  event?: any;
+  onPrevious?: () => void;
+  onNext?: (assignedList: Member[]) => void;
+};
+
+export default function TeamAssignmentPage({ user, event: eventProp, onPrevious, onNext }: TeamAssignmentPageProps) {
   const navigate = useNavigate();
 
-  const [event, setEvent] = useState(null);
+  const [event, setEvent] = useState<any>(eventProp ?? null);
 
   useEffect(() => {
+    if (eventProp) {
+      setEvent(eventProp);
+      return;
+    }
     try {
       const raw = sessionStorage.getItem("currentEvent");
       if (raw) setEvent(JSON.parse(raw));
     } catch {}
-  }, []);
+  }, [eventProp]);
 
   const eventServices = event?.selectedServices || [];
   const serviceOptions = eventServices.length > 0
@@ -97,7 +118,7 @@ export default function TeamAssignmentPage({ user }) {
   const [serviceOpen,   setServiceOpen]   = useState(false);
   const [roleMap,       setRoleMap]       = useState({});
 
-  const assignMember = (member) => {
+  const assignMember = (member: Member) => {
     if (assignedTeam.find(m => m.id === member.id)) return;
     const role = roleMap[member.id] || "Photographer";
     setAssignedTeam(prev => [
@@ -106,9 +127,9 @@ export default function TeamAssignmentPage({ user }) {
     ]);
   };
 
-  const removeMember  = (id) => setAssignedTeam(prev => prev.filter(m => m.id !== id));
-  const updateRole    = (id, role)    => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, role }    : m));
-  const updateService = (id, service) => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, service } : m));
+  const removeMember  = (id: number) => setAssignedTeam(prev => prev.filter(m => m.id !== id));
+  const updateRole    = (id: number, role: string)    => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, role }    : m));
+  const updateService = (id: number, service: string) => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, service } : m));
 
   const handleSaveAndContinue = () => {
     try {
@@ -118,15 +139,27 @@ export default function TeamAssignmentPage({ user }) {
         ...curr, _assignedTeam: assignedTeam, _step: "team-assignment",
       }));
     } catch {}
+    if (onNext) {
+      onNext(assignedTeam);
+      return;
+    }
     navigate("/events/create/payment");
   };
 
-  const filteredInternal = INTERNAL_MEMBERS.filter(m => {
+  const handlePrevious = () => {
+    if (onPrevious) {
+      onPrevious();
+      return;
+    }
+    navigate("/events/create");
+  };
+
+  const filteredInternal: Member[] = INTERNAL_MEMBERS.filter(m => {
     const q = search.toLowerCase();
     return m.name.toLowerCase().includes(q) || m.mobile.includes(q) || m.email.toLowerCase().includes(q);
   });
 
-  const filteredFreelance = FREELANCE_MEMBERS.filter(m => {
+  const filteredFreelance: Member[] = FREELANCE_MEMBERS.filter(m => {
     const q = search.toLowerCase();
     return (
       (m.name.toLowerCase().includes(q) || m.mobile.includes(q)) &&
@@ -135,8 +168,8 @@ export default function TeamAssignmentPage({ user }) {
     );
   });
 
-  const isAssigned = (id) => !!assignedTeam.find(a => a.id === id);
-  const listData   = tab === "internal" ? filteredInternal : filteredFreelance;
+  const isAssigned = (id: number) => !!assignedTeam.find(a => a.id === id);
+  const listData: Member[] = tab === "internal" ? filteredInternal : filteredFreelance;
 
   return (
     <main className="tap-page">
@@ -144,7 +177,7 @@ export default function TeamAssignmentPage({ user }) {
 
       
         <header className="tap-topbar">
-          <button className="tap-back" type="button" onClick={() => navigate("/events/create")}>
+          <button className="tap-back" type="button" onClick={handlePrevious}>
             <DoubleLeftOutlined /> Back
           </button>
 
@@ -456,7 +489,7 @@ export default function TeamAssignmentPage({ user }) {
             </section>
 
             <footer className="tap-actions">
-              <button className="tap-secondary" type="button" onClick={() => navigate("/events/create")}>
+              <button className="tap-secondary" type="button" onClick={handlePrevious}>
                 <ArrowLeftOutlined /> Previous
               </button>
               <button className="tap-primary" type="button" onClick={handleSaveAndContinue}>

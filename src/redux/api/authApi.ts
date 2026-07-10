@@ -4,7 +4,7 @@ const MOCK_DELAY_MS = 700;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms)); 
 }
 
 function makeToken(email) {

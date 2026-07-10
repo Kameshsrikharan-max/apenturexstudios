@@ -67,7 +67,7 @@ function buildStudioFromOnboarding(formData) {
 }
 
 function OnboardingGate({ children }) {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: any) => state.auth);
   const email = user?.email || "guest@apenturexstudios.com";
 
   const [completed, setCompleted] = useState(() =>

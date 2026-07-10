@@ -1,21 +1,6 @@
-/* ==========================================================================
-   Backdrop and Base Sidebar Layout
-   ========================================================================== */
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1090;
-  pointer-events: none;
-  opacity: 0;
-  background: rgba(2, 6, 23, 0.55);
-  backdrop-filter: blur(4px);
-  transition: 0.3s ease;
-}
+.sidebar-backdrop {position: fixed;inset: 0;z-index: 1090;pointer-events: none;opacity: 0;background: rgba(2, 6, 23, 0.55);backdrop-filter: blur(4px);transition: 0.3s ease;}
 
-.sidebar-backdrop-open {
-  opacity: 1;
-  pointer-events: auto;
-}
+.sidebar-backdrop-open {opacity: 1;pointer-events: auto;}
 
 .studio-sidebar {
   position: fixed !important;
@@ -43,19 +28,12 @@
   font-family: "Times New Roman", Times, serif !important;
 }
 
-.studio-sidebar-open {
-  transform: translateX(0) scale(1);
-  animation: sidebarSoftBounce 0.72s cubic-bezier(0.19, 1, 0.22, 1) both;
-}
+.studio-sidebar-open {transform: translateX(0) scale(1);animation: sidebarSoftBounce 0.72s cubic-bezier(0.19, 1, 0.22, 1) both;}
 
-/* ==========================================================================
-   Theme Variations (Dark & Light)
-   ========================================================================== */
 .studio-sidebar-dark {
-  background:
-    radial-gradient(circle at 50% 4%, rgba(56, 189, 248, 0.28), transparent 32%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 13, 24, 0.98)) !important;
-}
+  
+  
+  background:radial-gradient(circle at 50% 4%, rgba(56, 189, 248, 0.28), transparent 32%),linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 13, 24, 0.98)) !important;}
 
 .studio-sidebar-light {
   background:
@@ -67,9 +45,7 @@
   font-family: "Times New Roman", Times, serif !important;
 }
 
-/* ==========================================================================
-   Creative Glow Layers
-   ========================================================================== */
+
 .studio-sidebar::before {
   content: "";
   position: absolute;
@@ -98,9 +74,7 @@
   pointer-events: none;
 }
 
-/* ==========================================================================
-   Header and Branding Components
-   ========================================================================== */
+
 .studio-sidebar-brand {
   min-height: 94px;
   display: flex;
@@ -170,9 +144,7 @@
   text-shadow: 0 0 18px rgba(14, 165, 233, 0.22);
 }
 
-/* ==========================================================================
-   Navigation Menu Item Styles
-   ========================================================================== */
+
 .studio-sidebar-menu {
   position: relative;
   z-index: 1;
@@ -258,18 +230,11 @@
 .studio-sidebar-menu .ant-menu-item-selected .sidebar-menu-icon {
   animation: selectedIconGlow 1.8s ease-in-out infinite;
 }
-
-/* ==========================================================================
-   Ant Design Popover/Tooltip Uniformity
-   ========================================================================== */
 .ant-tooltip,
 .ant-tooltip-inner {
   font-family: "Times New Roman", Times, serif !important;
 }
 
-/* ==========================================================================
-   Animation Keyframes
-   ========================================================================== */
 @keyframes sidebarSoftBounce {
   0% {
     transform: translateX(-110%) scale(0.96);

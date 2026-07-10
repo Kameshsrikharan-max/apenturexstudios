@@ -1,80 +1,47 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  DashboardOutlined,
-  StarOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  MailOutlined,
-  ShopOutlined,
-  CameraOutlined,
-} from "@ant-design/icons";
+import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,} from "@ant-design/icons";
 
 import "./Sidebar.css";
 
 const { Sider } = Layout;
 const { Text } = Typography;
 
+interface SidebarProps {
+  dark?: boolean;
+  open?: boolean;
+  onClose?: () => void;
+  onCalendarOpen?: () => void;
+}
+
 const Sidebar = ({
   dark = false,
   open = false,
   onClose,
   onCalendarOpen,
-}) => {
+}: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [
-    {
-      key: "dashboard",
-      icon: <DashboardOutlined />,
-      label: "Dashboard",
-      path: "/dashboard",
-    },
-    {
-      key: "review",
-      icon: <StarOutlined />,
-      label: "Review",
-      path: "/review",
-    },
-    {
-      key: "users",
-      icon: <UserOutlined />,
-      label: "Users",
-      path: "/users",
-    },
-    {
-      key: "events",
-      icon: <CalendarOutlined />,
-      label: "Events",
-      path: "/events",
-    },
-    {
-      key: "enquiry",
-      icon: <MailOutlined />,
-      label: "Enquiry",
-      path: "/enquiry",
-    },
-    {
-      key: "media",
-      icon: <CameraOutlined />,
-      label: "Media Library",
-      path: "/media",
-    },
-    {
-      key: "studio",
-      icon: <ShopOutlined />,
-      label: "My Studio",
-      path: "/studio/view",
-    },
+    {key: "dashboard",icon: <DashboardOutlined />,label: "Dashboard",path: "/dashboard",},
+
+    {key: "review",icon: <StarOutlined />,label: "Review",path: "/review",},
+
+    {key: "users",icon: <UserOutlined />,label: "Users",path: "/users",},
+
+    {key: "events",icon: <CalendarOutlined />,label: "Events",path: "/events",},
+
+    {key: "calendar",icon: <ScheduleOutlined />,label: "Calendar",path: "/calendar",},
+
+    {key: "enquiry",icon: <MailOutlined />,label: "Enquiry",path: "/enquiry",},
+
+    {key: "media",icon: <CameraOutlined />,label: "Media Library",path: "/media",},
+
+    {key: "studio",icon: <ShopOutlined />,label: "My Studio",path: "/studio/view",},
   ];
 
   const handleMenuClick = ({ key }) => {
-    // Open calendar when Events is clicked
-    if (key === "events") {
-      onCalendarOpen?.();
-    }
-
     const item = menuItems.find(
       (menuItem) => menuItem.key === key
     );

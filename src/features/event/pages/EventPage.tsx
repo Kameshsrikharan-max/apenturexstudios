@@ -1,42 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Avatar,
-  Button,
-  ConfigProvider,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Popover,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-} from "antd";
-import {
-  AppstoreOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CopyOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  FilterOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  TableOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  UnorderedListOutlined,
-} from "@ant-design/icons";
+import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
+import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,PlusOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
 import "./EventPage.css";
-import TeamAssignmentPage from "./TeamAssignmentPage";
+import TeamAssignmentPage from "./Teamassignmentpage";
 import { getEvents } from "../../../redux/actions/eventActions";
 
 const { Title, Text } = Typography;
@@ -106,7 +74,7 @@ const readStoredEvents = () => {
   }
 };
 
-const saveStoredEvents = (events) => {
+const saveStoredEvents = (events: any[]) => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
 };
@@ -121,7 +89,7 @@ const eventTypes = [
   "Engagement",
 ];
 
-const statusMeta = {
+const statusMeta: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
   DRAFT: {
     icon: <EditOutlined />,
     color: "#cbd5e1",
@@ -144,14 +112,14 @@ const statusMeta = {
   },
 };
 
-const pipelineColor = {
+const pipelineColor: Record<string, string> = {
   Converted: "#86efac",
   Booked: "#7dd3fc",
   Proposal: "#fbbf24",
   Delivered: "#c4b5fd",
 };
 
-const escapeRegExp = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export default function EventPage() {
   const navigate = useNavigate();
@@ -159,19 +127,19 @@ export default function EventPage() {
 
   // Redux event list (fetched via mock API for now)
   const { events: reduxEvents, loading: reduxLoading } = useSelector(
-    (state) => state.event
+    (state: any) => state.event
   );
 
-  const [events, setEvents] = useState(() => readStoredEvents());
+  const [events, setEvents] = useState<any[]>(() => readStoredEvents());
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [viewMode, setViewMode] = useState("table");
   const [filterOpen, setFilterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [viewEvent, setViewEvent] = useState(null);
-  const [editEvent, setEditEvent] = useState(null);
+  const [viewEvent, setViewEvent] = useState<any>(null);
+  const [editEvent, setEditEvent] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [assignEvent, setAssignEvent] = useState(null);
+  const [assignEvent, setAssignEvent] = useState<any>(null);
 
   const [form] = Form.useForm();
 
@@ -204,7 +172,7 @@ export default function EventPage() {
           acc[e.status] = (acc[e.status] || 0) + 1;
           return acc;
         },
-        { All: 0, DRAFT: 0, PLANNED: 0, LIVE: 0, DONE: 0 }
+        { All: 0, DRAFT: 0, PLANNED: 0, LIVE: 0, DONE: 0 } as Record<string, number>
       ),
     [events]
   );
@@ -222,7 +190,7 @@ export default function EventPage() {
     });
   }, [activeStatus, events, searchTerm]);
 
-  const highlightText = (value) => {
+  const highlightText = (value: any) => {
     if (!searchTerm.trim()) return value;
 
     const regex = new RegExp(`(${escapeRegExp(searchTerm.trim())})`, "gi");
@@ -244,13 +212,13 @@ export default function EventPage() {
     navigate("/events/create");
   };
 
-  const openEdit = (event) => {
+  const openEdit = (event: any) => {
     setEditEvent(event);
     form.setFieldsValue(event);
     setCreateOpen(true);
   };
 
-  const handleSave = (values) => {
+  const handleSave = (values: any) => {
     const clean = { ...values, members: Number(values.members || 0) };
 
     if (editEvent) {
@@ -274,7 +242,7 @@ export default function EventPage() {
     }, 650);
   };
 
-  const copyEventToClipboard = async (event) => {
+  const copyEventToClipboard = async (event: any) => {
     const text = [
       `Event: ${event.name}`,
       `Date: ${event.date}`,
@@ -294,7 +262,7 @@ export default function EventPage() {
     }
   };
 
-  const handleAssignSave = (assignedList) => {
+  const handleAssignSave = (assignedList: any[]) => {
     setEvents((prev) =>
       prev.map((e) =>
         e.id === assignEvent?.id ? { ...e, members: assignedList.length } : e
@@ -303,13 +271,13 @@ export default function EventPage() {
     setAssignEvent(null);
   };
 
-  const renderStatus = (status) => {
+  const renderStatus = (status: string) => {
     const meta = statusMeta[status] || statusMeta.DRAFT;
 
     return (
       <Tag
         className="event-status-tag"
-        style={{ "--tag-color": meta.color, "--tag-bg": meta.bg }}
+        style={{ "--tag-color": meta.color, "--tag-bg": meta.bg } as React.CSSProperties}
       >
         {meta.icon}
         {status}
@@ -317,10 +285,10 @@ export default function EventPage() {
     );
   };
 
-  const renderPipeline = (pipeline) => (
+  const renderPipeline = (pipeline: string) => (
     <Tag
       className="event-pipeline-tag"
-      style={{ "--pipeline-color": pipelineColor[pipeline] || "#93c5fd" }}
+      style={{ "--pipeline-color": pipelineColor[pipeline] || "#93c5fd" } as React.CSSProperties}
     >
       {pipeline}
     </Tag>
@@ -350,9 +318,9 @@ export default function EventPage() {
       title: "Event Name",
       dataIndex: "name",
       key: "name",
-      sorter: (a, b) => a.name.localeCompare(b.name),
+      sorter: (a: any, b: any) => a.name.localeCompare(b.name),
       width: 190,
-      render: (text, record) => (
+      render: (text: string, record: any) => (
         <button
           type="button"
           className="event-name-cell"
@@ -372,37 +340,37 @@ export default function EventPage() {
       title: "Date",
       dataIndex: "date",
       key: "date",
-      sorter: (a, b) => a.date.localeCompare(b.date),
+      sorter: (a: any, b: any) => a.date.localeCompare(b.date),
       width: 128,
-      render: (t) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Time",
       dataIndex: "time",
       key: "time",
       width: 104,
-      render: (t) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Address",
       dataIndex: "address",
       key: "address",
       width: 180,
-      render: (t) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "City",
       dataIndex: "city",
       key: "city",
       width: 134,
-      render: (t) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Customer",
       dataIndex: "customer",
       key: "customer",
       width: 130,
-      render: (t) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Status",
@@ -423,7 +391,7 @@ export default function EventPage() {
       dataIndex: "members",
       key: "members",
       width: 150,
-      render: (members) => (
+      render: (members: number) => (
         <Tag className="event-member-tag">
           <TeamOutlined />
           {members}
@@ -433,9 +401,9 @@ export default function EventPage() {
     {
       title: "",
       key: "actions",
-      fixed: "right",
+      fixed: "right" as const,
       width: 92,
-      render: (_, record) => (
+      render: (_: any, record: any) => (
         <Space size={4} className="event-row-actions">
           <Tooltip title="Assign members">
             <Button
@@ -464,6 +432,7 @@ export default function EventPage() {
         theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 8 } }}
       >
         <TeamAssignmentPage
+          user={undefined}
           event={assignEvent}
           onPrevious={() => setAssignEvent(null)}
           onNext={handleAssignSave}
@@ -870,7 +839,7 @@ export default function EventPage() {
   );
 }
 
-const InfoTile = ({ icon, label, value }) => (
+const InfoTile = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: any }) => (
   <div className="event-info-tile">
     <span>{icon}</span>
     <small>{label}</small>

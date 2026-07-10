@@ -15,7 +15,6 @@ function* handleLogin(action) {
   try {
     const data = yield call(loginApi, action.payload);
 
-    // Save to localStorage so a refresh doesn't log the user out
     localStorage.setItem("user", JSON.stringify(data.user));
     localStorage.setItem("token", data.token);
 
@@ -38,7 +37,7 @@ function* handleSignup(action) {
   }
 }
 
-function* handleLogout() {
+function handleLogout() {
   localStorage.removeItem("user");
   localStorage.removeItem("token");
 }

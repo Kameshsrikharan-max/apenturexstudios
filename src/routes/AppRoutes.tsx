@@ -10,18 +10,40 @@ import CreateEventPage      from "../features/event/pages/CreateEventPage";
 import TeamAssignmentPage   from "../features/event/pages/Teamassignmentpage";
 import PaymentPage          from "../features/event/pages/PaymentPage";
 import AttendancePage       from "../features/event/pages/Attendancepage";
-import MediaManagementPage  from "../features/event/pages/Mediamanagement.jsx";
+import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
 import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
-import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.jsx";
+import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
 import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
 import CalendarPage         from "../components/UI/CalendarPage";              
 import MainLayout           from "../components/Layout/MainLayout";
 
+// Cast to `any` so these components can accept extra props (e.g. `user`)
+// without TypeScript enforcing each page's individual prop signature here.
+// This is a pragmatic bridge — the real fix is adding proper prop types
+// inside each page component itself.
+const LoginPageAny: any = LoginPage;
+const DashboardPageAny: any = DashboardPage;
+const ReviewPageAny: any = ReviewPage;
+const UsersPageAny: any = UsersPage;
+const EventPageAny: any = EventPage;
+const CreateEventPageAny: any = CreateEventPage;
+const TeamAssignmentPageAny: any = TeamAssignmentPage;
+const PaymentPageAny: any = PaymentPage;
+const AttendancePageAny: any = AttendancePage;
+const MediaManagementPageAny: any = MediaManagementPage;
+const AlbumSelectionPageAny: any = AlbumSelectionPage;
+const EventClosurePageAny: any = EventClosurePage;
+const EnquiryPageAny: any = EnquiryPage;
+const MediaLibraryPageAny: any = MediaLibraryPage;
+const ProfilePageAny: any = ProfilePage;
+const ViewStudioPageAny: any = ViewStudioPage;
+const CalendarPageAny: any = CalendarPage;
 
-function ProtectedLayout({ isAuthenticated, user, onLogout }) {
+
+function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
@@ -34,7 +56,7 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }) {
 }
 
 
-export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) {
+export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: any) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,7 +74,7 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
         path="/"
         element={
           !isAuthenticated ? (
-            <LoginPage onLogin={onLogin} />
+            <LoginPageAny onLogin={onLogin} />
           ) : (
             <Navigate to="/dashboard" replace />
           )
@@ -70,58 +92,58 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }) 
         }
       >
       
-        <Route path="/dashboard" element={<DashboardPage user={user} />} />
+        <Route path="/dashboard" element={<DashboardPageAny user={user} />} />
 
       
-        <Route path="/review" element={<ReviewPage user={user} />} />
+        <Route path="/review" element={<ReviewPageAny user={user} />} />
 
         
-        <Route path="/users" element={<UsersPage user={user} />} />
+        <Route path="/users" element={<UsersPageAny user={user} />} />
 
       
-        <Route path="/events"        element={<EventPage user={user} />} />
-        <Route path="/events/create" element={<CreateEventPage user={user} />} />
+        <Route path="/events"        element={<EventPageAny user={user} />} />
+        <Route path="/events/create" element={<CreateEventPageAny user={user} />} />
 
     
         <Route
           path="/events/create/team-assignment"
-          element={<TeamAssignmentPage user={user} />}
+          element={<TeamAssignmentPageAny user={user} />}
         />
         <Route
           path="/events/create/payment"
-          element={<PaymentPage user={user} />}
+          element={<PaymentPageAny user={user} />}
         />
         <Route
           path="/events/create/attendance"
-          element={<AttendancePage user={user} />}
+          element={<AttendancePageAny user={user} />}
         />
         <Route
           path="/events/create/media"
-          element={<MediaManagementPage user={user} />}
+          element={<MediaManagementPageAny user={user} />}
         />
         <Route
           path="/events/create/album"
-          element={<AlbumSelectionPage user={user} />}
+          element={<AlbumSelectionPageAny user={user} />}
         />
 
       
         <Route
           path="/events/create/closure"
-          element={<EventClosurePage user={user} />}
+          element={<EventClosurePageAny user={user} />}
         />
 
       
-        <Route path="/enquiry" element={<EnquiryPage user={user} />} />
+        <Route path="/enquiry" element={<EnquiryPageAny user={user} />} />
 
       
-        <Route path="/media" element={<MediaLibraryPage user={user} />} />
+        <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
 
         
-        <Route path="/profile"     element={<ProfilePage user={user} />} />
-        <Route path="/studio/view" element={<ViewStudioPage user={user} />} />
+        <Route path="/profile"     element={<ProfilePageAny user={user} />} />
+        <Route path="/studio/view" element={<ViewStudioPageAny user={user} />} />
 
       
-        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/calendar" element={<CalendarPageAny />} />
       </Route>
 
     

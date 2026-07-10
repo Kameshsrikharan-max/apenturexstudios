@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import "./PaymentPage.css";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Constants ───
 
 const STEPS = [
   { label: "Event Details",   icon: <PlusOutlined /> },
@@ -21,7 +21,7 @@ const STEPS = [
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
 
-// ─── sessionStorage helpers ───────────────────────────────────────────────────
+// ─── sessionStorage helpers ──────
 
 function loadEvent() {
   try {
@@ -30,12 +30,8 @@ function loadEvent() {
   } catch { return null; }
 }
 
-/**
- * Save payments keyed to the current event so stale payments
- * from a previous session never bleed into a new event.
- */
+
 function getPaymentKey(event) {
-  // Use event _createdAt as a unique key; fall back to eventName
   return `eventPayments__${event?._createdAt || event?.eventName || "default"}`;
 }
 
@@ -47,10 +43,7 @@ function savePayments(payments, event) {
 }
 }
 
-/**
- * Load payments ONLY for this specific event.
- * Returns [] if nothing found — never returns another event's data.
- */
+
 function loadPayments(event) {
   try {
     const raw = sessionStorage.getItem(getPaymentKey(event));
@@ -58,7 +51,7 @@ function loadPayments(event) {
   } catch { return []; }
 }
 
-// ─── Amount formatting helpers ────────────────────────────────────────────────
+// ─── Amount formatting helpers ───
 
 function formatIndianAmount(value) {
   const digits = value.replace(/\D/g, "");
@@ -72,9 +65,9 @@ function stripCommas(value) {
   return String(value).replace(/,/g, "");
 }
 
-// ─── Shared UI atoms ──────────────────────────────────────────────────────────
+// ─── Shared UI atoms ───
 
-function EmptyState({ message, action }) {
+function EmptyState({ message, action }: { message: string; action?: React.ReactNode }) {
   return (
     <div className="pp-empty-state">
       <div className="pp-empty-icon"><InboxOutlined /></div>
@@ -84,7 +77,7 @@ function EmptyState({ message, action }) {
   );
 }
 
-function StatCard({ label, value, color, sub }) {
+function StatCard({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
   return (
     <div className="pp-stat-card">
       <span className="pp-stat-label">{label}</span>
@@ -94,7 +87,7 @@ function StatCard({ label, value, color, sub }) {
   );
 }
 
-// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+// ─── Delete Confirm Modal ────
 
 function DeleteConfirmModal({ payment, onConfirm, onCancel }) {
   return (
@@ -128,14 +121,8 @@ function DeleteConfirmModal({ payment, onConfirm, onCancel }) {
   );
 }
 
-// ─── Record / Edit Payment Modal ──────────────────────────────────────────────
-
-/**
- * All form fields start EMPTY — no pre-fill from event data.
- * Only eventAmount is used for validation (remaining balance check).
- */
 function validatePaymentForm(form, eventAmount, alreadyPaid, editingId, allPayments) {
-  const errors = {};
+  const errors: any = {};
 
   const rawAmount = stripCommas(String(form.amount || "")).trim();
   if (!rawAmount) {
@@ -185,10 +172,6 @@ function RecordPaymentModal({
 }) {
   const isEdit = !!editingPayment;
 
-  /**
-   * For NEW payments: all fields start blank — no auto-fill from event data.
-   * For EDIT: pre-fill only the payment's own stored values.
-   */
   const [form, setForm] = useState(() => {
     if (isEdit) {
       return {
@@ -197,12 +180,12 @@ function RecordPaymentModal({
         notes:  editingPayment.notes || "",
       };
     }
-    // Always blank for new entry
+    
     return { amount: "", date: "", notes: "" };
   });
 
-  const [errors, setErrors]             = useState({});
-  const [touched, setTouched]           = useState({});
+  const [errors, setErrors]             = useState<any>({});
+  const [touched, setTouched]           = useState<any>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const touch = (field) => setTouched(t => ({ ...t, [field]: true }));
@@ -243,7 +226,7 @@ function RecordPaymentModal({
     onSave({
       id:          isEdit ? editingPayment.id : Date.now(),
       description: "Customer Payment",
-      amount:      stripCommas(form.amount), // store raw number string
+      amount:      stripCommas(form.amount), 
       date:        form.date,
       notes:       form.notes.trim(),
       status:      "Received",
@@ -371,13 +354,7 @@ function RecordPaymentModal({
   );
 }
 
-// ─── Financial Overview Tab ───────────────────────────────────────────────────
 
-/**
- * Stats (Total Received, Balance Due, Amount Remaining) reflect ONLY
- * payments that have been explicitly recorded via the modal.
- * Before any payment is recorded, all three show ₹0.
- */
 function FinancialOverviewTab({ payments, expenses, eventAmount }) {
   const totalReceived = payments
     .filter(p => p.status === "Received")
@@ -485,7 +462,7 @@ function FinancialOverviewTab({ payments, expenses, eventAmount }) {
   );
 }
 
-// ─── Customer Payments Tab ────────────────────────────────────────────────────
+// ─── Customer Payments Tab ───
 
 function CustomerPaymentsTab({
   payments,
@@ -525,7 +502,7 @@ function CustomerPaymentsTab({
   const handleDeleteClick  = (payment) => setDeleteTarget(payment);
   const handleDeleteConfirm = () => {
     if (deleteTarget) {
-      onDeletePayment(deleteTarget.id);
+      onDeletePayment((deleteTarget as any).id);
       setDeleteTarget(null);
     }
   };
@@ -664,7 +641,7 @@ function CustomerPaymentsTab({
   );
 }
 
-// ─── Expenses & Payouts Tab ───────────────────────────────────────────────────
+// ─── Expenses & Payouts Tab ────
 
 function ExpensesPayoutsTab() {
   return (
@@ -724,19 +701,14 @@ function ExpensesPayoutsTab() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+
 
 export default function PaymentPage() {
   const navigate = useNavigate();
 
-  // Load event — only eventAmountNumeric is used; nothing else auto-fills
   const [event] = useState(() => loadEvent());
   const eventAmount = event?.eventAmountNumeric ?? 0;
 
-  /**
-   * Payments are scoped to this specific event via a unique key.
-   * A brand-new event always starts with an empty payments list.
-   */
   const [payments, setPaymentsState] = useState(() => loadPayments(event));
 
   const setPayments = useCallback((updater) => {
@@ -772,7 +744,7 @@ export default function PaymentPage() {
     <main className="pp-page">
       <section className="pp-stage">
 
-        {/* ── Top bar ─────────────────────────────────────────────────── */}
+        {/* ── Top bar ── */}
         <header className="pp-topbar">
           <button className="pp-back" type="button" onClick={() => navigate(-1)}>
             <DoubleLeftOutlined /> Back
@@ -805,7 +777,7 @@ export default function PaymentPage() {
           </div>
         </header>
 
-        {/* ── Body ────────────────────────────────────────────────────── */}
+        {/* ── Body ── */}
         <div className="pp-body">
 
           {/* Side rail */}

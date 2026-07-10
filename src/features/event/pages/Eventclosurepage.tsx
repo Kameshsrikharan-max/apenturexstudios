@@ -1,23 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-  ArrowLeftOutlined,
-  StarOutlined,
-  StarFilled,
-  FileTextOutlined,
-  DollarCircleOutlined,
-  FileOutlined,
-} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowLeftOutlined,StarOutlined,StarFilled,FileTextOutlined,DollarCircleOutlined,FileOutlined,} from "@ant-design/icons";
 import "./EventClosurePage.css";
 
 
@@ -187,7 +171,7 @@ function PortalDropdown({ anchorRef, open, options, value, onChange, onClose }) 
 }
 
 
-/* ── Custom Select ────────────────────────────────────────────────────────── */
+/* ── Custom Select ── */
 function CustomSelect({ placeholder, options, value, onChange }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef(null);
@@ -230,7 +214,7 @@ function CustomSelect({ placeholder, options, value, onChange }) {
 }
 
 
-/* ── Star Rating ──────────────────────────────────────────────────────────── */
+/* ── Star Rating ──*/
 function StarRating({ value, onChange }) {
   const [hovered, setHovered] = useState(0);
 
@@ -263,7 +247,7 @@ function StarRating({ value, onChange }) {
 }
 
 
-/* ── Page ─────────────────────────────────────────────────────────────────── */
+/* ── Page ── */
 export default function EventClosurePage() {
   const navigate = useNavigate();
   const location = useLocation();

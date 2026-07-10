@@ -173,13 +173,10 @@ const CalendarPage = ({ onClose }) => {
   }, [onClose, navigate]);
 
   const [userEvents, setUserEvents] = useState(() => readEventsFromStorage());
-
-  const holidayEvents = useSelector((state) => state.calendar.holidays);
-  const loading = useSelector((state) => state.calendar.holidaysLoading);
-
-
-  const rawPanchang = useSelector((state) => state.calendar.panchang);
-  const panchangLoading = useSelector((state) => state.calendar.panchangLoading);
+const holidayEvents = useSelector((state: any) => state.calendar.holidays);
+const loading = useSelector((state: any) => state.calendar.holidaysLoading);
+const rawPanchang = useSelector((state: any) => state.calendar.panchang);
+const panchangLoading = useSelector((state: any) => state.calendar.panchangLoading);
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
 

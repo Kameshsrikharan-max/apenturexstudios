@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Avatar,Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty,} from "antd";
-import {
-  SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,
-  EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, SendOutlined, UserSwitchOutlined, WarningOutlined,
-  EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
-  CameraOutlined, AppstoreOutlined, GoogleOutlined, ClockCircleOutlined, StarOutlined,
-  CloseOutlined, StarFilled, RobotOutlined, LoadingOutlined, BulbOutlined,
+import {SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, CheckCircleOutlined,
+  CloseCircleOutlined, SendOutlined, UserSwitchOutlined, WarningOutlined,EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
+  CameraOutlined, AppstoreOutlined, GoogleOutlined, ClockCircleOutlined, StarOutlined,CloseOutlined, StarFilled, RobotOutlined, LoadingOutlined, BulbOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./UsersPage.css";
@@ -369,7 +365,7 @@ const UserViewOverlay = ({ user, onClose }) => {
                       src={user.image}
                       alt={user.name}
                       onLoad={() => setImgLoaded(true)}
-                      onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "grid"; }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; (e.currentTarget.nextSibling as HTMLElement).style.display = "grid"; }}
                     />
                     <div className="uvo-profile-fallback" style={{ display: "none" }}>{user.name.charAt(0)}</div>
                   </>
@@ -541,7 +537,7 @@ const UsersPage = () => {
   }, [activeTab]);
 
   const filterCounts = useMemo(() => {
-    return filterOptions.reduce((acc, filter) => {
+    return filterOptions.reduce((acc: any, filter) => {
       acc[filter] = filter === "All"
         ? currentData.length
         : currentData.filter((item) => item.status === filter || item.signupType === filter).length;
@@ -644,7 +640,7 @@ const UsersPage = () => {
   const actionColumn = {
     title: "Actions",
     key: "actions",
-    fixed: "right",
+    fixed: "right" as const,
     width: 132,
     render: (_, record) => (
       <Space size={6} className="photographer-actions">

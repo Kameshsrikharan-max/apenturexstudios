@@ -409,7 +409,7 @@ function AlbumServiceCard({ service, albumData, onUpdate }) {
   const [open, setOpen] = useState(true);
   const [tplOpen, setTplOpen] = useState({});
   const [tplPos, setTplPos] = useState({});
-  const tplRefs = useRef({});
+  const tplRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const handler = event => {
@@ -597,12 +597,12 @@ export default function CreateEventPage() {
   };
 
   const [form, setForm] = useState(defaultForm);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<any>({});
   const [activeStep, setActiveStep] = useState(0);
   const [showCal, setShowCal] = useState(false);
   const [showTime, setShowTime] = useState(false);
-  const calRef = useRef();
-  const timeRef = useRef();
+  const calRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -647,7 +647,7 @@ export default function CreateEventPage() {
   const formatTimeDisplay = time => time ? `${time.h}:${time.m} ${time.ap}` : "";
 
   const validate = () => {
-    const nextErrors = {};
+    const nextErrors: any = {};
     const today = startOfDay(new Date());
 
     if (!form.eventName.trim()) nextErrors.eventName = "Event name is required";

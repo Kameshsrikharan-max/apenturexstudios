@@ -6,7 +6,7 @@ import "./ViewStudioPage.css";
 
 const { TextArea } = Input;
 
-/* Fallback data — only used the very first time, before onboarding/edits exist */
+
 const DEFAULT_STUDIO_DATA = {
   studioName: "Wave Studios",
   phoneNumber: "8888888888",
@@ -58,7 +58,7 @@ const specializationOptions = [
   { value: "Food Photography", label: "Food Photography" },
 ];
 
-function Field({ name, label, required, children }) {
+function Field({ name, label, required, children }: { name: any; label: any; required?: any; children: any }) {
   return (
     <Form.Item
       name={name}
@@ -92,8 +92,6 @@ export default function ViewStudioPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isRailOpen, setIsRailOpen] = useState(false);
 
-  // Loaded once on mount: whatever onboarding (or a previous edit) saved,
-  // falling back to the placeholder DEFAULT_STUDIO_DATA the very first time.
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
 
   const handleReset = () => {

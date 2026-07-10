@@ -1,30 +1,9 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-  ArrowRightOutlined,
-  ArrowLeftOutlined,
-  UploadOutlined,
-  CloseOutlined,
-  FileImageOutlined,
-  FolderOpenOutlined,
-  SendOutlined,
-  FlagOutlined,
-  InfoCircleOutlined,
-  CalendarOutlined,
-  AppstoreOutlined,
-} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,AppstoreOutlined,} from "@ant-design/icons";
 import "./AlbumSelectionPage.css";
 
-/* ─── Wizard steps ─── */
+
 const STEPS = [
   { label: "Event Details",   icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
@@ -35,7 +14,7 @@ const STEPS = [
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
 
-/* ─── Initial album data (mirrors screenshots) ─── */
+
 const INITIAL_ALBUMS = [
   {
     id: 1,
@@ -48,7 +27,7 @@ const INITIAL_ALBUMS = [
         sheets: 5,
         size: "16x12",
         photosRequired: 40,
-        curatedPhotos: [],
+        curatedPhotos: [] as { name: string; size: string; preview: string }[],
         reviewStage: 1, // 1=Draft, 2=In Review, 3=Submitted, 4=Finalized
         note: "",
         deadline: "",
@@ -60,7 +39,7 @@ const INITIAL_ALBUMS = [
         sheets: 5,
         size: "A4",
         photosRequired: 20,
-        curatedPhotos: [],
+        curatedPhotos: [] as { name: string; size: string; preview: string }[],
         reviewStage: 1,
         note: "",
         deadline: "",
@@ -71,9 +50,7 @@ const INITIAL_ALBUMS = [
 
 const STAGE_LABELS = ["Draft", "In Review", "Submitted", "Finalized"];
 
-/* ══════════════════════════════════════════
-   STAT CARD
-══════════════════════════════════════════ */
+/*STAT CARD */
 function StatCard({ label, value, color }) {
   return (
     <div className="as-stat-card">
@@ -83,9 +60,7 @@ function StatCard({ label, value, color }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   REVIEW STAGE STEPPER
-══════════════════════════════════════════ */
+/*REVIEW STAGE STEPPER*/
 function ReviewStepper({ stage }) {
   return (
     <div className="as-stepper">
@@ -111,9 +86,7 @@ function ReviewStepper({ stage }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   STAGED FILE PREVIEW
-══════════════════════════════════════════ */
+/* STAGED FILE PREVIEW */
 function StagedPreview({ files, onRemove }) {
   if (!files.length) return null;
   return (
@@ -135,9 +108,7 @@ function StagedPreview({ files, onRemove }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   CURATED PHOTO GALLERY
-══════════════════════════════════════════ */
+/* CURATED PHOTO GALLERY */
 function CuratedGallery({ photos, required }) {
   if (!photos.length) {
     return (
@@ -171,21 +142,21 @@ function CuratedGallery({ photos, required }) {
     </div>
   );
 }
-/* ══════════════════════════════════════════
-   TEMPLATE CARD
-══════════════════════════════════════════ */
+/* TEMPLATE CARD */
 function TemplateCard({ template, onUpdate }) {
-  const [stagedFiles, setStagedFiles] = useState([]);
-  const imgRef = useRef();
+  const [stagedFiles, setStagedFiles] = useState<
+    { name: string; size: string; preview: string }[]
+  >([]);
+  const imgRef = useRef<HTMLInputElement>(null);
 
-  const formatBytes = (b) => {
+  const formatBytes = (b: number) => {
     if (b < 1024)    return b + " B";
     if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
     return (b / 1048576).toFixed(1) + " MB";
   };
 
-  const handleAddPhotos = (e) => {
-    const picked = Array.from(e.target.files).map((f) => ({
+  const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []).map((f: File) => ({
       name:    f.name,
       size:    formatBytes(f.size),
       preview: URL.createObjectURL(f),
@@ -194,7 +165,7 @@ function TemplateCard({ template, onUpdate }) {
     e.target.value = "";
   };
 
-  const handleRemoveStaged = (idx) => {
+  const handleRemoveStaged = (idx: number) => {
     setStagedFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
@@ -353,9 +324,7 @@ function TemplateCard({ template, onUpdate }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════ */
+/* MAIN PAGE */
 export default function AlbumSelectionPage() {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(5); // step index 5 = Album
@@ -369,7 +338,7 @@ export default function AlbumSelectionPage() {
   const customerSelected = allTemplates.reduce((s, t) => s + (t.reviewStage >= 3 ? t.curatedPhotos.length : 0), 0);
   const pendingSelection = photosRequired - customerSelected;
 
-  const handleTemplateUpdate = (serviceIdx, templateId, patch) => {
+  const handleTemplateUpdate = (serviceIdx: number, templateId: number, patch: Record<string, any>) => {
     setAlbums((prev) =>
       prev.map((album, ai) =>
         ai !== serviceIdx

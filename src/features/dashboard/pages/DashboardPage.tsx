@@ -151,7 +151,7 @@ const metricCards = [
 ];
 
 const DashboardPage = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state: any) => state.auth);
   const displayEmail = user?.email || "guest@apenturexstudios.com";
   // Only show the part before "@" as the display name
   const displayName = displayEmail.split("@")[0];
@@ -212,7 +212,7 @@ const DashboardPage = () => {
 
       const today = new Date("2026-04-30");
       const eventDate = new Date(event.date);
-      const diffDays = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
       if (dateFilter === "Today") return diffDays === 0;
       if (dateFilter === "Week") return diffDays >= 0 && diffDays <= 7;

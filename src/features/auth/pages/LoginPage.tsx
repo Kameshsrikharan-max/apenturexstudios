@@ -30,7 +30,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
 
   const dispatch = useDispatch();
-  const { loading, error, user } = useSelector((state) => state.auth);
+  const { loading, error, user } = useSelector((state: any) => state.auth);
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [identifier, setIdentifier] = useState("");
@@ -118,31 +118,13 @@ export default function LoginPage({ onLogin, onSignUp }) {
     }
   }, [error]);
 
-  const formBoxVariants = {
-    hidden: {
-      opacity: 0,
-      scale: 0.8,
-      y: 50,
-      rotateX: -15,
-    },
-
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      rotateX: 0,
-
-      transition: {
-        type: "spring",
-        stiffness: 50,
-        damping: 15,
-        duration: 1,
-        staggerChildren: 0.12,
-        delayChildren: 0.4,
-      },
-    },
-  };
-
+const formBoxVariants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20, rotateX: -10 },
+  visible: {
+    opacity: 1, scale: 1, y: 0, rotateX: 0,
+    transition: { type: "spring", stiffness: 120, damping: 14, duration: 0.6, staggerChildren: 0.05, delayChildren: 0.1 },
+  },
+} as const;
   const itemVariants = {
     hidden: {
       opacity: 0,

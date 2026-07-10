@@ -1,31 +1,20 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import "./MediaLibraryPage.css";
 
-import {
-  PictureOutlined,
-  VideoCameraOutlined,
-  FolderOpenOutlined,
-  SearchOutlined,
-  FilterOutlined,
-  HeartOutlined,
-  HeartFilled,
-  DeleteOutlined,
-  UploadOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  CloseOutlined,
-  LeftOutlined,
-  RightOutlined,
-  EditOutlined,
-  PlusOutlined,
-  ZoomInOutlined,
-  ZoomOutOutlined,
-  ReloadOutlined,
-  CompassOutlined,
-  StarOutlined
-} from "@ant-design/icons";
+import {PictureOutlined,VideoCameraOutlined,FolderOpenOutlined,SearchOutlined,FilterOutlined,HeartOutlined,HeartFilled,DeleteOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,LeftOutlined,RightOutlined,EditOutlined,PlusOutlined,ZoomInOutlined,ZoomOutOutlined,ReloadOutlined,CompassOutlined,StarOutlined} from "@ant-design/icons";
 
-const initialMedia = [
+type MediaItem = {
+  id: number;
+  type: "photo" | "video";
+  title: string;
+  url: string;
+  liked: boolean;
+  albumId: number | null;
+};
+
+type Album = { id: number; title: string };
+
+const initialMedia: MediaItem[] = [
   {
     id: 1,
     type: "photo",
@@ -52,37 +41,37 @@ const initialMedia = [
   },
 ];
 
-const initialAlbums = [
+const initialAlbums: Album[] = [
   { id: 101, title: "Summer Vacation" },
   { id: 102, title: "Client Shoots" },
 ];
 
 export default function MediaLibraryPage() {
 
-  const [mediaList, setMediaList] = useState(() => {
+  const [mediaList, setMediaList] = useState<MediaItem[]>(() => {
     const saved = localStorage.getItem("persistent_media");
     return saved ? JSON.parse(saved) : initialMedia;
   });
 
-  const [albums, setAlbums] = useState(() => {
+  const [albums, setAlbums] = useState<Album[]>(() => {
     const saved = localStorage.getItem("persistent_albums");
     return saved ? JSON.parse(saved) : initialAlbums;
   });
 
 
   const [activeFolder, setActiveFolder] = useState("all");
-  const [selectedAlbumId, setSelectedAlbumId] = useState(null);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("grid");
   const [filterLikedOnly, setFilterLikedOnly] = useState(false);
 
 
-  const [previewIndex, setPreviewIndex] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [isRenameMode, setIsRenameMode] = useState(false);
   const [renameTitle, setRenameTitle] = useState("");
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isNavigating, setIsNavigating] = useState(null); 
+  const [isNavigating, setIsNavigating] = useState<string | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -127,10 +116,10 @@ export default function MediaLibraryPage() {
   }, [mediaList, activeFolder, selectedAlbumId, search, filterLikedOnly]);
 
   
-  const handleUpload = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach((file) => {
-      const fileType = file.type.startsWith("video/") ? "video" : "photo";
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    files.forEach((file: File) => {
+      const fileType: "photo" | "video" = file.type.startsWith("video/") ? "video" : "photo";
 
       if (activeFolder === "photo" && fileType !== "photo") {
         alert("Please upload image files only while inside the Photos tab view.");
@@ -143,11 +132,11 @@ export default function MediaLibraryPage() {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        const newItem = {
+        const newItem: MediaItem = {
           id: Date.now() + Math.random(),
           type: fileType,
           title: file.name.split(".").slice(0, -1).join(".") || "Untitled Resource",
-          url: reader.result,
+          url: reader.result as string,
           liked: false,
           albumId: activeFolder === "album" ? selectedAlbumId : null,
         };
@@ -164,7 +153,7 @@ export default function MediaLibraryPage() {
     setAlbums((prev) => [...prev, { id: Date.now(), title: name.trim() }]);
   };
 
-  const deleteAlbum = (id, e) => {
+  const deleteAlbum = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm("Delete this album container? Inside items will remain but safely unassigned.")) return;
     setAlbums((prev) => prev.filter((a) => a.id !== id));
@@ -174,14 +163,14 @@ export default function MediaLibraryPage() {
     if (selectedAlbumId === id) setSelectedAlbumId(null);
   };
 
-  const toggleLike = (id, e) => {
+  const toggleLike = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setMediaList((prev) =>
       prev.map((item) => (item.id === id ? { ...item, liked: !item.liked } : item))
     );
   };
 
-  const deleteMediaItem = (id, e) => {
+  const deleteMediaItem = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this file data permanently?")) return;
     setMediaList((prev) => prev.filter((item) => item.id !== id));
@@ -189,7 +178,7 @@ export default function MediaLibraryPage() {
     setIsRenameMode(false);
   };
 
-  const saveRename = (id) => {
+  const saveRename = (id: number) => {
     if (!renameTitle.trim()) return;
     setMediaList((prev) =>
       prev.map((item) => (item.id === id ? { ...item, title: renameTitle.trim() } : item))
@@ -198,7 +187,7 @@ export default function MediaLibraryPage() {
   };
 
   
-  const openPreview = (index) => {
+  const openPreview = (index: number) => {
     setPreviewIndex(index);
     setRenameTitle(displayedMedia[index].title);
     setZoomScale(1);
@@ -206,10 +195,10 @@ export default function MediaLibraryPage() {
     setIsRenameMode(false);
   };
 
-  const navigatePreview = (direction) => {
+  const navigatePreview = (direction: number) => {
     setIsNavigating(direction > 0 ? "right" : "left");
     setTimeout(() => {
-      let nextIndex = previewIndex + direction;
+      let nextIndex = (previewIndex ?? 0) + direction;
       if (nextIndex < 0) nextIndex = displayedMedia.length - 1;
       if (nextIndex >= displayedMedia.length) nextIndex = 0;
       setPreviewIndex(nextIndex);
@@ -235,13 +224,13 @@ export default function MediaLibraryPage() {
   };
 
   
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (zoomScale <= 1) return;
     setIsDragging(true);
     dragStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
     setPanOffset({
       x: e.clientX - dragStart.current.x,
@@ -410,7 +399,7 @@ export default function MediaLibraryPage() {
                 <div 
                   key={item.id} 
                   className="media-card sequential-node" 
-                  style={{ "--node-index": idx }}
+                  style={{ "--node-index": idx } as React.CSSProperties}
                   onClick={() => openPreview(idx)}
                 >
                   <div className="media-image-wrapper">
