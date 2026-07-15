@@ -11,8 +11,10 @@
   width: 96px !important;
   min-width: 96px !important;
   max-width: 96px !important;
-  min-height: 100vh;
-  padding: 26px 12px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
   overflow: hidden;
   transform: translateX(-110%) scale(0.96);
   transform-origin: left center;
@@ -76,11 +78,12 @@
 
 
 .studio-sidebar-brand {
-  min-height: 94px;
+  flex: 0 0 auto;
+  min-height: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 26px;
+  margin-bottom: 12px;
   position: relative;
   z-index: 1;
   animation: brandEnter 0.55s ease both;
@@ -96,13 +99,13 @@
 
 .studio-brand-mark {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  border-radius: 18px;
+  border-radius: 16px;
   color: #082f49;
-  font-size: 23px;
+  font-size: 21px;
   background: linear-gradient(135deg, #7dd3fc, #38bdf8, #0284c7);
   box-shadow:
     0 0 26px rgba(56, 189, 248, 0.42),
@@ -145,18 +148,34 @@
 }
 
 
+/* ---------------------------------------------------------------
+   Menu — now a flexible, internally-scrollable region so any
+   number of items stay reachable even on shorter viewports.
+   Scrollbar is hidden for a clean look, but scrolling still works
+   (mouse wheel, trackpad, touch drag).
+   --------------------------------------------------------------- */
 .studio-sidebar-menu {
   position: relative;
   z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: transparent !important;
   border-inline-end: none !important;
+  scrollbar-width: none;      /* Firefox */
+  -ms-overflow-style: none;   /* IE / old Edge */
+}
+
+.studio-sidebar-menu::-webkit-scrollbar {
+  display: none;              /* Chrome / Safari / new Edge */
 }
 
 .studio-sidebar-menu .ant-menu-item {
   width: 56px !important;
-  height: 50px;
-  line-height: 50px;
-  margin: 10px auto;
+  height: 46px;
+  line-height: 46px;
+  margin: 7px auto;
   padding: 0 !important;
   border-radius: 18px;
   overflow: visible;
@@ -165,6 +184,7 @@
   display: flex !important;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition:
     transform 0.28s ease,
     background 0.28s ease,
@@ -206,7 +226,7 @@
 
 .studio-sidebar-menu .ant-menu-item-icon {
   margin: 0 !important;
-  font-size: 22px !important;
+  font-size: 21px !important;
 }
 
 .studio-sidebar-menu .ant-menu-title-content {
@@ -215,10 +235,10 @@
 
 .sidebar-menu-icon {
   width: 56px;
-  height: 50px;
+  height: 46px;
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 21px;
   animation: iconRise 0.52s ease both;
   animation-delay: calc(var(--item-index) * 0.055s);
 }

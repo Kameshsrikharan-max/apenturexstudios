@@ -17,13 +17,10 @@ import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
 import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
-import CalendarPage         from "../components/UI/CalendarPage";              
+import CalendarPage         from "../components/UI/CalendarPage";
+import SubscriptionPage     from "../features/subscription/SubscriptionPage";
 import MainLayout           from "../components/Layout/MainLayout";
 
-// Cast to `any` so these components can accept extra props (e.g. `user`)
-// without TypeScript enforcing each page's individual prop signature here.
-// This is a pragmatic bridge — the real fix is adding proper prop types
-// inside each page component itself.
 const LoginPageAny: any = LoginPage;
 const DashboardPageAny: any = DashboardPage;
 const ReviewPageAny: any = ReviewPage;
@@ -41,6 +38,7 @@ const MediaLibraryPageAny: any = MediaLibraryPage;
 const ProfilePageAny: any = ProfilePage;
 const ViewStudioPageAny: any = ViewStudioPage;
 const CalendarPageAny: any = CalendarPage;
+const SubscriptionPageAny: any = SubscriptionPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -144,6 +142,9 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
 
       
         <Route path="/calendar" element={<CalendarPageAny />} />
+
+        
+        <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
       </Route>
 
     

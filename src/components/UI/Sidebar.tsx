@@ -1,6 +1,6 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,} from "@ant-design/icons";
+import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,} from "@ant-design/icons";
 
 import "./Sidebar.css";
 
@@ -39,6 +39,8 @@ const Sidebar = ({
     {key: "media",icon: <CameraOutlined />,label: "Media Library",path: "/media",},
 
     {key: "studio",icon: <ShopOutlined />,label: "My Studio",path: "/studio/view",},
+
+    {key: "subscription",icon: <CreditCardOutlined />,label: "Subscription",path: "/subscription",},
   ];
 
   const handleMenuClick = ({ key }) => {

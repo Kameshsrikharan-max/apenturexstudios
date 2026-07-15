@@ -3,12 +3,29 @@ import {useEffect,useMemo,useRef,useState,useCallback,useId,
   type CSSProperties,
   type ButtonHTMLAttributes,
   type KeyboardEvent as ReactKeyboardEvent,
+  type TouchEvent as ReactTouchEvent,
   type FormEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import dayjs, { type Dayjs } from "dayjs";
 import "./CalendarPage.css";
+
+// ---- Third-party calendar (react-big-calendar) ----
+import { Calendar, dayjsLocalizer, Views, type View } from "react-big-calendar";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import isBetween from "dayjs/plugin/isBetween";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import localizedFormat from "dayjs/plugin/localizedFormat";
+
+dayjs.extend(isBetween);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isSameOrAfter);
+dayjs.extend(localizedFormat);
+
+const rbcLocalizer = dayjsLocalizer(dayjs);
 
 import { getHolidays, getPanchang } from "../../redux/actions/calendarActions";
 
@@ -69,8 +86,6 @@ const VIEW_MODES: { value: ViewMode; label: string }[] = [
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
 ];
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 
 const TAMIL_MONTHS: TamilMonth[] = [
@@ -335,7 +350,6 @@ function Modal({ open, onClose, title, icon, children, footer, className = "" }:
   );
 }
 
-/* Minimal inline icon set (no external icon package needed) */
 const IconClose = () => (
   <svg viewBox="0 0 20 20" fill="none" width="16" height="16" aria-hidden="true">
     <path d="M15 5 5 15M5 5l10 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -394,10 +408,6 @@ const IconBack = () => (
   </svg>
 );
 
-/* -------------------------------------------------------------------------
-   Event chip / row — one generic set of markup for every place an event
-   appears, colored purely through CSS custom properties.
-   ---------------------------------------------------------------------- */
 
 function EventDot({ color }: { color: EventColor }) {
   return <span className="evt-dot" style={colorVars(color)} aria-hidden="true" />;
@@ -458,10 +468,6 @@ function EventRow({
   );
 }
 
-/* -------------------------------------------------------------------------
-   Create / edit event modal (single component used for both flows so the
-   form only exists once, instead of being duplicated inline per card)
-   ---------------------------------------------------------------------- */
 
 export interface EventFormValues {
   title: string;
@@ -618,10 +624,6 @@ function EventModal({ open, mode, date, initialValues, onClose, onSubmit, onDele
   );
 }
 
-/* -------------------------------------------------------------------------
-   Tamil panchang popover — now click/tap + keyboard driven instead of
-   hover-only, so it works on touch devices and for keyboard users.
-   ---------------------------------------------------------------------- */
 
 interface TamilPanchangBadgeProps {
   isOpen: boolean;
@@ -629,83 +631,175 @@ interface TamilPanchangBadgeProps {
   tamilInfo: TamilMonthInfo | null;
   panchang: PanchangFields | null | undefined;
   isPending: boolean;
+  variant?: "cell" | "header";
 }
 
-function TamilPanchangBadge({ isOpen, onToggle, tamilInfo, panchang, isPending }: TamilPanchangBadgeProps) {
+const TAMIL_POPOVER_WIDTH = 220;
+const TAMIL_POPOVER_EST_HEIGHT = 210;
+const TAMIL_POPOVER_GAP = 6;
+const TAMIL_POPOVER_VIEWPORT_PADDING = 10;
+
+function TamilPanchangBadge({
+  isOpen,
+  onToggle,
+  tamilInfo,
+  panchang,
+  isPending,
+  variant = "cell",
+}: TamilPanchangBadgeProps) {
   const hasPanchangInfo = !!panchang?.rahukaal?.start || !!panchang?.murtham?.start;
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+
+  const recalcPosition = useCallback(() => {
+    const el = badgeRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+
+    let left = rect.right - TAMIL_POPOVER_WIDTH;
+    left = Math.min(
+      Math.max(left, TAMIL_POPOVER_VIEWPORT_PADDING),
+      window.innerWidth - TAMIL_POPOVER_WIDTH - TAMIL_POPOVER_VIEWPORT_PADDING
+    );
+
+    let top = rect.bottom + TAMIL_POPOVER_GAP;
+    const overflowsBottom = top + TAMIL_POPOVER_EST_HEIGHT > window.innerHeight - TAMIL_POPOVER_VIEWPORT_PADDING;
+    if (overflowsBottom) {
+      // Not enough room below — flip to open above the badge instead.
+      const above = rect.top - TAMIL_POPOVER_EST_HEIGHT - TAMIL_POPOVER_GAP;
+      top = Math.max(above, TAMIL_POPOVER_VIEWPORT_PADDING);
+    }
+
+    setCoords({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCoords(null);
+      return undefined;
+    }
+    recalcPosition();
+    window.addEventListener("resize", recalcPosition);
+    window.addEventListener("scroll", recalcPosition, true);
+    return () => {
+      window.removeEventListener("resize", recalcPosition);
+      window.removeEventListener("scroll", recalcPosition, true);
+    };
+  }, [isOpen, recalcPosition]);
+
+  const touchHandledRef = useRef(false);
+
+  const stopEarly = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+  };
+
+  const handleTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    touchHandledRef.current = true;
+    onToggle();
+    window.setTimeout(() => {
+      touchHandledRef.current = false;
+    }, 350);
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (touchHandledRef.current) return;
+    onToggle();
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onToggle();
+  };
+
+  const popover =
+    isOpen && tamilInfo && coords
+      ? createPortal(
+          <div
+            className="tamil-popover"
+            role="dialog"
+            aria-label="Tamil panchang"
+            style={{ top: coords.top, left: coords.left, width: TAMIL_POPOVER_WIDTH }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
+            <div className="tamil-popover__day">{tamilInfo.day}</div>
+            <div className="tamil-popover__month">
+              {tamilInfo.month.ta}
+              <small>
+                {tamilInfo.month.en} {tamilInfo.day}
+              </small>
+            </div>
+
+            <div className="tamil-popover__divider" />
+
+            {isPending && (
+              <div className="tamil-popover__loading">
+                <span className="ui-spinner ui-spinner--sm" />
+                <small>Loading panchangam…</small>
+              </div>
+            )}
+
+            {!isPending && hasPanchangInfo && (
+              <div className="tamil-popover__facts">
+                {panchang?.murtham?.start && (
+                  <div className="tamil-fact tamil-fact--good">
+                    முர்த்தம் {panchang.murtham.start}
+                    {panchang.murtham.end ? ` – ${panchang.murtham.end}` : ""}
+                  </div>
+                )}
+                {panchang?.rahukaal?.start && (
+                  <div className="tamil-fact tamil-fact--caution">
+                    ராகு காலம் {panchang.rahukaal.start}
+                    {panchang.rahukaal.end ? ` – ${panchang.rahukaal.end}` : ""}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isPending && !hasPanchangInfo && (
+              <div className="tamil-popover__empty">பஞ்சாங்க தகவல் இல்லை</div>
+            )}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
-    <div className="tamil-wrap">
-      <button
-        type="button"
+    <div
+      className={`tamil-wrap ${variant === "header" ? "tamil-wrap--header" : ""}`}
+      onMouseDown={stopEarly}
+      onTouchStart={stopEarly}
+      onTouchMove={stopEarly}
+    >
+      <div
+        ref={badgeRef}
+        role="button"
+        tabIndex={0}
         className="tamil-badge"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Show Tamil panchang for this day"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggle();
-        }}
+        onMouseDown={stopEarly}
+        onTouchStart={stopEarly}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
       >
         த
-      </button>
+      </div>
 
-      {isOpen && tamilInfo && (
-        <div
-          className="tamil-popover"
-          role="dialog"
-          aria-label="Tamil panchang"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="tamil-popover__day">{tamilInfo.day}</div>
-          <div className="tamil-popover__month">
-            {tamilInfo.month.ta}
-            <small>
-              {tamilInfo.month.en} {tamilInfo.day}
-            </small>
-          </div>
-
-          <div className="tamil-popover__divider" />
-
-          {isPending && (
-            <div className="tamil-popover__loading">
-              <span className="ui-spinner ui-spinner--sm" />
-              <small>Loading panchangam…</small>
-            </div>
-          )}
-
-          {!isPending && hasPanchangInfo && (
-            <div className="tamil-popover__facts">
-              {panchang?.murtham?.start && (
-                <div className="tamil-fact tamil-fact--good">
-                  முர்த்தம் {panchang.murtham.start}
-                  {panchang.murtham.end ? ` – ${panchang.murtham.end}` : ""}
-                </div>
-              )}
-              {panchang?.rahukaal?.start && (
-                <div className="tamil-fact tamil-fact--caution">
-                  ராகு காலம் {panchang.rahukaal.start}
-                  {panchang.rahukaal.end ? ` – ${panchang.rahukaal.end}` : ""}
-                </div>
-              )}
-            </div>
-          )}
-
-          {!isPending && !hasPanchangInfo && (
-            <div className="tamil-popover__empty">பஞ்சாங்க தகவல் இல்லை</div>
-          )}
-        </div>
-      )}
+      {popover}
     </div>
   );
 }
 
-/* -------------------------------------------------------------------------
-   Day schedule — single component used both as the click-a-cell overlay
-   (variant="overlay", fixed full-screen) and as the inline body of the
-   "Day" tab (variant="inline", sits inside cal-main). Extracting this
-   means the timeline markup only exists once.
-   ---------------------------------------------------------------------- */
 
 interface DayScheduleProps {
   selectedDate: string;
@@ -796,9 +890,7 @@ function DaySchedule({
   );
 }
 
-/* -------------------------------------------------------------------------
-   Main component
-   ---------------------------------------------------------------------- */
+/*Main component*/
 
 const CalendarPage = ({ onClose }: CalendarPageProps) => {
   const dispatch = useDispatch();
@@ -815,10 +907,10 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
   const rawPanchang = useSelector((state: RootState) => state.calendar.panchang);
   const panchangLoading = useSelector((state: RootState) => state.calendar.panchangLoading as boolean);
 
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [selectedWeek, setSelectedWeek] = useState(1);
+
+  const [rbcDate, setRbcDate] = useState<Date>(dayjs().toDate());
 
   const [dayViewOpen, setDayViewOpen] = useState(false);
   const [agendaOpen, setAgendaOpen] = useState(false);
@@ -836,15 +928,6 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
   const [panchangCache, setPanchangCache] = useState<Record<string, PanchangFields | null>>({});
   const pendingPanchangDateRef = useRef<string | null>(null);
 
-  // FIX: previously this dispatched getPanchang(...) from *inside* the
-  // functional updater passed to setTamilOpenDate. React may invoke a
-  // functional updater more than once while resolving a render, and
-  // dispatching mid-render caused a "Cannot update a component while
-  // rendering a different component" warning plus a burst of duplicate
-  // getPanchang dispatches — which is what produced the storm of 429s
-  // from json.astrologyapi.com. Now we compute `next` from state we
-  // already have, call the plain setter, and dispatch exactly once from
-  // the event handler body (not from inside any setState updater).
   const toggleTamilPopover = useCallback(
     (fullDate: string) => {
       const next = tamilOpenDate === fullDate ? null : fullDate;
@@ -858,15 +941,17 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     [dispatch, panchangCache, tamilOpenDate]
   );
 
-  // close the popover on outside click / Escape
+
   useEffect(() => {
     if (!tamilOpenDate) return undefined;
     const onDocClick = () => setTamilOpenDate(null);
     const onKeyDown = (e: KeyboardEvent) => e.key === "Escape" && setTamilOpenDate(null);
     document.addEventListener("click", onDocClick);
+    document.addEventListener("touchend", onDocClick);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("click", onDocClick);
+      document.removeEventListener("touchend", onDocClick);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [tamilOpenDate]);
@@ -888,10 +973,24 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     !panchangForOpenDate &&
     (panchangLoading || pendingPanchangDateRef.current === tamilOpenDate);
 
+  const currentMonth = useMemo(
+    () => (viewMode === "day" ? dayjs(selectedDate) : dayjs(rbcDate)),
+    [viewMode, selectedDate, rbcDate]
+  );
   const currentYear = currentMonth.format("YYYY");
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = currentMonth.format("YYYY-MM");
   const dayHours = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
+
+  const headerTitle = useMemo(() => {
+    if (viewMode === "day") return dayjs(selectedDate).format("MMMM D, YYYY");
+    if (viewMode === "week") {
+      const start = dayjs(rbcDate).startOf("week");
+      const end = start.add(6, "day");
+      return `${start.format("MMM D")} – ${end.format("MMM D, YYYY")}`;
+    }
+    return dayjs(rbcDate).format("MMMM YYYY");
+  }, [viewMode, selectedDate, rbcDate]);
 
   const refreshEventsFromStorage = useCallback(() => setUserEvents(readEventsFromStorage()), []);
 
@@ -904,7 +1003,11 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     };
   }, [refreshEventsFromStorage]);
 
+  const fetchedYearsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
+    if (fetchedYearsRef.current.has(currentYear)) return;
+    fetchedYearsRef.current.add(currentYear);
     dispatch(getHolidays(currentYear) as any);
   }, [currentYear, dispatch]);
 
@@ -915,36 +1018,6 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     });
     return merged;
   }, [userEvents, holidayEvents]);
-
-  const dates = useMemo<(number | null)[]>(() => {
-    const list: (number | null)[] = [];
-    const startDay = currentMonth.startOf("month").day();
-    const daysInMonth = currentMonth.daysInMonth();
-    for (let i = 0; i < startDay; i++) list.push(null);
-    for (let i = 1; i <= daysInMonth; i++) list.push(i);
-    return list;
-  }, [currentMonth]);
-
-  const weeks = useMemo(() => {
-    const daysInMonth = currentMonth.daysInMonth();
-    const totalWeeks = Math.ceil(daysInMonth / 7);
-    return Array.from({ length: totalWeeks }, (_, index) => {
-      const start = index * 7 + 1;
-      const end = Math.min(start + 6, daysInMonth);
-      return { value: index + 1, label: `Week ${index + 1}`, start, end };
-    });
-  }, [currentMonth]);
-
-  const selectedWeekInfo = weeks.find((week) => week.value === selectedWeek);
-
-  const displayedDates = useMemo<(number | null)[]>(() => {
-    if (viewMode !== "week" || !selectedWeekInfo) return dates;
-    const weekDates: (number | null)[] = [];
-    for (let day = selectedWeekInfo.start; day <= selectedWeekInfo.end; day++) weekDates.push(day);
-    return weekDates;
-  }, [dates, viewMode, selectedWeekInfo]);
-
-  const getFullDate = (date: number) => `${monthKey}-${String(date).padStart(2, "0")}`;
 
   const selectedEvents = useMemo(() => events[selectedDate] || [], [events, selectedDate]);
   const selectedEventGroups = useMemo(() => splitEvents(selectedEvents), [selectedEvents]);
@@ -957,15 +1030,24 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     [selectedEvents]
   );
 
+  const visibleRange = useMemo(() => {
+    if (viewMode !== "week") return null;
+    const start = dayjs(rbcDate).startOf("week");
+    const end = start.add(7, "day");
+    return { start, end };
+  }, [viewMode, rbcDate]);
+
   const selectedWeekEvents = useMemo(() => {
-    if (!selectedWeekInfo) return [] as CalendarEvent[];
+    if (!visibleRange) return [] as CalendarEvent[];
     const result: CalendarEvent[] = [];
-    for (let day = selectedWeekInfo.start; day <= selectedWeekInfo.end; day++) {
-      const fullDate = `${monthKey}-${String(day).padStart(2, "0")}`;
+    let cursor = visibleRange.start;
+    while (cursor.isBefore(visibleRange.end, "day")) {
+      const fullDate = cursor.format("YYYY-MM-DD");
       (events[fullDate] || []).forEach((event) => result.push({ ...event, date: fullDate }));
+      cursor = cursor.add(1, "day");
     }
     return result;
-  }, [events, monthKey, selectedWeekInfo]);
+  }, [events, visibleRange]);
 
   const selectedMonthEvents = useMemo(() => {
     const result: CalendarEvent[] = [];
@@ -979,31 +1061,76 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
   const selectedWeekGroups = useMemo(() => splitEvents(selectedWeekEvents), [selectedWeekEvents]);
   const selectedMonthGroups = useMemo(() => splitEvents(selectedMonthEvents), [selectedMonthEvents]);
 
-  /* ---- header navigation: month/week views step by month, Day view steps by day ---- */
+  const rbcEvents = useMemo(() => {
+    const list: any[] = [];
+    Object.keys(events).forEach((date) => {
+      (events[date] || []).forEach((event, idx) => {
+        const hasTime = !!event.startTime;
+        const start = hasTime
+          ? dayjs(`${date}T${event.startTime}`).toDate()
+          : dayjs(date).startOf("day").toDate();
+        const end = hasTime
+          ? dayjs(`${date}T${event.endTime || event.startTime}`).toDate()
+          : dayjs(date).endOf("day").toDate();
+
+        list.push({
+          id: `${date}::${idx}`,
+          title: event.title,
+          start,
+          end,
+          allDay: !hasTime,
+          resource: { date, idx, color: event.color, isHoliday: event.isHoliday },
+        });
+      });
+    });
+    return list;
+  }, [events]);
+
+  const handleRbcNavigate = useCallback((newDate: Date) => setRbcDate(newDate), []);
+
+  const handleSelectSlot = useCallback((slotInfo: { start: Date }) => {
+    const fullDate = dayjs(slotInfo.start).format("YYYY-MM-DD");
+    setSelectedDate(fullDate);
+    setDayViewOpen(true);
+  }, []);
+
+  const handleSelectRbcEvent = useCallback(
+    (event: any) => {
+      const { date, idx } = event.resource || {};
+      if (date === undefined || idx === undefined) return;
+      const ev = events[date]?.[idx];
+      if (!ev) return;
+      setSelectedDate(date);
+      openEditModal(idx, ev);
+    },
+    [events]
+  );
+
+  /* ---- header navigation ---- */
   const goToPrevious = () => {
     if (viewMode === "day") {
-      const prevDate = dayjs(selectedDate).subtract(1, "day");
-      setSelectedDate(prevDate.format("YYYY-MM-DD"));
-      if (prevDate.format("YYYY-MM") !== monthKey) setCurrentMonth(prevDate);
+      setSelectedDate(dayjs(selectedDate).subtract(1, "day").format("YYYY-MM-DD"));
+    } else if (viewMode === "week") {
+      setRbcDate(dayjs(rbcDate).subtract(1, "week").toDate());
     } else {
-      setCurrentMonth((prev) => prev.subtract(1, "month"));
+      setRbcDate(dayjs(rbcDate).subtract(1, "month").toDate());
     }
   };
 
   const goToNext = () => {
     if (viewMode === "day") {
-      const nextDate = dayjs(selectedDate).add(1, "day");
-      setSelectedDate(nextDate.format("YYYY-MM-DD"));
-      if (nextDate.format("YYYY-MM") !== monthKey) setCurrentMonth(nextDate);
+      setSelectedDate(dayjs(selectedDate).add(1, "day").format("YYYY-MM-DD"));
+    } else if (viewMode === "week") {
+      setRbcDate(dayjs(rbcDate).add(1, "week").toDate());
     } else {
-      setCurrentMonth((prev) => prev.add(1, "month"));
+      setRbcDate(dayjs(rbcDate).add(1, "month").toDate());
     }
   };
 
   const goToToday = () => {
     const now = dayjs();
-    setCurrentMonth(now);
     setSelectedDate(now.format("YYYY-MM-DD"));
+    setRbcDate(now.toDate());
   };
 
   const openAgenda = () => {
@@ -1084,55 +1211,70 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     return `${hour - 12} PM`;
   };
 
-  /* ---- keyboard-navigable month/week grid (roving tabindex) ---- */
-  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [focusedCellIndex, setFocusedCellIndex] = useState(0);
+  const rbcComponents = useMemo(
+    () => ({
+      event: ({ event }: any) => {
+        const color = (event.resource?.color as EventColor) || "blue";
+        return (
+          <div className="rbcx-event" style={colorVars(color)}>
+            <EventDot color={color} />
+            <span className="rbcx-event__text">{event.title}</span>
+          </div>
+        );
+      },
+      month: {
+        dateHeader: ({ date, label }: { date: Date; label: string }) => {
+          const fullDate = dayjs(date).format("YYYY-MM-DD");
+          const isTamilOpen = tamilOpenDate === fullDate;
+          return (
+            <div className="rbcx-daycell-top">
+              <button
+                type="button"
+                className="rbcx-daynum"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openCreateModal(fullDate);
+                }}
+                aria-label={`Add event on ${dayjs(fullDate).format("MMMM D")}`}
+              >
+                {label}
+              </button>
 
-  const focusableIndexes = useMemo(
-    () => displayedDates.map((d, i) => (d ? i : null)).filter((i): i is number => i !== null),
-    [displayedDates]
+              <TamilPanchangBadge
+                variant="cell"
+                isOpen={isTamilOpen}
+                onToggle={() => toggleTamilPopover(fullDate)}
+                tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
+                panchang={isTamilOpen ? panchangForOpenDate : null}
+                isPending={isTamilOpen && isPanchangPending}
+              />
+            </div>
+          );
+        },
+      },
+      week: {
+        header: ({ date }: { date: Date }) => {
+          const fullDate = dayjs(date).format("YYYY-MM-DD");
+          const isTamilOpen = tamilOpenDate === fullDate;
+          const isToday = fullDate === today;
+          return (
+            <div className={`rbcx-header-cell ${isToday ? "is-today" : ""}`}>
+              <span className="rbcx-header-cell__label">{dayjs(date).format("ddd D")}</span>
+              <TamilPanchangBadge
+                variant="header"
+                isOpen={isTamilOpen}
+                onToggle={() => toggleTamilPopover(fullDate)}
+                tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
+                panchang={isTamilOpen ? panchangForOpenDate : null}
+                isPending={isTamilOpen && isPanchangPending}
+              />
+            </div>
+          );
+        },
+      },
+    }),
+    [tamilOpenDate, tamilInfoForOpenDate, panchangForOpenDate, isPanchangPending, today, toggleTamilPopover]
   );
-
-  const moveFocus = (fromIndex: number, delta: number) => {
-    let target = fromIndex + delta;
-    while (target >= 0 && target < displayedDates.length && displayedDates[target] === null) {
-      target += delta;
-    }
-    if (target < 0 || target >= displayedDates.length) return;
-    setFocusedCellIndex(target);
-    cellRefs.current[target]?.focus();
-  };
-
-  const onCellKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>, index: number, date: number | null) => {
-    switch (event.key) {
-      case "ArrowRight":
-        event.preventDefault();
-        moveFocus(index, 1);
-        break;
-      case "ArrowLeft":
-        event.preventDefault();
-        moveFocus(index, -1);
-        break;
-      case "ArrowDown":
-        event.preventDefault();
-        moveFocus(index, 7);
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        moveFocus(index, -7);
-        break;
-      case "Enter":
-      case " ":
-        event.preventDefault();
-        if (date) {
-          setSelectedDate(getFullDate(date));
-          setDayViewOpen(true);
-        }
-        break;
-      default:
-        break;
-    }
-  };
 
   return (
     <div className="cal">
@@ -1144,7 +1286,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
         <div className="cal-topbar__title">
           <span className="cal-eyebrow">Indian Calendar</span>
-          <h1>{viewMode === "day" ? dayjs(selectedDate).format("MMMM D, YYYY") : currentMonth.format("MMMM YYYY")}</h1>
+          <h1>{headerTitle}</h1>
         </div>
 
         <div className="cal-topbar__nav">
@@ -1162,21 +1304,6 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         <div className="cal-topbar__controls">
           <Segmented<ViewMode> ariaLabel="Calendar view" options={VIEW_MODES} value={viewMode} onChange={setViewMode} />
 
-          {viewMode === "week" && (
-            <select
-              className="ui-select"
-              value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
-              aria-label="Select week"
-            >
-              {weeks.map((week) => (
-                <option key={week.value} value={week.value}>
-                  {week.label}
-                </option>
-              ))}
-            </select>
-          )}
-
           <Button variant="secondary" icon={<IconAgenda />} onClick={openAgenda}>
             Agenda
           </Button>
@@ -1187,7 +1314,6 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
       </header>
 
       <div className="cal-body">
-        {/* ---------------- Sidebar (desktop) / drawer (mobile) ---------------- */}
         <aside className={`cal-sidebar ${mobileAgendaOpen ? "is-open" : ""}`}>
           <div className="cal-sidebar__header">
             <h2>This month</h2>
@@ -1243,93 +1369,28 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
               variant="inline"
             />
           ) : (
-            <div className={`cal-grid ${viewMode === "week" ? "cal-grid--week" : ""}`} role="grid" aria-label="Calendar">
-              {WEEKDAYS.map((day) => (
-                <div key={day} className="cal-grid__weekday" role="columnheader">
-                  {day}
-                </div>
-              ))}
-
-              {displayedDates.map((date, index) => {
-                const fullDate = date ? getFullDate(date) : null;
-                const dayEvents = fullDate ? events[fullDate] || [] : [];
-                const visibleEvents = dayEvents.slice(0, 3);
-                const hiddenCount = dayEvents.length - visibleEvents.length;
-                const isTamilOpen = !!fullDate && tamilOpenDate === fullDate;
-                const isFocusable = focusableIndexes[0] === index || index === focusedCellIndex;
-
-                return (
-                  <div
-                    key={index}
-                    role="gridcell"
-                    ref={(el) => {
-                      cellRefs.current[index] = el;
-                    }}
-                    tabIndex={date ? (isFocusable ? 0 : -1) : -1}
-                    className={`cal-cell ${!date ? "is-empty" : ""} ${fullDate === today ? "is-today" : ""} ${
-                      fullDate === selectedDate ? "is-selected" : ""
-                    } ${isTamilOpen ? "cal-cell--tamil-open" : ""}`}
-                    onClick={() => {
-                      if (!date || !fullDate) return;
-                      setSelectedDate(fullDate);
-                      setDayViewOpen(true);
-                    }}
-                    onKeyDown={(event) => onCellKeyDown(event, index, date)}
-                    onFocus={() => setFocusedCellIndex(index)}
-                    aria-label={
-                      date && fullDate
-                        ? `${dayjs(fullDate).format("dddd, MMMM D")}, ${dayEvents.length} event${
-                            dayEvents.length === 1 ? "" : "s"
-                          }`
-                        : undefined
-                    }
-                  >
-                    {date && fullDate && (
-                      <>
-                        <div className="cal-cell__top">
-                          <button
-                            type="button"
-                            className="cal-cell__date"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCreateModal(fullDate);
-                            }}
-                            aria-label={`Add event on ${dayjs(fullDate).format("MMMM D")}`}
-                          >
-                            {date}
-                          </button>
-
-                          <TamilPanchangBadge
-                            isOpen={isTamilOpen}
-                            onToggle={() => toggleTamilPopover(fullDate)}
-                            tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
-                            panchang={isTamilOpen ? panchangForOpenDate : null}
-                            isPending={isTamilOpen && isPanchangPending}
-                          />
-                        </div>
-
-                        {dayEvents.length > 0 && (
-                          <div className="cal-cell__events">
-                            {visibleEvents.map((event, i) => (
-                              <div key={i} className="cal-cell__event" style={colorVars(event.color)}>
-                                <EventDot color={event.color} />
-                                <span>{event.title}</span>
-                              </div>
-                            ))}
-                            {hiddenCount > 0 && <div className="cal-cell__more">+{hiddenCount} more</div>}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="cal-rbc-wrap">
+              <Calendar
+                localizer={rbcLocalizer}
+                events={rbcEvents}
+                date={rbcDate}
+                view={viewMode === "week" ? Views.WEEK : Views.MONTH}
+                onView={() => {}}
+                onNavigate={handleRbcNavigate}
+                toolbar={false}
+                popup
+                selectable
+                onSelectSlot={handleSelectSlot}
+                onSelectEvent={handleSelectRbcEvent}
+                components={rbcComponents}
+                style={{ height: "100%" }}
+              />
             </div>
           )}
         </main>
       </div>
 
-      {/* ---------------- Day view overlay (opened by clicking a cell in month/week view) ---------------- */}
+      {/* ---------------- Day view overlay ---------------- */}
       {dayViewOpen && (
         <DaySchedule
           selectedDate={selectedDate}
@@ -1344,7 +1405,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         />
       )}
 
-      {/* ---------------- Agenda modal (week / month summary) ---------------- */}
+      {/* ---------------- Agenda modal ---------------- */}
       <Modal
         open={agendaOpen}
         onClose={() => setAgendaOpen(false)}
@@ -1378,10 +1439,10 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
           </>
         )}
 
-        {viewMode === "week" && selectedWeekInfo && (
+        {viewMode === "week" && visibleRange && (
           <>
             <p className="ui-modal__subtitle">
-              {currentMonth.format("MMMM")} {selectedWeekInfo.start}–{selectedWeekInfo.end}, {currentMonth.format("YYYY")}
+              {visibleRange.start.format("MMM D")} – {visibleRange.end.subtract(1, "day").format("MMM D, YYYY")}
             </p>
             {selectedWeekEvents.length === 0 ? (
               <p className="cal-sidebar__empty">No events this week.</p>
