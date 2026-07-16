@@ -153,14 +153,12 @@ const metricCards = [
 const DashboardPage = () => {
   const { user } = useSelector((state: any) => state.auth);
   const displayEmail = user?.email || "guest@apenturexstudios.com";
-  // Only show the part before "@" as the display name
   const displayName = displayEmail.split("@")[0];
 
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState(null);
-
 
   const userData = useMemo(
     () => [
@@ -416,45 +414,47 @@ const DashboardPage = () => {
           </Col>
 
           <Col xs={24} xl={16}>
-            <div className="horizontal-card-strip">
-              {metricCards.map((item) => (
-                <motion.div
-                  key={item.title}
-                  whileHover={{ y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="horizontal-card-item"
-                >
-                  <Card variant="borderless" className="metric-card">
-                    <div className="metric-top">
-                      <div className="metric-icon" style={{ color: item.color }}>
-                        {item.icon}
+            <div className="horizontal-scroll-wrapper">
+              <div className="horizontal-card-strip">
+                {metricCards.map((item) => (
+                  <motion.div
+                    key={item.title}
+                    whileHover={{ y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="horizontal-card-item"
+                  >
+                    <Card variant="borderless" className="metric-card">
+                      <div className="metric-top">
+                        <div className="metric-icon" style={{ color: item.color }}>
+                          {item.icon}
+                        </div>
+
+                        <Progress
+                          type="circle"
+                          percent={item.percent}
+                          size={58}
+                          strokeColor={item.color}
+                          railColor="rgba(255,255,255,0.1)"
+                          format={() => ""}
+                        />
                       </div>
 
-                      <Progress
-                        type="circle"
-                        percent={item.percent}
-                        size={58}
-                        strokeColor={item.color}
-                        railColor="rgba(255,255,255,0.1)"
-                        format={() => ""}
+                      <Statistic
+                        title={
+                          <Text strong type="secondary">
+                            {item.title}
+                          </Text>
+                        }
+                        value={item.value}
+                        suffix={item.suffix}
+                        styles={{ content: { fontWeight: 800 } }}
                       />
-                    </div>
 
-                    <Statistic
-                      title={
-                        <Text strong type="secondary">
-                          {item.title}
-                        </Text>
-                      }
-                      value={item.value}
-                      suffix={item.suffix}
-                      styles={{ content: { fontWeight: 800 } }}
-                    />
-
-                    <RiseOutlined style={{ color: item.color, fontSize: 20 }} />
-                  </Card>
-                </motion.div>
-              ))}
+                      <RiseOutlined style={{ color: item.color, fontSize: 20 }} />
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </Col>
         </Row>

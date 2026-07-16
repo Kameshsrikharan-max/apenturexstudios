@@ -125,7 +125,6 @@ export default function EventPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Redux event list (fetched via mock API for now)
   const { events: reduxEvents, loading: reduxLoading } = useSelector(
     (state: any) => state.event
   );
@@ -140,10 +139,10 @@ export default function EventPage() {
   const [editEvent, setEditEvent] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [assignEvent, setAssignEvent] = useState<any>(null);
+  const [activeRowId, setActiveRowId] = useState<string | null>(null); // NEW: which row's overlay icons show (tap on touch devices)
 
   const [form] = Form.useForm();
 
-  // Fetch events from Redux/saga on mount
   useEffect(() => {
     dispatch(getEvents());
   }, [dispatch]);
@@ -285,15 +284,6 @@ export default function EventPage() {
     );
   };
 
-  const renderPipeline = (pipeline: string) => (
-    <Tag
-      className="event-pipeline-tag"
-      style={{ "--pipeline-color": pipelineColor[pipeline] || "#93c5fd" } as React.CSSProperties}
-    >
-      {pipeline}
-    </Tag>
-  );
-
   const filterMenu = (
     <div className="event-filter-popover">
       {["All", ...statuses].map((status) => (
@@ -310,6 +300,36 @@ export default function EventPage() {
           <span>{counts[status] || 0}</span>
         </button>
       ))}
+    </div>
+  );
+
+  // Row-level action overlay: floats over the right edge of the row
+  // (covering Customer/Stage) and only becomes visible on hover/touch —
+  // there is no dedicated actions column anymore.
+  const renderRowActionsOverlay = (record: any) => (
+    <div className="event-row-actions-overlay">
+      <Tooltip title="Assign members">
+        <Button
+          type="text"
+          icon={<TeamOutlined />}
+          className="event-action-btn assign"
+          onClick={(e) => {
+            e.stopPropagation();
+            setAssignEvent(record);
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="Copy to clipboard">
+        <Button
+          type="text"
+          icon={<CopyOutlined />}
+          className="event-action-btn copy"
+          onClick={(e) => {
+            e.stopPropagation();
+            copyEventToClipboard(record);
+          }}
+        />
+      </Tooltip>
     </div>
   );
 
@@ -380,48 +400,26 @@ export default function EventPage() {
       render: renderStatus,
     },
     {
+      // This is now the LAST column. It carries the Stage tag as normal,
+      // plus the hover/touch action overlay anchored to its cell — the
+      // overlay visually extends left over Customer/Status, like Gmail's
+      // icons covering the date column.
       title: "Stage",
       dataIndex: "pipeline",
       key: "pipeline",
-      width: 118,
-      render: renderPipeline,
-    },
-    {
-      title: "Assigned Members",
-      dataIndex: "members",
-      key: "members",
-      width: 150,
-      render: (members: number) => (
-        <Tag className="event-member-tag">
-          <TeamOutlined />
-          {members}
-        </Tag>
-      ),
-    },
-    {
-      title: "",
-      key: "actions",
       fixed: "right" as const,
-      width: 92,
-      render: (_: any, record: any) => (
-        <Space size={4} className="event-row-actions">
-          <Tooltip title="Assign members">
-            <Button
-              type="text"
-              icon={<TeamOutlined />}
-              className="event-action-btn assign"
-              onClick={() => setAssignEvent(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Copy to clipboard">
-            <Button
-              type="text"
-              icon={<CopyOutlined />}
-              className="event-action-btn copy"
-              onClick={() => copyEventToClipboard(record)}
-            />
-          </Tooltip>
-        </Space>
+      width: 118,
+      onCell: () => ({ className: "event-actions-anchor-cell" }),
+      render: (pipeline: string, record: any) => (
+        <>
+          <Tag
+            className="event-pipeline-tag"
+            style={{ "--pipeline-color": pipelineColor[pipeline] || "#93c5fd" } as React.CSSProperties}
+          >
+            {pipeline}
+          </Tag>
+          {renderRowActionsOverlay(record)}
+        </>
       ),
     },
   ];
@@ -588,7 +586,17 @@ export default function EventPage() {
               pagination={false}
               rowKey="id"
               className="event-table"
-              scroll={{ x: 1380 }}
+              scroll={{ x: 1260 }}
+              rowClassName={(record) =>
+                activeRowId === record.id ? "event-row-active" : ""
+              }
+              onRow={(record) => ({
+                onMouseEnter: () => setActiveRowId(record.id),
+                onMouseLeave: () =>
+                  setActiveRowId((current) => (current === record.id ? null : current)),
+                onTouchStart: () =>
+                  setActiveRowId((current) => (current === record.id ? null : record.id)),
+              })}
               locale={{
                 emptyText: (
                   <Empty

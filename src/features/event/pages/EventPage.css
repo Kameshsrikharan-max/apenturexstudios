@@ -374,6 +374,8 @@
   border-color: rgba(96, 165, 250, 0.58);
 }
 
+/* ===== TABLE ===== */
+
 .event-table {
   position: relative;
   z-index: 1;
@@ -385,12 +387,20 @@
   background: transparent !important;
 }
 
+/* No white header divider lines */
+.event-table .ant-table-thead > tr > th,
+.event-table .ant-table-thead > tr > th::before {
+  border-inline-end: none !important;
+  box-shadow: none !important;
+}
+
 .event-table .ant-table-thead > tr > th {
   height: 46px;
   padding: 10px 12px !important;
   color: #f8fafc !important;
   background: rgba(2, 6, 23, 0.4) !important;
   border-bottom: 1px solid rgba(96, 165, 250, 0.16) !important;
+  border-right: none !important;
   font-size: 14px;
   font-weight: 900;
 }
@@ -401,6 +411,7 @@
   color: #f8fafc !important;
   background: rgba(15, 23, 42, 0.22) !important;
   border-bottom: 1px solid rgba(96, 165, 250, 0.1) !important;
+  border-right: none !important;
   font-size: 14px;
 }
 
@@ -408,13 +419,26 @@
   background: rgba(59, 130, 246, 0.12) !important;
 }
 
+/* Last column (Stage) is now sticky-right AND the anchor for the
+   floating action overlay. overflow: visible lets the overlay escape
+   past this cell's own width to cover Customer/Status too. */
 .event-table .ant-table-cell-fix-right,
 .event-table .ant-table-cell-fix-right-first,
 .event-table .ant-table-cell-fix-right-last,
 .event-table .ant-table-thead > tr > th.ant-table-cell-fix-right,
 .event-table .ant-table-tbody > tr > td.ant-table-cell-fix-right {
-  background: rgba(2, 6, 23, 0.5) !important;
+  background: #0d1526 !important;
   box-shadow: none !important;
+}
+
+.event-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right,
+.event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right {
+  background: rgba(59, 130, 246, 0.16) !important;
+}
+
+.event-actions-anchor-cell {
+  position: relative !important;
+  overflow: visible !important;
 }
 
 .event-table .ant-table-content::-webkit-scrollbar {
@@ -517,51 +541,69 @@
   background: rgba(255, 255, 255, 0.05) !important;
 }
 
-.event-row-actions {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(0);
-  transition: opacity 0.18s ease, visibility 0.18s ease, transform 0.18s ease;
+/* ===== FLOATING ROW ACTIONS (Gmail-style, no dedicated column) ===== */
+
+.event-row-actions-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-right: 12px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(13, 21, 38, 0.85) 34%,
+    rgba(13, 21, 38, 0.98) 100%
+  );
+  transition: opacity 0.15s ease;
+  z-index: 6;
 }
 
-.event-table .ant-table-tbody > tr:hover .event-row-actions,
-.event-row-actions:hover {
+.event-table .ant-table-tbody > tr:hover .event-row-actions-overlay,
+.event-table .ant-table-tbody > tr.event-row-active .event-row-actions-overlay {
   opacity: 1;
-  visibility: visible;
-  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .event-action-btn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  border-radius: 50% !important;
-  color: #bfdbfe !important;
-  background: rgba(255, 255, 255, 0.045) !important;
-  border: 1px solid rgba(96, 165, 250, 0.18) !important;
+  border-radius: 6px !important;
+  color: rgba(226, 232, 240, 0.68) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .event-action-btn:hover {
   color: #ffffff !important;
-  background: #3b82f6 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .event-action-btn.assign {
-  color: #86efac !important;
-  border-color: rgba(134, 239, 172, 0.28) !important;
+  color: rgba(134, 239, 172, 0.8) !important;
 }
 
 .event-action-btn.assign:hover {
-  background: #16a34a !important;
+  color: #86efac !important;
+  background: rgba(34, 197, 94, 0.14) !important;
 }
 
 .event-action-btn.copy {
-  color: #7dd3fc !important;
-  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: rgba(125, 211, 252, 0.8) !important;
 }
 
 .event-action-btn.copy:hover {
-  background: #0284c7 !important;
+  color: #7dd3fc !important;
+  background: rgba(56, 189, 248, 0.14) !important;
 }
 
 .event-filter-popover {
@@ -749,9 +791,7 @@
 
 .event-view-cover {
   position: relative;
-  min-height: 190px;
-  margin: -20px -24px 18px;
-  overflow: hidden;display: flex;align-items: flex-end;padding: 20px;color: #ffffff;background: #020617;}
+  min-height: 190px;margin: -20px -24px 18px;overflow: hidden;display: flex;align-items: flex-end;padding: 20px;color: #ffffff;background: #020617;}
 .event-view-cover img {position: absolute;inset: 0;width: 100%;height: 100%;object-fit: cover;filter: brightness(0.55) saturate(1.12);}
 .event-view-cover::after {content: "";position: absolute;inset: 0;background: linear-gradient(180deg, transparent 20%, rgba(2, 6, 23, 0.92));}
 .event-view-cover div {position: relative;z-index: 1;}
@@ -783,7 +823,6 @@
   .event-hero-art {min-height: 210px;}
   .event-search,
   .event-create-btn {width: 100%;}
-  .event-row-actions {opacity: 1;visibility: visible;transform: none;}
   .event-view-grid {grid-template-columns: repeat(2, minmax(0, 1fr));}
 }
 
@@ -800,4 +839,5 @@
   .event-form-grid,
   .event-view-grid {grid-template-columns: 1fr;}
   .event-form-wide {grid-column: span 1;}
+  .event-row-actions-overlay {width: 150px;}
 }

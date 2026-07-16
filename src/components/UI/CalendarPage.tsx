@@ -12,8 +12,8 @@ import { useNavigate } from "react-router-dom";
 import dayjs, { type Dayjs } from "dayjs";
 import "./CalendarPage.css";
 
-// ---- Third-party calendar (react-big-calendar) ----
-import { Calendar, dayjsLocalizer, Views, type View } from "react-big-calendar";
+
+import { Calendar, dayjsLocalizer, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import isBetween from "dayjs/plugin/isBetween";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
@@ -178,6 +178,19 @@ const splitEvents = (list: CalendarEvent[]) => ({
   created: list.filter((event) => !event.isHoliday),
   other: list.filter((event) => event.isHoliday),
 });
+
+interface IndexedEvent {
+  event: CalendarEvent;
+  index: number;
+}
+const splitEventsWithIndex = (list: CalendarEvent[]) => {
+  const created: IndexedEvent[] = [];
+  const other: IndexedEvent[] = [];
+  list.forEach((event, index) => {
+    (event.isHoliday ? other : created).push({ event, index });
+  });
+  return { created, other };
+};
 
 const asPrimitive = (val: unknown): string | number | null => {
   if (typeof val === "string" || typeof val === "number") return val;
@@ -665,7 +678,6 @@ function TamilPanchangBadge({
     let top = rect.bottom + TAMIL_POPOVER_GAP;
     const overflowsBottom = top + TAMIL_POPOVER_EST_HEIGHT > window.innerHeight - TAMIL_POPOVER_VIEWPORT_PADDING;
     if (overflowsBottom) {
-      // Not enough room below — flip to open above the badge instead.
       const above = rect.top - TAMIL_POPOVER_EST_HEIGHT - TAMIL_POPOVER_GAP;
       top = Math.max(above, TAMIL_POPOVER_VIEWPORT_PADDING);
     }
@@ -890,6 +902,173 @@ function DaySchedule({
   );
 }
 
+
+interface WeekDayEvent {
+  event: CalendarEvent;
+  index: number; 
+}
+
+interface WeekDayColumn {
+  date: string;
+  isToday: boolean;
+  isWeekend: boolean;
+  allDay: WeekDayEvent[];
+  timed: WeekDayEvent[];
+}
+
+interface WeekTimelineProps {
+  weekStart: Dayjs;
+  events: EventsMap;
+  today: string;
+  tamilOpenDate: string | null;
+  tamilInfoForOpenDate: TamilMonthInfo | null;
+  panchangForOpenDate: PanchangFields | null | undefined;
+  isPanchangPending: boolean;
+  onToggleTamil: (date: string) => void;
+  onAddEvent: (date: string) => void;
+  onEditEvent: (date: string, index: number, event: CalendarEvent) => void;
+}
+
+function NowMarker() {
+  return (
+    <div className="week-now">
+      <span className="week-now__dot" aria-hidden="true" />
+      <span className="week-now__line" aria-hidden="true" />
+      <span className="week-now__label">Now</span>
+    </div>
+  );
+}
+
+function WeekTimeline({
+  weekStart,
+  events,
+  today,
+  tamilOpenDate,
+  tamilInfoForOpenDate,
+  panchangForOpenDate,
+  isPanchangPending,
+  onToggleTamil,
+  onAddEvent,
+  onEditEvent,
+}: WeekTimelineProps) {
+  const nowMinutes = dayjs().hour() * 60 + dayjs().minute();
+
+  const columns: WeekDayColumn[] = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = weekStart.add(i, "day");
+      const fullDate = d.format("YYYY-MM-DD");
+      const dayEvents: WeekDayEvent[] = (events[fullDate] || []).map((event, index) => ({ event, index }));
+
+      const allDay = dayEvents.filter(({ event }) => !event.startTime);
+      const timed = dayEvents
+        .filter(({ event }) => !!event.startTime)
+        .slice()
+        .sort((a, b) => getMinutes(a.event.startTime) - getMinutes(b.event.startTime));
+
+      return {
+        date: fullDate,
+        isToday: fullDate === today,
+        isWeekend: d.day() === 0 || d.day() === 6,
+        allDay,
+        timed,
+      };
+    });
+  }, [weekStart, events, today]);
+
+  return (
+    <div className="week-board">
+      {columns.map((col) => {
+        const dayjsDate = dayjs(col.date);
+        const isTamilOpen = tamilOpenDate === col.date;
+
+        let nowIndex = col.timed.length;
+        if (col.isToday) {
+          const firstLater = col.timed.findIndex(({ event }) => getMinutes(event.startTime) > nowMinutes);
+          nowIndex = firstLater === -1 ? col.timed.length : firstLater;
+        }
+
+        return (
+          <div
+            key={col.date}
+            className={`week-col ${col.isToday ? "week-col--today" : ""} ${col.isWeekend ? "week-col--weekend" : ""}`}
+          >
+            <div className="week-col__header">
+              <div className="week-col__date">
+                <span className="week-col__weekday">{dayjsDate.format("ddd").toUpperCase()}</span>
+                <strong className="week-col__daynum">{dayjsDate.format("D")}</strong>
+              </div>
+
+              <TamilPanchangBadge
+                variant="header"
+                isOpen={isTamilOpen}
+                onToggle={() => onToggleTamil(col.date)}
+                tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
+                panchang={isTamilOpen ? panchangForOpenDate : null}
+                isPending={isTamilOpen && isPanchangPending}
+              />
+            </div>
+
+            {col.allDay.length > 0 && (
+              <div className="week-col__allday">
+                {col.allDay.map(({ event, index }) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="week-chip"
+                    style={colorVars(event.color)}
+                    onClick={() => onEditEvent(col.date, index, event)}
+                  >
+                    <EventDot color={event.color} />
+                    <span>{event.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="week-timeline">
+              {col.timed.length === 0 && (
+                <button type="button" className="week-empty" onClick={() => onAddEvent(col.date)}>
+                  <span className="week-empty__dot" aria-hidden="true" />
+                  Nothing planned — tap to add
+                </button>
+              )}
+
+              {col.timed.map(({ event, index }, i) => (
+                <div key={index}>
+                  {col.isToday && nowIndex === i && <NowMarker />}
+                  <button
+                    type="button"
+                    className="week-node"
+                    style={colorVars(event.color)}
+                    onClick={() => onEditEvent(col.date, index, event)}
+                  >
+                    <span className="week-node__dot" aria-hidden="true" />
+                    <span className="week-node__card">
+                      <strong>{event.title}</strong>
+                      <small>{formatEventTime(event)}</small>
+                    </span>
+                  </button>
+                </div>
+              ))}
+
+              {col.isToday && nowIndex === col.timed.length && <NowMarker />}
+            </div>
+
+            <button
+              type="button"
+              className="week-col__add"
+              onClick={() => onAddEvent(col.date)}
+              aria-label={`Add event on ${dayjsDate.format("MMMM D")}`}
+            >
+              <IconPlus />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /*Main component*/
 
 const CalendarPage = ({ onClose }: CalendarPageProps) => {
@@ -912,7 +1091,8 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   const [rbcDate, setRbcDate] = useState<Date>(dayjs().toDate());
 
-  const [dayViewOpen, setDayViewOpen] = useState(false);
+  const [dayDetailsOpen, setDayDetailsOpen] = useState(false);
+
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [mobileAgendaOpen, setMobileAgendaOpen] = useState(false);
 
@@ -923,24 +1103,43 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     initialValues: null,
   });
 
-  // ---- Tamil / Panchang popover state ----
+  // ---- Tamil / Panchang popover state (used by Week view badge) ----
   const [tamilOpenDate, setTamilOpenDate] = useState<string | null>(null);
   const [panchangCache, setPanchangCache] = useState<Record<string, PanchangFields | null>>({});
   const pendingPanchangDateRef = useRef<string | null>(null);
+
+  const fetchPanchangIfNeeded = useCallback(
+    (fullDate: string) => {
+      if (panchangCache[fullDate]) return;
+      pendingPanchangDateRef.current = fullDate;
+      dispatch(getPanchang(fullDate) as any);
+    },
+    [dispatch, panchangCache]
+  );
 
   const toggleTamilPopover = useCallback(
     (fullDate: string) => {
       const next = tamilOpenDate === fullDate ? null : fullDate;
       setTamilOpenDate(next);
-
-      if (next && !panchangCache[next]) {
-        pendingPanchangDateRef.current = next;
-        dispatch(getPanchang(next) as any);
-      }
+      if (next) fetchPanchangIfNeeded(next);
     },
-    [dispatch, panchangCache, tamilOpenDate]
+    [tamilOpenDate, fetchPanchangIfNeeded]
   );
 
+  const openDayDetails = useCallback(
+    (fullDate: string) => {
+      setSelectedDate(fullDate);
+      setDayDetailsOpen(true);
+      fetchPanchangIfNeeded(fullDate);
+    },
+    [fetchPanchangIfNeeded]
+  );
+
+  const openFullDayView = useCallback((fullDate: string) => {
+    setSelectedDate(fullDate);
+    setRbcDate(dayjs(fullDate).toDate());
+    setViewMode("day");
+  }, []);
 
   useEffect(() => {
     if (!tamilOpenDate) return undefined;
@@ -973,6 +1172,19 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     !panchangForOpenDate &&
     (panchangLoading || pendingPanchangDateRef.current === tamilOpenDate);
 
+  // Month view day-details modal data
+  const dayDetailsTamilInfo = useMemo(
+    () => (dayDetailsOpen ? getTamilMonthInfo(dayjs(selectedDate)) : null),
+    [dayDetailsOpen, selectedDate]
+  );
+  const dayDetailsPanchang = dayDetailsOpen ? panchangCache[selectedDate] : null;
+  const isDayDetailsPanchangPending =
+    dayDetailsOpen &&
+    !dayDetailsPanchang &&
+    (panchangLoading || pendingPanchangDateRef.current === selectedDate);
+  const dayDetailsHasPanchangInfo =
+    !!dayDetailsPanchang?.rahukaal?.start || !!dayDetailsPanchang?.murtham?.start;
+
   const currentMonth = useMemo(
     () => (viewMode === "day" ? dayjs(selectedDate) : dayjs(rbcDate)),
     [viewMode, selectedDate, rbcDate]
@@ -981,16 +1193,16 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = currentMonth.format("YYYY-MM");
   const dayHours = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
+  const weekStart = useMemo(() => dayjs(rbcDate).startOf("week"), [rbcDate]);
 
   const headerTitle = useMemo(() => {
     if (viewMode === "day") return dayjs(selectedDate).format("MMMM D, YYYY");
     if (viewMode === "week") {
-      const start = dayjs(rbcDate).startOf("week");
-      const end = start.add(6, "day");
-      return `${start.format("MMM D")} – ${end.format("MMM D, YYYY")}`;
+      const end = weekStart.add(6, "day");
+      return `${weekStart.format("MMM D")} – ${end.format("MMM D, YYYY")}`;
     }
     return dayjs(rbcDate).format("MMMM YYYY");
-  }, [viewMode, selectedDate, rbcDate]);
+  }, [viewMode, selectedDate, rbcDate, weekStart]);
 
   const refreshEventsFromStorage = useCallback(() => setUserEvents(readEventsFromStorage()), []);
 
@@ -1021,6 +1233,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   const selectedEvents = useMemo(() => events[selectedDate] || [], [events, selectedDate]);
   const selectedEventGroups = useMemo(() => splitEvents(selectedEvents), [selectedEvents]);
+  const selectedEventGroupsIndexed = useMemo(() => splitEventsWithIndex(selectedEvents), [selectedEvents]);
 
   const timelineEvents = useMemo(
     () =>
@@ -1032,10 +1245,8 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   const visibleRange = useMemo(() => {
     if (viewMode !== "week") return null;
-    const start = dayjs(rbcDate).startOf("week");
-    const end = start.add(7, "day");
-    return { start, end };
-  }, [viewMode, rbcDate]);
+    return { start: weekStart, end: weekStart.add(7, "day") };
+  }, [viewMode, weekStart]);
 
   const selectedWeekEvents = useMemo(() => {
     if (!visibleRange) return [] as CalendarEvent[];
@@ -1088,11 +1299,13 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   const handleRbcNavigate = useCallback((newDate: Date) => setRbcDate(newDate), []);
 
-  const handleSelectSlot = useCallback((slotInfo: { start: Date }) => {
-    const fullDate = dayjs(slotInfo.start).format("YYYY-MM-DD");
-    setSelectedDate(fullDate);
-    setDayViewOpen(true);
-  }, []);
+  const handleSelectSlot = useCallback(
+    (slotInfo: { start: Date }) => {
+      const fullDate = dayjs(slotInfo.start).format("YYYY-MM-DD");
+      openFullDayView(fullDate);
+    },
+    [openFullDayView]
+  );
 
   const handleSelectRbcEvent = useCallback(
     (event: any) => {
@@ -1147,6 +1360,12 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   const openEditModal = (index: number, event: CalendarEvent) => {
     if (event.isHoliday) return;
+    setEventModal({ open: true, mode: "edit", index, initialValues: event });
+  };
+
+  const openEditModalForDate = (date: string, index: number, event: CalendarEvent) => {
+    if (event.isHoliday) return;
+    setSelectedDate(date);
     setEventModal({ open: true, mode: "edit", index, initialValues: event });
   };
 
@@ -1225,55 +1444,34 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
       month: {
         dateHeader: ({ date, label }: { date: Date; label: string }) => {
           const fullDate = dayjs(date).format("YYYY-MM-DD");
-          const isTamilOpen = tamilOpenDate === fullDate;
+          const isToday = fullDate === dayjs().format("YYYY-MM-DD");
           return (
             <div className="rbcx-daycell-top">
-              <button
-                type="button"
-                className="rbcx-daynum"
+              <span
+                className={`rbcx-daynum ${isToday ? "rbcx-daynum--today" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open details for ${dayjs(date).format("MMMM D, YYYY")}${isToday ? " (today)" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  openCreateModal(fullDate);
+                  openDayDetails(fullDate);
                 }}
-                aria-label={`Add event on ${dayjs(fullDate).format("MMMM D")}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDayDetails(fullDate);
+                  }
+                }}
               >
                 {label}
-              </button>
-
-              <TamilPanchangBadge
-                variant="cell"
-                isOpen={isTamilOpen}
-                onToggle={() => toggleTamilPopover(fullDate)}
-                tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
-                panchang={isTamilOpen ? panchangForOpenDate : null}
-                isPending={isTamilOpen && isPanchangPending}
-              />
-            </div>
-          );
-        },
-      },
-      week: {
-        header: ({ date }: { date: Date }) => {
-          const fullDate = dayjs(date).format("YYYY-MM-DD");
-          const isTamilOpen = tamilOpenDate === fullDate;
-          const isToday = fullDate === today;
-          return (
-            <div className={`rbcx-header-cell ${isToday ? "is-today" : ""}`}>
-              <span className="rbcx-header-cell__label">{dayjs(date).format("ddd D")}</span>
-              <TamilPanchangBadge
-                variant="header"
-                isOpen={isTamilOpen}
-                onToggle={() => toggleTamilPopover(fullDate)}
-                tamilInfo={isTamilOpen ? tamilInfoForOpenDate : null}
-                panchang={isTamilOpen ? panchangForOpenDate : null}
-                isPending={isTamilOpen && isPanchangPending}
-              />
+              </span>
             </div>
           );
         },
       },
     }),
-    [tamilOpenDate, tamilInfoForOpenDate, panchangForOpenDate, isPanchangPending, today, toggleTamilPopover]
+    [openDayDetails]
   );
 
   return (
@@ -1285,7 +1483,13 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         </button>
 
         <div className="cal-topbar__title">
-          <span className="cal-eyebrow">Indian Calendar</span>
+          <div className="cal-topbar__eyebrow-row">
+            <span className="cal-eyebrow">Indian Calendar</span>
+            <span className="cal-today-badge">
+              <span className="cal-today-badge__dot" aria-hidden="true" />
+               {dayjs().format("ddd, MMM D, YYYY")}
+            </span>
+          </div>
           <h1>{headerTitle}</h1>
         </div>
 
@@ -1368,13 +1572,28 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
               onEditEvent={openEditModal}
               variant="inline"
             />
+          ) : viewMode === "week" ? (
+            <div className="cal-week-wrap">
+              <WeekTimeline
+                weekStart={weekStart}
+                events={events}
+                today={today}
+                tamilOpenDate={tamilOpenDate}
+                tamilInfoForOpenDate={tamilInfoForOpenDate}
+                panchangForOpenDate={panchangForOpenDate}
+                isPanchangPending={isPanchangPending}
+                onToggleTamil={toggleTamilPopover}
+                onAddEvent={openCreateModal}
+                onEditEvent={openEditModalForDate}
+              />
+            </div>
           ) : (
             <div className="cal-rbc-wrap">
               <Calendar
                 localizer={rbcLocalizer}
                 events={rbcEvents}
                 date={rbcDate}
-                view={viewMode === "week" ? Views.WEEK : Views.MONTH}
+                view={Views.MONTH}
                 onView={() => {}}
                 onNavigate={handleRbcNavigate}
                 toolbar={false}
@@ -1390,20 +1609,97 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         </main>
       </div>
 
-      {/* ---------------- Day view overlay ---------------- */}
-      {dayViewOpen && (
-        <DaySchedule
-          selectedDate={selectedDate}
-          events={selectedEvents}
-          timelineEvents={timelineEvents}
-          dayHours={dayHours}
-          formatHour={formatHour}
-          onAddEvent={() => openCreateModal(selectedDate)}
-          onEditEvent={openEditModal}
-          onClose={() => setDayViewOpen(false)}
-          variant="overlay"
-        />
-      )}
+      {/* ---------------- Day details modal (month view date-number click) ---------------- */}
+      <Modal
+        open={dayDetailsOpen}
+        onClose={() => setDayDetailsOpen(false)}
+        title={dayjs(selectedDate).format("dddd, MMMM D, YYYY")}
+        icon={<IconAgenda />}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDayDetailsOpen(false)}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              icon={<IconPlus />}
+              onClick={() => {
+                setDayDetailsOpen(false);
+                openCreateModal(selectedDate);
+              }}
+            >
+              Add event
+            </Button>
+          </>
+        }
+      >
+        {dayDetailsTamilInfo && (
+          <div className="day-details__tamil">
+            <div className="day-details__tamil-day">{dayDetailsTamilInfo.day}</div>
+            <div className="day-details__tamil-month">
+              {dayDetailsTamilInfo.month.ta}
+              <small>
+                {dayDetailsTamilInfo.month.en} {dayDetailsTamilInfo.day}
+              </small>
+            </div>
+
+            <div className="day-details__tamil-divider" />
+
+            {isDayDetailsPanchangPending && (
+              <div className="tamil-popover__loading">
+                <span className="ui-spinner ui-spinner--sm" />
+                <small>Loading panchangam…</small>
+              </div>
+            )}
+
+            {!isDayDetailsPanchangPending && dayDetailsHasPanchangInfo && (
+              <div className="tamil-popover__facts">
+                {dayDetailsPanchang?.murtham?.start && (
+                  <div className="tamil-fact tamil-fact--good">
+                    முர்த்தம் {dayDetailsPanchang.murtham.start}
+                    {dayDetailsPanchang.murtham.end ? ` – ${dayDetailsPanchang.murtham.end}` : ""}
+                  </div>
+                )}
+                {dayDetailsPanchang?.rahukaal?.start && (
+                  <div className="tamil-fact tamil-fact--caution">
+                    ராகு காலம் {dayDetailsPanchang.rahukaal.start}
+                    {dayDetailsPanchang.rahukaal.end ? ` – ${dayDetailsPanchang.rahukaal.end}` : ""}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isDayDetailsPanchangPending && !dayDetailsHasPanchangInfo && (
+              <div className="tamil-popover__empty">பஞ்சாங்க தகவல் இல்லை</div>
+            )}
+          </div>
+        )}
+
+        {selectedEvents.length === 0 ? (
+          <p className="cal-sidebar__empty">No events for this day.</p>
+        ) : (
+          <div className="ui-scroll-list">
+            <h4 className="ui-section-title">Created events</h4>
+            {selectedEventGroupsIndexed.created.length === 0 && <p className="ui-empty-note">No events</p>}
+            {selectedEventGroupsIndexed.created.map(({ event, index }) => (
+              <EventRow
+                key={index}
+                event={event}
+                onEdit={() => {
+                  setDayDetailsOpen(false);
+                  openEditModal(index, event);
+                }}
+                onDelete={() => deleteEventAt(index)}
+              />
+            ))}
+            <h4 className="ui-section-title">Holidays &amp; other</h4>
+            {selectedEventGroupsIndexed.other.length === 0 && <p className="ui-empty-note">No events</p>}
+            {selectedEventGroupsIndexed.other.map(({ event, index }) => (
+              <EventRow key={index} event={event} />
+            ))}
+          </div>
+        )}
+      </Modal>
 
       {/* ---------------- Agenda modal ---------------- */}
       <Modal

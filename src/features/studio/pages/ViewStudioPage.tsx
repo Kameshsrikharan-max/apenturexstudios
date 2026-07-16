@@ -91,21 +91,35 @@ export default function ViewStudioPage() {
   const [form] = Form.useForm();
   const [isEditing, setIsEditing] = useState(false);
   const [isRailOpen, setIsRailOpen] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
 
+  const handleValuesChange = () => {
+    if (!isEditing) return;
+    setHasChanges(true);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setHasChanges(false);
+  };
+
   const handleReset = () => {
     form.resetFields();
+    setHasChanges(false);
   };
 
   const handleCancel = () => {
     form.setFieldsValue(initialValues);
     setIsEditing(false);
+    setHasChanges(false);
   };
 
   const handleSubmit = (values) => {
     saveLS("axsStudio", values);
     setIsEditing(false);
+    setHasChanges(false);
   };
 
   const goToProfile = () => {
@@ -142,7 +156,7 @@ export default function ViewStudioPage() {
             type="primary"
             className="studio-rail-btn-edit"
             tabIndex={isRailOpen ? 0 : -1}
-            onClick={() => setIsEditing(true)}
+            onClick={handleEdit}
           >
             <EditOutlined />
           </ActionIcon>
@@ -153,7 +167,7 @@ export default function ViewStudioPage() {
             className="studio-rail-btn-save"
             htmlType="submit"
             form="studio-form"
-            disabled={!isEditing}
+            disabled={!isEditing || !hasChanges}
             tabIndex={isRailOpen ? 0 : -1}
           >
             <SaveOutlined />
@@ -163,7 +177,7 @@ export default function ViewStudioPage() {
             tooltip="Reset"
             className="studio-rail-btn-reset"
             onClick={handleReset}
-            disabled={!isEditing}
+            disabled={!isEditing || !hasChanges}
             tabIndex={isRailOpen ? 0 : -1}
           >
             <ReloadOutlined />
@@ -213,6 +227,7 @@ export default function ViewStudioPage() {
           layout="vertical"
           initialValues={initialValues}
           onFinish={handleSubmit}
+          onValuesChange={handleValuesChange}
           disabled={!isEditing}
           className="studio-form"
         >
