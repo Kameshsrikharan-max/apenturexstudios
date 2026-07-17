@@ -604,6 +604,47 @@ export default function CreateEventPage() {
   const calRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
 
+  // Live Booking Board — docks to the top of the viewport via a portal so it
+  // stays visible on scroll regardless of any ancestor's overflow/backdrop-filter.
+  const commandWrapRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  const stuckRef = useRef(false);
+  const naturalHeightRef = useRef(0);
+  const [dock, setDock] = useState({ left: 0, width: 0, top: 12 });
+
+  useEffect(() => {
+    stuckRef.current = stuck;
+  }, [stuck]);
+
+  useEffect(() => {
+    const STICK_TOP = 12;
+
+    const update = () => {
+      const el = commandWrapRef.current;
+      if (!el) return;
+
+      if (!stuckRef.current) {
+        naturalHeightRef.current = el.offsetHeight;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const shouldStick = rect.top <= STICK_TOP;
+
+      if (shouldStick) {
+        setDock({ left: rect.left, width: rect.width, top: STICK_TOP });
+      }
+      setStuck(shouldStick);
+    };
+
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   useEffect(() => {
     try {
       sessionStorage.removeItem("eventDraft");
@@ -752,17 +793,47 @@ export default function CreateEventPage() {
           </aside>
 
           <form className="cep-form" onSubmit={event => event.preventDefault()}>
-            <div className="cep-command-strip">
-              <div>
-                <span className="cep-command-kicker">Live booking board</span>
-                <strong>{form.eventName || "Untitled event"}</strong>
-              </div>
-              <div className="cep-command-metrics">
-                <span>{formatDateDisplay(form.eventDate) || "No date"}</span>
-                <span>{formatTimeDisplay(form.startTime) || "Time off"}</span>
-                <span>{form.selectedServices.length} services</span>
-              </div>
+            <div className="cep-command-wrap" ref={commandWrapRef}>
+              {stuck ? (
+                <div style={{ height: naturalHeightRef.current }} />
+              ) : (
+                <div className="cep-command-strip">
+                  <div>
+                    <span className="cep-command-kicker">Live booking board</span>
+                    <strong>{form.eventName || "Untitled event"}</strong>
+                  </div>
+                  <div className="cep-command-metrics">
+                    <span>{formatDateDisplay(form.eventDate) || "No date"}</span>
+                    <span>{formatTimeDisplay(form.startTime) || "Time off"}</span>
+                    <span>{form.selectedServices.length} services</span>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {stuck && ReactDOM.createPortal(
+              <div
+                className="cep-command-strip cep-command-strip--docked"
+                style={{
+                  position: "fixed",
+                  top: dock.top,
+                  left: dock.left,
+                  width: dock.width,
+                  zIndex: 500,
+                }}
+              >
+                <div>
+                  <span className="cep-command-kicker">Live booking board</span>
+                  <strong>{form.eventName || "Untitled event"}</strong>
+                </div>
+                <div className="cep-command-metrics">
+                  <span>{formatDateDisplay(form.eventDate) || "No date"}</span>
+                  <span>{formatTimeDisplay(form.startTime) || "Time off"}</span>
+                  <span>{form.selectedServices.length} services</span>
+                </div>
+              </div>,
+              document.body
+            )}
 
             <div className="cep-grid">
               <section className="cep-panel cep-panel-prime">

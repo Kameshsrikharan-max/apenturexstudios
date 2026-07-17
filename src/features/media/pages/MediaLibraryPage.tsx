@@ -272,11 +272,11 @@ export default function MediaLibraryPage() {
             onClick={() => setFilterLikedOnly(!filterLikedOnly)}
           >
             {filterLikedOnly ? <HeartFilled /> : <HeartOutlined />}
-            <span>Favorites ({counts.favorites})</span>
+            <span> ({counts.favorites})</span>
           </button>
 
           <label className="upload-btn dynamic-button">
-            <UploadOutlined className="bounce-loop" /> Upload
+            <UploadOutlined className="bounce-loop" /> 
             <input
               type="file"
               multiple

@@ -139,7 +139,7 @@ export default function EventPage() {
   const [editEvent, setEditEvent] = useState<any>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [assignEvent, setAssignEvent] = useState<any>(null);
-  const [activeRowId, setActiveRowId] = useState<string | null>(null); // NEW: which row's overlay icons show (tap on touch devices)
+  const [activeRowId, setActiveRowId] = useState<string | null>(null);
 
   const [form] = Form.useForm();
 
@@ -303,9 +303,6 @@ export default function EventPage() {
     </div>
   );
 
-  // Row-level action overlay: floats over the right edge of the row
-  // (covering Customer/Stage) and only becomes visible on hover/touch —
-  // there is no dedicated actions column anymore.
   const renderRowActionsOverlay = (record: any) => (
     <div className="event-row-actions-overlay">
       <Tooltip title="Assign members">
@@ -339,7 +336,7 @@ export default function EventPage() {
       dataIndex: "name",
       key: "name",
       sorter: (a: any, b: any) => a.name.localeCompare(b.name),
-      width: 190,
+      width: 100,
       render: (text: string, record: any) => (
         <button
           type="button"
@@ -361,54 +358,50 @@ export default function EventPage() {
       dataIndex: "date",
       key: "date",
       sorter: (a: any, b: any) => a.date.localeCompare(b.date),
-      width: 128,
+      width: 100,
       render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Time",
       dataIndex: "time",
       key: "time",
-      width: 104,
+      width: 100,
       render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Address",
       dataIndex: "address",
       key: "address",
-      width: 180,
+      width: 100,
       render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "City",
       dataIndex: "city",
       key: "city",
-      width: 134,
+      width: 100,
       render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Customer",
       dataIndex: "customer",
       key: "customer",
-      width: 130,
+      width: 100,
       render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      width: 108,
+      width: 100,
       render: renderStatus,
     },
     {
-      // This is now the LAST column. It carries the Stage tag as normal,
-      // plus the hover/touch action overlay anchored to its cell — the
-      // overlay visually extends left over Customer/Status, like Gmail's
-      // icons covering the date column.
       title: "Stage",
       dataIndex: "pipeline",
       key: "pipeline",
       fixed: "right" as const,
-      width: 118,
+      width: 100,
       onCell: () => ({ className: "event-actions-anchor-cell" }),
       render: (pipeline: string, record: any) => (
         <>

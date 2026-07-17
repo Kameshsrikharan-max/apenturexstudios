@@ -290,7 +290,6 @@ const EnquiryPage = () => {
       title: "Enquiry",
       dataIndex: "enquiryName",
       key: "enquiryName",
-      width: 430,
       render: (text, record) => (
         <Popover
           trigger={["hover", "click"]}
@@ -625,7 +624,7 @@ const EnquiryPage = () => {
                         onChange: setSelectedRowKeys,
                       }}
                       pagination={{ pageSize: 10 }}
-                      scroll={{ x: 1250 }}
+                      tableLayout="auto"
                       locale={{
                         emptyText: (
                           <Empty

@@ -50,14 +50,14 @@
 .enquiry-page-scroll {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: visible;
   padding-bottom: 18px;
 }
 
 .enquiry-page-inner {
   width: 100%;
-  min-width: 100%;
+  min-width: 0;
 }
 
 .hero-section {
@@ -288,10 +288,19 @@
   box-shadow: 0 0 24px rgba(56, 189, 248, 0.36);
 }
 
+.enquiry-table {
+  width: 100%;
+}
+
 .enquiry-table .ant-table,
 .enquiry-table .ant-table-container,
 .enquiry-table .ant-table-cell {
   background: transparent !important;
+}
+
+.enquiry-table .ant-table {
+  width: 100% !important;
+  table-layout: auto !important;
 }
 
 .enquiry-table .ant-table-container {
@@ -300,7 +309,12 @@
 }
 
 .enquiry-table .ant-table-content {
-  overflow-x: auto !important;
+  overflow-x: hidden !important;
+}
+
+.enquiry-table table {
+  width: 100% !important;
+  min-width: 0 !important;
 }
 
 .enquiry-table .ant-table-thead > tr > th {
@@ -322,7 +336,9 @@
 }
 
 .enquiry-image-card {
-  width: 380px;
+  width: 100%;
+  min-width: 0;
+  max-width: 380px;
   min-height: 122px;
   display: grid;
   grid-template-columns: 122px 1fr;
@@ -693,7 +709,6 @@
   }
 
   .enquiry-image-card {
-    width: 330px;
     grid-template-columns: 108px 1fr;
   }
 

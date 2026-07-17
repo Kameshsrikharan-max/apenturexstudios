@@ -3,6 +3,7 @@ import {Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Av
 import {SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, CheckCircleOutlined,
   CloseCircleOutlined, SendOutlined, UserSwitchOutlined, WarningOutlined,EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
   CameraOutlined, AppstoreOutlined, GoogleOutlined, ClockCircleOutlined, StarOutlined,CloseOutlined, StarFilled, RobotOutlined, LoadingOutlined, BulbOutlined,
+  MoreOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./UsersPage.css";
@@ -638,7 +639,11 @@ const UsersPage = () => {
   );
 
   const actionColumn = {
-    title: "Actions",
+    title: (
+      <span className="actions-col-icon" title="Actions">
+        <MoreOutlined />
+      </span>
+    ),
     key: "actions",
     fixed: "right" as const,
     width: 132,
