@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {Layout, Typography, Table, Input, Button, Space, ConfigProvider, Tag, Avatar,Tabs, Tooltip, Popover, Modal, Form, Select, message, Empty,} from "antd";
 import {SearchOutlined, ReloadOutlined, UserAddOutlined, FilterOutlined, EyeOutlined,EditOutlined, DeleteOutlined, MailOutlined, PhoneOutlined, CheckCircleOutlined,
-  CloseCircleOutlined, SendOutlined, UserSwitchOutlined, WarningOutlined,EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
+  CloseCircleOutlined, SendOutlined, UserSwitchOutlined,EnvironmentOutlined, CalendarOutlined, SaveOutlined, TeamOutlined, LinkOutlined,
   CameraOutlined, AppstoreOutlined, GoogleOutlined, ClockCircleOutlined, StarOutlined,CloseOutlined, StarFilled, RobotOutlined, LoadingOutlined, BulbOutlined,
   MoreOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
+import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
 
 const { Header, Content } = Layout;
@@ -76,7 +77,7 @@ const galleryPhotos = [
   { id: 7,  title: "Wedding Rings",        category: "Wedding",   image: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1400" },
   { id: 8,  title: "Outdoor Couple",       category: "Wedding",   image: "https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?q=80&w=1400" },
   { id: 9,  title: "Soft Portrait",        category: "Portraits", image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=1400" },
-  { id: 10, title: "Golden Portrait",      category: "Portraits", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1400" },
+  { id: 10, title: "Golden Portrait",      category: "Portraits", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80" },
   { id: 11, title: "Street Portrait",      category: "Portraits", image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1400" },
   { id: 12, title: "Mountain Air",         category: "Nature",    image: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1400" },
   { id: 13, title: "Nature Story",         category: "Nature",    image: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1400" },
@@ -381,13 +382,24 @@ const UserViewOverlay = ({ user, onClose }) => {
               <h1 className="uvo-name">{user.name}</h1>
               <p className="uvo-role-label">{user.role}</p>
 
+              {/* Status / Signup badges — icon-only, full label on hover via Tooltip */}
               <div className="uvo-badge-row">
-                <span className="uvo-status-badge" style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow }}>
-                  {filterIconMap[user.status]} {statusMeta.label}
-                </span>
-                <span className="uvo-signup-badge" style={{ "--bc": signupMeta.color }}>
-                  {filterIconMap[user.signupType] || <UserSwitchOutlined />} {signupMeta.label}
-                </span>
+                <Tooltip title={`Status: ${statusMeta.label}`}>
+                  <span
+                    className="uvo-status-badge icon-only"
+                    style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow }}
+                  >
+                    {filterIconMap[user.status]}
+                  </span>
+                </Tooltip>
+                <Tooltip title={`Signup: ${signupMeta.label}`}>
+                  <span
+                    className="uvo-signup-badge icon-only"
+                    style={{ "--bc": signupMeta.color }}
+                  >
+                    {filterIconMap[user.signupType] || <UserSwitchOutlined />}
+                  </span>
+                </Tooltip>
               </div>
             </div>
 
@@ -492,10 +504,14 @@ const UsersPage = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [viewUser, setViewUser] = useState(null);
   const [editUser, setEditUser] = useState(null);
-  const [deleteUser, setDeleteUser] = useState(null);
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [activeRowId, setActiveRowId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Fixed number of rows shown per page — the table body never grows past
+  // this height, so there is no vertical/horizontal scrollbar inside it.
+  const PAGE_SIZE = 6;
 
   const [editForm] = Form.useForm();
   const [inviteForm] = Form.useForm();
@@ -555,6 +571,13 @@ const UsersPage = () => {
     });
   }, [currentData, searchTerm, activeFilter]);
 
+  // Reset back to page 1 whenever the visible dataset changes shape
+  // (tab switch, search, or filter change) so pagination never points
+  // at an empty page.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, activeFilter]);
+
   const highlightText = (value) => {
     if (!searchTerm.trim()) return value;
     const regex = new RegExp(`(${escapeRegExp(searchTerm.trim())})`, "gi");
@@ -579,19 +602,18 @@ const UsersPage = () => {
     message.success("Saved");
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteUser.id.startsWith("p")) setPhotographersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
-    else setUsersData((prev) => prev.filter((item) => item.id !== deleteUser.id));
-    setSelectedRowKeys((prev) => prev.filter((key) => key !== deleteUser.id));
-    message.success("Deleted");
-    setDeleteUser(null);
+  const handleDeleteUser = (record) => {
+    if (record.id.startsWith("p")) {
+      setPhotographersData((prev) => prev.filter((item) => item.id !== record.id));
+    } else {
+      setUsersData((prev) => prev.filter((item) => item.id !== record.id));
+    }
+    setSelectedRowKeys((prev) => prev.filter((key) => key !== record.id));
   };
 
   const handleBulkDelete = () => {
     setPhotographersData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)));
-    message.success("Deleted");
     setSelectedRowKeys([]);
-    setBulkDeleteOpen(false);
   };
 
   const handleBulkStatus = (status) => {
@@ -622,86 +644,130 @@ const UsersPage = () => {
     message.success("Invite sent");
   };
 
+  // Status / Signup tags — icon-only, full word shown via Tooltip on hover
   const renderStatusTag = (status) => (
     <Tooltip title={`Status: ${status}`}>
-      <Tag className={`status-dot status-${status.toLowerCase()}`}>
-        {filterIconMap[status]} {status}
+      <Tag className={`status-dot status-${status.toLowerCase()} icon-only`}>
+        {filterIconMap[status]}
       </Tag>
     </Tooltip>
   );
 
   const renderSignupTag = (text) => (
     <Tooltip title={`Signup: ${text}`}>
-      <Tag className={text === "Invited" ? "signup-dot invited" : "signup-dot"}>
-        {filterIconMap[text] || <UserSwitchOutlined />} {text}
+      <Tag className={`${text === "Invited" ? "signup-dot invited" : "signup-dot"} icon-only`}>
+        {filterIconMap[text] || <UserSwitchOutlined />}
       </Tag>
     </Tooltip>
   );
 
-  const actionColumn = {
-    title: (
-      <span className="actions-col-icon" title="Actions">
-        <MoreOutlined />
-      </span>
-    ),
-    key: "actions",
-    fixed: "right" as const,
-    width: 132,
-    render: (_, record) => (
-      <Space size={6} className="photographer-actions">
-        <Tooltip title="View profile">
-          <Button type="text" icon={<EyeOutlined />} className="circle-action view-action" onClick={() => setViewUser(record)} />
-        </Tooltip>
-        <Tooltip title="Edit profile">
-          <Button type="text" icon={<EditOutlined />} className="circle-action edit-action" onClick={() => setEditUser(record)} />
-        </Tooltip>
-        <Tooltip title="Delete profile">
-          <Button type="text" icon={<DeleteOutlined />} className="circle-action delete-action" onClick={() => setDeleteUser(record)} />
-        </Tooltip>
-      </Space>
-    ),
-  };
+  // ---------------------------------------------------------------------
+  // Gmail-style single-line columns: Name | Email | Phone | Studio/Shoots |
+  // Status | Signup | Created (hover reveals view/edit/delete).
+  // No `scroll.x` and no `fixed` column — everything fits within the
+  // container width, so there is no horizontal scrollbar at all.
+  // ---------------------------------------------------------------------
+  const renderRowActionsOverlay = (record) => (
+    <div className="user-row-actions-overlay">
+      <Tooltip title="View profile">
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          className="user-action-btn view"
+          onClick={(e) => { e.stopPropagation(); setViewUser(record); }}
+        />
+      </Tooltip>
+      <Tooltip title="Edit profile">
+        <Button
+          type="text"
+          icon={<EditOutlined />}
+          className="user-action-btn edit"
+          onClick={(e) => { e.stopPropagation(); setEditUser(record); }}
+        />
+      </Tooltip>
+      <Tooltip title="Delete profile">
+        <DeleteButton
+          itemName={record.name}
+          onDelete={() => handleDeleteUser(record)}
+          className="user-action-btn delete"
+        />
+      </Tooltip>
+    </div>
+  );
 
   const commonColumns = [
     {
-      title: "Name", dataIndex: "name", key: "name",
-      sorter: (a, b) => a.name.localeCompare(b.name), width: 220,
+      title: "Name",
+      dataIndex: "name",
+      key: "name",
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      width: 160,
       render: (text, record) => (
-        <div className="clean-user-cell" onClick={() => setViewUser(record)} style={{ cursor: "pointer" }}>
-          <Avatar className="name-avatar">{text.charAt(0)}</Avatar>
-          <div>
-            <Tooltip title={record.name}><strong>{highlightText(text)}</strong></Tooltip>
-            <span>{activeTab === "photographers" ? <CameraOutlined /> : <TeamOutlined />}{record.role}</span>
-          </div>
-        </div>
+        <button type="button" className="user-name-cell" onClick={() => setViewUser(record)}>
+          <Avatar src={record.image} className="user-name-avatar">{text.charAt(0)}</Avatar>
+          <span>
+            <strong>{highlightText(text)}</strong>
+            <small>{record.role}</small>
+          </span>
+        </button>
       ),
     },
     {
-      title: "Email", dataIndex: "email", key: "email", width: 230,
-      render: (text) => <Tooltip title={text}><span className="muted-cell">{highlightText(text)}</span></Tooltip>,
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      width: 180,
+      ellipsis: true,
+      render: (text) => <span className="user-soft-cell">{highlightText(text)}</span>,
     },
     {
-      title: "Phone", dataIndex: "phone", key: "phone", width: 140,
-      render: (text) => <Tooltip title={text}><span className="muted-cell">{highlightText(text)}</span></Tooltip>,
+      title: "Phone",
+      dataIndex: "phone",
+      key: "phone",
+      width: 100,
+      render: (text) => <span className="user-soft-cell">{highlightText(text)}</span>,
     },
-  ];
-
-  const usersColumns = [
-    ...commonColumns,
-    { title: "Studio", dataIndex: "studio", key: "studio", width: 130, render: (text) => <Tag className="text-pill"><EnvironmentOutlined /> {text}</Tag> },
-    { title: "Status", dataIndex: "status", key: "status", width: 110, render: renderStatusTag },
-    { title: "Signup", dataIndex: "signupType", key: "signupType", width: 110, render: renderSignupTag },
-    { title: "Created", dataIndex: "created", key: "created", sorter: true, width: 130, render: (text) => <Tag className="text-pill"><CalendarOutlined /> {text}</Tag> },
-    actionColumn,
-  ];
-
-  const photographersColumns = [
-    ...commonColumns,
-    { title: "Shoots", dataIndex: "shoots", key: "shoots", width: 100, render: (shoots) => <Tooltip title={`${shoots ?? 0} shoots`}><Tag className="shoot-chip"><CameraOutlined /> {shoots ?? 0}</Tag></Tooltip> },
-    { title: "Status", dataIndex: "status", key: "status", width: 110, render: renderStatusTag },
-    { title: "Signup", dataIndex: "signupType", key: "signupType", width: 110, render: renderSignupTag },
-    { title: "Created", dataIndex: "created", key: "created", sorter: true, width: 130, render: (text) => <Tag className="text-pill"><CalendarOutlined /> {text}</Tag> },
-    actionColumn,
+    {
+      title: activeTab === "photographers" ? "Shoots" : "Studio",
+      key: "studioOrShoots",
+      width: 110,
+      render: (_, record) =>
+        activeTab === "photographers" ? (
+          <Tag className="user-pipeline-tag"><CameraOutlined /> {record.shoots ?? 0}</Tag>
+        ) : (
+          <Tag className="user-pipeline-tag"><EnvironmentOutlined /> {record.studio}</Tag>
+        ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 60,
+      align: "center",
+      render: renderStatusTag,
+    },
+    {
+      title: "Signup",
+      dataIndex: "signupType",
+      key: "signupType",
+      width: 60,
+      align: "center",
+      render: renderSignupTag,
+    },
+    {
+      title: "Created",
+      dataIndex: "created",
+      key: "created",
+      sorter: true,
+      width: 120,
+      onCell: () => ({ className: "user-actions-anchor-cell" }),
+      render: (text, record) => (
+        <>
+          <Tag className="user-created-tag"><CalendarOutlined /> {text}</Tag>
+          {renderRowActionsOverlay(record)}
+        </>
+      ),
+    },
   ];
 
   const filterMenu = (
@@ -722,7 +788,7 @@ const UsersPage = () => {
     </div>
   );
 
-  const columns = activeTab === "photographers" ? photographersColumns : usersColumns;
+  const columns = commonColumns;
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 14 } }}>
@@ -815,7 +881,13 @@ const UsersPage = () => {
                           <Tooltip title="Mark active"><Button type="text" icon={<CheckCircleOutlined />} className="bulk-icon-btn active-bulk" onClick={() => handleBulkStatus("Active")} /></Tooltip>
                           <Tooltip title="Mark inactive"><Button type="text" icon={<CloseCircleOutlined />} className="bulk-icon-btn inactive-bulk" onClick={() => handleBulkStatus("Inactive")} /></Tooltip>
                           <Tooltip title="Mark invited"><Button type="text" icon={<SendOutlined />} className="bulk-icon-btn invite-bulk" onClick={handleBulkSignup} /></Tooltip>
-                          <Tooltip title="Delete selected"><Button type="text" icon={<DeleteOutlined />} className="bulk-icon-btn delete-bulk" onClick={() => setBulkDeleteOpen(true)} /></Tooltip>
+                          <Tooltip title="Delete selected">
+                            <DeleteButton
+                              itemName={`${selectedRowKeys.length} selected user${selectedRowKeys.length > 1 ? "s" : ""}`}
+                              onDelete={handleBulkDelete}
+                              className="bulk-icon-btn delete-bulk"
+                            />
+                          </Tooltip>
                         </div>
                       )}
                       <Tooltip title="Invite user">
@@ -827,12 +899,29 @@ const UsersPage = () => {
                   <Table
                     columns={columns}
                     dataSource={filteredData}
-                    pagination={false}
-                    className="review-table user-table-custom photographers-hover-table"
+                    className="user-table-custom"
                     rowKey="id"
+                    tableLayout="fixed"
+                    scroll={{ x: false, y: false }}
+                    rowClassName={(record) => (activeRowId === record.id ? "user-row-active" : "")}
+                    onRow={(record) => ({
+                      onMouseEnter: () => setActiveRowId(record.id),
+                      onMouseLeave: () =>
+                        setActiveRowId((current) => (current === record.id ? null : current)),
+                      onTouchStart: () =>
+                        setActiveRowId((current) => (current === record.id ? null : record.id)),
+                    })}
                     rowSelection={activeTab === "photographers" ? { selectedRowKeys, onChange: setSelectedRowKeys } : undefined}
-                    scroll={{ x: 1100 }}
                     locale={{ emptyText: <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                    pagination={{
+                      current: currentPage,
+                      pageSize: PAGE_SIZE,
+                      total: filteredData.length,
+                      onChange: (page) => setCurrentPage(page),
+                      showSizeChanger: false,
+                      hideOnSinglePage: true,
+                      className: "user-table-pagination",
+                    }}
                   />
                 </div>
 
@@ -910,33 +999,6 @@ const UsersPage = () => {
                 <Button htmlType="submit" type="primary" icon={<SendOutlined />} className="invite-btn-styled" />
               </div>
             </Form>
-          </div>
-        </Modal>
-
-        
-        <Modal open={!!deleteUser} onCancel={() => setDeleteUser(null)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
-          {deleteUser && (
-            <div className="modal-shell delete-modal-shell">
-              <div className="delete-warning-icon"><WarningOutlined /></div>
-              <Avatar size={58} className="delete-avatar">{deleteUser.name.charAt(0)}</Avatar>
-              <Title level={3}>{deleteUser.name}</Title>
-              <div className="modal-action-row delete-actions-row">
-                <Button onClick={() => setDeleteUser(null)}>Cancel</Button>
-                <Button danger icon={<DeleteOutlined />} onClick={handleDeleteConfirm} />
-              </div>
-            </div>
-          )}
-        </Modal>
-
-      
-        <Modal open={bulkDeleteOpen} onCancel={() => setBulkDeleteOpen(false)} footer={null} width={430} title={null} className="creative-modal delete-modal" centered>
-          <div className="modal-shell delete-modal-shell">
-            <div className="delete-warning-icon"><WarningOutlined /></div>
-            <Title level={3}>{selectedRowKeys.length} selected</Title>
-            <div className="modal-action-row delete-actions-row">
-              <Button onClick={() => setBulkDeleteOpen(false)}>Cancel</Button>
-              <Button danger icon={<DeleteOutlined />} onClick={handleBulkDelete} />
-            </div>
           </div>
         </Modal>
       </Layout>

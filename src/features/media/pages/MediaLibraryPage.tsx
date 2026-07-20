@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import "./MediaLibraryPage.css";
 
 import {PictureOutlined,VideoCameraOutlined,FolderOpenOutlined,SearchOutlined,FilterOutlined,HeartOutlined,HeartFilled,DeleteOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,LeftOutlined,RightOutlined,EditOutlined,PlusOutlined,ZoomInOutlined,ZoomOutOutlined,ReloadOutlined,CompassOutlined,StarOutlined} from "@ant-design/icons";
+import ConfirmDeleteButton from "../../../components/common/ConfirmDeleteButton";
 
 type MediaItem = {
   id: number;
@@ -153,9 +154,7 @@ export default function MediaLibraryPage() {
     setAlbums((prev) => [...prev, { id: Date.now(), title: name.trim() }]);
   };
 
-  const deleteAlbum = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm("Delete this album container? Inside items will remain but safely unassigned.")) return;
+  const deleteAlbum = (id: number) => {
     setAlbums((prev) => prev.filter((a) => a.id !== id));
     setMediaList((prev) =>
       prev.map((item) => (item.albumId === id ? { ...item, albumId: null } : item))
@@ -170,9 +169,7 @@ export default function MediaLibraryPage() {
     );
   };
 
-  const deleteMediaItem = (id: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this file data permanently?")) return;
+  const deleteMediaItem = (id: number) => {
     setMediaList((prev) => prev.filter((item) => item.id !== id));
     setPreviewIndex(null);
     setIsRenameMode(false);
@@ -340,9 +337,12 @@ export default function MediaLibraryPage() {
                     </div>
                     <h4>{alb.title}</h4>
                     <span className="items-badge">{albumItemsCount} items</span>
-                    <button className="album-card-delete" onClick={(e) => deleteAlbum(alb.id, e)}>
-                      <DeleteOutlined />
-                    </button>
+                    <ConfirmDeleteButton
+                      itemName={alb.title}
+                      icon={<DeleteOutlined />}
+                      className="album-card-delete"
+                      onDelete={() => deleteAlbum(alb.id)}
+                    />
                   </div>
                 );
               })}
@@ -417,9 +417,12 @@ export default function MediaLibraryPage() {
                       <button className="action-drawer-btn heart-action" onClick={(e) => toggleLike(item.id, e)}>
                         {item.liked ? <HeartFilled style={{ color: "#ff2e63" }} /> : <HeartOutlined />}
                       </button>
-                      <button className="action-drawer-btn delete-action" onClick={(e) => deleteMediaItem(item.id, e)}>
-                        <DeleteOutlined />
-                      </button>
+                      <ConfirmDeleteButton
+                        itemName={item.title}
+                        icon={<DeleteOutlined />}
+                        className="action-drawer-btn delete-action"
+                        onDelete={() => deleteMediaItem(item.id)}
+                      />
                     </div>
                   </div>
 
@@ -488,9 +491,14 @@ export default function MediaLibraryPage() {
                     >
                       {currentPreviewItem.liked ? <HeartFilled /> : <HeartOutlined />}
                     </button>
-                    <button className="modal-inline-delete-btn" onClick={() => deleteMediaItem(currentPreviewItem.id)}>
-                      <DeleteOutlined /> Delete
-                    </button>
+                    <ConfirmDeleteButton
+                      itemName={currentPreviewItem.title}
+                      icon={<DeleteOutlined />}
+                      iconOnly={false}
+                      label="Delete"
+                      className="modal-inline-delete-btn"
+                      onDelete={() => deleteMediaItem(currentPreviewItem.id)}
+                    />
                   </div>
                 )}
               </div>

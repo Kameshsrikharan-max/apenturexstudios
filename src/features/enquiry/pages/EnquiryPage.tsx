@@ -48,6 +48,7 @@ import {
 } from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
+import DeleteButton from "../../../components/common/DeleteButton";
 import "./EnquiryPage.css";
 
 const { Header, Content } = Layout;
@@ -147,7 +148,6 @@ const EnquiryPage = () => {
   const [viewEnquiry, setViewEnquiry] = useState(null);
   const [journeyEnquiry, setJourneyEnquiry] = useState(null);
   const [editEnquiry, setEditEnquiry] = useState(null);
-  const [deleteEnquiry, setDeleteEnquiry] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -207,30 +207,16 @@ const EnquiryPage = () => {
     message.success(`Enquiry marked as ${status}`);
   };
 
-  const confirmDelete = (record) => {
+  const handleDeleteEnquiry = (record) => {
     setEnquiriesData((prev) => prev.filter((item) => item.id !== record.id));
-    setDeleteEnquiry(null);
-    message.success("Enquiry deleted successfully");
+    setSelectedRowKeys((prev) => prev.filter((key) => key !== record.id));
   };
 
   const handleBulkDelete = () => {
-    if (!selectedRowKeys.length) {
-      message.warning("Please select enquiries");
-      return;
-    }
-
-    Modal.confirm({
-      title: "Delete Selected Enquiries?",
-      content: `${selectedRowKeys.length} enquiries will be deleted.`,
-      okText: "Delete",
-      okButtonProps: { danger: true },
-      onOk: () => {
-        setEnquiriesData((prev) =>
-          prev.filter((item) => !selectedRowKeys.includes(item.id))
-        );
-        setSelectedRowKeys([]);
-      },
-    });
+    setEnquiriesData((prev) =>
+      prev.filter((item) => !selectedRowKeys.includes(item.id))
+    );
+    setSelectedRowKeys([]);
   };
 
   const openEditModal = (record) => {
@@ -326,10 +312,14 @@ const EnquiryPage = () => {
               </Tooltip>
 
               <Tooltip title="Delete this enquiry" color="#ffffff">
-                <button className="danger" onClick={() => setDeleteEnquiry(record)}>
-                  <DeleteOutlined />
-                  <span>Delete</span>
-                </button>
+                <span>
+                  <DeleteButton
+                    itemName={record.enquiryName}
+                    onDelete={() => handleDeleteEnquiry(record)}
+                    iconOnly={false}
+                    className="danger action-panel-delete-btn"
+                  />
+                </span>
               </Tooltip>
             </div>
           }
@@ -603,14 +593,12 @@ const EnquiryPage = () => {
                         <Button onClick={clearFilters}>Clear</Button>
                       </Space>
 
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
+                      <DeleteButton
+                        itemName={`${selectedRowKeys.length} selected enquir${selectedRowKeys.length === 1 ? "y" : "ies"}`}
+                        onDelete={handleBulkDelete}
+                        iconOnly={false}
                         disabled={!selectedRowKeys.length}
-                        onClick={handleBulkDelete}
-                      >
-                        
-                      </Button>
+                      />
                     </div>
 
                     <Table
@@ -817,18 +805,6 @@ const EnquiryPage = () => {
               <Input.TextArea rows={4} />
             </Form.Item>
           </Form>
-        </Modal>
-
-        <Modal
-          className="enquiry-modal"
-          open={!!deleteEnquiry}
-          onCancel={() => setDeleteEnquiry(null)}
-          onOk={() => confirmDelete(deleteEnquiry)}
-          okText="Delete"
-          okButtonProps={{ danger: true }}
-          centered
-        >
-          <p>Are you sure you want to delete this enquiry?</p>
         </Modal>
       </Layout>
     </ConfigProvider>

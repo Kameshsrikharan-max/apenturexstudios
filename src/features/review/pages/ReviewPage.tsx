@@ -1,11 +1,17 @@
 import { useMemo, useState } from "react";
-import {Avatar,Button,Card,ConfigProvider,Descriptions,Empty,Input,Layout,message,Modal,Select,Space,Table,Tooltip,Typography,} from "antd";
-import {AppstoreOutlined,BarsOutlined,CalendarOutlined,CheckCircleOutlined,CloseCircleOutlined,EyeOutlined,ReloadOutlined,SearchOutlined,ThunderboltOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
+import {Avatar,Button,Card,ConfigProvider,Descriptions,Empty,Input,Layout,message,Modal,Select,Space,Table,Tag,Tooltip,Typography,} from "antd";
+import {AppstoreOutlined,BarsOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseCircleOutlined,EyeOutlined,ReloadOutlined,SearchOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
+
+const statusIconMap = {
+  Pending: <ClockCircleOutlined />,
+  Approved: <CheckCircleOutlined />,
+  Rejected: <CloseCircleOutlined />,
+};
 
 const ReviewPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -13,6 +19,12 @@ const ReviewPage = () => {
   const [viewMode, setViewMode] = useState("table");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState(null);
+  const [activeRowKey, setActiveRowKey] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Fixed number of rows shown per page — keeps the table body a
+  // constant height so there is no scrollbar inside it.
+  const PAGE_SIZE = 6;
 
   const [referralsData, setReferralsData] = useState([
     {key: "1",submitted: "2026-05-02",applicant: "Rajesh",location: "Chennai",avatar: "https://randomuser.me/api/portraits/men/32.jpg",status: "Pending",score: 78,role: "Full Stack",},
@@ -41,11 +53,6 @@ const ReviewPage = () => {
     (item) => item.status === "Pending"
   ).length;
 
-  const avgScore = Math.round(
-    referralsData.reduce((total, item) => total + item.score, 0) /
-      referralsData.length
-  );
-
   const handleRefresh = () => {
     setIsLoading(true);
 
@@ -69,93 +76,95 @@ const ReviewPage = () => {
     return "pending";
   };
 
-  const getStatusBadge = (status, score) => (
-    <div className="status-container">
-      <span className={`status-pill ${getStatusClass(status)}`}>
-        <span className="status-dot" />
-        {status}
-      </span>
+  const renderStatusTag = (status) => (
+    <Tooltip title={`Status: ${status}`}>
+      <Tag className={`status-dot status-${getStatusClass(status)} icon-only`}>
+        {statusIconMap[status]}
+      </Tag>
+    </Tooltip>
+  );
 
-      <div className="score-orbit" style={{ "--score": `${score}%` }}>
-        <div className="score-circle">{score}</div>
-      </div>
+  const renderRowActionsOverlay = (record) => (
+    <div className="review-row-actions-overlay">
+      <Tooltip title="View">
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          className="review-action-btn view"
+          onClick={(e) => { e.stopPropagation(); setSelectedReferral(record); }}
+        />
+      </Tooltip>
+
+      {record.status === "Pending" && (
+        <>
+          <Tooltip title="Approve">
+            <Button
+              type="text"
+              icon={<CheckCircleOutlined />}
+              className="review-action-btn approve"
+              onClick={(e) => { e.stopPropagation(); handleStatusChange(record.key, "Approved"); }}
+            />
+          </Tooltip>
+
+          <Tooltip title="Reject">
+            <Button
+              type="text"
+              icon={<CloseCircleOutlined />}
+              className="review-action-btn reject"
+              onClick={(e) => { e.stopPropagation(); handleStatusChange(record.key, "Rejected"); }}
+            />
+          </Tooltip>
+        </>
+      )}
     </div>
   );
 
   const columns = [
     {
-      title: "Date",
-      dataIndex: "submitted",
-      key: "submitted",
-      width: 140,
-      render: (date) => <span className="date-chip">{date}</span>,
-    },
-    {
       title: "Name",
       dataIndex: "applicant",
       key: "applicant",
-      width: 240,
+      width: 220,
       render: (_, record) => (
-        <Space>
-          <Avatar src={record.avatar} size={42} className="avatar-ring" />
-          <div>
-            <div className="applicant-name">{record.applicant}</div>
-            <div className="role-text">{record.role}</div>
-          </div>
-        </Space>
+        <button
+          type="button"
+          className="review-name-cell"
+          onClick={() => setSelectedReferral(record)}
+        >
+          <Avatar src={record.avatar} className="review-name-avatar" />
+          <span>
+            <strong>{record.applicant}</strong>
+            <small>{record.role}</small>
+          </span>
+        </button>
       ),
     },
     {
       title: "City",
       dataIndex: "location",
       key: "location",
-      width: 170,
-      render: (location) => <span className="location-text">{location}</span>,
+      width: 150,
+      render: (location) => <span className="review-soft-cell">{location}</span>,
     },
     {
-      title: "Score",
+      title: "Status",
       dataIndex: "status",
       key: "status",
-      width: 230,
-      render: (_, record) => getStatusBadge(record.status, record.score),
+      width: 90,
+      align: "center",
+      render: renderStatusTag,
     },
     {
-      title: "",
-      key: "actions",
-      width: 220,
-      render: (_, record) => (
-        <Space size="small" wrap>
-          <Tooltip title="View">
-            <Button
-              ghost
-              icon={<EyeOutlined />}
-              className="action-btn icon-action"
-              onClick={() => setSelectedReferral(record)}
-            />
-          </Tooltip>
-
-          {record.status === "Pending" && (
-            <>
-              <Tooltip title="Approve">
-                <Button
-                  type="primary"
-                  icon={<CheckCircleOutlined />}
-                  className="approve-btn icon-action"
-                  onClick={() => handleStatusChange(record.key, "Approved")}
-                />
-              </Tooltip>
-
-              <Tooltip title="Reject">
-                <Button
-                  danger
-                  icon={<CloseCircleOutlined />}
-                  className="reject-btn icon-action"
-                  onClick={() => handleStatusChange(record.key, "Rejected")}
-                />
-              </Tooltip>
-            </>
-          )}
-        </Space>
+      title: "Date",
+      dataIndex: "submitted",
+      key: "submitted",
+      width: 160,
+      onCell: () => ({ className: "review-actions-anchor-cell" }),
+      render: (date, record) => (
+        <>
+          <Tag className="review-date-tag"><CalendarOutlined /> {date}</Tag>
+          {renderRowActionsOverlay(record)}
+        </>
       ),
     },
   ];
@@ -192,11 +201,6 @@ const ReviewPage = () => {
                       <Text className="hero-kicker">Live</Text>
                       <Title level={1}>Reviews</Title>
                     </div>
-
-                    <div className="hero-score">
-                      <ThunderboltOutlined />
-                      <strong>{avgScore}%</strong>
-                    </div>
                   </div>
 
                   <div className="stats-row">
@@ -219,16 +223,6 @@ const ReviewPage = () => {
                         <p>Pending</p>
                       </div>
                     </Card>
-
-                    <Card className="review-metric-card">
-                      <div className="metric-icon">
-                        <ThunderboltOutlined />
-                      </div>
-                      <div>
-                        <h3>{avgScore}%</h3>
-                        <p>Score</p>
-                      </div>
-                    </Card>
                   </div>
 
                   <div className="review-toolbar">
@@ -238,14 +232,17 @@ const ReviewPage = () => {
                         prefix={<SearchOutlined />}
                         className="dashboard-search review-search"
                         value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
+                        onChange={(event) => {
+                          setSearchTerm(event.target.value);
+                          setCurrentPage(1);
+                        }}
                         allowClear
                       />
 
                       <Select
                         value={statusFilter}
                         className="status-select"
-                        onChange={setStatusFilter}
+                        onChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}
                         options={[
                           { value: "all", label: "All" },
                           { value: "pending", label: "Pending" },
@@ -291,10 +288,27 @@ const ReviewPage = () => {
                       <Table
                         columns={columns}
                         dataSource={filteredData}
-                        pagination={false}
-                        scroll={{ x: 1000 }}
-                        className="wow-table review-table"
-                        rowClassName={(_, index) => `table-row-animate row-${index}`}
+                        rowKey="key"
+                        tableLayout="fixed"
+                        scroll={{ x: false, y: false }}
+                        className="review-table-custom"
+                        rowClassName={(record) => (activeRowKey === record.key ? "review-row-active" : "")}
+                        onRow={(record) => ({
+                          onMouseEnter: () => setActiveRowKey(record.key),
+                          onMouseLeave: () =>
+                            setActiveRowKey((current) => (current === record.key ? null : current)),
+                          onTouchStart: () =>
+                            setActiveRowKey((current) => (current === record.key ? null : record.key)),
+                        })}
+                        locale={{ emptyText: <Empty description="No matching referrals" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                        pagination={{
+                          current: currentPage,
+                          pageSize: PAGE_SIZE,
+                          total: filteredData.length,
+                          onChange: (page) => setCurrentPage(page),
+                          showSizeChanger: false,
+                          hideOnSinglePage: true,
+                        }}
                       />
                     </div>
                   ) : (
@@ -316,12 +330,14 @@ const ReviewPage = () => {
                               size={58}
                               className="avatar-ring"
                             />
-                            <div
-                              className="score-orbit"
-                              style={{ "--score": `${item.score}%` }}
+                            <span
+                              className={`status-pill ${getStatusClass(
+                                item.status
+                              )}`}
                             >
-                              <div className="score-circle">{item.score}</div>
-                            </div>
+                              <span className="status-dot-mark" />
+                              {item.status}
+                            </span>
                           </div>
 
                           <h4>{item.applicant}</h4>
@@ -329,14 +345,7 @@ const ReviewPage = () => {
 
                           <div className="card-meta">
                             <span>{item.location}</span>
-                            <span
-                              className={`status-pill ${getStatusClass(
-                                item.status
-                              )}`}
-                            >
-                              <span className="status-dot" />
-                              {item.status}
-                            </span>
+                            <span>{item.submitted}</span>
                           </div>
 
                           <div className="card-actions">
@@ -403,14 +412,6 @@ const ReviewPage = () => {
                 <div>
                   <h2>{selectedReferral.applicant}</h2>
                   <p>{selectedReferral.role}</p>
-                </div>
-
-                <div
-                  className="portfolio-score"
-                  style={{ "--score": `${selectedReferral.score}%` }}
-                >
-                  <strong>{selectedReferral.score}</strong>
-                  <span>Score</span>
                 </div>
               </div>
 
