@@ -1,11 +1,18 @@
 import { useMemo, useState } from "react";
-import {CameraOutlined,DownOutlined,EditOutlined,PictureOutlined,ReloadOutlined,
-SaveOutlined,StopOutlined,UpOutlined,} from "@ant-design/icons";
+import {
+  CameraOutlined,
+  DownOutlined,
+  EditOutlined,
+  PictureOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+  StopOutlined,
+  UpOutlined,
+} from "@ant-design/icons";
 import { Button, Form, Input, Select, Tooltip } from "antd";
 import "./ViewStudioPage.css";
 
 const { TextArea } = Input;
-
 
 const DEFAULT_STUDIO_DATA = {
   studioName: "Wave Studios",
@@ -20,6 +27,17 @@ const DEFAULT_STUDIO_DATA = {
   services: ["69b7ade8b5ffe89ff5lef187"],
   specializations: ["Portrait Photography"],
 };
+
+// Fields that MUST be filled before the form can be saved
+const REQUIRED_FIELDS = [
+  "studioName",
+  "phoneNumber",
+  "address",
+  "city",
+  "state",
+  "country",
+  "postalCode",
+];
 
 const loadLS = (k, fb) => {
   try {
@@ -58,6 +76,89 @@ const specializationOptions = [
   { value: "Food Photography", label: "Food Photography" },
 ];
 
+// ---- validation rule sets (applies to every field, required or not) ----
+const rules = {
+  studioName: [
+    { required: true, message: "Studio name is required" },
+    { min: 2, message: "Studio name must be at least 2 characters" },
+    { max: 80, message: "Studio name must be under 80 characters" },
+    { whitespace: true, message: "Studio name cannot be just spaces" },
+  ],
+  phoneNumber: [
+    { required: true, message: "Phone number is required" },
+    {
+      pattern: /^[0-9]{10}$/,
+      message: "Enter a valid 10-digit phone number",
+    },
+  ],
+  address: [
+    { required: true, message: "Address is required" },
+    { whitespace: true, message: "Address cannot be just spaces" },
+    { max: 200, message: "Address must be under 200 characters" },
+  ],
+  city: [
+    { required: true, message: "City is required" },
+    {
+      pattern: /^[A-Za-z\s.'-]+$/,
+      message: "City can only contain letters",
+    },
+  ],
+  state: [
+    { required: true, message: "State is required" },
+    {
+      pattern: /^[A-Za-z\s.'-]+$/,
+      message: "State can only contain letters",
+    },
+  ],
+  country: [
+    { required: true, message: "Country is required" },
+    {
+      pattern: /^[A-Za-z\s.'-]+$/,
+      message: "Country can only contain letters",
+    },
+  ],
+  postalCode: [
+    { required: true, message: "Postal code is required" },
+    {
+      pattern: /^[0-9]{6}$/,
+      message: "Enter a valid 6-digit postal code",
+    },
+  ],
+  about: [{ max: 1000, message: "About must be under 1000 characters" }],
+  services: [
+    {
+      validator: (_rule, value) => {
+        if (!value || value.length === 0) return Promise.resolve();
+        if (value.length > 10) {
+          return Promise.reject(new Error("You can select up to 10 services"));
+        }
+        return Promise.resolve();
+      },
+    },
+  ],
+  specializations: [
+    {
+      validator: (_rule, value) => {
+        if (!value || value.length === 0) return Promise.resolve();
+        if (value.length > 10) {
+          return Promise.reject(
+            new Error("You can select up to 10 specializations")
+          );
+        }
+        return Promise.resolve();
+      },
+    },
+  ],
+};
+
+// Checks whether every required field currently holds a non-empty value
+function areRequiredFieldsFilled(values) {
+  return REQUIRED_FIELDS.every((key) => {
+    const v = values?.[key];
+    return v !== undefined && v !== null && String(v).trim() !== "";
+  });
+}
+
 function Field({ name, label, required, children }: { name: any; label: any; required?: any; children: any }) {
   return (
     <Form.Item
@@ -67,6 +168,11 @@ function Field({ name, label, required, children }: { name: any; label: any; req
           {required && <span className="studio-required">*</span>} {label}
         </span>
       }
+      rules={rules[name] || []}
+      // Disable antd's own auto-generated asterisk so only our custom
+      // studio-required span renders — prevents the double "* *" bug.
+      required={false}
+      validateTrigger={["onChange", "onBlur"]}
     >
       {children}
     </Form.Item>
@@ -92,8 +198,19 @@ export default function ViewStudioPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isRailOpen, setIsRailOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(true);
 
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
+
+  // Re-evaluate validity (errors + required-field completeness) on every field change
+  const handleFieldsChange = () => {
+    const hasErrors = form
+      .getFieldsError()
+      .some(({ errors }) => errors.length > 0);
+    const values = form.getFieldsValue();
+    const filled = areRequiredFieldsFilled(values);
+    setIsFormValid(!hasErrors && filled);
+  };
 
   const handleValuesChange = () => {
     if (!isEditing) return;
@@ -103,23 +220,37 @@ export default function ViewStudioPage() {
   const handleEdit = () => {
     setIsEditing(true);
     setHasChanges(false);
+    // Reset validity state to reflect current field contents
+    handleFieldsChange();
   };
 
   const handleReset = () => {
     form.resetFields();
     setHasChanges(false);
+    handleFieldsChange();
   };
 
   const handleCancel = () => {
     form.setFieldsValue(initialValues);
+    form.resetFields(); // clears any lingering error/touched state
+    form.setFieldsValue(initialValues);
+    setIsEditing(false);
+    setHasChanges(false);
+    setIsFormValid(true);
+  };
+
+  const handleSubmit = (values) => {
+    // Belt-and-braces: block save if somehow triggered while invalid/incomplete
+    if (!areRequiredFieldsFilled(values)) return;
+    saveLS("axsStudio", values);
     setIsEditing(false);
     setHasChanges(false);
   };
 
-  const handleSubmit = (values) => {
-    saveLS("axsStudio", values);
-    setIsEditing(false);
-    setHasChanges(false);
+  const handleSubmitFailed = () => {
+    // antd auto-scrolls to & highlights the first invalid field;
+    // keep the Save button disabled until it's fixed
+    setIsFormValid(false);
   };
 
   const goToProfile = () => {
@@ -162,12 +293,16 @@ export default function ViewStudioPage() {
           </ActionIcon>
 
           <ActionIcon
-            tooltip="Submit"
+            tooltip={
+              isEditing && !isFormValid
+                ? "Fill all required fields correctly to save"
+                : "Submit"
+            }
             type="primary"
             className="studio-rail-btn-save"
             htmlType="submit"
             form="studio-form"
-            disabled={!isEditing || !hasChanges}
+            disabled={!isEditing || !hasChanges || !isFormValid}
             tabIndex={isRailOpen ? 0 : -1}
           >
             <SaveOutlined />
@@ -192,7 +327,6 @@ export default function ViewStudioPage() {
           >
             <StopOutlined />
           </ActionIcon>
-
         </div>
       </aside>
 
@@ -227,9 +361,12 @@ export default function ViewStudioPage() {
           layout="vertical"
           initialValues={initialValues}
           onFinish={handleSubmit}
+          onFinishFailed={handleSubmitFailed}
           onValuesChange={handleValuesChange}
+          onFieldsChange={handleFieldsChange}
           disabled={!isEditing}
           className="studio-form"
+          scrollToFirstError={{ behavior: "smooth", block: "center" }}
         >
           <section className="studio-glass-card">
             <header className="studio-card-header">
@@ -242,7 +379,7 @@ export default function ViewStudioPage() {
               </Field>
 
               <Field name="phoneNumber" label="Phone Number" required>
-                <Input placeholder="Phone number" />
+                <Input placeholder="Phone number" maxLength={10} />
               </Field>
 
               <Field name="address" label="Address" required>
@@ -262,7 +399,7 @@ export default function ViewStudioPage() {
               </Field>
 
               <Field name="postalCode" label="Postal code" required>
-                <Input placeholder="Postal code" />
+                <Input placeholder="Postal code" maxLength={6} />
               </Field>
             </div>
           </section>

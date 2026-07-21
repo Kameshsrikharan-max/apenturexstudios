@@ -1,5 +1,5 @@
 .studio-footer {
-  position: static; /* ensure it stays in normal flow, never fixed/sticky */
+  position: static;
   overflow: hidden;
   width: 100%;
   padding: 18px 28px;

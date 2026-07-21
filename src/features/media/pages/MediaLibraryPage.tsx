@@ -1,4 +1,6 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { Tooltip } from "antd";
 import "./MediaLibraryPage.css";
 
 import {PictureOutlined,VideoCameraOutlined,FolderOpenOutlined,SearchOutlined,FilterOutlined,HeartOutlined,HeartFilled,DeleteOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,LeftOutlined,RightOutlined,EditOutlined,PlusOutlined,ZoomInOutlined,ZoomOutOutlined,ReloadOutlined,CompassOutlined,StarOutlined} from "@ant-design/icons";
@@ -77,6 +79,13 @@ export default function MediaLibraryPage() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
+  // ---- Smooth height / cross-fade transition for the content region ----
+  const contentWrapperRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<number | undefined>(undefined);
+  const [contentFading, setContentFading] = useState(false);
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     localStorage.setItem("persistent_media", JSON.stringify(mediaList));
   }, [mediaList]);
@@ -84,6 +93,63 @@ export default function MediaLibraryPage() {
   useEffect(() => {
     localStorage.setItem("persistent_albums", JSON.stringify(albums));
   }, [albums]);
+
+  // Freeze current height right before the tab/album/view actually changes,
+  // then measure the new content and animate smoothly toward it.
+  useLayoutEffect(() => {
+    const node = contentWrapperRef.current;
+    if (!node) return;
+
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+
+    const targetHeight = node.scrollHeight;
+
+    const raf = requestAnimationFrame(() => {
+      setContainerHeight(targetHeight);
+    });
+
+    fadeTimerRef.current = setTimeout(() => setContentFading(false), 40);
+    unlockTimerRef.current = setTimeout(() => setContainerHeight(undefined), 420);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFolder, selectedAlbumId, viewMode, mediaList, albums, search, filterLikedOnly]);
+
+  const switchFolder = (key: string) => {
+    if (key === activeFolder) return;
+    const node = contentWrapperRef.current;
+    if (node) setContainerHeight(node.offsetHeight);
+    setContentFading(true);
+    setActiveFolder(key);
+    setSelectedAlbumId(null);
+  };
+
+  const openAlbumFolder = (id: number) => {
+    const node = contentWrapperRef.current;
+    if (node) setContainerHeight(node.offsetHeight);
+    setContentFading(true);
+    setSelectedAlbumId(id);
+  };
+
+  const backToAlbums = () => {
+    const node = contentWrapperRef.current;
+    if (node) setContainerHeight(node.offsetHeight);
+    setContentFading(true);
+    setSelectedAlbumId(null);
+  };
+
+  const switchViewMode = (mode: string) => {
+    if (mode === viewMode) return;
+    const node = contentWrapperRef.current;
+    if (node) setContainerHeight(node.offsetHeight);
+    setContentFading(true);
+    setViewMode(mode);
+  };
 
   
   const counts = useMemo(() => {
@@ -241,6 +307,129 @@ export default function MediaLibraryPage() {
 
   const currentPreviewItem = previewIndex !== null ? displayedMedia[previewIndex] : null;
 
+  const previewModal = currentPreviewItem ? (
+    <div className="media-modal-backdrop" onClick={() => setPreviewIndex(null)}>
+      
+      <div 
+        className="holographic-glow-backdrop"
+        style={{ 
+          backgroundImage: currentPreviewItem.type === "photo" ? `url(${currentPreviewItem.url})` : "none",
+          backgroundColor: currentPreviewItem.type === "video" ? "#101223" : "transparent"
+        }}
+      ></div>
+
+      <div className="media-modal-window" onClick={(e) => e.stopPropagation()}>
+        
+        
+        <div className="modal-top-header-bar">
+          <div className="modal-header-left-group">
+            {isRenameMode ? (
+              <div className="modal-rename-inline-row">
+                <input
+                  value={renameTitle}
+                  onChange={(e) => setRenameTitle(e.target.value)}
+                  className="modal-rename-input"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && saveRename(currentPreviewItem.id)}
+                />
+                <button className="modal-rename-save-btn" onClick={() => saveRename(currentPreviewItem.id)}>
+                  Save
+                </button>
+                <button className="modal-rename-cancel-btn" onClick={() => setIsRenameMode(false)}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <div className="modal-title-display-line">
+                <h3 className="modal-media-title">{currentPreviewItem.title}</h3>
+                <button className="modal-inline-edit-trigger" onClick={() => setIsRenameMode(true)}>
+                  <EditOutlined /> Rename
+                </button>
+                <span className="modal-media-badge">{currentPreviewItem.type.toUpperCase()} </span>
+                
+                <button 
+                  className={`modal-inline-like-btn ${currentPreviewItem.liked ? "liked-active" : ""}`}
+                  onClick={(e) => toggleLike(currentPreviewItem.id, e)}
+                >
+                  {currentPreviewItem.liked ? <HeartFilled /> : <HeartOutlined />}
+                </button>
+                <ConfirmDeleteButton
+                  itemName={currentPreviewItem.title}
+                  icon={<DeleteOutlined />}
+                  iconOnly={false}
+                  label="Delete"
+                  className="modal-inline-delete-btn"
+                  onDelete={() => deleteMediaItem(currentPreviewItem.id)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="modal-header-right-group">
+            <button className="modal-top-close-trigger" onClick={() => setPreviewIndex(null)}>
+              <CloseOutlined />
+            </button>
+          </div>
+        </div>
+
+        
+        <button className="modal-nav-arrow arrow-left-slide" onClick={() => navigatePreview(-1)}>
+          <LeftOutlined />
+        </button>
+        <button className="modal-nav-arrow arrow-right-slide" onClick={() => navigatePreview(1)}>
+          <RightOutlined />
+        </button>
+
+        
+        <div className="modal-content-container-full">
+          <div 
+            className={`modal-media-viewport-center ${isNavigating ? `navigating-${isNavigating}` : ""}`}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{ cursor: zoomScale > 1 ? "grab" : "default" }}
+          >
+            <div 
+              className="zoom-transform-container-fluid" 
+              style={{ 
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)"
+              }}
+            >
+              {currentPreviewItem.type === "video" ? (
+                <video src={currentPreviewItem.url} controls autoPlay className="modal-main-element-fluid" />
+              ) : (
+                <img src={currentPreviewItem.url} alt={currentPreviewItem.title} className="modal-main-element-fluid" draggable="false" />
+              )}
+            </div>
+          </div>
+
+      
+          {currentPreviewItem.type === "photo" && (
+            <div className="modal-bottom-zoom-cockpit">
+              <button onClick={handleZoomOut} className="cockpit-btn" title="De-escalate Scale">
+                <ZoomOutOutlined />
+              </button>
+              <div className="scale-indicator-readout" onClick={handleZoomReset}>
+                {Math.round(zoomScale * 100)}%
+              </div>
+              <button onClick={handleZoomIn} className="cockpit-btn" title="Escalate Scale">
+                <ZoomInOutlined />
+              </button>
+              {zoomScale !== 1 && (
+                <button onClick={handleZoomReset} className="cockpit-reset-btn" title="Recalibrate Layer">
+                  <ReloadOutlined /> Reset
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="media-page animate-fade-in">
       
@@ -264,30 +453,34 @@ export default function MediaLibraryPage() {
             />
           </div>
 
-          <button 
-            className={`fav-toggle-pill ${filterLikedOnly ? "active" : ""}`}
-            onClick={() => setFilterLikedOnly(!filterLikedOnly)}
-          >
-            {filterLikedOnly ? <HeartFilled /> : <HeartOutlined />}
-            <span> ({counts.favorites})</span>
-          </button>
+          <Tooltip title={filterLikedOnly ? "Show all media" : "Show favorites only"}>
+            <button 
+              className={`fav-toggle-pill ${filterLikedOnly ? "active" : ""}`}
+              onClick={() => setFilterLikedOnly(!filterLikedOnly)}
+            >
+              {filterLikedOnly ? <HeartFilled /> : <HeartOutlined />}
+              <span> ({counts.favorites})</span>
+            </button>
+          </Tooltip>
 
-          <label className="upload-btn dynamic-button">
-            <UploadOutlined className="bounce-loop" /> 
-            <input
-              type="file"
-              multiple
-              accept={
-                activeFolder === "photo"
-                  ? "image/*"
-                  : activeFolder === "video"
-                  ? "video/*"
-                  : "image/*,video/*"
-              }
-              onChange={handleUpload}
-              style={{ display: "none" }}
-            />
-          </label>
+          <Tooltip title="Upload media">
+            <label className="upload-btn dynamic-button">
+              <UploadOutlined className="bounce-loop" /> 
+              <input
+                type="file"
+                multiple
+                accept={
+                  activeFolder === "photo"
+                    ? "image/*"
+                    : activeFolder === "video"
+                    ? "video/*"
+                    : "image/*,video/*"
+                }
+                onChange={handleUpload}
+                style={{ display: "none" }}
+              />
+            </label>
+          </Tooltip>
         </div>
       </div>
 
@@ -297,10 +490,7 @@ export default function MediaLibraryPage() {
           <div
             key={folder.key}
             className={`folder-pill ${activeFolder === folder.key ? "active" : ""}`}
-            onClick={() => {
-              setActiveFolder(folder.key);
-              setSelectedAlbumId(null);
-            }}
+            onClick={() => switchFolder(folder.key)}
           >
             <span className="pill-icon">{folder.icon}</span>
             <span className="pill-label">{folder.label}</span>
@@ -310,263 +500,153 @@ export default function MediaLibraryPage() {
       </div>
 
       
-      {activeFolder === "album" && !selectedAlbumId && (
-        <div className="album-directory-wrapper entry-scale">
-          <div className="album-action-bar">
-            <h3>Folders</h3>
-            <button className="create-album-btn" onClick={createAlbum}>
-              <PlusOutlined /> Create New Album
-            </button>
-          </div>
-          {albums.length === 0 ? (
-            <div className="empty-state-notice custom-dash"></div>
-          ) : (
-            <div className="albums-grid">
-              {albums.map((alb, index) => {
-                const albumItemsCount = mediaList.filter((m) => m.albumId === alb.id).length;
-                return (
-                  <div
-                    key={alb.id}
-                    className="album-folder-card"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                    onClick={() => setSelectedAlbumId(alb.id)}
-                  >
-                    <div className="folder-graphic-stack">
-                      <div className="folder-back-plate"></div>
-                      <FolderOpenOutlined className="large-folder-icon" />
-                    </div>
-                    <h4>{alb.title}</h4>
-                    <span className="items-badge">{albumItemsCount} items</span>
-                    <ConfirmDeleteButton
-                      itemName={alb.title}
-                      icon={<DeleteOutlined />}
-                      className="album-card-delete"
-                      onDelete={() => deleteAlbum(alb.id)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      <div
+        className="content-height-wrapper"
+        style={{ height: containerHeight !== undefined ? `${containerHeight}px` : "auto" }}
+      >
+        <div ref={contentWrapperRef} className={`content-fade-inner ${contentFading ? "fading" : ""}`}>
 
-      
-      {!(activeFolder === "album" && !selectedAlbumId) && (
-        <div className="media-filter-bar">
-          <div className="filter-left">
-            <FilterOutlined className="pulse-icon" />
-            <span>
-              {activeFolder === "album" ? "Active Spatial Matrix" : `Total ${displayedMedia.length} items`}
-              {selectedAlbumId && ` indexed inside "${albums.find((a) => a.id === selectedAlbumId)?.title}"`}
-            </span>
-            {selectedAlbumId && (
-              <button className="back-to-albums-link" onClick={() => setSelectedAlbumId(null)}>
-                ← Back to Albums
-              </button>
-            )}
-          </div>
-
-          <div className="view-toggle-buttons">
-            <button
-              className={viewMode === "grid" ? "active-toggle" : ""}
-              onClick={() => setViewMode("grid")}
-              title="Grid View"
-            >
-              <AppstoreOutlined />
-            </button>
-            <button
-              className={viewMode === "list" ? "active-toggle" : ""}
-              onClick={() => setViewMode("list")}
-              title=" List View"
-            >
-              <BarsOutlined />
-            </button>
-          </div>
-        </div>
-      )}
-
-      
-      {!(activeFolder === "album" && !selectedAlbumId) && (
-        <>
-          {displayedMedia.length === 0 ? (
-            <div className="empty-state-notice custom-dash entrance-shimmer">
-          
-            </div>
-          ) : (
-            <div className={`media-layout-${viewMode} streams-container`}>
-              {displayedMedia.map((item, idx) => (
-                <div 
-                  key={item.id} 
-                  className="media-card sequential-node" 
-                  style={{ "--node-index": idx } as React.CSSProperties}
-                  onClick={() => openPreview(idx)}
-                >
-                  <div className="media-image-wrapper">
-                    {item.type === "video" ? (
-                      <video src={item.url} muted playsInline className="media-element-thumb" />
-                    ) : (
-                      <img src={item.url} alt={item.title} className="media-element-thumb" loading="lazy" />
-                    )}
-                    
-                    <div className={`media-overlay-tag ${item.type}`}>
-                      {item.type === "video" ? "▶ Video" : "📷 Photo"}
-                    </div>
-
-                    <div className="media-thumb-actions-drawer">
-                      <button className="action-drawer-btn heart-action" onClick={(e) => toggleLike(item.id, e)}>
-                        {item.liked ? <HeartFilled style={{ color: "#ff2e63" }} /> : <HeartOutlined />}
-                      </button>
-                      <ConfirmDeleteButton
-                        itemName={item.title}
-                        icon={<DeleteOutlined />}
-                        className="action-drawer-btn delete-action"
-                        onDelete={() => deleteMediaItem(item.id)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="media-info-deck">
-                    <div className="media-title-line">
-                      <h4>{item.title}</h4>
-                      {item.liked && <StarOutlined className="neon-star" />}
-                    </div>
-                    <div className="meta-footer">
-                      
-                      <span className="media-type-label">{item.type}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      
-      {currentPreviewItem && (
-        <div className="media-modal-backdrop" onClick={() => setPreviewIndex(null)}>
-          
-        
-          <div 
-            className="holographic-glow-backdrop"
-            style={{ 
-              backgroundImage: currentPreviewItem.type === "photo" ? `url(${currentPreviewItem.url})` : "none",
-              backgroundColor: currentPreviewItem.type === "video" ? "#101223" : "transparent"
-            }}
-          ></div>
-
-          <div className="media-modal-window" onClick={(e) => e.stopPropagation()}>
-            
-            
-            <div className="modal-top-header-bar">
-              <div className="modal-header-left-group">
-                {isRenameMode ? (
-                  <div className="modal-rename-inline-row">
-                    <input
-                      value={renameTitle}
-                      onChange={(e) => setRenameTitle(e.target.value)}
-                      className="modal-rename-input"
-                      autoFocus
-                      onKeyDown={(e) => e.key === "Enter" && saveRename(currentPreviewItem.id)}
-                    />
-                    <button className="modal-rename-save-btn" onClick={() => saveRename(currentPreviewItem.id)}>
-                      Save
-                    </button>
-                    <button className="modal-rename-cancel-btn" onClick={() => setIsRenameMode(false)}>
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="modal-title-display-line">
-                    <h3 className="modal-media-title">{currentPreviewItem.title}</h3>
-                    <button className="modal-inline-edit-trigger" onClick={() => setIsRenameMode(true)}>
-                      <EditOutlined /> Rename
-                    </button>
-                    <span className="modal-media-badge">{currentPreviewItem.type.toUpperCase()} </span>
-                    
-                    <button 
-                      className={`modal-inline-like-btn ${currentPreviewItem.liked ? "liked-active" : ""}`}
-                      onClick={(e) => toggleLike(currentPreviewItem.id, e)}
-                    >
-                      {currentPreviewItem.liked ? <HeartFilled /> : <HeartOutlined />}
-                    </button>
-                    <ConfirmDeleteButton
-                      itemName={currentPreviewItem.title}
-                      icon={<DeleteOutlined />}
-                      iconOnly={false}
-                      label="Delete"
-                      className="modal-inline-delete-btn"
-                      onDelete={() => deleteMediaItem(currentPreviewItem.id)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="modal-header-right-group">
-                <button className="modal-top-close-trigger" onClick={() => setPreviewIndex(null)}>
-                  <CloseOutlined />
+          {activeFolder === "album" && !selectedAlbumId && (
+            <div className="album-directory-wrapper">
+              <div className="album-action-bar">
+                <h3>Folders</h3>
+                <button className="create-album-btn" onClick={createAlbum}>
+                  <PlusOutlined /> Create New Album
                 </button>
               </div>
-            </div>
-
-            
-            <button className="modal-nav-arrow arrow-left-slide" onClick={() => navigatePreview(-1)}>
-              <LeftOutlined />
-            </button>
-            <button className="modal-nav-arrow arrow-right-slide" onClick={() => navigatePreview(1)}>
-              <RightOutlined />
-            </button>
-
-            
-            <div className="modal-content-container-full">
-              <div 
-                className={`modal-media-viewport-center ${isNavigating ? `navigating-${isNavigating}` : ""}`}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                style={{ cursor: zoomScale > 1 ? "grab" : "default" }}
-              >
-                <div 
-                  className="zoom-transform-container-fluid" 
-                  style={{ 
-                    transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
-                    transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)"
-                  }}
-                >
-                  {currentPreviewItem.type === "video" ? (
-                    <video src={currentPreviewItem.url} controls autoPlay className="modal-main-element-fluid" />
-                  ) : (
-                    <img src={currentPreviewItem.url} alt={currentPreviewItem.title} className="modal-main-element-fluid" draggable="false" />
-                  )}
-                </div>
-              </div>
-
-          
-              {currentPreviewItem.type === "photo" && (
-                <div className="modal-bottom-zoom-cockpit">
-                  <button onClick={handleZoomOut} className="cockpit-btn" title="De-escalate Scale">
-                    <ZoomOutOutlined />
-                  </button>
-                  <div className="scale-indicator-readout" onClick={handleZoomReset}>
-                    {Math.round(zoomScale * 100)}%
-                  </div>
-                  <button onClick={handleZoomIn} className="cockpit-btn" title="Escalate Scale">
-                    <ZoomInOutlined />
-                  </button>
-                  {zoomScale !== 1 && (
-                    <button onClick={handleZoomReset} className="cockpit-reset-btn" title="Recalibrate Layer">
-                      <ReloadOutlined /> Reset
-                    </button>
-                  )}
+              {albums.length === 0 ? (
+                <div className="empty-state-notice custom-dash"></div>
+              ) : (
+                <div className="albums-grid">
+                  {albums.map((alb, index) => {
+                    const albumItemsCount = mediaList.filter((m) => m.albumId === alb.id).length;
+                    return (
+                      <div
+                        key={alb.id}
+                        className="album-folder-card"
+                        style={{ animationDelay: `${index * 0.05}s` }}
+                        onClick={() => openAlbumFolder(alb.id)}
+                      >
+                        <div className="folder-graphic-stack">
+                          <div className="folder-back-plate"></div>
+                          <FolderOpenOutlined className="large-folder-icon" />
+                        </div>
+                        <h4>{alb.title}</h4>
+                        <span className="items-badge">{albumItemsCount} items</span>
+                        <ConfirmDeleteButton
+                          itemName={alb.title}
+                          icon={<DeleteOutlined />}
+                          className="album-card-delete"
+                          onDelete={() => deleteAlbum(alb.id)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
+          )}
 
-          </div>
+          
+          {!(activeFolder === "album" && !selectedAlbumId) && (
+            <div className="media-filter-bar">
+              <div className="filter-left">
+                <FilterOutlined className="pulse-icon" />
+                <span>
+                  {activeFolder === "album" ? "Active Spatial Matrix" : `Total ${displayedMedia.length} items`}
+                  {selectedAlbumId && ` indexed inside "${albums.find((a) => a.id === selectedAlbumId)?.title}"`}
+                </span>
+                {selectedAlbumId && (
+                  <button className="back-to-albums-link" onClick={backToAlbums}>
+                    ← Back to Albums
+                  </button>
+                )}
+              </div>
+
+              <div className="view-toggle-buttons">
+                <Tooltip title="Grid view">
+                  <button
+                    className={viewMode === "grid" ? "active-toggle" : ""}
+                    onClick={() => switchViewMode("grid")}
+                  >
+                    <AppstoreOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title="List view">
+                  <button
+                    className={viewMode === "list" ? "active-toggle" : ""}
+                    onClick={() => switchViewMode("list")}
+                  >
+                    <BarsOutlined />
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
+          )}
+
+          
+          {!(activeFolder === "album" && !selectedAlbumId) && (
+            <>
+              {displayedMedia.length === 0 ? (
+                <div className="empty-state-notice custom-dash entrance-shimmer">
+              
+                </div>
+              ) : (
+                <div className={`media-layout-${viewMode} streams-container`}>
+                  {displayedMedia.map((item, idx) => (
+                    <div 
+                      key={item.id} 
+                      className="media-card sequential-node" 
+                      style={{ "--node-index": idx } as React.CSSProperties}
+                      onClick={() => openPreview(idx)}
+                    >
+                      <div className="media-image-wrapper">
+                        {item.type === "video" ? (
+                          <video src={item.url} muted playsInline className="media-element-thumb" />
+                        ) : (
+                          <img src={item.url} alt={item.title} className="media-element-thumb" loading="lazy" />
+                        )}
+                        
+                        <div className={`media-overlay-tag ${item.type}`}>
+                          {item.type === "video" ? "▶ Video" : "📷 Photo"}
+                        </div>
+
+                        <div className="media-thumb-actions-drawer">
+                          <button className="action-drawer-btn heart-action" onClick={(e) => toggleLike(item.id, e)}>
+                            {item.liked ? <HeartFilled style={{ color: "#ff2e63" }} /> : <HeartOutlined />}
+                          </button>
+                          <ConfirmDeleteButton
+                            itemName={item.title}
+                            icon={<DeleteOutlined />}
+                            className="action-drawer-btn delete-action"
+                            onDelete={() => deleteMediaItem(item.id)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="media-info-deck">
+                        <div className="media-title-line">
+                          <h4>{item.title}</h4>
+                          {item.liked && <StarOutlined className="neon-star" />}
+                        </div>
+                        <div className="meta-footer">
+                          
+                          <span className="media-type-label">{item.type}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
         </div>
-      )}
+      </div>
+
+      {typeof document !== "undefined" && currentPreviewItem
+        ? createPortal(previewModal, document.body)
+        : null}
     </div>
   );
 }

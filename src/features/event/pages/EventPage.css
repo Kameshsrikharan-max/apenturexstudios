@@ -58,13 +58,35 @@
 .event-table .ant-table-thead > tr > th {height: 46px;padding: 10px 12px !important;color: #f8fafc !important;background: rgba(2, 6, 23, 0.4) !important;border-bottom: 1px solid rgba(96, 165, 250, 0.16) !important;border-right: none !important;font-size: 14px;font-weight: 900;}
 .event-table .ant-table-tbody > tr > td {height: 44px;padding: 8px 12px !important;color: #f8fafc !important;background: rgba(15, 23, 42, 0.22) !important;border-bottom: 1px solid rgba(96, 165, 250, 0.1) !important;border-right: none !important;font-size: 14px;}
 .event-table .ant-table-tbody > tr:hover > td {background: rgba(59, 130, 246, 0.12) !important;}
+
+/* LAST (FIXED-RIGHT) COLUMN — normal content (e.g. Created date) shows by default;
+   on row hover/touch it hides and the action-icons overlay takes over with the dark fill */
 .event-table .ant-table-cell-fix-right,
 .event-table .ant-table-cell-fix-right-first,
-.event-table .ant-table-cell-fix-right-last,
-.event-table .ant-table-thead > tr > th.ant-table-cell-fix-right,
-.event-table .ant-table-tbody > tr > td.ant-table-cell-fix-right {background: #0d1526 !important;box-shadow: none !important;}
+.event-table .ant-table-cell-fix-right-last {
+  background: rgba(15, 23, 42, 0.22) !important;
+  box-shadow: none !important;
+  transition: background 0.15s ease;
+}
+.event-table .ant-table-thead > tr > th.ant-table-cell-fix-right {
+  background: rgba(2, 6, 23, 0.4) !important;
+}
+/* the default cell content (e.g. Created date tag) */
+.event-table .ant-table-tbody > tr > td.ant-table-cell-fix-right > * {
+  opacity: 1;
+  transition: opacity 0.12s ease;
+}
 .event-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right,
-.event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right {background: rgba(59, 130, 246, 0.16) !important;}
+.event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right {
+  background: #0d1526 !important;
+}
+/* hide the default content once the row is active/hovered so only the icons show */
+.event-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right > *,
+.event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right > * {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .event-actions-anchor-cell {position: relative !important;overflow: visible !important;}
 .event-table .ant-table-content::-webkit-scrollbar {height: 8px;}
 .event-table .ant-table-content::-webkit-scrollbar-track {background: rgba(15, 23, 42, 0.34);}
@@ -83,7 +105,7 @@
 .event-pipeline-tag {color: var(--pipeline-color) !important;border: 1px solid rgba(148, 163, 184, 0.18) !important;background: rgba(255, 255, 255, 0.055) !important;}
 .event-member-tag {color: #f8fafc !important;border: 1px solid rgba(96, 165, 250, 0.2) !important;background: rgba(255, 255, 255, 0.05) !important;}
 /* FLOATING ROW ACTION */
-.event-row-actions-overlay {position: absolute;top: 0;right: 0;bottom: 0;width: 190px;display: flex;align-items: center;justify-content: flex-end;gap: 4px;padding-right: 12px;pointer-events: none;opacity: 0;background: linear-gradient(to right,transparent, rgba(13, 21, 38, 0.85) 34%, rgba(13, 21, 38, 0.98) 100%);transition: opacity 0.15s ease;z-index: 6;}
+.event-row-actions-overlay {position: absolute;top: 0;right: 0;bottom: 0;width: 190px;display: flex;align-items: center;justify-content: flex-end;gap: 4px;padding-right: 12px;pointer-events: none;opacity: 0;background: linear-gradient(to right,transparent, rgba(13, 21, 38, 0.92) 20%, #0d1526 45%, #0d1526 100%);transition: opacity 0.15s ease;z-index: 6;}
 .event-table .ant-table-tbody > tr:hover .event-row-actions-overlay,
 .event-table .ant-table-tbody > tr.event-row-active .event-row-actions-overlay {opacity: 1;pointer-events: auto;}
 .event-action-btn {width: 30px;height: 30px;padding: 0;border-radius: 6px !important;color: rgba(226, 232, 240, 0.68) !important;background: transparent !important;border: none !important;box-shadow: none !important;}

@@ -42,6 +42,23 @@ html {scrollbar-gutter: stable;}
 .folder-pill.active .pill-icon { color: var(--accent-cyan); }
 .folder-pill.active .pill-label { color: var(--text-primary); }
 .folder-pill.active .pill-badge { background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); }
+
+/* ---- Smooth tab/view switching wrapper ---- */
+.content-height-wrapper {
+  transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  overflow: hidden;
+  position: relative;
+}
+.content-fade-inner {
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.25, 1, 0.5, 1);
+  opacity: 1;
+  transform: translateY(0);
+}
+.content-fade-inner.fading {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
 .album-directory-wrapper {background: rgba(10, 13, 31, 0.15);backdrop-filter: blur(12px);padding: 24px;border-radius: 24px;border: 1px solid rgba(255, 255, 255, 0.05);position: relative;z-index: 1;}
 .album-action-bar {display: flex;justify-content: space-between;align-items: center;margin-bottom: 24px;}
 .album-action-bar h3 { margin: 0; font-size: 20px; font-weight: 700; }
@@ -98,7 +115,9 @@ html {scrollbar-gutter: stable;}
 .media-layout-list .media-title-line { margin: 0; gap: 12px; }
 .media-layout-list .meta-footer .hash-tag { margin-right: 16px; }
 .media-layout-list .media-thumb-actions-drawer { position: static; flex-direction: row; opacity: 1; padding: 0; width: auto; height: auto; }
-.media-modal-backdrop {position: fixed;top: 0;left: 0;width: 100vw;height: 100vh;z-index: 1000;display: flex;align-items: center;justify-content: center;padding: 40px;background: transparent; }
+
+/* ---- Preview modal: portal-rendered to document.body, so z-index here always wins ---- */
+.media-modal-backdrop {position: fixed;top: 0;left: 0;width: 100vw;height: 100vh;z-index: 999999;display: flex;align-items: center;justify-content: center;padding: 40px;background: transparent; }
 .holographic-glow-backdrop {position: absolute;top: 0;left: 0;width: 100%;height: 100%;background-size: cover;background-position: center;filter: blur(60px) brightness(0.35) saturate(1.5);transform: scale(1.1);transition: all 0.4s ease;z-index: -1;pointer-events: none;}
 .holographic-glow-backdrop::after {content: '';position: absolute;top: 0; left: 0; width: 100%; height: 100%;background: radial-gradient(circle at center, transparent 30%, rgba(7, 9, 19, 0.4) 90%);}
 .media-modal-window {position: relative;background: rgba(10, 13, 28, 0.4); backdrop-filter: blur(30px);border: 1px solid rgba(255, 255, 255, 0.15);width: 100%;max-width: 950px;height: 80vh;border-radius: 28px;overflow: hidden;box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);display: flex;flex-direction: column;animation: modalScaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);}

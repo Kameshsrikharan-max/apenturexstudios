@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   MenuOutlined,
   CalendarOutlined,
@@ -14,12 +14,30 @@ import {
   ProfileOutlined,
   CloseOutlined,
   CompassOutlined,
+  SearchOutlined,
+  DashboardOutlined,
+  FileSearchOutlined,
+  TeamOutlined,
+  MailOutlined,
+  ShopOutlined,
+  PictureOutlined,
+  EnterOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
 
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
+
+const PAGES = [
+  { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlined />, group: "Workspace" },
+  { label: "Review", path: "/review", icon: <FileSearchOutlined />, group: "Workspace" },
+  { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace" },
+  { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace" },
+  { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace" },
+  { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio" },
+  { label: "Media Library", path: "/media", icon: <PictureOutlined />, group: "Studio" },
+];
 
 const getSavedEvents = () => {
   try {
@@ -59,7 +77,7 @@ function Navbar({
   onLogout,
 }) {
   const navigate = useNavigate();
-
+  const location = useLocation();
 
   const displayEmail =
     user?.email || (user?.identifier?.includes("@") ? user.identifier : DEFAULT_EMAIL);
@@ -78,6 +96,11 @@ function Navbar({
   const [notificationType, setNotificationType] = useState(
     localStorage.getItem("notificationPreference") || ""
   );
+
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const paletteInputRef = useRef(null);
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
@@ -106,6 +129,12 @@ function Navbar({
       });
   }, [events]);
 
+  const filteredPages = useMemo(() => {
+    const query = paletteQuery.trim().toLowerCase();
+    if (!query) return PAGES;
+    return PAGES.filter((page) => page.label.toLowerCase().includes(query));
+  }, [paletteQuery]);
+
   const refreshEvents = () => {
     setEvents(getSavedEvents());
   };
@@ -132,10 +161,10 @@ function Navbar({
     setUserMenuOpen(false);
   };
 
- const openFullCalendar = () => {
-  setMiniCalendarOpen(false);
-  navigate("/calendar");
-};
+  const openFullCalendar = () => {
+    setMiniCalendarOpen(false);
+    navigate("/calendar");
+  };
 
   const getFullDate = (date) => {
     return `${monthKey}-${String(date).padStart(2, "0")}`;
@@ -171,6 +200,76 @@ function Navbar({
     navigate("/", { replace: true });
   };
 
+  const openPalette = () => {
+    setPaletteQuery("");
+    setActiveIndex(0);
+    setPaletteOpen(true);
+    setMiniCalendarOpen(false);
+    setUserMenuOpen(false);
+  };
+
+  const closePalette = () => {
+    setPaletteOpen(false);
+    setPaletteQuery("");
+  };
+
+  const goToPage = (path) => {
+    closePalette();
+    navigate(path);
+  };
+
+  // Global ⌘K / Ctrl+K shortcut
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+
+      if (isShortcut) {
+        event.preventDefault();
+        setPaletteOpen((current) => {
+          if (!current) {
+            setPaletteQuery("");
+            setActiveIndex(0);
+          }
+          return !current;
+        });
+        return;
+      }
+
+      if (event.key === "Escape" && paletteOpen) {
+        closePalette();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [paletteOpen]);
+
+  useEffect(() => {
+    if (paletteOpen && paletteInputRef.current) {
+      paletteInputRef.current.focus();
+    }
+  }, [paletteOpen]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [paletteQuery]);
+
+  const handlePaletteKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((current) => (current + 1) % Math.max(filteredPages.length, 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((current) =>
+        (current - 1 + filteredPages.length) % Math.max(filteredPages.length, 1)
+      );
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const selected = filteredPages[activeIndex];
+      if (selected) goToPage(selected.path);
+    }
+  };
+
   return (
     <>
       <header className={`top-navbar ${darkMode ? "navbar-dark" : "navbar-light"}`}>
@@ -189,34 +288,26 @@ function Navbar({
           <NavLink to="/dashboard" className="nav-brand" data-tour-id="nav-brand">
             <span className="brand-logo">A</span>
 
-            <div>
+            <div className="nav-brand-text">
               <h2>Apenture X Studios</h2>
               <p>Creative Studio Panel</p>
             </div>
           </NavLink>
         </div>
 
-        <nav className="nav-menu" data-tour-id="nav-menu">
-          <NavLink to="/dashboard" data-tour-id="nav-dashboard">
-            Dashboard
-          </NavLink>
-
-          <NavLink to="/review" data-tour-id="nav-review">
-            Review
-          </NavLink>
-
-          <NavLink to="/users" data-tour-id="nav-users">
-            Users
-          </NavLink>
-
-          <NavLink to="/events" data-tour-id="nav-events">
-            Events
-          </NavLink>
-
-          <NavLink to="/enquiry" data-tour-id="nav-enquiry">
-            Enquiry
-          </NavLink>
-        </nav>
+        <div className="navbar-center">
+          <button
+            type="button"
+            className="command-trigger"
+            onClick={openPalette}
+            data-tour-id="nav-menu"
+            aria-label="Search or jump to a page"
+          >
+            <SearchOutlined className="command-trigger-icon" />
+            <span className="command-trigger-text">Search or jump to…</span>
+            <span className="command-trigger-kbd">⌘K</span>
+          </button>
+        </div>
 
         <div className="navbar-actions">
           <button
@@ -390,6 +481,75 @@ function Navbar({
           </div>
         </div>
       </header>
+
+      {paletteOpen && (
+        <div className="command-overlay" onClick={closePalette}>
+          <div className="command-palette" onClick={(event) => event.stopPropagation()}>
+            <div className="command-input-row">
+              <SearchOutlined className="command-input-icon" />
+              <input
+                ref={paletteInputRef}
+                type="text"
+                className="command-input"
+                placeholder="Search pages… Dashboard, Studio, Media Library"
+                value={paletteQuery}
+                onChange={(event) => setPaletteQuery(event.target.value)}
+                onKeyDown={handlePaletteKeyDown}
+              />
+              <button type="button" className="command-close" onClick={closePalette}>
+                <CloseOutlined />
+              </button>
+            </div>
+
+            <div className="command-results">
+              {filteredPages.length > 0 ? (
+                filteredPages.map((page, index) => {
+                  const isActive = location.pathname === page.path;
+                  const isHighlighted = index === activeIndex;
+
+                  return (
+                    <button
+                      type="button"
+                      key={page.path}
+                      className={`command-item ${isHighlighted ? "highlighted" : ""} ${
+                        isActive ? "current" : ""
+                      }`}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onClick={() => goToPage(page.path)}
+                    >
+                      <span className="command-item-icon">{page.icon}</span>
+
+                      <span className="command-item-text">
+                        <strong>{page.label}</strong>
+                        <small>{page.group}</small>
+                      </span>
+
+                      {isActive && <span className="command-item-current">Current</span>}
+                      {isHighlighted && !isActive && (
+                        <EnterOutlined className="command-item-enter" />
+                      )}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="command-empty">No pages match “{paletteQuery}”.</div>
+              )}
+            </div>
+
+            <div className="command-footer">
+              <span>
+                <span className="command-key">↑↓</span> navigate
+              </span>
+              <span>
+                <span className="command-key">↵</span> select
+              </span>
+              <span>
+                <span className="command-key">esc</span> close
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {profileModalOpen && (
         <div className="nav-modal-overlay">

@@ -457,14 +457,7 @@ export default function EventPage() {
               >
                 Create Event
               </Button>
-              <Tooltip title="Refresh">
-                <Button
-                  type="text"
-                  icon={<ReloadOutlined spin={isLoading || reduxLoading} />}
-                  className="event-hero-refresh"
-                  onClick={handleRefresh}
-                />
-              </Tooltip>
+             
             </div>
           </div>
 

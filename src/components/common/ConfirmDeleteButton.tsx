@@ -11,7 +11,6 @@ interface ConfirmDeleteButtonProps {
   className?: string;
   style?: CSSProperties;
   disabled?: boolean;
-  /** Hold-duration in ms required to confirm delete. Set to 0 for instant click-confirm. */
   holdDuration?: number;
 }
 

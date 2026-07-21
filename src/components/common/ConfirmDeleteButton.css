@@ -131,10 +131,7 @@
   border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--cdb-danger, #ff2e63);
-  background: color-mix(in srgb, var(--cdb-danger, #ff2e63) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cdb-danger, #ff2e63) 40%, transparent);animation: cdb-warn-pulse 1.6s ease-in-out infinite;}
+  justify-content: center;color: var(--cdb-danger, #ff2e63);background: color-mix(in srgb, var(--cdb-danger, #ff2e63) 16%, transparent);border: 1px solid color-mix(in srgb, var(--cdb-danger, #ff2e63) 40%, transparent);animation: cdb-warn-pulse 1.6s ease-in-out infinite;}
 @keyframes cdb-warn-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--cdb-danger, #ff2e63) 45%, transparent); }
   50% { box-shadow: 0 0 0 6px transparent; }}

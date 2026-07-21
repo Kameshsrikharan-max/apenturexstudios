@@ -307,6 +307,7 @@ interface ModalProps {
   className?: string;
 }
 
+
 function Modal({ open, onClose, title, icon, children, footer, className = "" }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -333,7 +334,7 @@ function Modal({ open, onClose, title, icon, children, footer, className = "" }:
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="ui-modal-overlay"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
@@ -360,7 +361,8 @@ function Modal({ open, onClose, title, icon, children, footer, className = "" }:
 
         {footer && <div className="ui-modal__footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1503,12 +1505,12 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         </div>
 
         <div className="cal-topbar__nav">
-          <IconButton label="Previous" onClick={goToPrevious}>
-            <IconChevronLeft />
-          </IconButton>
           <Button variant="secondary" icon={<IconToday />} onClick={goToToday}>
             Today
           </Button>
+           <IconButton label="Previous" onClick={goToPrevious}>
+            <IconChevronLeft />
+          </IconButton>
           <IconButton label="Next" onClick={goToNext}>
             <IconChevronRight />
           </IconButton>

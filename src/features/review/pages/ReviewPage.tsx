@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {Avatar,Button,Card,ConfigProvider,Descriptions,Empty,Input,Layout,message,Modal,Select,Space,Table,Tag,Tooltip,Typography,} from "antd";
+import type { ColumnsType } from "antd/es/table";
 import {AppstoreOutlined,BarsOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseCircleOutlined,EyeOutlined,ReloadOutlined,SearchOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
@@ -22,8 +23,6 @@ const ReviewPage = () => {
   const [activeRowKey, setActiveRowKey] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fixed number of rows shown per page — keeps the table body a
-  // constant height so there is no scrollbar inside it.
   const PAGE_SIZE = 6;
 
   const [referralsData, setReferralsData] = useState([
@@ -119,7 +118,7 @@ const ReviewPage = () => {
     </div>
   );
 
-  const columns = [
+  const columns: ColumnsType<any> = [
     {
       title: "Name",
       dataIndex: "applicant",
@@ -290,7 +289,6 @@ const ReviewPage = () => {
                         dataSource={filteredData}
                         rowKey="key"
                         tableLayout="fixed"
-                        scroll={{ x: false, y: false }}
                         className="review-table-custom"
                         rowClassName={(record) => (activeRowKey === record.key ? "review-row-active" : "")}
                         onRow={(record) => ({
@@ -399,6 +397,32 @@ const ReviewPage = () => {
           footer={null}
           onCancel={() => setSelectedReferral(null)}
           className="review-modal"
+          centered
+          width={480}
+          styles={{
+            mask: {
+              background: "rgba(2, 6, 23, 0.72)",
+              backdropFilter: "blur(3px)",
+            },
+            header: {
+              background: "transparent",
+              borderBottom: 0,
+              marginBottom: 14,
+            },
+            body: {
+              background: "rgba(13, 17, 39, 0.2)",
+              border: "1px solid rgba(56, 189, 248, 0.25)",
+              borderRadius: 22,
+              padding: "22px 24px",
+              backdropFilter: "blur(22px)",
+              WebkitBackdropFilter: "blur(22px)",
+              boxShadow:
+                "0 28px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(56, 189, 248, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+              maxHeight: "calc(100vh - 48px - 90px)",
+              overflowY: "auto",
+              overflowX: "hidden",
+            },
+          }}
         >
           {selectedReferral && (
             <div className="portfolio-preview">
