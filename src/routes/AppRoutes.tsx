@@ -20,6 +20,7 @@ import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
 import CalendarPage         from "../components/UI/CalendarPage";
 import SubscriptionPage     from "../features/subscription/SubscriptionPage";
 import MainLayout           from "../components/Layout/MainLayout";
+import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 
 const LoginPageAny: any = LoginPage;
 const DashboardPageAny: any = DashboardPage;
@@ -54,6 +55,47 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
 }
 
 
+function SignUpPage({ onLogin }: any) {
+  const navigate = useNavigate();
+
+  const handleComplete = (formData: any) => {
+    const { basic } = formData;
+    const nameParts = (basic.name || "").trim().split(/\s+/);
+
+    const newUser = {
+      email: basic.email || "",
+      name: basic.name || "",
+      firstName: nameParts[0] || "",
+      lastName: nameParts.slice(1).join(" ") || "",
+      phone: basic.phone || "",
+    };
+
+    // Persist onboarding data the same way OnboardingGate does,
+    // so the user isn't re-prompted for onboarding after this signup.
+    try {
+      const key = (basic.email || "guest@apenturexstudios.com");
+      localStorage.setItem(`axsOnboardingComplete_${key}`, JSON.stringify(true));
+      localStorage.setItem(`axsOnboardingData_${key}`, JSON.stringify(formData));
+      localStorage.setItem("axsKycVerified", JSON.stringify(true));
+      localStorage.setItem(
+        "axsKycData",
+        JSON.stringify({ docType: formData.kyc.docType, vals: formData.kyc.vals })
+      );
+    } catch {
+      // localStorage may be unavailable; safe to ignore
+    }
+
+    if (onLogin) {
+      onLogin(newUser);
+    }
+
+    navigate("/dashboard", { replace: true });
+  };
+
+  return <OnboardingModal onComplete={handleComplete} />;
+}
+
+
 export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: any) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,7 +114,21 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         path="/"
         element={
           !isAuthenticated ? (
-            <LoginPageAny onLogin={onLogin} />
+            <LoginPageAny
+              onLogin={onLogin}
+              onSignUp={() => navigate("/signup")}
+            />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/signup"
+        element={
+          !isAuthenticated ? (
+            <SignUpPage onLogin={onLogin} />
           ) : (
             <Navigate to="/dashboard" replace />
           )

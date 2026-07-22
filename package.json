@@ -49,6 +49,7 @@
     "tailwindcss-react-aria-components": "^2.2.0"
   },
   "devDependencies": {
+    "@axe-core/cli": "^4.12.1",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^26.1.1",

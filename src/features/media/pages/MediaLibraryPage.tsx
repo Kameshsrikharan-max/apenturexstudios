@@ -4,7 +4,7 @@ import { Tooltip } from "antd";
 import "./MediaLibraryPage.css";
 
 import {PictureOutlined,VideoCameraOutlined,FolderOpenOutlined,SearchOutlined,FilterOutlined,HeartOutlined,HeartFilled,DeleteOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,LeftOutlined,RightOutlined,EditOutlined,PlusOutlined,ZoomInOutlined,ZoomOutOutlined,ReloadOutlined,CompassOutlined,StarOutlined} from "@ant-design/icons";
-import ConfirmDeleteButton from "../../../components/common/ConfirmDeleteButton";
+import ConfirmDeleteButton from "../../../components/common/DeleteButton";
 
 type MediaItem = {
   id: number;
@@ -354,6 +354,7 @@ export default function MediaLibraryPage() {
                   {currentPreviewItem.liked ? <HeartFilled /> : <HeartOutlined />}
                 </button>
                 <ConfirmDeleteButton
+                  mode="popover"
                   itemName={currentPreviewItem.title}
                   icon={<DeleteOutlined />}
                   iconOnly={false}
@@ -534,6 +535,7 @@ export default function MediaLibraryPage() {
                         <h4>{alb.title}</h4>
                         <span className="items-badge">{albumItemsCount} items</span>
                         <ConfirmDeleteButton
+                          mode="popover"
                           itemName={alb.title}
                           icon={<DeleteOutlined />}
                           className="album-card-delete"
@@ -616,6 +618,7 @@ export default function MediaLibraryPage() {
                             {item.liked ? <HeartFilled style={{ color: "#ff2e63" }} /> : <HeartOutlined />}
                           </button>
                           <ConfirmDeleteButton
+                            mode="popover"
                             itemName={item.title}
                             icon={<DeleteOutlined />}
                             className="action-drawer-btn delete-action"

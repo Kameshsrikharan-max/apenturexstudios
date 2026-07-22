@@ -28,7 +28,7 @@ dayjs.extend(localizedFormat);
 const rbcLocalizer = dayjsLocalizer(dayjs);
 
 import { getHolidays, getPanchang } from "../../redux/actions/calendarActions";
-import ConfirmDeleteButton from "../../components/common/ConfirmDeleteButton";
+import ConfirmDeleteButton from "../../components/common/DeleteButton";
 
 /*Types */
 
@@ -475,6 +475,7 @@ function EventRow({
           )}
           {onDelete && (
             <ConfirmDeleteButton
+              mode="popover"
               label={`Delete ${event.title}`}
               itemName={event.title}
               icon={<IconTrash />}
@@ -555,6 +556,7 @@ function EventModal({ open, mode, date, initialValues, onClose, onSubmit, onDele
         <>
           {mode === "edit" && (
             <ConfirmDeleteButton
+              mode="popover"
               iconOnly={false}
               icon={<IconTrash />}
               label="Delete"

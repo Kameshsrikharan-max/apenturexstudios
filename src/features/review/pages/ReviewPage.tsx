@@ -411,13 +411,13 @@ const ReviewPage = () => {
             },
             body: {
               background: "rgba(13, 17, 39, 0.2)",
-              border: "1px solid rgba(56, 189, 248, 0.25)",
+              border: "1px solid var(--sky-border)",
               borderRadius: 22,
               padding: "22px 24px",
               backdropFilter: "blur(22px)",
               WebkitBackdropFilter: "blur(22px)",
               boxShadow:
-                "0 28px 80px rgba(0, 0, 0, 0.5), 0 0 40px rgba(56, 189, 248, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+                "0 28px 80px rgba(0, 0, 0, 0.5), 0 0 40px var(--sky-dim), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
               maxHeight: "calc(100vh - 48px - 90px)",
               overflowY: "auto",
               overflowX: "hidden",
@@ -475,6 +475,7 @@ const ReviewPage = () => {
         </Modal>
       </Layout>
     </ConfigProvider>
+    
   );
 };
 
