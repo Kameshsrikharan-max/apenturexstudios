@@ -1,44 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Col,
-  ConfigProvider,
-  Drawer,
-  Empty,
-  FloatButton,
-  Input,
-  Progress,
-  Row,
-  Segmented,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
-import {
-  ArrowRightOutlined,
-  CalendarOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  DollarOutlined,
-  EyeOutlined,
-  FireOutlined,
-  HistoryOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  RiseOutlined,
-  SafetyCertificateOutlined,
-  SearchOutlined,
-  TeamOutlined,
-  ThunderboltFilled,
-  UsergroupAddOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import {Avatar,Badge,Button,Card,Col,ConfigProvider,Drawer,Empty,FloatButton,Input,Progress,Row,Segmented,Space,Statistic,Table,Tag,Typography,} from "antd";
+import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,DollarOutlined,EyeOutlined,FireOutlined,HistoryOutlined,PictureOutlined,PlusOutlined,RiseOutlined,SafetyCertificateOutlined,SearchOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import "./DashboardPage.css";
 
@@ -75,79 +38,17 @@ const featureCards = [
 ];
 
 const eventsData = [
-  {
-    key: "1",
-    id: "EVT-001",
-    name: "Portfolio Shoot",
-    studio: "Main Studio",
-    date: "2026-05-02",
-    status: "Pending",
-    priority: "High",
-    client: "ApertureX Client",
-    budget: "Rs. 18,000",
-  },
-  {
-    key: "2",
-    id: "EVT-002",
-    name: "Product Campaign",
-    studio: "Creative Bay",
-    date: "2026-05-08",
-    status: "Confirmed",
-    priority: "Medium",
-    client: "Brand Studio",
-    budget: "Rs. 42,000",
-  },
+  {key: "1",id: "EVT-001",name: "Portfolio Shoot",studio: "Main Studio",date: "2026-05-02",status: "Pending",priority: "High",client: "ApertureX Client",budget: "Rs. 18,000",},
+  {key: "2",id: "EVT-002",name: "Product Campaign",studio: "Creative Bay",date: "2026-05-08",status: "Confirmed",priority: "Medium",client: "Brand Studio",budget: "Rs. 42,000",},
 ];
 
 const metricCards = [
-  {
-    title: "Users",
-    value: 1042,
-    suffix: "",
-    percent: 100,
-    icon: <UsergroupAddOutlined />,
-    color: "#38BDF8",
-  },
-  {
-    title: "Events",
-    value: 2,
-    suffix: "",
-    percent: 40,
-    icon: <VideoCameraOutlined />,
-    color: "#f59e0b",
-  },
-  {
-    title: "Health",
-    value: 98,
-    suffix: "%",
-    percent: 98,
-    icon: <SafetyCertificateOutlined />,
-    color: "#06b6d4",
-  },
-  {
-    title: "Profile",
-    value: 82,
-    suffix: "%",
-    percent: 82,
-    icon: <CheckCircleOutlined />,
-    color: "#22c55e",
-  },
-  {
-    title: "Revenue",
-    value: 180000,
-    suffix: "Rs",
-    percent: 76,
-    icon: <DollarOutlined />,
-    color: "#14b8a6",
-  },
-  {
-    title: "Leads",
-    value: 36,
-    suffix: "",
-    percent: 64,
-    icon: <TeamOutlined />,
-    color: "#38BDF8",
-  },
+  {title: "Users",value: 1042,suffix: "",percent: 100,icon: <UsergroupAddOutlined />,color: "#38BDF8",},
+  {title: "Events",value: 2,suffix: "",percent: 40,icon: <VideoCameraOutlined />,color: "#f59e0b",},
+  {title: "Health",value: 98,suffix: "%",percent: 98,icon: <SafetyCertificateOutlined />,color: "#06b6d4",},
+  {title: "Profile",value: 82,suffix: "%",percent: 82,icon: <CheckCircleOutlined />,color: "#22c55e",},
+  {title: "Revenue",value: 180000,suffix: "Rs",percent: 76,icon: <DollarOutlined />,color: "#14b8a6",},
+  {title: "Leads",value: 36,suffix: "",percent: 64,icon: <TeamOutlined />,color: "#38BDF8",},
 ];
 
 const DashboardPage = () => {

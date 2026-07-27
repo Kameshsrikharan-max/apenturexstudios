@@ -3,15 +3,7 @@ import { motion, AnimatePresence, useSpring, useMotionValue, useTransform } from
 
 import { Button, Input, Space, Typography, Card, message, ConfigProvider, Row, Col } from "antd";
 
-import {
-  CameraOutlined,
-  ScanOutlined,
-  UserOutlined,
-  LoadingOutlined,
-  GoogleOutlined,
-  TwitterOutlined,
-  FacebookOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,ScanOutlined,UserOutlined,LoadingOutlined,GoogleOutlined,TwitterOutlined,FacebookOutlined,} from "@ant-design/icons";
 
 import { useDispatch, useSelector } from "react-redux";
 import { loginRequest } from "../../../redux/actions/authActions";
@@ -83,7 +75,7 @@ export default function LoginPage({ onLogin, onSignUp }) {
       );
   }, [mouseX, mouseY]);
 
-  // Fires the real login request via Redux + Saga
+
   const triggerAdvancedSequence = () => {
     if (!identifier) {
       return msgApi.warning(
@@ -94,8 +86,6 @@ export default function LoginPage({ onLogin, onSignUp }) {
     dispatch(loginRequest({ identifier }));
   };
 
-  // When the saga succeeds and `user` lands in the store,
-  // play the welcome animation, then hand off to the parent
   useEffect(() => {
     if (user) {
       setIsAnimating(true);
@@ -110,7 +100,6 @@ export default function LoginPage({ onLogin, onSignUp }) {
     }
   }, [user]);
 
-  // If the saga fails, surface the error and stop any animation
   useEffect(() => {
     if (error) {
       setIsAnimating(false);

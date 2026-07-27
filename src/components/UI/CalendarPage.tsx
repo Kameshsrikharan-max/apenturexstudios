@@ -1116,7 +1116,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     initialValues: null,
   });
 
-  // ---- Tamil / Panchang popover state (used by Week view badge) ----
+  // ---- Tamil / Panchang popover
   const [tamilOpenDate, setTamilOpenDate] = useState<string | null>(null);
   const [panchangCache, setPanchangCache] = useState<Record<string, PanchangFields | null>>({});
   const pendingPanchangDateRef = useRef<string | null>(null);
@@ -1364,7 +1364,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
     else setAgendaOpen(true);
   };
 
-  /* ---- CRUD ---- */
+  /*  CRUD  */
 
   const openCreateModal = (fullDate: string) => {
     setSelectedDate(fullDate);
@@ -1489,7 +1489,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
 
   return (
     <div className="cal">
-      {/* ---------------- Header ---------------- */}
+      {/*  Header  */}
       <header className="cal-topbar">
         <button type="button" className="cal-topbar__back" onClick={handleBack} aria-label="Go back">
           <IconBack />
@@ -1572,7 +1572,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
           <div className="cal-scrim" onClick={() => setMobileAgendaOpen(false)} aria-hidden="true" />
         )}
 
-        {/* ---------------- Main area ---------------- */}
+        {/*  Main area  */}
         <main className="cal-main">
           {viewMode === "day" ? (
             <DaySchedule
@@ -1622,7 +1622,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         </main>
       </div>
 
-      {/* ---------------- Day details modal (month view date-number click) ---------------- */}
+      {/* Day details modal */}
       <Modal
         open={dayDetailsOpen}
         onClose={() => setDayDetailsOpen(false)}
@@ -1714,7 +1714,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         )}
       </Modal>
 
-      {/* ---------------- Agenda modal ---------------- */}
+      {/*  Agenda modal  */}
       <Modal
         open={agendaOpen}
         onClose={() => setAgendaOpen(false)}
@@ -1791,7 +1791,7 @@ const CalendarPage = ({ onClose }: CalendarPageProps) => {
         )}
       </Modal>
 
-      {/* ---------------- Create / edit modal ---------------- */}
+      {/* Create / edit modal  */}
       <EventModal
         open={eventModal.open}
         mode={eventModal.mode}

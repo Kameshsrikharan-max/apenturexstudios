@@ -31,7 +31,7 @@ const StudioTour = () => {
         route: "/dashboard",
         selector: '[data-tour-id="nav-menu"]',
         title: "Main Navigation",
-        text: "Use these links to move between Dashboard, Review, Users, and Enquiry pages.",
+        text: "Use these links to move between Dashboard, Review, Users, Events, Enquiry, Studio, Media Library pages.",
       },
       {
         route: "/dashboard",
