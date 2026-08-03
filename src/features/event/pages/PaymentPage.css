@@ -920,70 +920,20 @@
 .pp-delete-icon-wrap {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
-  background: rgba(220,38,38,0.12);
-  border: 1px solid rgba(248,113,113,0.35);
-  display: grid;
-  place-items: center;
-  font-size: 26px;
-  color: #f87171;
-}
-
+  border-radius: 50%;background: rgba(220,38,38,0.12);border: 1px solid rgba(248,113,113,0.35);display: grid;place-items: center;font-size: 26px;color: #f87171;}
 /* Position the close button in the corner even when the head is column-flex */
-.pp-modal-head-danger .pp-modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-}
+.pp-modal-head-danger .pp-modal-close {position: absolute;top: 16px;right: 16px;}
 /* Make sure the modal has relative positioning for that absolute close btn */
 .pp-modal { position: relative; }
 
 /* Body of the delete confirm */
-.pp-delete-body {
-  align-items: center;
-  text-align: center;
-  padding-top: 8px;
-}
-
-.pp-delete-body > p:first-child {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--label);
-}
-
+.pp-delete-body {align-items: center;text-align: center;padding-top: 8px;}
+.pp-delete-body > p:first-child {margin: 0;font-size: 15px;font-weight: 600;color: var(--label);}
 /* Summary pill showing amount + date */
-.pp-delete-summary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin: 14px 0;
-  padding: 12px 20px;
-  background: rgba(220,38,38,0.08);
-  border: 1px solid rgba(248,113,113,0.22);
-  border-radius: var(--radius-md);
-  width: 100%;
-}
-
-.pp-delete-amount {
-  font-size: 20px;
-  font-weight: 800;
-  color: #f87171;
-}
-
-.pp-delete-date {
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.pp-delete-warn {
-  margin: 0;
-  font-size: 12px;
-  color: rgba(110,131,157,0.70);
-  font-style: italic;
-}
+.pp-delete-summary {display: flex;align-items: center;justify-content: center;gap: 14px;margin: 14px 0;padding: 12px 20px;background: rgba(220,38,38,0.08);border: 1px solid rgba(248,113,113,0.22);border-radius: var(--radius-md);width: 100%;}
+.pp-delete-amount {font-size: 20px;font-weight: 800;color: #f87171;}
+.pp-delete-date {font-size: 13px;color: var(--muted);font-weight: 600;}
+.pp-delete-warn {margin: 0;font-size: 12px;color: rgba(110,131,157,0.70);font-style: italic;}
 
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */

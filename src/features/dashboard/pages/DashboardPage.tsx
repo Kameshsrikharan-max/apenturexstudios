@@ -1,8 +1,53 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import {Avatar,Badge,Button,Card,Col,ConfigProvider,Drawer,Empty,FloatButton,Input,Progress,Row,Segmented,Space,Statistic,Table,Tag,Typography,} from "antd";
-import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,DollarOutlined,EyeOutlined,FireOutlined,HistoryOutlined,PictureOutlined,PlusOutlined,RiseOutlined,SafetyCertificateOutlined,SearchOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,VideoCameraOutlined,} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Col,
+  ConfigProvider,
+  DatePicker,
+  Drawer,
+  Empty,
+  FloatButton,
+  Form,
+  Input,
+  InputNumber,
+  message,
+  Modal,
+  Progress,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  ArrowRightOutlined,
+  CalendarOutlined,
+  CameraOutlined,
+  CheckCircleOutlined,
+  DollarOutlined,
+  EyeOutlined,
+  FireOutlined,
+  HistoryOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  RiseOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  TeamOutlined,
+  ThunderboltFilled,
+  UsergroupAddOutlined,
+  VideoCameraOutlined,
+} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
+import dayjs from "dayjs";
 import "./DashboardPage.css";
 
 const { Title, Text } = Typography;
@@ -37,21 +82,42 @@ const featureCards = [
   },
 ];
 
-const eventsData = [
-  {key: "1",id: "EVT-001",name: "Portfolio Shoot",studio: "Main Studio",date: "2026-05-02",status: "Pending",priority: "High",client: "ApertureX Client",budget: "Rs. 18,000",},
-  {key: "2",id: "EVT-002",name: "Product Campaign",studio: "Creative Bay",date: "2026-05-08",status: "Confirmed",priority: "Medium",client: "Brand Studio",budget: "Rs. 42,000",},
+const initialEventsData = [
+  {
+    key: "1",
+    id: "EVT-001",
+    name: "Portfolio Shoot",
+    studio: "Main Studio",
+    date: "2026-05-02",
+    status: "Pending",
+    priority: "High",
+    client: "ApertureX Client",
+    budget: "Rs. 18,000",
+  },
+  {
+    key: "2",
+    id: "EVT-002",
+    name: "Product Campaign",
+    studio: "Creative Bay",
+    date: "2026-05-08",
+    status: "Confirmed",
+    priority: "Medium",
+    client: "Brand Studio",
+    budget: "Rs. 42,000",
+  },
 ];
 
 const metricCards = [
-  {title: "Users",value: 1042,suffix: "",percent: 100,icon: <UsergroupAddOutlined />,color: "#38BDF8",},
-  {title: "Events",value: 2,suffix: "",percent: 40,icon: <VideoCameraOutlined />,color: "#f59e0b",},
-  {title: "Health",value: 98,suffix: "%",percent: 98,icon: <SafetyCertificateOutlined />,color: "#06b6d4",},
-  {title: "Profile",value: 82,suffix: "%",percent: 82,icon: <CheckCircleOutlined />,color: "#22c55e",},
-  {title: "Revenue",value: 180000,suffix: "Rs",percent: 76,icon: <DollarOutlined />,color: "#14b8a6",},
-  {title: "Leads",value: 36,suffix: "",percent: 64,icon: <TeamOutlined />,color: "#38BDF8",},
+  { title: "Users", value: 1042, suffix: "", percent: 100, icon: <UsergroupAddOutlined />, color: "#38BDF8" },
+  { title: "Events", value: 2, suffix: "", percent: 40, icon: <VideoCameraOutlined />, color: "#f59e0b" },
+  { title: "Health", value: 98, suffix: "%", percent: 98, icon: <SafetyCertificateOutlined />, color: "#06b6d4" },
+  { title: "Profile", value: 82, suffix: "%", percent: 82, icon: <CheckCircleOutlined />, color: "#22c55e" },
+  { title: "Revenue", value: 180000, suffix: "Rs", percent: 76, icon: <DollarOutlined />, color: "#14b8a6" },
+  { title: "Leads", value: 36, suffix: "", percent: 64, icon: <TeamOutlined />, color: "#38BDF8" },
 ];
 
 const DashboardPage = () => {
+  const navigate = useNavigate();
   const { user } = useSelector((state: any) => state.auth);
   const displayEmail = user?.email || "guest@apenturexstudios.com";
   const displayName = displayEmail.split("@")[0];
@@ -59,7 +125,15 @@ const DashboardPage = () => {
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState("All");
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  // Events are now stateful so newly created ones show up immediately
+  const [eventsData, setEventsData] = useState(initialEventsData);
+
+  // Create Event modal state
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   const userData = useMemo(
     () => [
@@ -119,14 +193,63 @@ const DashboardPage = () => {
 
       return true;
     });
-  }, [searchText, dateFilter]);
+  }, [searchText, dateFilter, eventsData]);
+
+  // ---- Navigation handlers ----
+  const goToUsersPage = () => navigate("/users");
+  const goToEventPage = (eventId?: string) => {
+    if (eventId) {
+      navigate(`/events/${eventId}`);
+    } else {
+      navigate("/events");
+    }
+  };
+
+  // ---- Create Event modal handlers ----
+  const openCreateModal = () => {
+    createForm.resetFields();
+    setCreateModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    if (submitting) return;
+    setCreateModalOpen(false);
+  };
+
+  const handleCreateEvent = async () => {
+    try {
+      const values = await createForm.validateFields();
+      setSubmitting(true);
+
+      const newEvent = {
+        key: String(eventsData.length + 1),
+        id: `EVT-${String(eventsData.length + 1).padStart(3, "0")}`,
+        name: values.name,
+        studio: values.studio,
+        date: values.date.format("YYYY-MM-DD"),
+        status: "Pending",
+        priority: values.priority,
+        client: values.client,
+        budget: `Rs. ${Number(values.budget).toLocaleString("en-IN")}`,
+      };
+
+      setEventsData((prev) => [newEvent, ...prev]);
+      message.success("Event created successfully");
+      setCreateModalOpen(false);
+      createForm.resetFields();
+    } catch (err) {
+      // validation errors are shown inline by the form itself
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const userColumns = [
     {
       title: "User",
       dataIndex: "name",
       key: "name",
-      render: (text) => (
+      render: (text: string) => (
         <Space>
           <Avatar
             src={`https://api.dicebear.com/7.x/initials/svg?seed=${text}`}
@@ -146,14 +269,14 @@ const DashboardPage = () => {
       title: "Email",
       dataIndex: "email",
       key: "email",
-      render: (value) => <Text type="secondary">{value}</Text>,
+      render: (value: string) => <Text type="secondary">{value}</Text>,
     },
     { title: "Phone", dataIndex: "phone", key: "phone" },
     {
       title: "Joined",
       dataIndex: "createdAt",
       key: "createdAt",
-      render: (date) => <Tag>{date}</Tag>,
+      render: (date: string) => <Tag>{date}</Tag>,
     },
   ];
 
@@ -162,20 +285,20 @@ const DashboardPage = () => {
       title: "ID",
       dataIndex: "id",
       key: "id",
-      render: (id) => <Text code>{id}</Text>,
+      render: (id: string) => <Text code>{id}</Text>,
     },
     {
       title: "Shoot",
       dataIndex: "name",
       key: "name",
-      render: (text) => <Text strong>{text}</Text>,
+      render: (text: string) => <Text strong>{text}</Text>,
     },
     { title: "Studio", dataIndex: "studio", key: "studio" },
     {
       title: "Date",
       dataIndex: "date",
       key: "date",
-      render: (date) => (
+      render: (date: string) => (
         <Space>
           <CalendarOutlined style={{ color: THEME_COLOR }} />
           <Text>{date}</Text>
@@ -186,7 +309,7 @@ const DashboardPage = () => {
       title: "Priority",
       dataIndex: "priority",
       key: "priority",
-      render: (priority) => (
+      render: (priority: string) => (
         <Tag color={priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"}>
           {priority}
         </Tag>
@@ -196,7 +319,7 @@ const DashboardPage = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status) => {
+      render: (status: string) => {
         const confirmed = status === "Confirmed";
 
         return (
@@ -323,6 +446,11 @@ const DashboardPage = () => {
                     whileHover={{ y: -6 }}
                     transition={{ duration: 0.2 }}
                     className="horizontal-card-item"
+                    onClick={() => {
+                      if (item.title === "Users") goToUsersPage();
+                      if (item.title === "Events") goToEventPage();
+                    }}
+                    style={{ cursor: item.title === "Users" || item.title === "Events" ? "pointer" : "default" }}
                   >
                     <Card variant="borderless" className="metric-card">
                       <div className="metric-top">
@@ -367,7 +495,9 @@ const DashboardPage = () => {
               Users
             </Space>
           }
-          extra={<Button type="text" icon={<ArrowRightOutlined />} />}
+          extra={
+            <Button type="text" icon={<ArrowRightOutlined />} onClick={goToUsersPage} />
+          }
           className="dashboard-panel"
         >
           <Table
@@ -375,6 +505,10 @@ const DashboardPage = () => {
             dataSource={filteredUsers}
             pagination={false}
             scroll={{ x: 760 }}
+            onRow={() => ({
+              onClick: goToUsersPage,
+              style: { cursor: "pointer" },
+            })}
           />
         </Card>
 
@@ -413,7 +547,14 @@ const DashboardPage = () => {
               Schedule
             </Space>
           }
-          extra={<Button type="primary" shape="circle" icon={<PlusOutlined />} />}
+          extra={
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<PlusOutlined />}
+              onClick={openCreateModal}
+            />
+          }
           className="dashboard-panel schedule-panel"
           styles={{ body: { padding: 0 } }}
         >
@@ -427,21 +568,35 @@ const DashboardPage = () => {
                 <div className="empty-schedule">
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
 
-                  <Button type="primary" shape="circle" icon={<PlusOutlined />} />
+                  <Button
+                    type="primary"
+                    shape="circle"
+                    icon={<PlusOutlined />}
+                    onClick={openCreateModal}
+                  />
                 </div>
               ),
             }}
           />
         </Card>
 
+        {/* Event details drawer */}
         <Drawer
           title="Event"
           open={Boolean(selectedEvent)}
           onClose={() => setSelectedEvent(null)}
           size="default"
+          extra={
+            <Button
+              type="primary"
+              onClick={() => selectedEvent && goToEventPage(selectedEvent.id)}
+            >
+              View Full Details
+            </Button>
+          }
         >
           {selectedEvent && (
-            <Space orientation="vertical" size={16} style={{ width: "100%" }}>
+            <Space direction="vertical" size={16} style={{ width: "100%" }}>
               <Title level={4}>{selectedEvent.name}</Title>
 
               <Text>
@@ -471,7 +626,81 @@ const DashboardPage = () => {
           )}
         </Drawer>
 
-        <FloatButton icon={<PlusOutlined />} type="primary" tooltip="Create" />
+        {/* Create Event modal */}
+        <Modal
+          title="Create Event"
+          open={createModalOpen}
+          onCancel={closeCreateModal}
+          onOk={handleCreateEvent}
+          okText="Create"
+          confirmLoading={submitting}
+          destroyOnHidden
+        >
+          <Form form={createForm} layout="vertical" requiredMark={false}>
+            <Form.Item
+              name="name"
+              label="Shoot Name"
+              rules={[{ required: true, message: "Please enter a shoot name" }]}
+            >
+              <Input placeholder="e.g. Portfolio Shoot" />
+            </Form.Item>
+
+            <Form.Item
+              name="studio"
+              label="Studio"
+              rules={[{ required: true, message: "Please enter a studio" }]}
+            >
+              <Input placeholder="e.g. Main Studio" />
+            </Form.Item>
+
+            <Form.Item
+              name="client"
+              label="Client"
+              rules={[{ required: true, message: "Please enter a client name" }]}
+            >
+              <Input placeholder="e.g. ApertureX Client" />
+            </Form.Item>
+
+            <Form.Item
+              name="date"
+              label="Date"
+              rules={[{ required: true, message: "Please select a date" }]}
+              initialValue={dayjs()}
+            >
+              <DatePicker style={{ width: "100%" }} />
+            </Form.Item>
+
+            <Form.Item
+              name="priority"
+              label="Priority"
+              rules={[{ required: true, message: "Please select a priority" }]}
+              initialValue="Medium"
+            >
+              <Select
+                options={[
+                  { value: "High", label: "High" },
+                  { value: "Medium", label: "Medium" },
+                  { value: "Low", label: "Low" },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="budget"
+              label="Budget (Rs.)"
+              rules={[{ required: true, message: "Please enter a budget" }]}
+            >
+              <InputNumber style={{ width: "100%" }} min={0} placeholder="e.g. 18000" />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <FloatButton
+          icon={<PlusOutlined />}
+          type="primary"
+          tooltip="Create"
+          onClick={openCreateModal}
+        />
       </div>
     </ConfigProvider>
   );

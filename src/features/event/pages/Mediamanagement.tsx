@@ -659,14 +659,6 @@ export default function MediaManagement() {
               <h1 className="mm-heading">Media Management</h1>
             </div>
           </div>
-          <div className="mm-progress" aria-label="Event progress">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <span className={s <= 5 ? "done" : ""} key={s}>
-                {s <= 5 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button type="button" aria-label="Refresh"><ReloadOutlined /></button>
-          </div>
         </header>
 
         <div className="mm-body">

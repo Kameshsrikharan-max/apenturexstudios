@@ -1,21 +1,100 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowLeftOutlined,StarOutlined,StarFilled,FileTextOutlined,DollarCircleOutlined,FileOutlined,} from "@ant-design/icons";
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
+  DoubleLeftOutlined,
+  CameraOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  TeamOutlined,
+  ReloadOutlined,
+  ArrowLeftOutlined,
+  StarOutlined,
+  StarFilled,
+  FileTextOutlined,
+  DollarCircleOutlined,
+  FileOutlined,
+} from "@ant-design/icons";
 import "./EventClosurePage.css";
 
+/* ── Types ── */
+interface Step {
+  label: string;
+  icon: ReactNode;
+}
 
-const STEPS = [
-  { label: "Event Details",   icon: <PlusOutlined /> },
+interface EventShape {
+  id?: string;
+  name?: string;
+  eventName?: string;
+  type?: string;
+  eventType?: string;
+  date?: string;
+  eventDate?: string;
+  time?: string;
+  eventTime?: string;
+  address?: string;
+  venue?: string;
+  location?: string;
+  city?: string;
+  customer?: string;
+  clientName?: string;
+  members?: number | string;
+  assignedMembers?: number | string;
+  budget?: string;
+  image?: string;
+  imageUrl?: string;
+}
+
+interface ClosedEvent {
+  id: string;
+  name: string;
+  type: string;
+  date: string;
+  time: string;
+  address: string;
+  city: string;
+  customer: string;
+  status: "DONE";
+  pipeline: "Delivered";
+  members: number;
+  budget: string;
+  image: string;
+  paymentStatus: string;
+  deliverableStatus: string;
+  rating: number;
+  closureNotes: string;
+  closedAt: string;
+}
+
+interface BuildClosedEventArgs {
+  event?: EventShape;
+  eventId?: string;
+  paymentStatus: string;
+  deliverableStatus: string;
+  rating: number;
+  closureNotes: string;
+}
+
+interface LocationState {
+  eventId?: string;
+  event?: EventShape;
+}
+
+const STEPS: Step[] = [
+  { label: "Event Details", icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
-  { label: "Payment",         icon: <DollarOutlined /> },
-  { label: "Attendance",      icon: <ClockCircleOutlined /> },
-  { label: "Media",           icon: <CameraOutlined /> },
-  { label: "Album",           icon: <PictureOutlined /> },
-  { label: "Closure",         icon: <CheckCircleOutlined /> },
+  { label: "Payment", icon: <DollarOutlined /> },
+  { label: "Attendance", icon: <ClockCircleOutlined /> },
+  { label: "Media", icon: <CameraOutlined /> },
+  { label: "Album", icon: <PictureOutlined /> },
+  { label: "Closure", icon: <CheckCircleOutlined /> },
 ];
 
-const PAYMENT_OPTIONS = [
+const PAYMENT_OPTIONS: string[] = [
   "Fully Paid",
   "Partially Paid",
   "Pending",
@@ -23,7 +102,7 @@ const PAYMENT_OPTIONS = [
   "Waived",
 ];
 
-const DELIVERABLE_OPTIONS = [
+const DELIVERABLE_OPTIONS: string[] = [
   "Delivered",
   "Partially Delivered",
   "Pending Delivery",
@@ -36,7 +115,7 @@ const LAST_CLOSED_EVENT_KEY = "ax.lastClosedEvent.v1";
 const fallbackImage =
   "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80";
 
-const readStoredEvents = () => {
+const readStoredEvents = (): ClosedEvent[] => {
   if (typeof window === "undefined") return [];
 
   try {
@@ -48,13 +127,15 @@ const readStoredEvents = () => {
   }
 };
 
-const saveStoredEvents = (events) => {
+const saveStoredEvents = (events: ClosedEvent[]): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
 };
 
-const firstValue = (...values) =>
-  values.find((value) => value !== undefined && value !== null && value !== "");
+const firstValue = <T,>(...values: (T | undefined | null | "")[]): T | undefined =>
+  values.find((value) => value !== undefined && value !== null && value !== "") as
+    | T
+    | undefined;
 
 const buildClosedEvent = ({
   event,
@@ -63,17 +144,17 @@ const buildClosedEvent = ({
   deliverableStatus,
   rating,
   closureNotes,
-}) => {
+}: BuildClosedEventArgs): ClosedEvent => {
   const now = new Date();
   const id =
-    firstValue(event?.id, eventId, `ev-${now.getTime()}`) ||
+    firstValue<string>(event?.id, eventId, `ev-${now.getTime()}`) ||
     `ev-${now.getTime()}`;
 
   return {
     id,
-    name: firstValue(event?.name, event?.eventName, "Closed Event"),
-    type: firstValue(event?.type, event?.eventType, "Event"),
-    date: firstValue(
+    name: firstValue<string>(event?.name, event?.eventName, "Closed Event") as string,
+    type: firstValue<string>(event?.type, event?.eventType, "Event") as string,
+    date: firstValue<string>(
       event?.date,
       event?.eventDate,
       now.toLocaleDateString("en-US", {
@@ -81,16 +162,16 @@ const buildClosedEvent = ({
         day: "2-digit",
         year: "numeric",
       })
-    ),
-    time: firstValue(event?.time, event?.eventTime, ""),
-    address: firstValue(event?.address, event?.venue, event?.location, ""),
-    city: firstValue(event?.city, ""),
-    customer: firstValue(event?.customer, event?.clientName, ""),
+    ) as string,
+    time: firstValue<string>(event?.time, event?.eventTime, "") as string,
+    address: firstValue<string>(event?.address, event?.venue, event?.location, "") as string,
+    city: firstValue<string>(event?.city, "") as string,
+    customer: firstValue<string>(event?.customer, event?.clientName, "") as string,
     status: "DONE",
     pipeline: "Delivered",
-    members: Number(firstValue(event?.members, event?.assignedMembers, 0)),
-    budget: firstValue(event?.budget, ""),
-    image: firstValue(event?.image, event?.imageUrl, fallbackImage),
+    members: Number(firstValue<number | string>(event?.members, event?.assignedMembers, 0)),
+    budget: firstValue<string>(event?.budget, "") as string,
+    image: firstValue<string>(event?.image, event?.imageUrl, fallbackImage) as string,
     paymentStatus,
     deliverableStatus,
     rating,
@@ -99,7 +180,7 @@ const buildClosedEvent = ({
   };
 };
 
-const upsertClosedEvent = (closedEvent) => {
+const upsertClosedEvent = (closedEvent: ClosedEvent): ClosedEvent[] => {
   const events = readStoredEvents();
   const existingIndex = events.findIndex((event) => event.id === closedEvent.id);
 
@@ -116,25 +197,40 @@ const upsertClosedEvent = (closedEvent) => {
   return nextEvents;
 };
 
+/* ── Portal Dropdown ── */
+interface PortalDropdownProps {
+  anchorRef: RefObject<HTMLElement>;
+  open: boolean;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  onClose: () => void;
+}
 
-/* ── Portal Dropdown ──────────────────────────────────────────────────────── */
-function PortalDropdown({ anchorRef, open, options, value, onChange, onClose }) {
+function PortalDropdown({
+  anchorRef,
+  open,
+  options,
+  value,
+  onChange,
+  onClose,
+}: PortalDropdownProps) {
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   useEffect(() => {
     if (!open || !anchorRef.current) return;
     const rect = anchorRef.current.getBoundingClientRect();
     setPos({
-      top:   rect.bottom + window.scrollY + 6,
-      left:  rect.left   + window.scrollX,
+      top: rect.bottom + window.scrollY + 6,
+      left: rect.left + window.scrollX,
       width: rect.width,
     });
   }, [open, anchorRef]);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e) => {
-      if (!anchorRef.current?.contains(e.target)) onClose();
+    const handler = (e: MouseEvent) => {
+      if (!anchorRef.current?.contains(e.target as Node)) onClose();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -147,8 +243,8 @@ function PortalDropdown({ anchorRef, open, options, value, onChange, onClose }) 
       className="ec-dropdown"
       style={{
         position: "absolute",
-        top:   pos.top,
-        left:  pos.left,
+        top: pos.top,
+        left: pos.left,
         width: pos.width,
         zIndex: 99999,
       }}
@@ -159,7 +255,10 @@ function PortalDropdown({ anchorRef, open, options, value, onChange, onClose }) 
           key={opt}
           type="button"
           className={`ec-dropdown-item ${value === opt ? "selected" : ""}`}
-          onClick={() => { onChange(opt); onClose(); }}
+          onClick={() => {
+            onChange(opt);
+            onClose();
+          }}
         >
           {value === opt && <CheckCircleOutlined className="ec-check-icon" />}
           {opt}
@@ -170,11 +269,17 @@ function PortalDropdown({ anchorRef, open, options, value, onChange, onClose }) 
   );
 }
 
-
 /* ── Custom Select ── */
-function CustomSelect({ placeholder, options, value, onChange }) {
+interface CustomSelectProps {
+  placeholder: string;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function CustomSelect({ placeholder, options, value, onChange }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef(null);
+  const btnRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="ec-select-wrap" ref={btnRef}>
@@ -213,9 +318,13 @@ function CustomSelect({ placeholder, options, value, onChange }) {
   );
 }
 
+/* ── Star Rating ── */
+interface StarRatingProps {
+  value: number;
+  onChange: (value: number) => void;
+}
 
-/* ── Star Rating ──*/
-function StarRating({ value, onChange }) {
+function StarRating({ value, onChange }: StarRatingProps) {
   const [hovered, setHovered] = useState(0);
 
   return (
@@ -246,34 +355,34 @@ function StarRating({ value, onChange }) {
   );
 }
 
-
 /* ── Page ── */
 export default function EventClosurePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams();
-  const [activeStep, setActiveStep] = useState(6);
+  const params = useParams<{ eventId?: string; id?: string }>();
+  const [activeStep, setActiveStep] = useState<number>(1);
 
-  const [paymentStatus,     setPaymentStatus]     = useState("");
-  const [deliverableStatus, setDeliverableStatus] = useState("");
-  const [rating,            setRating]            = useState(0);
-  const [closureNotes,      setClosureNotes]       = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<string>("");
+  const [deliverableStatus, setDeliverableStatus] = useState<string>("");
+  const [rating, setRating] = useState<number>(0);
+  const [closureNotes, setClosureNotes] = useState<string>("");
 
   const MAX_NOTES = 1000;
 
   const handleClose = () => {
     if (!paymentStatus || !deliverableStatus) return;
     const searchParams = new URLSearchParams(location.search);
-    const eventId = firstValue(
+    const state = location.state as LocationState | null;
+    const eventId = firstValue<string>(
       params.eventId,
       params.id,
-      searchParams.get("eventId"),
-      searchParams.get("id"),
-      location.state?.eventId,
-      location.state?.event?.id
+      searchParams.get("eventId") ?? undefined,
+      searchParams.get("id") ?? undefined,
+      state?.eventId,
+      state?.event?.id
     );
     const closedEvent = buildClosedEvent({
-      event: location.state?.event,
+      event: state?.event,
       eventId,
       paymentStatus,
       deliverableStatus,
@@ -285,12 +394,11 @@ export default function EventClosurePage() {
     navigate("/events");
   };
 
-  const canClose = paymentStatus && deliverableStatus;
+  const canClose = Boolean(paymentStatus && deliverableStatus);
 
   return (
     <main className="ec-page">
       <section className="ec-stage">
-
         {/* ── Top bar ── */}
         <header className="ec-topbar">
           <button className="ec-back" type="button" onClick={() => navigate(-1)}>
@@ -306,28 +414,18 @@ export default function EventClosurePage() {
               <h1 className="ec-heading">Event Closure</h1>
             </div>
           </div>
-
-          <div className="ec-progress" aria-label="Event progress">
-            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-              <span className={s <= 7 ? "done" : ""} key={s}>
-                {s <= 7 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button type="button" aria-label="Refresh" onClick={() => window.location.reload()}>
-              <ReloadOutlined />
-            </button>
-          </div>
         </header>
 
         {/* ── Body ── */}
         <div className="ec-body">
-
           {/* ── Side rail ── */}
           <aside className="ec-rail">
             {STEPS.map((step, i) => (
               <div className="ec-step-wrap" key={step.label}>
                 <button
-                  className={`ec-step ${i === activeStep ? "active" : ""} ${i < activeStep ? "done" : ""}`}
+                  className={`ec-step ${i === activeStep ? "active" : ""} ${
+                    i < activeStep ? "done" : ""
+                  }`}
                   type="button"
                   onClick={() => setActiveStep(i)}
                   aria-label={step.label}
@@ -342,7 +440,6 @@ export default function EventClosurePage() {
 
           {/* ── Main content ── */}
           <div className="ec-content">
-
             <div className="ec-progress-bar">
               <div className="ec-progress-fill" style={{ width: "86%" }} />
               <span className="ec-progress-pct">86%</span>
@@ -362,9 +459,7 @@ export default function EventClosurePage() {
             </div>
 
             <div className="ec-form-grid">
-
               <div className="ec-form-col">
-
                 {/* Payment Status Card */}
                 <div className="ec-section-card">
                   <div className="ec-section-head">
@@ -396,7 +491,6 @@ export default function EventClosurePage() {
                     />
                   </div>
                 </div>
-
               </div>
 
               <div className="ec-form-col">
@@ -412,7 +506,9 @@ export default function EventClosurePage() {
                       <span className="ec-optional">(optional)</span>
                     </div>
                     <div className="ec-rating-box">
-                      <p className="ec-rating-prompt">Rate your overall experience with this event.</p>
+                      <p className="ec-rating-prompt">
+                        Rate your overall experience with this event.
+                      </p>
                       <StarRating value={rating} onChange={setRating} />
                     </div>
                   </div>
@@ -459,7 +555,6 @@ export default function EventClosurePage() {
                 <CheckCircleOutlined /> Close Event
               </button>
             </footer>
-
           </div>
         </div>
       </section>

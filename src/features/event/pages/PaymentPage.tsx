@@ -761,20 +761,6 @@ export default function PaymentPage() {
               </h1>
             </div>
           </div>
-          <div className="pp-progress" aria-label="Event progress">
-            {[1,2,3,4,5].map(s => (
-              <span className={s <= 3 ? "done" : ""} key={s}>
-                {s <= 3 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button
-              type="button"
-              aria-label="Refresh"
-              onClick={() => window.location.reload()}
-            >
-              <ReloadOutlined />
-            </button>
-          </div>
         </header>
 
         {/* ── Body ── */}

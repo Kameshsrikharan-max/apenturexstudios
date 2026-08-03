@@ -1,44 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
-import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,
-  Avatar,
-  Tabs,
-  Tooltip,
-  Popover,
-  Form,
-  Select,
-  message,
-  Empty,
-} from "antd";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  UserAddOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  EditOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SendOutlined,
-  UserSwitchOutlined,
-  EnvironmentOutlined,
-  CalendarOutlined,
-  SaveOutlined,
-  TeamOutlined,
-  LinkOutlined,
-  CameraOutlined,
-  AppstoreOutlined,
-  GoogleOutlined,
-  ClockCircleOutlined,
-  StarOutlined,
-  CloseOutlined,
-  StarFilled,
-  RobotOutlined,
-  LoadingOutlined,
-  BulbOutlined,
-} from "@ant-design/icons";
+import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
@@ -54,6 +17,7 @@ type UserStatus = "Active" | "Inactive" | "Pending";
 type SignupType = "Registered" | "Google" | "Invited";
 type TabKey = "all" | "referrals" | "photographers";
 type FilterKey = "All" | UserStatus | SignupType;
+type DatePeriod = "today" | "week" | "month" | "year";
 
 interface UserRecord {
   id: string;
@@ -100,15 +64,47 @@ interface EditFormValues {
   notes?: string;
 }
 
-/* -------------------------------------------------------------------------- */
+interface AdvancedFilters {
+  roles: string[];
+  status?: UserStatus;
+  inviteStatus?: SignupType;
+  period?: DatePeriod;
+}
+
+const emptyAdvancedFilters: AdvancedFilters = {
+  roles: [],
+  status: undefined,
+  inviteStatus: undefined,
+  period: undefined,
+};
+
 /*  Constants / helpers                                                       */
-/* -------------------------------------------------------------------------- */
+
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=900&q=80";
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const matchesDatePeriod = (dateStr: string, period: DatePeriod): boolean => {
+  const created = new Date(dateStr);
+  if (isNaN(created.getTime())) return true;
+  const now = new Date();
+  const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+  switch (period) {
+    case "today":
+      return created.toDateString() === now.toDateString();
+    case "week":
+      return diffDays >= 0 && diffDays <= 7;
+    case "month":
+      return diffDays >= 0 && diffDays <= 30;
+    case "year":
+      return created.getFullYear() === now.getFullYear();
+    default:
+      return true;
+  }
+};
 
 const filterIconMap: Record<string, ReactNode> = {
   All: <AppstoreOutlined />,
@@ -721,15 +717,15 @@ const UsersPage = () => {
   const [editUser, setEditUser] = useState<UserRecord | null>(null);
   const [inviteOpen, setInviteOpen] = useState<boolean>(false);
   const [filterOpen, setFilterOpen] = useState<boolean>(false);
+  const [appliedFilters, setAppliedFilters] = useState<AdvancedFilters>(emptyAdvancedFilters);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Fixed number of rows shown per page — the table body never grows past
-  // this height, so there is no vertical/horizontal scrollbar inside it.
   const PAGE_SIZE = 6;
 
   const [editForm] = Form.useForm<EditFormValues>();
   const [inviteForm] = Form.useForm<InviteFormValues>();
+  const [advFilterForm] = Form.useForm<AdvancedFilters>();
 
   const [usersData, setUsersData] = useState<UserRecord[]>([
     { id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com", phone: "8888888888", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80", notes: "Manages studio users and booking activity." },
@@ -778,6 +774,46 @@ const UsersPage = () => {
     }, {});
   }, [currentData, filterOptions]);
 
+  // --- Advanced filter panel config, tab-aware ------------------------------
+  const roleOptionsByTab = useMemo<string[]>(() => {
+    if (activeTab === "referrals") return ["Referral"];
+    if (activeTab === "photographers") return []; // no Role field for Photographers tab
+    return ["Studio Admin", "Photographer", "Editor"];
+  }, [activeTab]);
+
+  const inviteStatusOptionsByTab = useMemo<SignupType[]>(() => {
+    return activeTab === "photographers" ? ["Registered", "Invited"] : ["Registered", "Google"];
+  }, [activeTab]);
+
+  const activeAdvancedFilterCount = useMemo(() => {
+    return (
+      appliedFilters.roles.length +
+      (appliedFilters.status ? 1 : 0) +
+      (appliedFilters.inviteStatus ? 1 : 0) +
+      (appliedFilters.period ? 1 : 0)
+    );
+  }, [appliedFilters]);
+
+  const resetAdvancedFilters = useCallback(() => {
+    advFilterForm.resetFields();
+    setAppliedFilters(emptyAdvancedFilters);
+  }, [advFilterForm]);
+
+  const handleApplyAdvancedFilters = (values: AdvancedFilters) => {
+    setAppliedFilters({
+      roles: values.roles || [],
+      status: values.status,
+      inviteStatus: values.inviteStatus,
+      period: values.period,
+    });
+    setFilterOpen(false);
+  };
+
+  const handleClearAdvancedFilters = () => {
+    resetAdvancedFilters();
+    setFilterOpen(false);
+  };
+
   const filteredData = useMemo<UserRecord[]>(() => {
     const term = searchTerm.trim().toLowerCase();
     return currentData.filter((user) => {
@@ -785,16 +821,22 @@ const UsersPage = () => {
         !term || Object.values(user).some((value) => String(value).toLowerCase().includes(term));
       const matchesFilter =
         activeFilter === "All" || user.status === activeFilter || user.signupType === activeFilter;
-      return matchesSearch && matchesFilter;
+      const matchesRole = appliedFilters.roles.length === 0 || appliedFilters.roles.includes(user.role);
+      const matchesStatusAdv = !appliedFilters.status || user.status === appliedFilters.status;
+      const matchesInviteAdv = !appliedFilters.inviteStatus || user.signupType === appliedFilters.inviteStatus;
+      const matchesPeriod = !appliedFilters.period || matchesDatePeriod(user.created, appliedFilters.period);
+      return (
+        matchesSearch && matchesFilter && matchesRole && matchesStatusAdv && matchesInviteAdv && matchesPeriod
+      );
     });
-  }, [currentData, searchTerm, activeFilter]);
+  }, [currentData, searchTerm, activeFilter, appliedFilters]);
 
   // Reset back to page 1 whenever the visible dataset changes shape
   // (tab switch, search, or filter change) so pagination never points
   // at an empty page.
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm, activeFilter]);
+  }, [activeTab, searchTerm, activeFilter, appliedFilters]);
 
   const highlightText = (value: string | number): ReactNode => {
     if (!searchTerm.trim()) return value;
@@ -1024,24 +1066,75 @@ const UsersPage = () => {
     },
   ];
 
-  const filterMenu = (
-    <div className="filter-popover-panel">
-      <div className="filter-popover-list">
-        {filterOptions.map((filter) => (
-          <Tooltip title={filter} key={filter}>
-            <Button
-              type={activeFilter === filter ? "primary" : "text"}
-              icon={filterIconMap[filter]}
-              onClick={() => {
-                setActiveFilter(filter);
-                setFilterOpen(false);
-              }}
-            >
-              {filterCounts[filter] || 0}
-            </Button>
-          </Tooltip>
-        ))}
+  // ---------------------------------------------------------------------
+  // Advanced filter panel — content of the Filter popover. Fields shown
+  // depend on the active tab: "All Users" / "Referrals" show Role, Status,
+  // Invite Status and Date Filter (2x2 grid). "Photographers" has no Role
+  // field, so Status + Invite Status sit on the top row and Date Filter
+  // flows naturally onto its own row below (grid auto-flow handles this).
+  // ---------------------------------------------------------------------
+  const advancedFilterPanel = (
+    <div className="filter-adv-panel">
+      <div className="filter-adv-title">
+        Filter {activeTab === "photographers" ? "Photographers" : "Users"}
       </div>
+      <Form<AdvancedFilters>
+        form={advFilterForm}
+        layout="vertical"
+        initialValues={appliedFilters}
+        onFinish={handleApplyAdvancedFilters}
+      >
+        <div className="filter-adv-grid">
+          {roleOptionsByTab.length > 0 && (
+            <Form.Item name="roles" label="Role" className="filter-adv-item">
+              <Select
+                mode="multiple"
+                allowClear
+                placeholder="Select role(s)"
+                classNames={{ popup: { root: "dark-select-dropdown" } }}
+                options={roleOptionsByTab.map((r) => ({ value: r, label: r }))}
+              />
+            </Form.Item>
+          )}
+          <Form.Item name="status" label="Status" className="filter-adv-item">
+            <Select
+              allowClear
+              placeholder="Select status"
+              classNames={{ popup: { root: "dark-select-dropdown" } }}
+              options={(["Active", "Inactive", "Pending"] as UserStatus[]).map((s) => ({ value: s, label: s }))}
+            />
+          </Form.Item>
+          <Form.Item name="inviteStatus" label="Invite Status" className="filter-adv-item">
+            <Select
+              allowClear
+              placeholder="Select invite status"
+              classNames={{ popup: { root: "dark-select-dropdown" } }}
+              options={inviteStatusOptionsByTab.map((s) => ({ value: s, label: s }))}
+            />
+          </Form.Item>
+          <Form.Item name="period" label="Date Filter" className="filter-adv-item">
+            <Select
+              allowClear
+              placeholder="Select period"
+              classNames={{ popup: { root: "dark-select-dropdown" } }}
+              options={[
+                { value: "today", label: "Today" },
+                { value: "week", label: "Last 7 days" },
+                { value: "month", label: "Last 30 days" },
+                { value: "year", label: "This year" },
+              ]}
+            />
+          </Form.Item>
+        </div>
+        <div className="filter-adv-footer">
+          <Button className="modal-cancel-btn" onClick={handleClearAdvancedFilters}>
+            Clear Filters
+          </Button>
+          <Button type="primary" htmlType="submit" className="invite-btn-styled filter-adv-apply">
+            Apply Filters
+          </Button>
+        </div>
+      </Form>
     </div>
   );
 
@@ -1110,6 +1203,7 @@ const UsersPage = () => {
                     setSearchTerm("");
                     setActiveFilter("All");
                     setSelectedRowKeys([]);
+                    resetAdvancedFilters();
                   }}
                   className="user-tabs-glass"
                   items={tabItems}
@@ -1144,14 +1238,16 @@ const UsersPage = () => {
                       <Popover
                         open={filterOpen}
                         onOpenChange={setFilterOpen}
-                        content={filterMenu}
+                        content={advancedFilterPanel}
                         trigger="click"
                         placement="bottomLeft"
                         overlayClassName="filter-popover-overlay"
                         zIndex={3000}
                       >
                         <Tooltip title="Filter">
-                          <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
+                          <Badge dot={activeAdvancedFilterCount > 0} offset={[-4, 4]}>
+                            <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
+                          </Badge>
                         </Tooltip>
                       </Popover>
                       <Tooltip title="Refresh">

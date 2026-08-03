@@ -196,15 +196,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
               </div>
             </div>
           </div>
-
-          <div className="tap-topbar-progress">
-            {[1,2,3,4,5].map(s => (
-              <span className={s <= 2 ? "done" : ""} key={s}>
-                {s <= 2 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button type="button" aria-label="Refresh"><ReloadOutlined /></button>
-          </div>
         </header>
 
         

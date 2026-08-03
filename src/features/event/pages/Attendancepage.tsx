@@ -510,17 +510,6 @@ export default function AttendancePage() {
               <h1 className="ap-heading">Team Attendance</h1>
             </div>
           </div>
-
-          <div className="ap-progress" aria-label="Event progress">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <span className={s <= 4 ? "done" : ""} key={s}>
-                {s <= 4 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button type="button" aria-label="Refresh" onClick={refreshMembers}>
-              <ReloadOutlined />
-            </button>
-          </div>
         </header>
 
       

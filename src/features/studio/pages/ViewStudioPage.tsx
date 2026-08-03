@@ -1,14 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  CameraOutlined,
-  DownOutlined,
-  EditOutlined,
-  PictureOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  StopOutlined,
-  UpOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,EditOutlined,PictureOutlined,ReloadOutlined,SaveOutlined,StopOutlined,} from "@ant-design/icons";
 import { Button, Form, Input, Select, Tooltip } from "antd";
 import "./ViewStudioPage.css";
 
@@ -28,7 +19,7 @@ const DEFAULT_STUDIO_DATA = {
   specializations: ["Portrait Photography"],
 };
 
-// Fields that MUST be filled before the form can be saved
+
 const REQUIRED_FIELDS = [
   "studioName",
   "phoneNumber",
@@ -51,7 +42,7 @@ const saveLS = (k, v) => {
   try {
     localStorage.setItem(k, JSON.stringify(v));
   } catch {
-    /* no-op */
+    
   }
 };
 
@@ -76,7 +67,7 @@ const specializationOptions = [
   { value: "Food Photography", label: "Food Photography" },
 ];
 
-// ---- validation rule sets (applies to every field, required or not) ----
+
 const rules = {
   studioName: [
     { required: true, message: "Studio name is required" },
@@ -151,7 +142,7 @@ const rules = {
   ],
 };
 
-// Checks whether every required field currently holds a non-empty value
+
 function areRequiredFieldsFilled(values) {
   return REQUIRED_FIELDS.every((key) => {
     const v = values?.[key];
@@ -169,8 +160,7 @@ function Field({ name, label, required, children }: { name: any; label: any; req
         </span>
       }
       rules={rules[name] || []}
-      // Disable antd's own auto-generated asterisk so only our custom
-      // studio-required span renders — prevents the double "* *" bug.
+    
       required={false}
       validateTrigger={["onChange", "onBlur"]}
     >
@@ -179,17 +169,66 @@ function Field({ name, label, required, children }: { name: any; label: any; req
   );
 }
 
-function ActionIcon({ tooltip, children, className = "", ...buttonProps }) {
+function ApertureIcon({ open }: { open: boolean }) {
   return (
-    <Tooltip title={tooltip} placement="left" mouseEnterDelay={0.08}>
-      <Button
-        className={`studio-rail-btn ${className}`}
-        aria-label={tooltip}
-        {...buttonProps}
-      >
-        {children}
-      </Button>
-    </Tooltip>
+    <svg viewBox="0 0 60 60" className="studio-aperture-icon" aria-hidden="true" focusable="false">
+      <circle className="studio-aperture-ring" cx="30" cy="30" r="26" />
+      <g className={`studio-aperture-blades ${open ? "studio-aperture-blades-open" : ""}`}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <polygon
+            key={i}
+            className="studio-blade"
+            style={{ ["--angle" as any]: `${i * 60}deg` }}
+            points="30,30 30,3 49,13"
+          />
+        ))}
+      </g>
+      <circle className="studio-aperture-hole" cx="30" cy="30" r={open ? 9 : 3.4} />
+    </svg>
+  );
+}
+
+type FanAction = {
+  key: string;
+  tooltip: string;
+  icon: React.ReactNode;
+  className: string;
+  angle: number; 
+  onClick?: () => void;
+  disabled?: boolean;
+  htmlType?: "submit" | "button";
+  form?: string;
+};
+
+function FanSlot({ action, open, radius, index }: { action: FanAction; open: boolean; radius: number; index: number }) {
+  const rad = (action.angle * Math.PI) / 180;
+  const x = open ? radius * Math.cos(rad) : 0;
+  const y = open ? radius * Math.sin(rad) : 0;
+  const scale = open ? 1 : 0.5;
+
+  return (
+    <div
+      className={`studio-fan-slot ${open ? "studio-fan-slot-open" : ""}`}
+      style={{
+        transform: `translate(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px)) scale(${scale})`,
+        transitionDelay: open ? `${index * 55}ms` : "0ms",
+      }}
+    >
+      <Tooltip title={action.tooltip} placement="left" mouseEnterDelay={0.08}>
+        <Button
+          className={`studio-rail-btn ${action.className}`}
+          aria-label={action.tooltip}
+          type="primary"
+          htmlType={action.htmlType}
+          form={action.form}
+          disabled={action.disabled}
+          onClick={action.onClick}
+          tabIndex={open ? 0 : -1}
+        >
+          {action.icon}
+        </Button>
+      </Tooltip>
+    </div>
   );
 }
 
@@ -199,10 +238,11 @@ export default function ViewStudioPage() {
   const [isRailOpen, setIsRailOpen] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isFormValid, setIsFormValid] = useState(true);
+  const [justSaved, setJustSaved] = useState(false);
 
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
 
-  // Re-evaluate validity (errors + required-field completeness) on every field change
+  
   const handleFieldsChange = () => {
     const hasErrors = form
       .getFieldsError()
@@ -220,7 +260,6 @@ export default function ViewStudioPage() {
   const handleEdit = () => {
     setIsEditing(true);
     setHasChanges(false);
-    // Reset validity state to reflect current field contents
     handleFieldsChange();
   };
 
@@ -232,24 +271,24 @@ export default function ViewStudioPage() {
 
   const handleCancel = () => {
     form.setFieldsValue(initialValues);
-    form.resetFields(); // clears any lingering error/touched state
+    form.resetFields(); 
     form.setFieldsValue(initialValues);
     setIsEditing(false);
     setHasChanges(false);
     setIsFormValid(true);
+    handleFieldsChange();
   };
 
   const handleSubmit = (values) => {
-    // Belt-and-braces: block save if somehow triggered while invalid/incomplete
     if (!areRequiredFieldsFilled(values)) return;
     saveLS("axsStudio", values);
     setIsEditing(false);
     setHasChanges(false);
+    setJustSaved(true);
+    window.setTimeout(() => setJustSaved(false), 520);
   };
 
   const handleSubmitFailed = () => {
-    // antd auto-scrolls to & highlights the first invalid field;
-    // keep the Save button disabled until it's fixed
     setIsFormValid(false);
   };
 
@@ -257,81 +296,87 @@ export default function ViewStudioPage() {
     window.location.href = "/profile";
   };
 
+  const actions: FanAction[] = [
+    {
+      key: "edit",
+      tooltip: "Edit",
+      icon: <EditOutlined />,
+      className: "studio-rail-btn-edit",
+      angle: 250,
+      onClick: handleEdit,
+    },
+    {
+      key: "save",
+      tooltip:
+        isEditing && !isFormValid
+          ? "Fill all required fields correctly to save"
+          : "Submit",
+      icon: <SaveOutlined />,
+      className: "studio-rail-btn-save",
+      angle: 210,
+      htmlType: "submit",
+      form: "studio-form",
+      disabled: !isEditing || !hasChanges || !isFormValid,
+    },
+    {
+      key: "reset",
+      tooltip: "Reset",
+      icon: <ReloadOutlined />,
+      className: "studio-rail-btn-reset",
+      angle: 170,
+      onClick: handleReset,
+      disabled: !isEditing || !hasChanges,
+    },
+    {
+      key: "cancel",
+      tooltip: "Cancel",
+      icon: <StopOutlined />,
+      className: "studio-rail-btn-cancel",
+      angle: 130,
+      onClick: handleCancel,
+      disabled: !isEditing,
+    },
+  ];
+
   return (
     <main className="studio-page">
+      <div
+        className={`studio-shutter-flash ${justSaved ? "studio-shutter-flash-active" : ""}`}
+        aria-hidden="true"
+      />
+
       <div className="studio-light-beam studio-light-beam-one" />
       <div className="studio-light-beam studio-light-beam-two" />
 
-      <aside
-        className={`studio-action-dock ${isRailOpen ? "studio-action-dock-open" : ""}`}
-        aria-label="Studio actions"
-      >
+      <div className="studio-fan-layer" aria-label="Studio actions">
         <Tooltip
           title={isRailOpen ? "Close actions" : "Open actions"}
           placement="left"
           mouseEnterDelay={0.08}
         >
-          <Button
+          <button
+            type="button"
             className="studio-dock-toggle"
             aria-label={isRailOpen ? "Close actions" : "Open actions"}
             aria-expanded={isRailOpen}
             onClick={() => setIsRailOpen((current) => !current)}
           >
-            {isRailOpen ? <DownOutlined /> : <UpOutlined />}
-          </Button>
+            <ApertureIcon open={isRailOpen} />
+          </button>
         </Tooltip>
 
-        <div className="studio-action-rail" aria-hidden={!isRailOpen}>
-          <ActionIcon
-            tooltip="Edit"
-            type="primary"
-            className="studio-rail-btn-edit"
-            tabIndex={isRailOpen ? 0 : -1}
-            onClick={handleEdit}
-          >
-            <EditOutlined />
-          </ActionIcon>
-
-          <ActionIcon
-            tooltip={
-              isEditing && !isFormValid
-                ? "Fill all required fields correctly to save"
-                : "Submit"
-            }
-            type="primary"
-            className="studio-rail-btn-save"
-            htmlType="submit"
-            form="studio-form"
-            disabled={!isEditing || !hasChanges || !isFormValid}
-            tabIndex={isRailOpen ? 0 : -1}
-          >
-            <SaveOutlined />
-          </ActionIcon>
-
-          <ActionIcon
-            tooltip="Reset"
-            className="studio-rail-btn-reset"
-            onClick={handleReset}
-            disabled={!isEditing || !hasChanges}
-            tabIndex={isRailOpen ? 0 : -1}
-          >
-            <ReloadOutlined />
-          </ActionIcon>
-
-          <ActionIcon
-            tooltip="Cancel"
-            className="studio-rail-btn-cancel"
-            onClick={handleCancel}
-            disabled={!isEditing}
-            tabIndex={isRailOpen ? 0 : -1}
-          >
-            <StopOutlined />
-          </ActionIcon>
-        </div>
-      </aside>
+       {actions.map((action, index) => (
+  <FanSlot key={action.key} action={action} open={isRailOpen} radius={90} index={index} />
+))}
+      </div>
 
       <div className="studio-shell">
-        <section className="studio-hero">
+        <section className="studio-hero studio-viewfinder">
+          <span className="studio-vf-bracket studio-vf-bracket-tl" />
+          <span className="studio-vf-bracket studio-vf-bracket-tr" />
+          <span className="studio-vf-bracket studio-vf-bracket-bl" />
+          <span className="studio-vf-bracket studio-vf-bracket-br" />
+
           <div className="studio-hero-copy">
             <div className="studio-kicker">
               <CameraOutlined />
@@ -341,6 +386,7 @@ export default function ViewStudioPage() {
           </div>
 
           <div className="studio-photo-stage">
+            <div className="studio-focus-reticle" aria-hidden="true" />
             <div className="studio-photo-card studio-photo-card-one" />
             <div className="studio-photo-card studio-photo-card-two" />
             <div className="studio-photo-card studio-photo-card-three" />

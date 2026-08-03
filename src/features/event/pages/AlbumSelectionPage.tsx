@@ -372,17 +372,6 @@ export default function AlbumSelectionPage() {
               <h1 className="as-heading">Album Selection</h1>
             </div>
           </div>
-
-          <div className="as-progress" aria-label="Event progress">
-            {[1, 2, 3, 4, 5, 6].map((s) => (
-              <span className={s <= 6 ? "done" : ""} key={s}>
-                {s <= 6 ? <CheckCircleOutlined /> : s}
-              </span>
-            ))}
-            <button type="button" aria-label="Refresh">
-              <ReloadOutlined />
-            </button>
-          </div>
         </header>
 
         {/* ── Body ── */}
