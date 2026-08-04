@@ -1,27 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
-import {
-  CalendarOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  EnvironmentOutlined,
-  InfoCircleOutlined,
-  LeftOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  RightOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
+import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,DoubleLeftOutlined,EnvironmentOutlined,InfoCircleOutlined,LeftOutlined,MailOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,ReloadOutlined,RightOutlined,TeamOutlined,ThunderboltOutlined,UserOutlined,} from "@ant-design/icons";
 import "./CreateEventPage.css";
 
 interface StepDef {
@@ -727,6 +707,22 @@ interface FormErrors {
   albums?: string;
 }
 
+/** Order in which fields should be checked/scrolled-to when validation fails. */
+const FIELD_ORDER: (keyof FormErrors)[] = [
+  "eventName",
+  "eventDate",
+  "startTime",
+  "customerName",
+  "phone",
+  "email",
+  "eventAmount",
+  "address",
+  "city",
+  "state",
+  "services",
+  "albums",
+];
+
 export default function CreateEventPage() {
   const navigate = useNavigate();
 
@@ -753,6 +749,46 @@ export default function CreateEventPage() {
   const [showTime, setShowTime] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
+
+  // --- Error focus / glow handling ---
+  const fieldRefs = useRef<Partial<Record<keyof FormErrors, HTMLElement | null>>>({});
+  const [glowField, setGlowField] = useState<keyof FormErrors | null>(null);
+  const glowTimeoutRef = useRef<number | undefined>(undefined);
+  const glowRestartRef = useRef<number | undefined>(undefined);
+
+  const registerFieldRef = (key: keyof FormErrors) => (el: HTMLElement | null) => {
+    fieldRefs.current[key] = el;
+  };
+
+  const scrollToFirstError = (nextErrors: FormErrors) => {
+    const firstKey = FIELD_ORDER.find(key => nextErrors[key]);
+    if (!firstKey) return;
+
+    const target = fieldRefs.current[firstKey];
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    // Reset then re-apply on next tick so the glow animation restarts
+    // even if the same field is already glowing from a previous attempt.
+    window.clearTimeout(glowTimeoutRef.current);
+    window.clearTimeout(glowRestartRef.current);
+    setGlowField(null);
+    glowRestartRef.current = window.setTimeout(() => {
+      setGlowField(firstKey);
+      glowTimeoutRef.current = window.setTimeout(() => setGlowField(null), 1800);
+    }, 30);
+  };
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(glowTimeoutRef.current);
+      window.clearTimeout(glowRestartRef.current);
+    };
+  }, []);
+
+  const glowClass = (key: keyof FormErrors) => (glowField === key ? " cep-glow" : "");
+  // --- end error focus / glow handling ---
 
   const commandWrapRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
@@ -929,7 +965,10 @@ export default function CreateEventPage() {
     setAttemptedSubmit(true);
     const nextErrors = validate();
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (Object.keys(nextErrors).length > 0) {
+      scrollToFirstError(nextErrors);
+      return;
+    }
 
     const numericAmount = parseInt(stripAmount(form.eventAmount), 10) || 0;
     const createdAt = new Date().toISOString();
@@ -1082,7 +1121,10 @@ export default function CreateEventPage() {
                   <small>Primary booking details</small>
                 </div>
                 <div className="cep-fields">
-                  <label className="cep-field wide">
+                  <label
+                    className={`cep-field wide${glowClass("eventName")}`}
+                    ref={registerFieldRef("eventName")}
+                  >
                     <span>Event Name <span className="req">*</span></span>
                     <input
                       placeholder="e.g., Ram's Birthday"
@@ -1093,11 +1135,14 @@ export default function CreateEventPage() {
                     {renderError("eventName")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("eventDate")}`}
+                    ref={registerFieldRef("eventDate")}
+                  >
                     <span>Event Date <span className="req">*</span></span>
                     <div
                       className="cep-input-icon"
-                      ref={calRef}
+                      ref={el => { calRef.current = el; }}
                       onClick={event => {
                         event.stopPropagation();
                         setShowCal(open => !open);
@@ -1123,11 +1168,14 @@ export default function CreateEventPage() {
                     {renderError("eventDate")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("startTime")}`}
+                    ref={registerFieldRef("startTime")}
+                  >
                     <span>Start Time <span className="req">*</span></span>
                     <div
                       className="cep-input-icon"
-                      ref={timeRef}
+                      ref={el => { timeRef.current = el; }}
                       onClick={event => {
                         event.stopPropagation();
                         setShowTime(open => !open);
@@ -1162,7 +1210,10 @@ export default function CreateEventPage() {
                   <small>Client and payment snapshot</small>
                 </div>
                 <div className="cep-fields">
-                  <label className="cep-field wide">
+                  <label
+                    className={`cep-field wide${glowClass("customerName")}`}
+                    ref={registerFieldRef("customerName")}
+                  >
                     <span>Customer Name <span className="req">*</span></span>
                     <input
                       placeholder="Enter customer name"
@@ -1173,7 +1224,10 @@ export default function CreateEventPage() {
                     {renderError("customerName")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("phone")}`}
+                    ref={registerFieldRef("phone")}
+                  >
                     <span>Phone <span className="req">*</span></span>
                     <div className="cep-input-icon">
                       <input
@@ -1189,7 +1243,10 @@ export default function CreateEventPage() {
                     {renderError("phone")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("email")}`}
+                    ref={registerFieldRef("email")}
+                  >
                     <span>Email <span className="req">*</span></span>
                     <div className="cep-input-icon">
                       <input
@@ -1203,7 +1260,10 @@ export default function CreateEventPage() {
                     {renderError("email")}
                   </label>
 
-                  <label className="cep-field wide">
+                  <label
+                    className={`cep-field wide${glowClass("eventAmount")}`}
+                    ref={registerFieldRef("eventAmount")}
+                  >
                     <span>Event Amount <span className="req">*</span></span>
                     <div className="cep-input-icon">
                       <input
@@ -1230,7 +1290,10 @@ export default function CreateEventPage() {
                   <small>Manual city and state entry</small>
                 </div>
                 <div className="cep-fields">
-                  <label className="cep-field wide">
+                  <label
+                    className={`cep-field wide${glowClass("address")}`}
+                    ref={registerFieldRef("address")}
+                  >
                     <span>Address <span className="req">*</span></span>
                     <textarea
                       placeholder="Enter complete venue address"
@@ -1241,7 +1304,10 @@ export default function CreateEventPage() {
                     {renderError("address")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("city")}`}
+                    ref={registerFieldRef("city")}
+                  >
                     <span>City <span className="req">*</span></span>
                     <input
                       placeholder="Enter city"
@@ -1252,7 +1318,10 @@ export default function CreateEventPage() {
                     {renderError("city")}
                   </label>
 
-                  <label className="cep-field">
+                  <label
+                    className={`cep-field${glowClass("state")}`}
+                    ref={registerFieldRef("state")}
+                  >
                     <span>State <span className="req">*</span></span>
                     <input
                       placeholder="Enter state"
@@ -1265,7 +1334,10 @@ export default function CreateEventPage() {
                 </div>
               </section>
 
-              <section className="cep-panel">
+              <section
+                className={`cep-panel${glowClass("services")}`}
+                ref={registerFieldRef("services")}
+              >
                 <div className="cep-panel-head">
                   <h2><CameraOutlined /> Select Services</h2>
                   <span className="cep-count">{form.selectedServices.length} selected</span>
@@ -1274,21 +1346,27 @@ export default function CreateEventPage() {
                   <span className="cep-error cep-service-error">{errors.services}</span>
                 )}
                 <div className="cep-services">
-                  {SERVICES.map(service => (
-                    <label className="cep-service" key={service}>
-                      <input
-                        type="checkbox"
-                        checked={form.selectedServices.includes(service)}
-                        onChange={() => toggleService(service)}
-                      />
-                      <span>{service}</span>
-                    </label>
-                  ))}
+                  {SERVICES.map(service => {
+                    const checked = form.selectedServices.includes(service);
+                    return (
+                      <label className={`cep-service${checked ? " checked" : ""}`} key={service}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleService(service)}
+                        />
+                        <span>{service}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </section>
 
               {form.selectedServices.length > 0 && (
-                <section className="cep-panel cep-panel-wide">
+                <section
+                  className={`cep-panel cep-panel-wide${glowClass("albums")}`}
+                  ref={registerFieldRef("albums")}
+                >
                   <div className="cep-panel-head">
                     <h2><PictureOutlined /> Album & Deliverable Configuration</h2>
                     <small>Configure deliverables per service</small>

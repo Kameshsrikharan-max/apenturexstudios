@@ -9,9 +9,8 @@ import "./UsersPage.css";
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-/* -------------------------------------------------------------------------- */
-/*  Types                                                                      */
-/* -------------------------------------------------------------------------- */
+
+/*  Types */
 
 type UserStatus = "Active" | "Inactive" | "Pending";
 type SignupType = "Registered" | "Google" | "Invited";
@@ -1147,20 +1146,7 @@ const UsersPage = () => {
           <Sidebar dark />
 
           <Layout className="dashboard-shell user-shell">
-            <Header className="dashboard-navbar review-navbar user-navbar">
-              <div className="user-mini-stats">
-                <Tooltip title="Visible users">
-                  <span>
-                    <TeamOutlined /> {filteredData.length}
-                  </span>
-                </Tooltip>
-                <Tooltip title="Active users">
-                  <span>
-                    <CheckCircleOutlined /> {filterCounts.Active || 0}
-                  </span>
-                </Tooltip>
-              </div>
-            </Header>
+            <Header className="dashboard-navbar review-navbar user-navbar" />
 
             <Content className="dashboard-content review-content user-content">
               <div className="users-page-heading">
@@ -1338,9 +1324,7 @@ const UsersPage = () => {
                   />
                 </div>
 
-                <div className="footer-copyright">
-                  <Text>© AXS</Text>
-                </div>
+               
               </div>
             </Content>
           </Layout>

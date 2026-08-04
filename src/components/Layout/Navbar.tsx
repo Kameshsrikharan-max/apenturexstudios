@@ -22,6 +22,7 @@ import {
   ShopOutlined,
   PictureOutlined,
   EnterOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
@@ -34,6 +35,7 @@ const PAGES = [
   { label: "Review", path: "/review", icon: <FileSearchOutlined />, group: "Workspace" },
   { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace" },
   { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace" },
+  { label: "Transactions", path: "/transactions", icon: <WalletOutlined />, group: "Workspace" },
   { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace" },
   { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio" },
   { label: "Media Library", path: "/media", icon: <PictureOutlined />, group: "Studio" },

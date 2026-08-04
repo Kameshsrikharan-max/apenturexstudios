@@ -19,6 +19,7 @@ import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
 import CalendarPage         from "../components/UI/CalendarPage";
 import SubscriptionPage     from "../features/subscription/SubscriptionPage";
+import TransactionPage      from "../features/Transaction/pages/Transactionpage";
 import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 
@@ -40,6 +41,7 @@ const ProfilePageAny: any = ProfilePage;
 const ViewStudioPageAny: any = ViewStudioPage;
 const CalendarPageAny: any = CalendarPage;
 const SubscriptionPageAny: any = SubscriptionPage;
+const TransactionPageAny: any = TransactionPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -188,6 +190,9 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
 
       
         <Route path="/enquiry" element={<EnquiryPageAny user={user} />} />
+
+        {/* Transaction Management */}
+        <Route path="/transactions" element={<TransactionPageAny user={user} />} />
 
       
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />

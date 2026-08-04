@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, DollarOutlined,
@@ -8,6 +8,11 @@ import {
   EditOutlined, DeleteOutlined, ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import "./PaymentPage.css";
+import {
+  upsertTransaction,
+  type PaymentMethod,
+  type StoredTransaction,
+} from "../../../utils/transactionStore"; // adjust path to your project structure
 
 // ─── Constants ───
 
@@ -20,6 +25,8 @@ const STEPS = [
   { label: "Album",           icon: <PictureOutlined /> },
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
+
+const PAYMENT_METHODS: PaymentMethod[] = ["UPI", "Card", "Net Banking", "Cash", "Bank Transfer"];
 
 // ─── sessionStorage helpers ──────
 
@@ -159,6 +166,10 @@ function validatePaymentForm(form, eventAmount, alreadyPaid, editingId, allPayme
     }
   }
 
+  if (!form.method) {
+    errors.method = "Payment method is required.";
+  }
+
   return errors;
 }
 
@@ -178,10 +189,11 @@ function RecordPaymentModal({
         amount: formatIndianAmount(String(editingPayment.amount)),
         date:   editingPayment.date,
         notes:  editingPayment.notes || "",
+        method: editingPayment.method || "UPI",
       };
     }
-    
-    return { amount: "", date: "", notes: "" };
+
+    return { amount: "", date: "", notes: "", method: "" };
   });
 
   const [errors, setErrors]             = useState<any>({});
@@ -226,9 +238,10 @@ function RecordPaymentModal({
     onSave({
       id:          isEdit ? editingPayment.id : Date.now(),
       description: "Customer Payment",
-      amount:      stripCommas(form.amount), 
+      amount:      stripCommas(form.amount),
       date:        form.date,
       notes:       form.notes.trim(),
+      method:      form.method,
       status:      "Received",
     });
     onClose();
@@ -290,6 +303,28 @@ function RecordPaymentModal({
                 Remaining balance: ₹{remainingBalance.toLocaleString("en-IN")}
               </span>
             )}
+          </div>
+
+          {/* ── Payment Method ── */}
+          <div className={`pp-modal-field${(touched.method || submitAttempted) && errors.method ? " pp-field-has-error" : ""}`}>
+            <label htmlFor="pm-method">
+              <span className="pp-required">*</span> Payment Method
+            </label>
+            <div className="pp-modal-input-wrap">
+              <select
+                id="pm-method"
+                value={form.method}
+                onChange={(e) => handleChange("method", e.target.value)}
+                onBlur={() => handleBlur("method")}
+                className={(touched.method || submitAttempted) && errors.method ? "inp-error" : ""}
+              >
+                <option value="" disabled>Select a method</option>
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            {showError("method")}
           </div>
 
           {/* ── Date ── */}
@@ -557,6 +592,7 @@ function CustomerPaymentsTab({
               <thead>
                 <tr>
                   <th>Amount</th>
+                  <th>Method</th>
                   <th>Date</th>
                   <th>Notes</th>
                   <th>Status</th>
@@ -569,6 +605,7 @@ function CustomerPaymentsTab({
                     <td>
                       <strong>₹{Number(stripCommas(String(p.amount))).toLocaleString("en-IN")}</strong>
                     </td>
+                    <td>{p.method || "—"}</td>
                     <td>{p.date}</td>
                     <td className="pp-notes">{p.notes || "—"}</td>
                     <td>
@@ -730,6 +767,39 @@ export default function PaymentPage() {
   const handleDeletePayment = useCallback((id) => {
     setPayments(prev => prev.filter(p => p.id !== id));
   }, [setPayments]);
+
+  // ── Push a computed transaction record into the shared store used by TransactionPage ──
+  useEffect(() => {
+    if (!event) return;
+
+    const totalReceived = payments
+      .filter((p: any) => p.status === "Received")
+      .reduce((s, p: any) => s + Number(stripCommas(String(p.amount))), 0);
+    const balance = Math.max(0, eventAmount - totalReceived);
+
+    const status: StoredTransaction["status"] =
+      eventAmount > 0 && totalReceived >= eventAmount
+        ? "Paid"
+        : totalReceived > 0
+        ? "Partial"
+        : "Pending";
+
+    const lastPayment = [...payments].sort(
+      (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )[0] as any;
+
+    upsertTransaction({
+      id: String(event._createdAt || event.eventName || "default"),
+      eventName: event.eventName || "Untitled Event",
+      clientName: event.clientName || "—",
+      date: lastPayment?.date || event.eventDate || new Date().toISOString().split("T")[0],
+      totalAmount: eventAmount,
+      amountPaid: totalReceived,
+      balanceAmount: balance,
+      status,
+      method: (lastPayment?.method as PaymentMethod) || "UPI",
+    });
+  }, [payments, event, eventAmount]);
 
   const [activeStep, setActiveStep] = useState(2);
   const [activeTab,  setActiveTab]  = useState(0);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Layout,
   Typography,
@@ -8,7 +8,6 @@ import {
   Space,
   ConfigProvider,
   Tag,
-  Popover,
   Modal,
   message,
   Descriptions,
@@ -17,9 +16,10 @@ import {
   Divider,
   Timeline,
   Tooltip,
-  Progress,
   Empty,
+  Avatar,
 } from "antd";
+import type { ColumnsType } from "antd/es/table";
 
 import {
   SearchOutlined,
@@ -27,24 +27,15 @@ import {
   PlusOutlined,
   EyeOutlined,
   EditOutlined,
-  DeleteOutlined,
   UserOutlined,
   PhoneOutlined,
-  MoreOutlined,
   ClockCircleOutlined,
   FileTextOutlined,
-  FireOutlined,
   CalendarOutlined,
   EnvironmentOutlined,
-  DollarOutlined,
   CheckCircleOutlined,
   ThunderboltOutlined,
-  MessageOutlined,
-  TeamOutlined,
   CameraOutlined,
-  InstagramOutlined,
-  GlobalOutlined,
-  GiftOutlined,
 } from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
@@ -54,10 +45,54 @@ import "./EnquiryPage.css";
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
+/* -------------------------------------------------------------------------- */
+/*  Types                                                                      */
+/* -------------------------------------------------------------------------- */
+
+type EnquiryStatus = "DRAFT" | "NEW" | "FOLLOWUP" | "CONFIRMED" | "CANCELLED";
+
+interface EnquiryRecord {
+  id: string;
+  enquiryName: string;
+  customerName: string;
+  phone: string;
+  eventDate: string;
+  status: EnquiryStatus;
+  city: string;
+  createdBy: string;
+  createdAt: string;
+  image?: string;
+  notes?: string;
+  timeline: string[];
+}
+
+interface EnquiryFormValues {
+  enquiryName: string;
+  customerName: string;
+  phone: string;
+  eventDate: string;
+  status: EnquiryStatus;
+  city: string;
+  image?: string;
+  notes?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Constants                                                                  */
+/* -------------------------------------------------------------------------- */
+
 const imageFallback =
   "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80";
 
-const initialEnquiries = [
+const statusColors: Record<EnquiryStatus, string> = {
+  DRAFT: "default",
+  NEW: "blue",
+  FOLLOWUP: "gold",
+  CONFIRMED: "green",
+  CANCELLED: "red",
+};
+
+const initialEnquiries: EnquiryRecord[] = [
   {
     id: "1",
     enquiryName: "Brand - Wedding",
@@ -68,12 +103,6 @@ const initialEnquiries = [
     city: "Coimbatore",
     createdBy: "super admin",
     createdAt: "May 04, 2026",
-    budget: "₹2,50,000",
-    source: "Instagram",
-    priority: "High",
-    packageType: "Premium Wedding",
-    nextFollowUp: "May 08, 2026",
-    progress: 45,
     image:
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
     notes: "Client is interested in premium wedding coverage with candid team.",
@@ -89,12 +118,6 @@ const initialEnquiries = [
     city: "Chennai",
     createdBy: "super admin",
     createdAt: "Apr 29, 2026",
-    budget: "₹1,80,000",
-    source: "Referral",
-    priority: "Medium",
-    packageType: "Classic Wedding",
-    nextFollowUp: "May 06, 2026",
-    progress: 62,
     image:
       "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=900&q=80",
     notes: "Needs album, traditional photography, and candid event coverage.",
@@ -110,12 +133,6 @@ const initialEnquiries = [
     city: "Bangalore",
     createdBy: "super admin",
     createdAt: "May 05, 2026",
-    budget: "₹90,000",
-    source: "Website",
-    priority: "High",
-    packageType: "Engagement Plus",
-    nextFollowUp: "May 07, 2026",
-    progress: 78,
     image:
       "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80",
     notes: "Highly interested. Wants cinematic teaser and couple portraits.",
@@ -123,33 +140,56 @@ const initialEnquiries = [
   },
 ];
 
-const statusColors = {
-  DRAFT: "default",
-  NEW: "blue",
-  FOLLOWUP: "gold",
-  CONFIRMED: "green",
-  CANCELLED: "red",
+/* -------------------------------------------------------------------------- */
+/*  EnquiryFormModal — dark neon-glass modal styled like the Users page.      */
+/*  It ONLY closes when the person clicks "Cancel" or "Save / Create" inside  */
+/*  it. There is no close (X) button, no backdrop-click-to-close, and no      */
+/*  Escape-to-close — that is intentional per the requested behaviour.        */
+/* -------------------------------------------------------------------------- */
+
+interface EnquiryFormModalProps {
+  open: boolean;
+  width?: number;
+  children: ReactNode;
+}
+
+const EnquiryFormModal = ({ open, width = 680, children }: EnquiryFormModalProps) => {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="enquiry-cm-backdrop">
+      <div className="enquiry-cm-panel" style={{ maxWidth: width }}>
+        {children}
+      </div>
+    </div>
+  );
 };
 
-const sourceIcons = {
-  Instagram: <InstagramOutlined />,
-  Website: <GlobalOutlined />,
-  Referral: <GiftOutlined />,
-};
+/* -------------------------------------------------------------------------- */
+/*  EnquiryPage                                                                */
+/* -------------------------------------------------------------------------- */
 
 const EnquiryPage = () => {
-  const [enquiriesData, setEnquiriesData] = useState(initialEnquiries);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [cityFilter, setCityFilter] = useState("ALL");
-  const [priorityFilter, setPriorityFilter] = useState("ALL");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-  const [viewEnquiry, setViewEnquiry] = useState(null);
-  const [journeyEnquiry, setJourneyEnquiry] = useState(null);
-  const [editEnquiry, setEditEnquiry] = useState(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [form] = Form.useForm();
+  const [enquiriesData, setEnquiriesData] = useState<EnquiryRecord[]>(initialEnquiries);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | EnquiryStatus>("ALL");
+  const [cityFilter, setCityFilter] = useState<string>("ALL");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
+  const [viewEnquiry, setViewEnquiry] = useState<EnquiryRecord | null>(null);
+  const [journeyEnquiry, setJourneyEnquiry] = useState<EnquiryRecord | null>(null);
+  const [editEnquiry, setEditEnquiry] = useState<EnquiryRecord | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
+  const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [form] = Form.useForm<EnquiryFormValues>();
 
   const cities = useMemo(
     () => ["ALL", ...new Set(enquiriesData.map((item) => item.city))],
@@ -167,16 +207,15 @@ const EnquiryPage = () => {
       return (
         matchesSearch &&
         (statusFilter === "ALL" || enq.status === statusFilter) &&
-        (cityFilter === "ALL" || enq.city === cityFilter) &&
-        (priorityFilter === "ALL" || enq.priority === priorityFilter)
+        (cityFilter === "ALL" || enq.city === cityFilter)
       );
     });
-  }, [enquiriesData, searchTerm, statusFilter, cityFilter, priorityFilter]);
+  }, [enquiriesData, searchTerm, statusFilter, cityFilter]);
 
   const stats = useMemo(
     () => ({
       total: enquiriesData.length,
-      highPriority: enquiriesData.filter((i) => i.priority === "High").length,
+      draft: enquiriesData.filter((i) => i.status === "DRAFT").length,
       followUps: enquiriesData.filter((i) => i.status === "FOLLOWUP").length,
       confirmed: enquiriesData.filter((i) => i.status === "CONFIRMED").length,
     }),
@@ -196,10 +235,9 @@ const EnquiryPage = () => {
     setSearchTerm("");
     setStatusFilter("ALL");
     setCityFilter("ALL");
-    setPriorityFilter("ALL");
   };
 
-  const updateStatus = (record, status) => {
+  const updateStatus = (record: EnquiryRecord, status: EnquiryStatus) => {
     setEnquiriesData((prev) =>
       prev.map((item) => (item.id === record.id ? { ...item, status } : item))
     );
@@ -207,35 +245,36 @@ const EnquiryPage = () => {
     message.success(`Enquiry marked as ${status}`);
   };
 
-  const handleDeleteEnquiry = (record) => {
+  const handleDeleteEnquiry = (record: EnquiryRecord) => {
     setEnquiriesData((prev) => prev.filter((item) => item.id !== record.id));
     setSelectedRowKeys((prev) => prev.filter((key) => key !== record.id));
   };
 
   const handleBulkDelete = () => {
-    setEnquiriesData((prev) =>
-      prev.filter((item) => !selectedRowKeys.includes(item.id))
-    );
+    setEnquiriesData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)));
     setSelectedRowKeys([]);
   };
 
-  const openEditModal = (record) => {
+  const openEditModal = (record: EnquiryRecord) => {
     setEditEnquiry(record);
     setIsCreateOpen(false);
-    form.setFieldsValue(record);
+    form.setFieldsValue({
+      enquiryName: record.enquiryName,
+      customerName: record.customerName,
+      phone: record.phone,
+      eventDate: record.eventDate,
+      status: record.status,
+      city: record.city,
+      image: record.image,
+      notes: record.notes,
+    });
   };
 
   const openCreateModal = () => {
     setEditEnquiry(null);
     setIsCreateOpen(true);
     form.resetFields();
-
-    form.setFieldsValue({
-      status: "DRAFT",
-      priority: "Medium",
-      progress: 10,
-      image: imageFallback,
-    });
+    form.setFieldsValue({ status: "DRAFT" });
   };
 
   const closeFormModal = () => {
@@ -245,191 +284,162 @@ const EnquiryPage = () => {
   };
 
   const handleSaveEnquiry = () => {
-    form.validateFields().then((values) => {
-      if (editEnquiry) {
-        setEnquiriesData((prev) =>
-          prev.map((item) =>
-            item.id === editEnquiry.id ? { ...item, ...values } : item
-          )
-        );
+    form
+      .validateFields()
+      .then((values) => {
+        if (editEnquiry) {
+          setEnquiriesData((prev) =>
+            prev.map((item) => (item.id === editEnquiry.id ? { ...item, ...values } : item))
+          );
 
-        message.success("Enquiry updated");
-      } else {
-        const newEnquiry = {
-          ...values,
-          id: Date.now().toString(),
-          createdBy: "super admin",
-          createdAt: "May 08, 2026",
-          timeline: ["Enquiry created"],
-        };
+          message.success("Enquiry updated");
+        } else {
+          const newEnquiry: EnquiryRecord = {
+            ...values,
+            id: Date.now().toString(),
+            createdBy: "super admin",
+            createdAt: "May 08, 2026",
+            timeline: ["Enquiry created"],
+          };
 
-        setEnquiriesData((prev) => [newEnquiry, ...prev]);
-        message.success("Enquiry created successfully");
-      }
+          setEnquiriesData((prev) => [newEnquiry, ...prev]);
+          message.success("Enquiry created successfully");
+        }
 
-      closeFormModal();
-    });
+        closeFormModal();
+      })
+      .catch(() => {
+        // validation failed — antd already highlights the offending fields
+      });
   };
 
-  const columns = [
+  const renderRowActions = (record: EnquiryRecord) => (
+    <div className="enquiry-row-actions-overlay">
+      <Tooltip title="View enquiry">
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          className="enquiry-action-btn view"
+          onClick={(e) => {
+            e.stopPropagation();
+            setViewEnquiry(record);
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip title="Edit enquiry">
+        <Button
+          type="text"
+          icon={<EditOutlined />}
+          className="enquiry-action-btn edit"
+          onClick={(e) => {
+            e.stopPropagation();
+            openEditModal(record);
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip title="Enquiry journey">
+        <Button
+          type="text"
+          icon={<ClockCircleOutlined />}
+          className="enquiry-action-btn journey"
+          onClick={(e) => {
+            e.stopPropagation();
+            setJourneyEnquiry(record);
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip title="Mark as confirmed">
+        <Button
+          type="text"
+          icon={<CheckCircleOutlined />}
+          className="enquiry-action-btn confirm"
+          onClick={(e) => {
+            e.stopPropagation();
+            updateStatus(record, "CONFIRMED");
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip title="Delete enquiry">
+        <DeleteButton
+          itemName={record.enquiryName}
+          onDelete={() => handleDeleteEnquiry(record)}
+          className="enquiry-action-btn delete"
+        />
+      </Tooltip>
+    </div>
+  );
+
+  /* ------------------------------------------------------------------ */
+  /*  Table columns — text-only, no thumbnails, no Budget/Priority       */
+  /*  columns. Row actions reveal on hover, anchored to the last column. */
+  /* ------------------------------------------------------------------ */
+  const columns: ColumnsType<EnquiryRecord> = [
     {
       title: "Enquiry",
       dataIndex: "enquiryName",
       key: "enquiryName",
-      render: (text, record) => (
-        <Popover
-          trigger={["hover", "click"]}
-          placement="rightTop"
-          overlayClassName="enquiry-action-popover"
-          content={
-            <div className="action-panel">
-              <Tooltip title="View enquiry details" color="#ffffff">
-                <button onClick={() => setViewEnquiry(record)}>
-                  <EyeOutlined />
-                  <span>View</span>
-                </button>
-              </Tooltip>
-
-              <Tooltip title="Edit enquiry information" color="#ffffff">
-                <button onClick={() => openEditModal(record)}>
-                  <EditOutlined />
-                  <span>Edit</span>
-                </button>
-              </Tooltip>
-
-              <Tooltip title="Open enquiry journey" color="#ffffff">
-                <button onClick={() => setJourneyEnquiry(record)}>
-                  <ClockCircleOutlined />
-                  <span>Journey</span>
-                </button>
-              </Tooltip>
-
-              <Tooltip title="Mark this enquiry as confirmed" color="#ffffff">
-                <button onClick={() => updateStatus(record, "CONFIRMED")}>
-                  <CheckCircleOutlined />
-                  <span>Confirm</span>
-                </button>
-              </Tooltip>
-
-              <Tooltip title="Delete this enquiry" color="#ffffff">
-                <span>
-                  <DeleteButton
-                    itemName={record.enquiryName}
-                    onDelete={() => handleDeleteEnquiry(record)}
-                    iconOnly={false}
-                    className="danger action-panel-delete-btn"
-                  />
-                </span>
-              </Tooltip>
-            </div>
-          }
-        >
-          <div className="enquiry-image-card">
-            <div className="enquiry-photo-wrap">
-              <img
-                className="enquiry-photo"
-                src={record.image || imageFallback}
-                alt={record.enquiryName}
-                onError={(e) => {
-                  e.currentTarget.src = imageFallback;
-                }}
-              />
-            </div>
-
-            <div className="enquiry-card-info">
-              <div className="card-title-row">
-                <Tooltip title={record.enquiryName} color="#ffffff">
-                  <strong>{text}</strong>
-                </Tooltip>
-
-                <Tooltip title="Quick actions" color="#ffffff">
-                  <MoreOutlined className="more-icon" />
-                </Tooltip>
-              </div>
-
-              <span className="package-line">
-                <CameraOutlined /> {record.packageType}
-              </span>
-
-              <div className="tiny-meta">
-                <span>
-                  <CalendarOutlined /> {record.eventDate}
-                </span>
-                <span>
-                  <EnvironmentOutlined /> {record.city}
-                </span>
-              </div>
-            </div>
-          </div>
-        </Popover>
+      render: (text: string, record) => (
+        <button type="button" className="enquiry-name-cell" onClick={() => setViewEnquiry(record)}>
+          <strong>{text}</strong>
+        </button>
       ),
     },
     {
       title: "Customer",
       dataIndex: "customerName",
       key: "customerName",
-      render: (text, record) => (
-        <Tooltip title={`Customer: ${text}`} color="#ffffff">
-          <div className="compact-cell">
-            <UserOutlined />
-            <div>
-              <strong>{text}</strong>
-              <span>
-                {sourceIcons[record.source] || <MessageOutlined />} {record.source}
-              </span>
-            </div>
-          </div>
-        </Tooltip>
+      render: (text: string) => (
+        <span className="enquiry-compact-cell">
+          <UserOutlined /> {text}
+        </span>
       ),
     },
     {
       title: "Phone",
       dataIndex: "phone",
       key: "phone",
-      render: (text) => (
-        <Tooltip title={`Call ${text}`} color="#ffffff">
-          <Space>
-            <PhoneOutlined />
-            {text}
-          </Space>
-        </Tooltip>
+      render: (text: string) => (
+        <span className="enquiry-soft-cell">
+          <PhoneOutlined /> {text}
+        </span>
       ),
     },
     {
-      title: "Budget",
-      dataIndex: "budget",
-      key: "budget",
-      render: (budget, record) => (
-        <Tooltip title={`Booking progress ${record.progress || 0}%`} color="#ffffff">
-          <div className="budget-cell">
-            <strong>
-              <DollarOutlined /> {budget}
-            </strong>
-            <Progress percent={record.progress || 0} size="small" showInfo={false} />
-          </div>
-        </Tooltip>
+      title: "Event Date",
+      dataIndex: "eventDate",
+      key: "eventDate",
+      render: (text: string) => (
+        <span className="enquiry-soft-cell">
+          <CalendarOutlined /> {text}
+        </span>
       ),
     },
     {
-      title: "Priority",
-      dataIndex: "priority",
-      key: "priority",
-      render: (priority) => (
-        <Tooltip title={`${priority} priority enquiry`} color="#ffffff">
-          <span className={`priority-chip priority-${priority?.toLowerCase()}`}>
-            <FireOutlined /> {priority}
-          </span>
-        </Tooltip>
+      title: "City",
+      dataIndex: "city",
+      key: "city",
+      render: (text: string) => (
+        <span className="enquiry-soft-cell">
+          <EnvironmentOutlined /> {text}
+        </span>
       ),
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status) => (
-        <Tooltip title={`Current status: ${status}`} color="#ffffff">
-          <Tag color={statusColors[status]}>{status}</Tag>
-        </Tooltip>
+      onCell: () => ({ className: "enquiry-actions-anchor-cell" }),
+      render: (status: EnquiryStatus, record) => (
+        <>
+          <Tag color={statusColors[status]} className="enquiry-status-tag">
+            {status}
+          </Tag>
+          {renderRowActions(record)}
+        </>
       ),
     },
   ];
@@ -466,8 +476,8 @@ const EnquiryPage = () => {
                       <Title level={2}>Event Enquiries</Title>
 
                       <Text>
-                        Track enquiry photos, customers, follow-ups, city, budget and
-                        booking status in one visual workspace.
+                        Track enquiry customers, follow-ups, city and booking status in one clean
+                        workspace.
                       </Text>
 
                       <div className="hero-buttons">
@@ -480,7 +490,7 @@ const EnquiryPage = () => {
                           New Enquiry
                         </Button>
 
-                        <Tooltip title="Refresh enquiries" color="#ffffff">
+                        <Tooltip title="Refresh enquiries">
                           <Button
                             icon={<ReloadOutlined spin={isLoading} />}
                             size="large"
@@ -492,11 +502,7 @@ const EnquiryPage = () => {
 
                     <div className="hero-image-stack">
                       {enquiriesData.slice(0, 3).map((item) => (
-                        <Tooltip
-                          key={item.id}
-                          title={item.enquiryName}
-                          color="#ffffff"
-                        >
+                        <Tooltip key={item.id} title={item.enquiryName}>
                           <img
                             src={item.image || imageFallback}
                             alt={item.enquiryName}
@@ -510,7 +516,7 @@ const EnquiryPage = () => {
                   </section>
 
                   <section className="stats-row">
-                    <Tooltip title="Total enquiries" color="#ffffff">
+                    <Tooltip title="Total enquiries">
                       <div className="stat-card">
                         <FileTextOutlined className="stat-icon blue" />
                         <strong>{stats.total}</strong>
@@ -518,15 +524,15 @@ const EnquiryPage = () => {
                       </div>
                     </Tooltip>
 
-                    <Tooltip title="High priority enquiries" color="#ffffff">
+                    <Tooltip title="Draft enquiries">
                       <div className="stat-card">
-                        <FireOutlined className="stat-icon orange" />
-                        <strong>{stats.highPriority}</strong>
-                        <span>Hot Leads</span>
+                        <EditOutlined className="stat-icon slate" />
+                        <strong>{stats.draft}</strong>
+                        <span>Draft</span>
                       </div>
                     </Tooltip>
 
-                    <Tooltip title="Follow-up enquiries" color="#ffffff">
+                    <Tooltip title="Follow-up enquiries">
                       <div className="stat-card">
                         <ClockCircleOutlined className="stat-icon yellow" />
                         <strong>{stats.followUps}</strong>
@@ -534,7 +540,7 @@ const EnquiryPage = () => {
                       </div>
                     </Tooltip>
 
-                    <Tooltip title="Confirmed bookings" color="#ffffff">
+                    <Tooltip title="Confirmed bookings">
                       <div className="stat-card">
                         <CheckCircleOutlined className="stat-icon green" />
                         <strong>{stats.confirmed}</strong>
@@ -558,7 +564,8 @@ const EnquiryPage = () => {
                         <Select
                           className="filter-select"
                           value={statusFilter}
-                          onChange={setStatusFilter}
+                          onChange={(val) => setStatusFilter(val)}
+                          classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
                           options={[
                             { value: "ALL", label: "All Status" },
                             { value: "DRAFT", label: "Draft" },
@@ -572,47 +579,45 @@ const EnquiryPage = () => {
                           className="filter-select"
                           value={cityFilter}
                           onChange={setCityFilter}
+                          classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
                           options={cities.map((city) => ({
                             value: city,
                             label: city === "ALL" ? "All Cities" : city,
                           }))}
                         />
 
-                        <Select
-                          className="filter-select"
-                          value={priorityFilter}
-                          onChange={setPriorityFilter}
-                          options={[
-                            { value: "ALL", label: "All Priority" },
-                            { value: "High", label: "High" },
-                            { value: "Medium", label: "Medium" },
-                            { value: "Low", label: "Low" },
-                          ]}
-                        />
-
                         <Button onClick={clearFilters}>Clear</Button>
                       </Space>
 
                       <DeleteButton
-                        itemName={`${selectedRowKeys.length} selected enquir${selectedRowKeys.length === 1 ? "y" : "ies"}`}
+                        itemName={`${selectedRowKeys.length} selected enquir${
+                          selectedRowKeys.length === 1 ? "y" : "ies"
+                        }`}
                         onDelete={handleBulkDelete}
-                        iconOnly={false}
                         disabled={!selectedRowKeys.length}
                       />
                     </div>
 
-                    <Table
+                    <Table<EnquiryRecord>
                       className="enquiry-table"
                       columns={columns}
                       dataSource={filteredData}
                       rowKey="id"
                       loading={isLoading}
+                      rowClassName={(record) => (activeRowId === record.id ? "enquiry-row-active" : "")}
+                      onRow={(record) => ({
+                        onMouseEnter: () => setActiveRowId(record.id),
+                        onMouseLeave: () =>
+                          setActiveRowId((current) => (current === record.id ? null : current)),
+                        onTouchStart: () =>
+                          setActiveRowId((current) => (current === record.id ? null : record.id)),
+                      })}
                       rowSelection={{
                         selectedRowKeys,
-                        onChange: setSelectedRowKeys,
+                        onChange: (keys) => setSelectedRowKeys(keys as string[]),
                       }}
                       pagination={{ pageSize: 10 }}
-                      tableLayout="auto"
+                      tableLayout="fixed"
                       locale={{
                         emptyText: (
                           <Empty
@@ -629,6 +634,7 @@ const EnquiryPage = () => {
           </Layout>
         </div>
 
+        {/* View enquiry — unchanged antd Modal, closes normally */}
         <Modal
           className="enquiry-modal"
           open={!!viewEnquiry}
@@ -650,51 +656,26 @@ const EnquiryPage = () => {
 
                 <div>
                   <Title level={3}>{viewEnquiry.enquiryName}</Title>
-                  <Tag color={statusColors[viewEnquiry.status]}>
-                    {viewEnquiry.status}
-                  </Tag>
+                  <Tag color={statusColors[viewEnquiry.status]}>{viewEnquiry.status}</Tag>
                 </div>
               </div>
 
               <Divider />
 
               <Descriptions bordered column={2}>
-                <Descriptions.Item label="Customer">
-                  {viewEnquiry.customerName}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Phone">
-                  {viewEnquiry.phone}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Event Date">
-                  {viewEnquiry.eventDate}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Budget">
-                  {viewEnquiry.budget}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="City">
-                  {viewEnquiry.city}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Source">
-                  {viewEnquiry.source}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Package" span={2}>
-                  {viewEnquiry.packageType}
-                </Descriptions.Item>
-
+                <Descriptions.Item label="Customer">{viewEnquiry.customerName}</Descriptions.Item>
+                <Descriptions.Item label="Phone">{viewEnquiry.phone}</Descriptions.Item>
+                <Descriptions.Item label="Event Date">{viewEnquiry.eventDate}</Descriptions.Item>
+                <Descriptions.Item label="City">{viewEnquiry.city}</Descriptions.Item>
                 <Descriptions.Item label="Notes" span={2}>
-                  {viewEnquiry.notes}
+                  {viewEnquiry.notes || "—"}
                 </Descriptions.Item>
               </Descriptions>
             </>
           )}
         </Modal>
 
+        {/* Enquiry journey — unchanged antd Modal, closes normally */}
         <Modal
           className="enquiry-modal"
           open={!!journeyEnquiry}
@@ -717,95 +698,98 @@ const EnquiryPage = () => {
           )}
         </Modal>
 
-        <Modal
-          className="enquiry-modal"
-          open={!!editEnquiry || isCreateOpen}
-          onCancel={closeFormModal}
-          onOk={handleSaveEnquiry}
-          okText={editEnquiry ? "Save Changes" : "Create Enquiry"}
-          title={editEnquiry ? "Edit Enquiry" : "Create New Enquiry"}
-          width={840}
-          centered
-        >
-          <Form form={form} layout="vertical">
-            <div className="form-grid">
-              <Form.Item
-                name="enquiryName"
-                label="Enquiry Name"
-                rules={[{ required: true }]}
-              >
-                <Input prefix={<FileTextOutlined />} />
-              </Form.Item>
-
-              <Form.Item
-                name="customerName"
-                label="Customer Name"
-                rules={[{ required: true }]}
-              >
-                <Input prefix={<UserOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
-                <Input prefix={<PhoneOutlined />} />
-              </Form.Item>
-
-              <Form.Item
-                name="eventDate"
-                label="Event Date"
-                rules={[{ required: true }]}
-              >
-                <Input prefix={<CalendarOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="status" label="Status">
-                <Select
-                  options={Object.keys(statusColors).map((k) => ({
-                    value: k,
-                    label: k,
-                  }))}
-                />
-              </Form.Item>
-
-              <Form.Item name="city" label="City">
-                <Input prefix={<EnvironmentOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="budget" label="Budget">
-                <Input prefix={<DollarOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="priority" label="Priority">
-                <Select
-                  options={[
-                    { value: "High", label: "High" },
-                    { value: "Medium", label: "Medium" },
-                    { value: "Low", label: "Low" },
-                  ]}
-                />
-              </Form.Item>
-
-              <Form.Item name="source" label="Source">
-                <Input prefix={<MessageOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="packageType" label="Package Type">
-                <Input prefix={<TeamOutlined />} />
-              </Form.Item>
-
-              <Form.Item name="progress" label="Progress">
-                <Input type="number" min={0} max={100} />
-              </Form.Item>
-
-              <Form.Item name="image" label="Image URL">
-                <Input />
-              </Form.Item>
+        {/* Create / Edit enquiry — Users-page-styled modal. Only Cancel or  */}
+        {/* Create/Save closes it; clicking outside does nothing.           */}
+        <EnquiryFormModal open={!!editEnquiry || isCreateOpen} width={680}>
+          <div className="enquiry-modal-shell">
+            <div className="enquiry-modal-title-row">
+              <Avatar className="enquiry-modal-avatar">
+                {editEnquiry ? <EditOutlined /> : <PlusOutlined />}
+              </Avatar>
+              <Title level={3}>{editEnquiry ? "Edit Enquiry" : "Create New Enquiry"}</Title>
             </div>
 
-            <Form.Item name="notes" label="Notes">
-              <Input.TextArea rows={4} />
-            </Form.Item>
-          </Form>
-        </Modal>
+            <Form<EnquiryFormValues> form={form} layout="vertical" className="enquiry-form">
+              <div className="enquiry-form-grid">
+                <Form.Item
+                  name="enquiryName"
+                  label="Enquiry Name"
+                  rules={[{ required: true, message: "Enquiry name is required" }]}
+                >
+                  <Input prefix={<FileTextOutlined />} placeholder="e.g. Priya - Wedding" />
+                </Form.Item>
+
+                <Form.Item
+                  name="customerName"
+                  label="Customer Name"
+                  rules={[{ required: true, message: "Customer name is required" }]}
+                >
+                  <Input prefix={<UserOutlined />} placeholder="Customer full name" />
+                </Form.Item>
+
+                <Form.Item
+                  name="phone"
+                  label="Phone"
+                  rules={[
+                    { required: true, message: "Phone number is required" },
+                    { pattern: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit phone number" },
+                  ]}
+                >
+                  <Input prefix={<PhoneOutlined />} placeholder="10-digit mobile number" maxLength={10} />
+                </Form.Item>
+
+                <Form.Item
+                  name="eventDate"
+                  label="Event Date"
+                  rules={[{ required: true, message: "Event date is required" }]}
+                >
+                  <Input prefix={<CalendarOutlined />} placeholder="e.g. May 31, 2026" />
+                </Form.Item>
+
+                <Form.Item
+                  name="city"
+                  label="City"
+                  rules={[{ required: true, message: "City is required" }]}
+                >
+                  <Input prefix={<EnvironmentOutlined />} placeholder="Event city" />
+                </Form.Item>
+
+                <Form.Item
+                  name="status"
+                  label="Status"
+                  rules={[{ required: true, message: "Status is required" }]}
+                >
+                  <Select
+                    classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
+                    options={Object.keys(statusColors).map((k) => ({ value: k, label: k }))}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="image"
+                  label="Image URL"
+                  className="enquiry-form-full"
+                  rules={[{ type: "url", message: "Enter a valid image URL" }]}
+                >
+                  <Input placeholder="https://..." />
+                </Form.Item>
+
+                <Form.Item name="notes" label="Notes" className="enquiry-form-full">
+                  <Input.TextArea rows={4} placeholder="Additional notes about this enquiry" />
+                </Form.Item>
+              </div>
+            </Form>
+
+            <div className="enquiry-modal-action-row">
+              <Button className="enquiry-modal-cancel-btn" onClick={closeFormModal}>
+                Cancel
+              </Button>
+              <Button type="primary" className="enquiry-modal-save-btn" onClick={handleSaveEnquiry}>
+                {editEnquiry ? "Save Changes" : "Create Enquiry"}
+              </Button>
+            </div>
+          </div>
+        </EnquiryFormModal>
       </Layout>
     </ConfigProvider>
   );

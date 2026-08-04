@@ -68,14 +68,101 @@ const ABOUT_LINES = [
 const DOC_LABELS = { aadhaar:"Aadhaar", pan:"PAN", dl:"Driving License", passport:"Passport" };
 const DOC_FIELDS = {
   aadhaar: [],
-  pan:      [{ key:"panNumber",    label:"PAN Number",                required:true }],
-  dl:       [{ key:"dlNumber",     label:"DL Number",                 required:true },
+  pan:      [{ key:"panNumber",    label:"PAN Number",                required:true,  placeholder:"ABCDE1234F" }],
+  dl:       [{ key:"dlNumber",     label:"DL Number",                 required:true,  placeholder:"TN01 20230012345" },
              { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
-             { key:"dlName",       label:"Full Name (as on DL)",      required:false }],
-  passport: [{ key:"passportNo",   label:"Passport Number",           required:true },
+             { key:"dlName",       label:"Full Name (as on DL)",      required:false, placeholder:"Full name" }],
+  passport: [{ key:"passportNo",   label:"Passport Number",           required:true,  placeholder:"A1234567" },
              { key:"dob",          label:"Date of Birth",             required:true,  placeholder:"DD-MM-YYYY" },
              { key:"expiry",       label:"Expiry Date",               required:false, placeholder:"DD-MM-YYYY" },
-             { key:"passportName", label:"Full Name (as on Passport)",required:false }],
+             { key:"passportName", label:"Full Name (as on Passport)",required:false, placeholder:"Full name" }],
+};
+
+// ---------- Validation ----------
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[6-9]\d{9}$/;
+const NAME_RE  = /^[A-Za-z][A-Za-z.\s]{1,59}$/;
+const PAN_RE   = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const DL_RE    = /^[A-Z]{2}\d{2}\s?\d{6,13}$/;
+const PASSPORT_RE = /^[A-PR-WYa-pr-wy][0-9]{7}$/;
+const DOB_RE   = /^(0[1-9]|[12]\d|3[01])-(0[1-9]|1[0-2])-\d{4}$/;
+const ADDRESS_RE = /^.{5,120}$/;
+
+const isValidDate = (str) => {
+  if (!DOB_RE.test(str)) return false;
+  const [d, m, y] = str.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d && y > 1900 && y <= new Date().getFullYear();
+};
+
+const PROFILE_VALIDATORS = {
+  fullName: (v) => {
+    const t = (v || "").trim();
+    if (!t) return "Name is required";
+    if (!NAME_RE.test(t)) return "Enter a valid name (letters only, min 2 characters)";
+    return null;
+  },
+  email: (v) => {
+    const t = (v || "").trim();
+    if (!t) return "Email is required";
+    if (!EMAIL_RE.test(t)) return "Enter a valid email address";
+    return null;
+  },
+  phone: (v) => {
+    const t = (v || "").trim();
+    if (!t) return "Phone number is required";
+    if (!PHONE_RE.test(t)) return "Enter a valid 10-digit mobile number";
+    return null;
+  },
+  address: (v) => {
+    const t = (v || "").trim();
+    if (!t) return "Address is required";
+    if (!ADDRESS_RE.test(t)) return "Address must be between 5 and 120 characters";
+    return null;
+  },
+};
+
+const KYC_VALIDATORS = {
+  panNumber: (v) => {
+    const t = (v || "").trim().toUpperCase();
+    if (!t) return "PAN number is required";
+    if (!PAN_RE.test(t)) return "Enter a valid PAN (e.g. ABCDE1234F)";
+    return null;
+  },
+  dlNumber: (v) => {
+    const t = (v || "").trim().toUpperCase();
+    if (!t) return "DL number is required";
+    if (!DL_RE.test(t)) return "Enter a valid driving license number (e.g. TN0120230012345)";
+    return null;
+  },
+  passportNo: (v) => {
+    const t = (v || "").trim().toUpperCase();
+    if (!t) return "Passport number is required";
+    if (!PASSPORT_RE.test(t)) return "Enter a valid passport number (e.g. A1234567)";
+    return null;
+  },
+  dob: (v) => {
+    const t = (v || "").trim();
+    if (!t) return "Date of birth is required";
+    if (!isValidDate(t)) return "Use a valid DD-MM-YYYY date";
+    return null;
+  },
+  expiry: (v) => {
+    const t = (v || "").trim();
+    if (!t) return null;
+    if (!isValidDate(t)) return "Use a valid DD-MM-YYYY date";
+    return null;
+  },
+  dlName: (v) => {
+    const t = (v || "").trim();
+    if (t && !NAME_RE.test(t)) return "Enter a valid name";
+    return null;
+  },
+  passportName: (v) => {
+    const t = (v || "").trim();
+    if (t && !NAME_RE.test(t)) return "Enter a valid name";
+    return null;
+  },
 };
 
 const InstagramIcon = () => (
@@ -116,17 +203,40 @@ function maskValue(str="") {
 function KycSection({ verified, kycData, onVerify, onReset }) {
   const [docType,setDocType]=useState("");
   const [vals,setVals]=useState({});
+  const [touched,setTouched]=useState({});
   const [consent,setConsent]=useState(false);
   const [editing,setEditing]=useState(false);
   const fields=DOC_FIELDS[docType]||[];
 
+  const errorFor=(f)=>{
+    const validator=KYC_VALIDATORS[f.key];
+    if(!validator)return null;
+    return validator(vals[f.key]||"");
+  };
+
+  const hasBlockingErrors=()=>fields.some(f=>f.required&&errorFor(f));
+
   const canSubmit=()=>{
     if(!docType||!consent)return false;
+    if(hasBlockingErrors())return false;
     return fields.filter(f=>f.required).every(f=>(vals[f.key]||"").trim());
   };
 
-  const handleVerify=()=>{ if(!canSubmit())return; onVerify({docType,vals}); setEditing(false); };
-  const handleReset=()=>{ setDocType("");setVals({});setConsent(false);setEditing(true);onReset(); };
+  const handleChange=(key,value)=>{
+    setVals(p=>({...p,[key]:value}));
+  };
+
+  const handleBlur=(key)=>{
+    setTouched(p=>({...p,[key]:true}));
+  };
+
+  const handleVerify=()=>{
+    setTouched(fields.reduce((acc,f)=>({...acc,[f.key]:true}),{}));
+    if(!canSubmit())return;
+    onVerify({docType,vals});
+    setEditing(false);
+  };
+  const handleReset=()=>{ setDocType("");setVals({});setTouched({});setConsent(false);setEditing(true);onReset(); };
 
   if(verified&&!editing){
     const sf=DOC_FIELDS[kycData?.docType]||[];
@@ -172,7 +282,7 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
         <div className="kyc-field-group">
           <label className="kyc-field-label"><span className="kyc-req">*</span> Document Type</label>
           <div className="kyc-select-wrap">
-            <select className="kyc-select" value={docType} onChange={e=>{setDocType(e.target.value);setVals({});}}>
+            <select className="kyc-select" value={docType} onChange={e=>{setDocType(e.target.value);setVals({});setTouched({});}}>
               <option value="">Select document type</option>
               <option value="aadhaar">Aadhaar</option>
               <option value="pan">PAN</option>
@@ -189,13 +299,22 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
         )}
         {fields.length>0&&(
           <div className="kyc-fields-grid kyc-reveal">
-            {fields.map((f,i)=>(
-              <div key={f.key} className={`kyc-input-cell${fields.length===1||(i===fields.length-1&&fields.length%2!==0)?" kyc-full":""}`}>
-                <label className="kyc-field-label">{f.required&&<span className="kyc-req">*</span>} {f.label}</label>
-                <input className="kyc-input" placeholder={f.placeholder||f.label}
-                  value={vals[f.key]||""} onChange={e=>setVals(p=>({...p,[f.key]:e.target.value}))} />
-              </div>
-            ))}
+            {fields.map((f,i)=>{
+              const err=touched[f.key]?errorFor(f):null;
+              return (
+                <div key={f.key} className={`kyc-input-cell${fields.length===1||(i===fields.length-1&&fields.length%2!==0)?" kyc-full":""}`}>
+                  <label className="kyc-field-label">{f.required&&<span className="kyc-req">*</span>} {f.label}</label>
+                  <input
+                    className={`kyc-input${err?" kyc-input--error":""}`}
+                    placeholder={f.placeholder||f.label}
+                    value={vals[f.key]||""}
+                    onChange={e=>handleChange(f.key,e.target.value)}
+                    onBlur={()=>handleBlur(f.key)}
+                  />
+                  {err&&<span className="kyc-field-error">{err}</span>}
+                </div>
+              );
+            })}
           </div>
         )}
         {docType&&(
@@ -213,18 +332,21 @@ function KycSection({ verified, kycData, onVerify, onReset }) {
   );
 }
 
-function DetailField({ icon, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange, placeholder }) {
+function DetailField({ icon, field, value, editable=true, editingField, onStartEdit, onSave, onCancel, pendingValue, onPendingChange, placeholder, error, canSave }) {
   const inputRef=useRef(null);
   const isEditing=editingField===field;
   useEffect(()=>{ if(isEditing)inputRef.current?.focus(); },[isEditing]);
   return (
-    <div className={`det-field${isEditing?" det-field--active":""}`}>
+    <div className={`det-field${isEditing?" det-field--active":""}${isEditing&&error?" det-field--error":""}`}>
       <span className="det-icon">{icon}</span>
       <div className="det-body">
         {isEditing?(
-          <input ref={inputRef} className="det-input" value={pendingValue} placeholder={placeholder}
-            onChange={e=>onPendingChange(e.target.value)}
-            onKeyDown={e=>{ if(e.key==="Enter")onSave(); if(e.key==="Escape")onCancel(); }}/>
+          <>
+            <input ref={inputRef} className="det-input" value={pendingValue} placeholder={placeholder}
+              onChange={e=>onPendingChange(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"&&canSave)onSave(); if(e.key==="Escape")onCancel(); }}/>
+            {error&&<span className="det-field-error">{error}</span>}
+          </>
         ):(
           <span className={`det-value${editable?" det-value--click":""}`}
             onClick={()=>editable&&onStartEdit(field,value)} title={editable?"Click to edit":undefined}>
@@ -250,9 +372,11 @@ function ProfilePage() {
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [galleryPage,setGalleryPage]=useState(0);
   const [pageFlipping,setPageFlipping]=useState(false);
+
+  // ---- Editable field state ----
   const [editingField,setEditingField]=useState(null);
+  const [editingOriginal,setEditingOriginal]=useState("");
   const [pendingValue,setPendingValue]=useState("");
-  const [hasUnsaved,setHasUnsaved]=useState(false);
 
   const fullName=useMemo(()=>(`${profile.firstName||""} ${profile.lastName||""}`).trim()||"Kamesh Srikharan.T",[profile]);
   const filteredPhotos=useMemo(()=>activeCategory==="All"?photos:photos.filter(p=>p.category===activeCategory),[activeCategory]);
@@ -262,17 +386,39 @@ function ProfilePage() {
     return filteredPhotos.slice(start,start+PAGE_SIZE);
   },[filteredPhotos,galleryPage]);
 
+  // Only shows an error once the value differs from what it started as
+  const fieldError=useMemo(()=>{
+    if(!editingField)return null;
+    const validator=PROFILE_VALIDATORS[editingField];
+    if(!validator)return null;
+    return validator(pendingValue);
+  },[editingField,pendingValue]);
+
+  const hasChanged = editingField!=null && pendingValue.trim() !== (editingOriginal||"").trim();
+  // Save button (per-field and floating) only appears once the value has actually changed AND is valid
+  const canSaveField = hasChanged && !fieldError;
+
   const saveField=(field,value)=>{ const n={...profile,[field]:value}; setProfile(n); saveLS("axsProfile",n); };
-  const handleStartEdit=(field,value)=>{ setEditingField(field); setPendingValue(value); setHasUnsaved(true); };
+
+  const handleStartEdit=(field,value)=>{
+    setEditingField(field);
+    setPendingValue(value);
+    setEditingOriginal(value);
+  };
+
   const handleSaveAll=()=>{
+    if(!canSaveField)return;
     if(editingField==="fullName"){
       const p=pendingValue.trim().split(" ");
       const n={...profile,firstName:p[0]||"",lastName:p.slice(1).join(" ")||""};
       setProfile(n); saveLS("axsProfile",n);
-    } else if(editingField) saveField(editingField,pendingValue);
-    setEditingField(null); setPendingValue(""); setHasUnsaved(false);
+    } else if(editingField) {
+      saveField(editingField,pendingValue.trim());
+    }
+    setEditingField(null); setPendingValue(""); setEditingOriginal("");
   };
-  const handleCancelEdit=()=>{ setEditingField(null); setPendingValue(""); setHasUnsaved(false); };
+
+  const handleCancelEdit=()=>{ setEditingField(null); setPendingValue(""); setEditingOriginal(""); };
 
   const handlePhotoUpload=e=>{
     const f=e.target.files?.[0]; if(!f)return;
@@ -362,12 +508,12 @@ function ProfilePage() {
         </div>
 
         <div className="sb-details">
-          <DetailField icon={<UserOutlined/>}        field="fullName" value={fullName}        editable placeholder="Full name"   editingField={editingField} onStartEdit={f=>handleStartEdit(f,fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
-          <DetailField icon={<MailOutlined/>}        field="email"    value={profile.email}   editable placeholder="Email"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
-          <DetailField icon={<PhoneOutlined/>}       field="phone"    value={profile.phone}   editable placeholder="Phone"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
-          <DetailField icon={<CameraOutlined/>}      field="role"     value={profile.role}    editable={false} placeholder="Role" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
-          <DetailField icon={<EnvironmentOutlined/>} field="address"  value={`${profile.address}, ${profile.city}, ${profile.state}`} editable placeholder="Address" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue}/>
-          {hasUnsaved&&(
+          <DetailField icon={<UserOutlined/>}        field="fullName" value={fullName}        editable placeholder="Full name"   editingField={editingField} onStartEdit={f=>handleStartEdit(f,fullName)} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} error={editingField==="fullName"?fieldError:null} canSave={canSaveField}/>
+          <DetailField icon={<MailOutlined/>}        field="email"    value={profile.email}   editable placeholder="Email"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} error={editingField==="email"?fieldError:null} canSave={canSaveField}/>
+          <DetailField icon={<PhoneOutlined/>}       field="phone"    value={profile.phone}   editable placeholder="Phone"       editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} error={editingField==="phone"?fieldError:null} canSave={canSaveField}/>
+          <DetailField icon={<CameraOutlined/>}      field="role"     value={profile.role}    editable={false} placeholder="Role" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} error={null} canSave={canSaveField}/>
+          <DetailField icon={<EnvironmentOutlined/>} field="address"  value={`${profile.address}, ${profile.city}, ${profile.state}`} editable placeholder="Address" editingField={editingField} onStartEdit={handleStartEdit} onSave={handleSaveAll} onCancel={handleCancelEdit} pendingValue={pendingValue} onPendingChange={setPendingValue} error={editingField==="address"?fieldError:null} canSave={canSaveField}/>
+          {canSaveField&&(
             <button type="button" className="floating-save-btn" onClick={handleSaveAll}>
               <CheckCircleOutlined/> Save
             </button>
@@ -459,7 +605,7 @@ function ProfilePage() {
             </div>
           </div>
 
-          <footer className="profile-footer">© axs</footer>
+         
         </div>
       </main>
 

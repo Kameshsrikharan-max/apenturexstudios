@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,AppstoreOutlined,} from "@ant-design/icons";
 import "./AlbumSelectionPage.css";
@@ -14,41 +14,126 @@ const STEPS = [
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
 
-
-const INITIAL_ALBUMS = [
-  {
-    id: 1,
-    serviceName: "Candid Photography",
-    templates: [
-      {
-        id: 1,
-        name: "Album Template",
-        status: "Not Started",
-        sheets: 5,
-        size: "16x12",
-        photosRequired: 40,
-        curatedPhotos: [] as { name: string; size: string; preview: string }[],
-        reviewStage: 1, // 1=Draft, 2=In Review, 3=Submitted, 4=Finalized
-        note: "",
-        deadline: "",
-      },
-      {
-        id: 2,
-        name: "New template - 3",
-        status: "Not Started",
-        sheets: 5,
-        size: "A4",
-        photosRequired: 20,
-        curatedPhotos: [] as { name: string; size: string; preview: string }[],
-        reviewStage: 1,
-        note: "",
-        deadline: "",
-      },
-    ],
-  },
-];
+/* Services that go through the "pick an album template per album" flow
+   on the Create Event page. Any other selected service (e.g. Drone,
+   Candid Videography) doesn't have templates, so it gets a simple
+   deliverable card instead of the template/review workflow. */
+const TEMPLATE_BASED_SERVICES = ["Traditional Photography", "Candid Photography"];
 
 const STAGE_LABELS = ["Draft", "In Review", "Submitted", "Finalized"];
+
+/* ---------- Types describing the shape saved by CreateEventPage ---------- */
+
+interface SavedAlbumTemplate {
+  name: string;
+  sheets: number;
+  photos: number;
+  size: string;
+}
+
+interface SavedAlbumEntry {
+  template?: SavedAlbumTemplate;
+}
+
+interface SavedAlbumServiceData {
+  numAlbums?: number;
+  albums?: SavedAlbumEntry[];
+  droneCount?: number;
+}
+
+interface SavedEventForm {
+  eventName?: string;
+  selectedServices?: string[];
+  albumData?: Record<string, SavedAlbumServiceData>;
+}
+
+/* ---------- Types used internally by this page ---------- */
+
+interface CuratedPhoto {
+  name: string;
+  size: string;
+  preview: string;
+}
+
+interface TemplateCardData {
+  id: number;
+  name: string;
+  status: string;
+  sheets: number;
+  size: string;
+  photosRequired: number;
+  curatedPhotos: CuratedPhoto[];
+  reviewStage: number; // 1=Draft, 2=In Review, 3=Submitted, 4=Finalized
+  note: string;
+  deadline: string;
+}
+
+interface ServiceAlbumGroup {
+  id: string;
+  serviceName: string;
+  hasTemplates: boolean; // false for services like Drone / Candid Videography
+  templates: TemplateCardData[];
+}
+
+/* Builds the page's working state directly from what the user picked
+   in Create Event (sessionStorage "currentEvent"). No dummy/demo data. */
+function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
+  let saved: SavedEventForm | null = null;
+  try {
+    const raw = sessionStorage.getItem("currentEvent");
+    saved = raw ? JSON.parse(raw) : null;
+  } catch {
+    saved = null;
+  }
+
+  const selectedServices = saved?.selectedServices ?? [];
+  const albumData = saved?.albumData ?? {};
+
+  let nextTemplateId = 1;
+
+  return selectedServices.map((service) => {
+    const isTemplateBased = TEMPLATE_BASED_SERVICES.includes(service);
+    const data = albumData[service] || {};
+
+    if (!isTemplateBased) {
+      // Drone / Candid Videography etc. — no album template picker on
+      // Create Event, so there's nothing to curate here.
+      return {
+        id: service,
+        serviceName: service,
+        hasTemplates: false,
+        templates: [],
+      };
+    }
+
+    const entries = data.albums && data.albums.length ? data.albums : [];
+
+    const templates: TemplateCardData[] = entries
+      .filter((entry) => !!entry.template)
+      .map((entry) => {
+        const tpl = entry.template as SavedAlbumTemplate;
+        return {
+          id: nextTemplateId++,
+          name: tpl.name,
+          status: "Not Started",
+          sheets: tpl.sheets,
+          size: tpl.size,
+          photosRequired: tpl.photos,
+          curatedPhotos: [],
+          reviewStage: 1,
+          note: "",
+          deadline: "",
+        };
+      });
+
+    return {
+      id: service,
+      serviceName: service,
+      hasTemplates: true,
+      templates,
+    };
+  });
+}
 
 /*STAT CARD */
 function StatCard({ label, value, color }) {
@@ -328,10 +413,19 @@ function TemplateCard({ template, onUpdate }) {
 export default function AlbumSelectionPage() {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(5); // step index 5 = Album
-  const [albums, setAlbums]         = useState(INITIAL_ALBUMS);
+  const [albums, setAlbums] = useState<ServiceAlbumGroup[]>(() => buildAlbumsFromSavedEvent());
   const [activeService, setActiveService] = useState(0); // tab index
 
-  /* Compute summary stats */
+  // Re-sync from sessionStorage in case Create Event saved after first mount
+  // (e.g. navigating back and forth between steps).
+  useEffect(() => {
+    setAlbums(buildAlbumsFromSavedEvent());
+    setActiveService(0);
+  }, []);
+
+  const activeGroup = albums[activeService];
+
+  /* Compute summary stats (template-based services only) */
   const allTemplates = albums.flatMap((a) => a.templates);
   const totalAlbums  = allTemplates.length;
   const photosRequired = allTemplates.reduce((s, t) => s + t.photosRequired, 0);
@@ -340,12 +434,12 @@ export default function AlbumSelectionPage() {
 
   const handleTemplateUpdate = (serviceIdx: number, templateId: number, patch: Record<string, any>) => {
     setAlbums((prev) =>
-      prev.map((album, ai) =>
-        ai !== serviceIdx
-          ? album
+      prev.map((group, gi) =>
+        gi !== serviceIdx
+          ? group
           : {
-              ...album,
-              templates: album.templates.map((tpl) =>
+              ...group,
+              templates: group.templates.map((tpl) =>
                 tpl.id === templateId ? { ...tpl, ...patch } : tpl
               ),
             }
@@ -417,46 +511,69 @@ export default function AlbumSelectionPage() {
               </button>
             </div>
 
-            {/* Summary stats */}
-            <div className="as-stats-row">
-              <StatCard label="Total Albums"      value={totalAlbums}       color="blue" />
-              <StatCard label="Photos Required"   value={photosRequired}    color="cyan" />
-              <StatCard label="Customer Selected" value={customerSelected}  color="amber" />
-              <StatCard label="Pending Selection" value={pendingSelection}  color="amber" />
-            </div>
+            {albums.length === 0 ? (
+              <div className="as-info-banner">
+                <InfoCircleOutlined />
+                No services were selected in Event Details, so there's nothing to curate here yet. Go back and select at least one service.
+              </div>
+            ) : (
+              <>
+                {/* Summary stats */}
+                <div className="as-stats-row">
+                  <StatCard label="Total Albums"      value={totalAlbums}       color="blue" />
+                  <StatCard label="Photos Required"   value={photosRequired}    color="cyan" />
+                  <StatCard label="Customer Selected" value={customerSelected}  color="amber" />
+                  <StatCard label="Pending Selection" value={pendingSelection}  color="amber" />
+                </div>
 
-            {/* Service tabs */}
-            <div className="as-service-tabs">
-              {albums.map((album, idx) => {
-                const doneCount = album.templates.filter((t) => t.reviewStage >= 3).length;
-                return (
-                  <button
-                    key={album.id}
-                    className={`as-service-tab ${activeService === idx ? "active" : ""}`}
-                    onClick={() => setActiveService(idx)}
-                  >
-                    <InfoCircleOutlined />
-                    {album.serviceName}
-                    <span className="as-service-badge">
-                      {doneCount}/{album.templates.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                {/* Service tabs — only the services chosen in Create Event */}
+                <div className="as-service-tabs">
+                  {albums.map((group, idx) => {
+                    const doneCount = group.templates.filter((t) => t.reviewStage >= 3).length;
+                    return (
+                      <button
+                        key={group.id}
+                        className={`as-service-tab ${activeService === idx ? "active" : ""}`}
+                        onClick={() => setActiveService(idx)}
+                      >
+                        <InfoCircleOutlined />
+                        {group.serviceName}
+                        {group.hasTemplates && (
+                          <span className="as-service-badge">
+                            {doneCount}/{group.templates.length}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-            {/* Templates for active service */}
-            <div className="as-templates-list">
-              {albums[activeService]?.templates.map((tpl) => (
-                <TemplateCard
-                  key={tpl.id}
-                  template={tpl}
-                  onUpdate={(templateId, patch) =>
-                    handleTemplateUpdate(activeService, templateId, patch)
-                  }
-                />
-              ))}
-            </div>
+                {/* Templates for active service */}
+                <div className="as-templates-list">
+                  {!activeGroup?.hasTemplates ? (
+                    <div className="as-info-banner">
+                      <InfoCircleOutlined />
+                      {activeGroup?.serviceName} doesn't use album templates — there's nothing to curate for this service.
+                    </div>
+                  ) : activeGroup.templates.length === 0 ? (
+                    <div className="as-info-banner">
+                      <InfoCircleOutlined />
+                      No album template was selected for {activeGroup.serviceName} in Event Details.
+                    </div>
+                  ) : (
+                    activeGroup.templates.map((tpl) => (
+                      <TemplateCard
+                        key={tpl.id}
+                        template={tpl}
+                        onUpdate={(templateId, patch) =>
+                          handleTemplateUpdate(activeService, templateId, patch)
+                        }
+                      />
+                    ))
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Footer nav */}
             <footer className="as-actions">

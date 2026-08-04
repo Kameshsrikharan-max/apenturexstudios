@@ -52,15 +52,12 @@
 .event-table .ant-table {width: 100% !important;table-layout: auto !important;}
 .event-table .ant-table-content {overflow-x: hidden !important;}
 .event-table table {width: 100% !important;min-width: 0 !important;}
-/* No white header divider lines */
 .event-table .ant-table-thead > tr > th,
 .event-table .ant-table-thead > tr > th::before {border-inline-end: none !important;box-shadow: none !important;}
 .event-table .ant-table-thead > tr > th {height: 46px;padding: 10px 12px !important;color: #f8fafc !important;background: rgba(2, 6, 23, 0.4) !important;border-bottom: 1px solid rgba(96, 165, 250, 0.16) !important;border-right: none !important;font-size: 14px;font-weight: 900;}
 .event-table .ant-table-tbody > tr > td {height: 44px;padding: 8px 12px !important;color: #f8fafc !important;background: rgba(15, 23, 42, 0.22) !important;border-bottom: 1px solid rgba(96, 165, 250, 0.1) !important;border-right: none !important;font-size: 14px;}
 .event-table .ant-table-tbody > tr:hover > td {background: rgba(59, 130, 246, 0.12) !important;}
 
-/* LAST (FIXED-RIGHT) COLUMN — normal content (e.g. Created date) shows by default;
-   on row hover/touch it hides and the action-icons overlay takes over with the dark fill */
 .event-table .ant-table-cell-fix-right,
 .event-table .ant-table-cell-fix-right-first,
 .event-table .ant-table-cell-fix-right-last {
@@ -71,7 +68,7 @@
 .event-table .ant-table-thead > tr > th.ant-table-cell-fix-right {
   background: rgba(2, 6, 23, 0.4) !important;
 }
-/* the default cell content (e.g. Created date tag) */
+
 .event-table .ant-table-tbody > tr > td.ant-table-cell-fix-right > * {
   opacity: 1;
   transition: opacity 0.12s ease;
@@ -80,7 +77,7 @@
 .event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right {
   background: #0d1526 !important;
 }
-/* hide the default content once the row is active/hovered so only the icons show */
+
 .event-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right > *,
 .event-table .ant-table-tbody > tr.event-row-active > td.ant-table-cell-fix-right > * {
   opacity: 0;
