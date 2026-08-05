@@ -14,10 +14,6 @@ const STEPS = [
   { label: "Closure",         icon: <CheckCircleOutlined /> },
 ];
 
-/* Services that go through the "pick an album template per album" flow
-   on the Create Event page. Any other selected service (e.g. Drone,
-   Candid Videography) doesn't have templates, so it gets a simple
-   deliverable card instead of the template/review workflow. */
 const TEMPLATE_BASED_SERVICES = ["Traditional Photography", "Candid Photography"];
 
 const STAGE_LABELS = ["Draft", "In Review", "Submitted", "Finalized"];

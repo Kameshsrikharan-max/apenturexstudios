@@ -1,11 +1,14 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef, useId } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import {
   CalendarOutlined, CheckCircleOutlined, ClockCircleOutlined, DollarOutlined,
   DoubleLeftOutlined, CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined,
   ReloadOutlined, ArrowRightOutlined, ArrowLeftOutlined, FileTextOutlined,
   BarChartOutlined, BellOutlined, CloseOutlined, UploadOutlined, InboxOutlined,
   EditOutlined, DeleteOutlined, ExclamationCircleOutlined,
+  MobileOutlined, CreditCardOutlined, GlobalOutlined, WalletOutlined, SwapOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import "./PaymentPage.css";
 import {
@@ -27,6 +30,15 @@ const STEPS = [
 ];
 
 const PAYMENT_METHODS: PaymentMethod[] = ["UPI", "Card", "Net Banking", "Cash", "Bank Transfer"];
+
+// Icon + short description shown per option in the custom payment-method dropdown.
+const PAYMENT_METHOD_META: Record<PaymentMethod, { icon: React.ReactNode; sub: string }> = {
+  "UPI":            { icon: <MobileOutlined />,     sub: "Instant transfer via UPI app" },
+  "Card":           { icon: <CreditCardOutlined />, sub: "Credit or debit card" },
+  "Net Banking":    { icon: <GlobalOutlined />,      sub: "Pay directly from your bank" },
+  "Cash":           { icon: <WalletOutlined />,      sub: "Paid in person" },
+  "Bank Transfer":  { icon: <SwapOutlined />,        sub: "NEFT / RTGS / IMPS" },
+};
 
 // ─── sessionStorage helpers ──────
 
@@ -90,6 +102,190 @@ function StatCard({ label, value, color, sub }: { label: string; value: string; 
       <span className="pp-stat-label">{label}</span>
       <span className={`pp-stat-val ${color || ""}`}>{value}</span>
       {sub && <span className="pp-stat-sub">{sub}</span>}
+    </div>
+  );
+}
+
+// ─── Custom Payment Method dropdown ─────────────────────────────────────────
+// Replaces the native <select> (which was rendering as an unstyled white pill).
+// Fully themed to the pp-* design system, portalled to <body> so it never gets
+// clipped by the modal's overflow/backdrop-filter, and keyboard accessible.
+
+function PaymentMethodSelect({
+  id,
+  value,
+  onChange,
+  onBlur,
+  hasError,
+}: {
+  id: string;
+  value: PaymentMethod | "";
+  onChange: (val: PaymentMethod) => void;
+  onBlur?: () => void;
+  hasError?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+
+  const meta = value ? PAYMENT_METHOD_META[value] : null;
+
+  const positionMenu = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+    const menuMaxH = 320;
+    const openUpward = rect.bottom + menuMaxH > viewportH - 16 && rect.top > menuMaxH;
+
+    setMenuStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      ...(openUpward
+        ? { bottom: viewportH - rect.top + 8 }
+        : { top: rect.bottom + 8 }),
+      maxHeight: menuMaxH,
+    });
+  }, []);
+
+  const openMenu = useCallback(() => {
+    const idx = value ? PAYMENT_METHODS.indexOf(value) : 0;
+    setActiveIndex(idx === -1 ? 0 : idx);
+    positionMenu();
+    setOpen(true);
+  }, [positionMenu, value]);
+
+  const closeMenu = useCallback((refocus = true) => {
+    setOpen(false);
+    onBlur?.();
+    if (refocus) triggerRef.current?.focus();
+  }, [onBlur]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleReposition = () => positionMenu();
+    const handleOutside = (e: MouseEvent) => {
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        menuRef.current?.contains(e.target as Node)
+      ) {
+        return;
+      }
+      closeMenu(false);
+    };
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    document.addEventListener("mousedown", handleOutside);
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [open, positionMenu, closeMenu]);
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+      e.preventDefault();
+      if (!open) openMenu();
+    }
+  };
+
+  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, PAYMENT_METHODS.length - 1));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+        break;
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        onChange(PAYMENT_METHODS[activeIndex]);
+        closeMenu();
+        break;
+      case "Escape":
+        e.preventDefault();
+        closeMenu();
+        break;
+      case "Tab":
+        setOpen(false);
+        onBlur?.();
+        break;
+    }
+  };
+
+  return (
+    <div className="pms-wrap">
+      <button
+        type="button"
+        id={id}
+        ref={triggerRef}
+        className={`pms-trigger ${open ? "pms-open" : ""} ${hasError ? "pms-error" : ""}`}
+        onClick={() => (open ? closeMenu() : openMenu())}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={`${uid}-listbox`}
+      >
+        <span className={`pms-trigger-icon ${!meta ? "pms-icon-empty" : ""}`}>
+          {meta ? meta.icon : <MobileOutlined />}
+        </span>
+        <span className={`pms-trigger-label ${!value ? "pms-placeholder" : ""}`}>
+          {value || "Select a method"}
+        </span>
+        <span className="pms-chevron-wrap"><DownOutlined /></span>
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            id={`${uid}-listbox`}
+            ref={menuRef}
+            role="listbox"
+            className="pms-menu"
+            style={menuStyle}
+            tabIndex={-1}
+            onKeyDown={handleMenuKeyDown}
+            aria-activedescendant={`${uid}-opt-${activeIndex}`}
+          >
+            {PAYMENT_METHODS.map((m, idx) => {
+              const optMeta = PAYMENT_METHOD_META[m];
+              const isSelected = m === value;
+              const isActive = idx === activeIndex;
+              return (
+                <div
+                  key={m}
+                  id={`${uid}-opt-${idx}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`pms-option ${isSelected ? "pms-selected" : ""} ${isActive ? "pms-active" : ""}`}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => {
+                    onChange(m);
+                    closeMenu();
+                  }}
+                >
+                  <span className="pms-option-icon">{optMeta.icon}</span>
+                  <span className="pms-option-text">
+                    <span className="pms-option-label">{m}</span>
+                    <span className="pms-option-sub">{optMeta.sub}</span>
+                  </span>
+                  {isSelected && (
+                    <span className="pms-option-check"><CheckCircleOutlined /></span>
+                  )}
+                </div>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -306,24 +502,17 @@ function RecordPaymentModal({
           </div>
 
           {/* ── Payment Method ── */}
-          <div className={`pp-modal-field${(touched.method || submitAttempted) && errors.method ? " pp-field-has-error" : ""}`}>
+          <div className={`pp-modal-field pms-field${(touched.method || submitAttempted) && errors.method ? " pp-field-has-error" : ""}`}>
             <label htmlFor="pm-method">
               <span className="pp-required">*</span> Payment Method
             </label>
-            <div className="pp-modal-input-wrap">
-              <select
-                id="pm-method"
-                value={form.method}
-                onChange={(e) => handleChange("method", e.target.value)}
-                onBlur={() => handleBlur("method")}
-                className={(touched.method || submitAttempted) && errors.method ? "inp-error" : ""}
-              >
-                <option value="" disabled>Select a method</option>
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
+            <PaymentMethodSelect
+              id="pm-method"
+              value={form.method}
+              onChange={(m) => handleChange("method", m)}
+              onBlur={() => handleBlur("method")}
+              hasError={!!((touched.method || submitAttempted) && errors.method)}
+            />
             {showError("method")}
           </div>
 

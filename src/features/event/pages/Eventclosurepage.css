@@ -38,9 +38,8 @@
 .ec-step.active {border-color: var(--sky);background: rgba(14,62,92,0.75);color: var(--sky);box-shadow: 0 0 0 1px rgba(56,189,248,0.32), 0 0 20px rgba(56,189,248,0.45), inset 0 1px 0 rgba(255,255,255,0.05);}
 .ec-step-dot {position: absolute;right: -3px;top: -3px;width: 10px;height: 10px;border-radius: 50%;background: var(--green);border: 2px solid rgba(9,22,40,0.92);box-shadow: 0 0 8px var(--green);}
 
-/* ── Tooltip — always floats right of the rail, above everything ── */
-.ec-tooltip {
-  position: fixed;left: 96px;white-space: nowrap;padding: 7px 14px;border: 1px solid var(--sky-border);border-radius: 10px;background: rgba(9,22,40,0.96);color: var(--sky);font-size: 12px;font-weight: 700;pointer-events: none;opacity: 0;transform: translateX(-6px);transition: opacity 0.18s, transform 0.18s;z-index: 99999;box-shadow: 0 8px 24px rgba(0,0,0,0.32);}
+/* ── Tooltip  ── */
+.ec-tooltip {position: fixed;left: 96px;white-space: nowrap;padding: 7px 14px;border: 1px solid var(--sky-border);border-radius: 10px;background: rgba(9,22,40,0.96);color: var(--sky);font-size: 12px;font-weight: 700;pointer-events: none;opacity: 0;transform: translateX(-6px);transition: opacity 0.18s, transform 0.18s;z-index: 99999;box-shadow: 0 8px 24px rgba(0,0,0,0.32);}
 
 .ec-tooltip::before {content: "";position: absolute;right: 100%;top: 50%;transform: translateY(-50%);border: 5px solid transparent;border-right-color: var(--sky-border);}
 .ec-step-wrap:hover .ec-tooltip {opacity: 1;transform: translateX(0);}

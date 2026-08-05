@@ -44,20 +44,9 @@ html {scrollbar-gutter: stable;}
 .folder-pill.active .pill-badge { background: rgba(56, 189, 248, 0.2); color: var(--accent-cyan); }
 
 /* ---- Smooth tab/view switching wrapper ---- */
-.content-height-wrapper {
-  transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-  overflow: hidden;
-  position: relative;
-}
-.content-fade-inner {
-  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.25, 1, 0.5, 1);
-  opacity: 1;
-  transform: translateY(0);
-}
-.content-fade-inner.fading {
-  opacity: 0;
-  transform: translateY(6px);
-}
+.content-height-wrapper {transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);overflow: hidden;position: relative;}
+.content-fade-inner {transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.25, 1, 0.5, 1);opacity: 1;transform: translateY(0);}
+.content-fade-inner.fading {opacity: 0;transform: translateY(6px);}
 
 .album-directory-wrapper {background: rgba(10, 13, 31, 0.15);backdrop-filter: blur(12px);padding: 24px;border-radius: 24px;border: 1px solid rgba(255, 255, 255, 0.05);position: relative;z-index: 1;}
 .album-action-bar {display: flex;justify-content: space-between;align-items: center;margin-bottom: 24px;}
@@ -167,9 +156,6 @@ html {scrollbar-gutter: stable;}
 @keyframes scaleIn { from { transform: scale(0.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .bounce-loop { animation: miniBounce 3s infinite ease-in-out; }
 @keyframes miniBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@media (max-width: 640px) {
-  .media-controls-top {flex-wrap: wrap;}
-.media-search {flex: 1 1 100%;}}
 
 .confirm-delete-popover {position: fixed;z-index: 2000;background: rgba(10, 13, 28, 0.85);backdrop-filter: blur(20px);border: 1px solid rgba(255, 46, 99, 0.4);border-radius: 14px;padding: 14px;box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);}
 .confirm-delete-popover p {margin: 0 0 12px;font-size: 13px;color: var(--text-primary);line-height: 1.4;}
@@ -180,3 +166,137 @@ html {scrollbar-gutter: stable;}
 .confirm-delete-popover .ui-btn--danger {background: var(--accent-pink);color: #fff;box-shadow: 0 4px 15px rgba(255, 46, 99, 0.3);}
 .confirm-delete-popover .ui-btn--danger:hover {filter: brightness(1.1);transform: translateY(-1px);}
 .confirm-delete-popover .ui-btn--danger:disabled {opacity: 0.6;cursor: not-allowed;transform: none;}
+
+/* RESPONSIVE BREAKPOINTS */
+
+/* ---------- LAPTOP (769px – 1199px) ---------- */
+@media (max-width: 1199px) {
+  .media-page { padding: 24px; }
+  .media-layout-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .albums-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+  .media-modal-window { max-width: 820px; height: 78vh; }
+}
+
+/* ---------- TABLET (481px – 768px) ---------- */
+@media (max-width: 768px) {
+  .media-page { padding: 18px; }
+
+  .media-header { flex-direction: column; align-items: stretch; gap: 16px; margin-bottom: 24px; }
+  .brand-stack h2 { font-size: 26px; }
+  .brand-stack p { font-size: 13px; }
+
+  .media-controls-top { flex-wrap: wrap; gap: 10px; }
+  .media-search { flex: 1 1 100%; }
+  .fav-toggle-pill,
+  .upload-btn { padding: 10px 14px; font-size: 13px; }
+
+  .media-folders-switchboard {width: 100%;overflow-x: auto;-webkit-overflow-scrolling: touch;padding: 6px;gap: 8px;}
+  .folder-pill { padding: 8px 14px; flex-shrink: 0; }
+  .folder-pill .pill-label { font-size: 13px; }
+  .folder-pill .pill-badge { display: none; }
+
+  .albums-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .album-folder-card { padding: 18px; }
+  .large-folder-icon { font-size: 40px; }
+
+  .media-filter-bar { flex-wrap: wrap; gap: 10px; padding: 12px 16px; }
+  .filter-left { flex-wrap: wrap; font-size: 13px; }
+
+  .media-layout-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .media-image-wrapper { height: 150px; }
+  .media-info-deck { padding: 14px; }
+  .media-info-deck h4 { font-size: 14px; }
+
+  .media-thumb-actions-drawer { right: 10px; }
+  .action-drawer-btn { width: 32px; height: 32px; font-size: 13px; }
+
+  .media-layout-list .media-image-wrapper { width: 56px; height: 42px; }
+  .media-layout-list .media-info-deck { padding: 0 14px; }
+
+  /* Modal */
+  .media-modal-backdrop { padding: 16px; }
+  .media-modal-window { max-width: 100%; height: 85vh; border-radius: 20px; }
+  .modal-top-header-bar { padding: 14px 18px; }
+  .modal-media-title { font-size: 17px; }
+  .modal-title-display-line { gap: 8px; }
+  .modal-inline-edit-trigger,
+  .modal-inline-delete-btn { font-size: 11px; }
+
+  .modal-nav-arrow { width: 40px; height: 40px; font-size: 14px; }
+  .arrow-left-slide { left: 10px; }
+  .arrow-right-slide { right: 10px; }
+  .modal-media-viewport-center { padding: 20px; }
+
+  .modal-bottom-zoom-cockpit { bottom: 14px; }
+}
+
+/* ---------- MOBILE (up to 480px) ---------- */
+@media (max-width: 480px) {
+  .media-page { padding: 12px; }
+
+  .brand-stack h2 { font-size: 21px; }
+  .brand-stack p { font-size: 12px; }
+
+  /* Search */
+  .media-controls-top {display: flex;flex-wrap: wrap;gap: 8px;}
+  .media-search {flex: 1 1 100%;width: 100%;padding: 9px 12px;}
+  .media-search input { font-size: 13px; }
+
+  .fav-toggle-pill,
+  .upload-btn {flex: 1 1 0;justify-content: center;padding: 9px 10px;font-size: 12.5px;white-space: nowrap;}
+
+  /* Folder tabs: wrap instead of horizontal-scroll so nothing hides/clips */
+  .media-folders-switchboard {width: 100%;max-width: 100%;overflow-x: visible;flex-wrap: wrap;padding: 5px;gap: 6px;justify-content: flex-start;}
+  .folder-pill {flex: 1 1 calc(50% - 6px);justify-content: center;padding: 8px 10px;gap: 6px;}
+  .folder-pill .pill-icon { font-size: 13px; }
+  .folder-pill .pill-label { font-size: 12px; }
+  .folder-pill .pill-badge { display: none; }
+
+  .album-action-bar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .create-album-btn { justify-content: center; }
+  .albums-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .album-folder-card { padding: 14px; border-radius: 16px; }
+  .large-folder-icon { font-size: 34px; }
+  .album-folder-card h4 { font-size: 13px; }
+
+  .media-filter-bar { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px 14px; }
+  .view-toggle-buttons { align-self: flex-end; }
+
+  .media-layout-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .media-image-wrapper { height: 120px; }
+  .media-info-deck { padding: 10px; }
+  .media-info-deck h4 { font-size: 12.5px; }
+  .neon-star { font-size: 10px; }
+  .media-type-label { font-size: 10px; }
+
+  /* Always-visible action drawer on touch devices */
+  .media-thumb-actions-drawer { right: 8px; top: 8px; flex-direction: row; gap: 6px; }
+  .action-drawer-btn { width: 28px; height: 28px; font-size: 12px; border-radius: 8px; }
+
+  .media-layout-list .media-card { padding: 8px 12px; gap: 10px; }
+  .media-layout-list .media-image-wrapper { width: 46px; height: 36px; border-radius: 8px; }
+  .media-layout-list .media-info-deck { padding: 0 10px; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .media-layout-list .media-title-line { gap: 8px; }
+
+  /* Modal */
+  .media-modal-backdrop { padding: 0; }
+  .media-modal-window { height: 100vh; border-radius: 0; max-width: 100%; }
+  .modal-top-header-bar { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+  .modal-header-left-group { width: 100%; }
+  .modal-title-display-line { flex-wrap: wrap; gap: 6px; }
+  .modal-media-title { font-size: 15px; width: 100%; }
+  .modal-rename-inline-row { flex-wrap: wrap; width: 100%; }
+  .modal-rename-input { flex: 1 1 auto; min-width: 0; }
+
+  .modal-nav-arrow { width: 34px; height: 34px; font-size: 12px; }
+  .arrow-left-slide { left: 6px; }
+  .arrow-right-slide { right: 6px; }
+  .modal-media-viewport-center { padding: 10px 30px; }
+
+  .modal-bottom-zoom-cockpit { bottom: 10px; padding: 4px; }
+  .cockpit-btn { width: 30px; height: 30px; font-size: 12px; }
+  .scale-indicator-readout { font-size: 11px; min-width: 46px; padding: 0 6px; }
+  .cockpit-reset-btn { height: 30px; font-size: 10px; padding: 0 8px; }
+
+  .confirm-delete-popover { max-width: calc(100vw - 24px); }
+}

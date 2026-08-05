@@ -299,15 +299,132 @@
 .week-empty__dot {width: 6px;height: 6px;border-radius: 50%;background: var(--gray-500);flex-shrink: 0;}
 .week-col__add {display: flex;align-items: center;justify-content: center;border: none;border-top: 1px solid var(--border);background: transparent;color: var(--gray-500);padding: 8px;cursor: pointer;flex-shrink: 0;transition: color 0.15s ease, background 0.15s ease;}
 .week-col__add:hover { color: var(--brand-500); background: var(--gray-100); }
-@media (max-width: 900px) {.week-col { min-width: 220px; }.cal-week-wrap { padding: 10px 8px; }}
 
-/*Responsive*/
-@media (max-width: 900px) {.cal-body {grid-template-columns: 1fr;}
-  .cal-sidebar {position: fixed;top: 0;left: 0;bottom: 0;width: 280px;z-index: 70;transform: translateX(-100%);transition: transform 0.2s ease-out;box-shadow: var(--shadow-xl);}
-  .cal-sidebar.is-open {transform: translateX(0);}
-  .cal-sidebar__close {display: grid;}
-  .cal-scrim {display: block;position: fixed;inset: 0;z-index: 65;background: rgba(0, 0, 0, 0.6);}
-  .cal-topbar {padding: 14px 16px;}
-  .cal-topbar__controls {width: 100%;justify-content: space-between;}
-  .cal-main {padding: 14px;}
-  .ui-field-row {grid-template-columns: 1fr;}}
+/* =========================================================
+   RESPONSIVE BREAKPOINTS
+   Mobile:  <= 599px
+   Tablet:  600px – 1023px
+   Laptop:  1024px – 1439px
+   Desktop: >= 1440px
+   ========================================================= */
+
+/* ---------- Laptop (1024px – 1439px): slightly tighter chrome ---------- */
+@media (max-width: 1439px) and (min-width: 1024px) {
+  .cal-topbar { padding: 16px 22px; gap: 14px; }
+  .cal-topbar__title h1 { font-size: 22px; }
+  .cal-body { grid-template-columns: 240px 1fr; }
+  .cal-main { padding: 18px 20px; }
+  .week-col { min-width: 152px; }
+}
+
+/* ---------- Tablet (600px – 1023px) ---------- */
+@media (max-width: 1023px) and (min-width: 600px) {
+  .cal-body { grid-template-columns: 1fr; }
+
+  .cal-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 300px;
+    z-index: 70;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+    box-shadow: var(--shadow-xl);
+  }
+  .cal-sidebar.is-open { transform: translateX(0); }
+  .cal-sidebar__close { display: grid; }
+  .cal-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .cal-topbar { padding: 15px 20px; gap: 12px; }
+  .cal-topbar__title h1 { font-size: 21px; }
+  .cal-topbar__controls { gap: 6px; }
+
+  .cal-main { padding: 16px 18px; }
+
+  .ui-field-row { grid-template-columns: 1fr 1fr; }
+
+  .week-col { min-width: 190px; }
+  .cal-week-wrap { padding: 12px 8px; }
+
+  .ui-modal { max-width: 480px; }
+}
+
+/* ---------- Mobile (<= 599px) ---------- */
+@media (max-width: 599px) {
+  .cal-body { grid-template-columns: 1fr; }
+
+  .cal-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 86vw;
+    max-width: 280px;
+    z-index: 70;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
+    box-shadow: var(--shadow-xl);
+  }
+  .cal-sidebar.is-open { transform: translateX(0); }
+  .cal-sidebar__close { display: grid; }
+  .cal-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .cal-topbar { padding: 12px 14px; gap: 10px; }
+  .cal-topbar__title h1 { font-size: 18px; }
+  .cal-topbar__eyebrow-row { gap: 6px; }
+  .cal-today-badge { font-size: 10px; padding: 2px 8px 2px 6px; }
+  .cal-topbar__controls { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .cal-topbar__nav { width: 100%; justify-content: space-between; }
+  .ui-btn { font-size: 12.5px; height: 34px; padding: 0 10px; }
+  .ui-btn span { display: none; }
+  .ui-btn--primary span,
+  .ui-btn[data-keep-label] span { display: inline; }
+
+  .cal-main { padding: 12px; }
+  .cal-rbc-wrap { border-radius: var(--radius-md); }
+
+  .ui-field-row { grid-template-columns: 1fr; }
+
+  .ui-modal { max-width: 100%; margin: 0 4px; border-radius: var(--radius-lg); }
+  .ui-modal__header { padding: 14px 16px; }
+  .ui-modal__title { font-size: 15.5px; }
+  .ui-modal__body { padding: 14px 16px; }
+  .ui-modal__footer { padding: 12px 16px; flex-wrap: wrap; }
+
+  .day-view { padding: 16px 14px; gap: 14px; }
+  .day-view__top { flex-wrap: wrap; gap: 10px; }
+  .day-view__top h2 { font-size: 16px; }
+  .day-view__actions { width: 100%; justify-content: space-between; }
+  .day-schedule__timeline { left: 52px; right: 8px; }
+  .day-schedule__label { width: 44px; font-size: 10px; }
+
+  .week-col { min-width: 220px; }
+  .cal-week-wrap { padding: 10px 8px; }
+
+  .tamil-popover { width: 200px !important; padding: 12px 14px; }
+  .tamil-popover__day { font-size: 24px; }
+  .tamil-popover__month { font-size: 14px; }
+}
+
+/* ---------- Desktop (>= 1440px): more breathing room ---------- */
+@media (min-width: 1440px) {
+  .cal-body { grid-template-columns: 300px 1fr; }
+  .cal-topbar { padding: 20px 36px; }
+  .cal-topbar__title h1 { font-size: 26px; }
+  .cal-main { padding: 24px 32px; }
+  .week-col { min-width: 188px; }
+  .ui-modal { max-width: 480px; }
+}

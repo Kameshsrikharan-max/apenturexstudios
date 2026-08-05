@@ -81,3 +81,200 @@
   from {opacity: 0;transform: translateY(-12px) scale(0.92);}
   to {opacity: 1;transform: translateY(0) scale(1);}
 }
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   Mobile:  up to 575px
+   Tablet:  576px - 991px
+   Laptop:  992px - 1199px
+   Desktop: 1200px and up (base styles above already cover this tier)
+   ========================================================================== */
+
+/* ---------- Laptop (992px - 1199px) ---------- */
+@media (max-width: 1199px) {
+  .studio-sidebar {
+    width: 88px !important;
+    min-width: 88px !important;
+    max-width: 88px !important;
+    padding: 18px 10px;
+  }
+
+  .studio-brand-mark {
+    width: 40px;
+    height: 40px;
+    font-size: 19px;
+  }
+
+  .studio-brand-title {
+    font-size: 14px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item {
+    width: 52px !important;
+    height: 44px;
+    line-height: 44px;
+  }
+
+  .sidebar-menu-icon {
+    width: 52px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item-icon {
+    font-size: 20px !important;
+  }
+}
+
+/* ---------- Tablet (576px - 991px) ---------- */
+@media (max-width: 991px) {
+  .studio-sidebar {
+    width: 80px !important;
+    min-width: 80px !important;
+    max-width: 80px !important;
+    padding: 16px 8px;
+    border-radius: 0 26px 26px 0;
+  }
+
+  .studio-sidebar-brand {
+    min-height: 72px;
+    margin-bottom: 8px;
+  }
+
+  .studio-brand-mark {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    border-radius: 14px;
+  }
+
+  .studio-brand-title {
+    font-size: 13px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item {
+    width: 48px !important;
+    height: 42px;
+    line-height: 42px;
+    margin: 6px auto;
+    border-radius: 15px;
+  }
+
+  .sidebar-menu-icon {
+    width: 48px;
+    height: 42px;
+    font-size: 18px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item-icon {
+    font-size: 18px !important;
+  }
+
+  .studio-sidebar-menu .ant-menu-item:hover {
+    transform: translateX(5px) scale(1.05);
+  }
+
+  .studio-sidebar-menu .ant-menu-item-selected {
+    transform: translateX(5px) scale(1.06);
+  }
+}
+
+/* ---------- Mobile (up to 575px) ---------- */
+@media (max-width: 575px) {
+  .studio-sidebar {
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    padding: 14px 6px;
+    border-radius: 0 20px 20px 0;
+  }
+
+  .studio-sidebar::before {
+    width: 150px;
+    height: 150px;
+    top: -50px;
+    left: -60px;
+  }
+
+  .studio-sidebar-brand {
+    min-height: 60px;
+    margin-bottom: 6px;
+  }
+
+  .studio-brand-stack {
+    gap: 6px;
+  }
+
+  .studio-brand-mark {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+    border-radius: 12px;
+  }
+
+  .studio-brand-title {
+    font-size: 11px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item {
+    width: 42px !important;
+    height: 38px;
+    line-height: 38px;
+    margin: 4px auto;
+    border-radius: 13px;
+  }
+
+  .sidebar-menu-icon {
+    width: 42px;
+    height: 38px;
+    font-size: 16px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item-icon {
+    font-size: 16px !important;
+  }
+
+  .studio-sidebar-menu .ant-menu-item:hover {
+    transform: translateX(3px) scale(1.04);
+  }
+
+  .studio-sidebar-menu .ant-menu-item-selected {
+    transform: translateX(3px) scale(1.05);
+  }
+}
+
+/* ---------- Very small phones (up to 360px) ---------- */
+@media (max-width: 360px) {
+  .studio-sidebar {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    padding: 12px 4px;
+  }
+
+  .studio-brand-mark {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .studio-brand-title {
+    font-size: 10px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item {
+    width: 38px !important;
+    height: 34px;
+    line-height: 34px;
+  }
+
+  .sidebar-menu-icon {
+    width: 38px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .studio-sidebar-menu .ant-menu-item-icon {
+    font-size: 15px !important;
+  }
+}

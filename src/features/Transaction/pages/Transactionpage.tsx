@@ -409,20 +409,7 @@ const TransactionPage = () => {
           <Sidebar dark />
 
           <Layout className="dashboard-shell transaction-shell">
-            <Header className="dashboard-navbar review-navbar transaction-navbar">
-              <div className="tx-mini-stats">
-                <Tooltip title="Visible transactions">
-                  <span>
-                    <WalletOutlined /> {filteredData.length}
-                  </span>
-                </Tooltip>
-                <Tooltip title="Paid transactions">
-                  <span>
-                    <CheckCircleOutlined /> {statusCounts.Paid || 0}
-                  </span>
-                </Tooltip>
-              </div>
-            </Header>
+            <Header className="dashboard-navbar review-navbar transaction-navbar" />
 
             <Content className="dashboard-content review-content transaction-content">
               <div className="transaction-page-heading">

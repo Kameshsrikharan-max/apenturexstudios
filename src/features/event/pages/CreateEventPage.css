@@ -95,6 +95,25 @@
 .cep-field input:focus,
 .cep-field textarea:focus,
 .cep-input-icon:hover input {border-color: rgba(56, 213, 255, 0.72);background: rgba(8, 20, 36, 0.88);box-shadow: 0 0 0 4px rgba(56, 213, 255, 0.1);}
+
+
+.cep-field input:-webkit-autofill,
+.cep-field input:-webkit-autofill:hover,
+.cep-field input:-webkit-autofill:focus,
+.cep-field input:-webkit-autofill:active,
+.cep-field textarea:-webkit-autofill,
+.cep-field textarea:-webkit-autofill:hover,
+.cep-field textarea:-webkit-autofill:focus,
+.alb-num-input:-webkit-autofill,
+.alb-num-input:-webkit-autofill:hover,
+.alb-num-input:-webkit-autofill:focus {-webkit-box-shadow: 0 0 0 1000px var(--field) inset !important;box-shadow: 0 0 0 1000px var(--field) inset !important;-webkit-text-fill-color: var(--ink) !important;caret-color: var(--ink);transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s;}
+.cep-field input:-webkit-autofill:focus,
+.cep-field textarea:-webkit-autofill:focus {-webkit-box-shadow: 0 0 0 1000px rgba(8, 20, 36, 0.88) inset, 0 0 0 4px rgba(56, 213, 255, 0.1) !important;box-shadow: 0 0 0 1000px rgba(8, 20, 36, 0.88) inset, 0 0 0 4px rgba(56, 213, 255, 0.1) !important;border-color: rgba(56, 213, 255, 0.72);}
+/* Firefox */
+.cep-field input:autofill,
+.cep-field textarea:autofill {box-shadow: 0 0 0 1000px var(--field) inset !important;-moz-text-fill-color: var(--ink) !important;}
+/* End autofill fix */
+
 .cep-input-icon {position: relative;}
 .cep-input-icon input {padding-right: 42px;cursor: pointer;}
 .cep-input-icon .anticon {position: absolute;right: 14px;top: 50%;transform: translateY(-50%);color: rgba(56, 213, 255, 0.68);font-size: 15px;pointer-events: none;}

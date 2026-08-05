@@ -1,42 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Modal,
-  message,
-  Descriptions,
-  Select,
-  Form,
-  Divider,
-  Timeline,
-  Tooltip,
-  Empty,
-  Avatar,
-} from "antd";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Modal,message,Descriptions,Select,Form,Divider,Timeline,Tooltip,Empty,Avatar,} from "antd";
 import type { ColumnsType } from "antd/es/table";
 
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-  EyeOutlined,
-  EditOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  CalendarOutlined,
-  EnvironmentOutlined,
-  CheckCircleOutlined,
-  ThunderboltOutlined,
-  CameraOutlined,
-} from "@ant-design/icons";
+import {SearchOutlined,ReloadOutlined,PlusOutlined,EyeOutlined,EditOutlined,UserOutlined,PhoneOutlined,ClockCircleOutlined,FileTextOutlined,CalendarOutlined,EnvironmentOutlined,CheckCircleOutlined,ThunderboltOutlined,CameraOutlined,} from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
@@ -45,9 +11,8 @@ import "./EnquiryPage.css";
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-/* -------------------------------------------------------------------------- */
-/*  Types                                                                      */
-/* -------------------------------------------------------------------------- */
+/*  Types  */
+
 
 type EnquiryStatus = "DRAFT" | "NEW" | "FOLLOWUP" | "CONFIRMED" | "CANCELLED";
 
@@ -77,10 +42,8 @@ interface EnquiryFormValues {
   notes?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Constants                                                                  */
-/* -------------------------------------------------------------------------- */
 
+/*  Constants  */
 const imageFallback =
   "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80";
 
@@ -140,12 +103,6 @@ const initialEnquiries: EnquiryRecord[] = [
   },
 ];
 
-/* -------------------------------------------------------------------------- */
-/*  EnquiryFormModal — dark neon-glass modal styled like the Users page.      */
-/*  It ONLY closes when the person clicks "Cancel" or "Save / Create" inside  */
-/*  it. There is no close (X) button, no backdrop-click-to-close, and no      */
-/*  Escape-to-close — that is intentional per the requested behaviour.        */
-/* -------------------------------------------------------------------------- */
 
 interface EnquiryFormModalProps {
   open: boolean;
@@ -173,9 +130,9 @@ const EnquiryFormModal = ({ open, width = 680, children }: EnquiryFormModalProps
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/*  EnquiryPage                                                                */
-/* -------------------------------------------------------------------------- */
+
+/*  EnquiryPage  */
+
 
 const EnquiryPage = () => {
   const [enquiriesData, setEnquiriesData] = useState<EnquiryRecord[]>(initialEnquiries);

@@ -20,26 +20,11 @@
 }
 
 /*  Page Shell */
-.tap-page {
-  width: 100%;
-  min-height: 100vh;
-  padding: 40px 36px;
-  color: var(--ink);
-  background: transparent;
-  box-sizing: border-box;
-  font-family: inherit;
-}
-
+.tap-page {width: 100%;min-height: 100vh;padding: 40px 36px;color: var(--ink);background: transparent;box-sizing: border-box;font-family: inherit;}
 .tap-stage {min-height: calc(100vh - 80px);overflow: visible;border: 1px solid var(--line);border-radius: 24px;background:linear-gradient(180deg, rgba(15,27,46,0.94), rgba(8,18,34,0.9)),repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 72px);box-shadow: 0 28px 72px rgba(0,0,0,0.42);backdrop-filter: blur(18px);-webkit-backdrop-filter: blur(18px);display: grid;grid-template-rows: auto minmax(0,1fr);}
 
 /* Top Bar */
-.tap-topbar {
-  min-height: 96px;
-  display: grid;
-  grid-template-columns: 150px minmax(0,1fr);
-  align-items: center;
-  gap: 24px;
-  padding: 20px 28px;border-bottom: 1px solid var(--line);background: rgba(8,20,37,0.86);}
+.tap-topbar {min-height: 96px;display: grid;grid-template-columns: 150px minmax(0,1fr);align-items: center;gap: 24px;padding: 20px 28px;border-bottom: 1px solid var(--line);background: rgba(8,20,37,0.86);}
 .tap-back {width: 104px;height: 42px;border: 1px solid var(--line-strong);border-radius: var(--radius-sm);background: rgba(15,45,71,0.7);color: var(--cyan);cursor: pointer;display: inline-flex;align-items: center;justify-content: center;gap: 8px;font-size: 14px;font-weight: 800;font: inherit;font-weight: 800;transition: transform 0.18s, border-color 0.18s, background 0.18s;}
 .tap-back:hover { transform: translateY(-1px); }
 
@@ -165,7 +150,7 @@
 .tap-checkbox-label input[type="checkbox"]:checked {border-color: var(--mint);background: var(--mint);box-shadow: inset 0 0 0 4px #081426;}
 
 /* ---------- Table ---------- */
-.tap-table-wrap { overflow-x: auto; }
+.tap-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tap-mt { margin-top: 16px; }
 
 .tap-table-wrap::-webkit-scrollbar { height: 6px; }
@@ -223,24 +208,167 @@
 .tap-primary {border: 1px solid var(--cyan);background: linear-gradient(135deg, var(--cyan), var(--mint));color: #06111f;box-shadow: 0 14px 30px rgba(56,213,255,0.22);}
 .tap-primary:hover { transform: translateY(-1px); }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 980px) {
-  .tap-page    { padding: 12px; }
-  .tap-stage   { min-height: calc(100vh - 24px); border-radius: 18px; }
+/* Desktop: 1441px and above. Base styles provide the desktop layout. */
+@media (min-width: 1441px) {
+  .tap-page { padding: 40px; }
+  .tap-stage { min-height: calc(100vh - 80px); }
+}
 
-  .tap-topbar {grid-template-columns: 1fr;gap: 14px;min-height: auto;padding: 16px;}
 
-  .tap-body {grid-template-columns: 1fr;gap: 12px;padding: 14px 14px 0;}
-  .tap-rail {flex-direction: row;flex-wrap: wrap;width: auto;position: static;}
-  .tap-content { padding-left: 0; }
-  .tap-tooltip { display: none; }
+/* RESPONSIVE — MOBILE / TABLET / LAPTOP / DESKTOP */
+
+/* ---------- Laptop: 1025px – 1440px ---------- */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .tap-page { padding: 32px 28px; }
+  .tap-stage { min-height: calc(100vh - 64px); }
+
   .tap-filters-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 680px) {
-  .tap-heading         { font-size: 22px; }
-  .tap-title-icon      { width: 48px; height: 48px; border-radius: 13px; font-size: 20px; }
-  .tap-filters-grid    { grid-template-columns: 1fr; }
-  .tap-actions         { flex-direction: column-reverse; align-items: stretch; padding: 16px 0; }
-  .tap-actions button  { width: 100%; }
+/* ---------- Tablet: 769px – 1024px ---------- */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .tap-page  { padding: 20px 16px; }
+  .tap-stage { min-height: calc(100vh - 40px); border-radius: 20px; }
+
+  .tap-topbar {grid-template-columns: 120px minmax(0,1fr);padding: 16px 20px;gap: 16px;}
+  .tap-back { width: 92px; height: 38px; font-size: 13px; }
+
+  .tap-title-icon { width: 50px; height: 50px; font-size: 21px; border-radius: 14px; }
+  .tap-heading { font-size: 23px; }
+  .tap-heading-event { font-size: 17px; }
+
+  .tap-body {grid-template-columns: 1fr;gap: 14px;padding: 18px 20px 0;}
+  .tap-rail {flex-direction: row;flex-wrap: wrap;width: auto;position: static;justify-content: flex-start;}
+  .tap-content { padding-left: 0; }
+  .tap-tooltip { display: none; }
+
+  .tap-filters-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .tap-hero-card { flex-wrap: wrap; }
+
+  .tap-panel-head { padding: 0 18px; min-height: 56px; }
+  .tap-tabs { padding: 0 18px; }
+  .tap-tab-body { padding: 16px 18px 0; }
+  .tap-result-meta { padding: 10px 18px 14px; }
+
+  .tap-table { font-size: 13px; }
+  .tap-table th,
+  .tap-table td { padding: 10px 12px; }
+}
+
+/* ---------- Mobile (large / phablet): 481px – 768px ---------- */
+@media (min-width: 481px) and (max-width: 768px) {
+  .tap-page { padding: 12px; }
+  .tap-stage { min-height: calc(100vh - 24px); border-radius: 16px; }
+
+  .tap-topbar {grid-template-columns: 1fr;gap: 14px;min-height: auto;padding: 16px;}
+  .tap-back { width: 100%; }
+
+  .tap-title-wrap { gap: 12px; }
+  .tap-title-icon { width: 44px; height: 44px; font-size: 19px; border-radius: 12px; }
+  .tap-heading { font-size: 20px; }
+  .tap-heading-row { gap: 6px; }
+  .tap-heading-event { font-size: 15px; }
+
+  .tap-body { padding: 14px 12px 0; gap: 10px; }
+  .tap-rail { padding: 6px; border-radius: 14px; gap: 6px; }
+  .tap-step { width: 32px; height: 32px; font-size: 14px; }
+
+  .tap-hero-card {flex-direction: column;align-items: flex-start;padding: 14px;gap: 12px;}
+  .tap-refresh-btn { width: 100%; justify-content: center; }
+
+  .tap-panel-head {flex-direction: column;align-items: flex-start;gap: 8px;padding: 14px 16px;min-height: auto;}
+  .tap-tabs {padding: 0 12px;overflow-x: auto;-webkit-overflow-scrolling: touch;}
+  .tap-tab { padding: 12px 16px; font-size: 13px; white-space: nowrap; }
+  .tap-tab-body { padding: 14px 12px 0; }
+
+  .tap-filter-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tap-select-wrap { min-width: 0; }
+  .tap-filters-grid { grid-template-columns: 1fr; gap: 10px; }
+  .tap-avail-wrap { flex-direction: column; align-items: stretch; gap: 10px; }
+  .tap-spec-select { min-width: 0; }
+
+  .tap-table { font-size: 12.5px; min-width: 640px; }
+  .tap-member-cell { gap: 8px; }
+
+  .tap-result-meta { padding: 10px 12px 12px; }
+
+  .tap-actions {flex-direction: column-reverse;align-items: stretch;padding: 14px 0;gap: 10px;}
+  .tap-secondary,
+  .tap-primary { width: 100%; }
+}
+
+/* ---------- Mobile (small phones): up to 480px ---------- */
+@media (max-width: 480px) {
+  .tap-page { padding: 8px; }
+  .tap-stage { border-radius: 12px; }
+
+  .tap-topbar { padding: 12px; }
+  .tap-title-icon { width: 38px; height: 38px; font-size: 17px; border-radius: 10px; }
+  .tap-subtitle { font-size: 10px; letter-spacing: 1.4px; }
+  .tap-heading { font-size: 17px; }
+  .tap-heading-sep { display: none; }
+  .tap-heading-event { font-size: 13px; }
+
+  .tap-rail { gap: 4px; }
+  .tap-step { width: 30px; height: 30px; font-size: 13px; }
+
+  .tap-hero-icon { width: 34px; height: 34px; font-size: 20px; padding: 6px; }
+  .tap-hero-card h2 { font-size: 14px; }
+  .tap-hero-card p { font-size: 11px; }
+
+  .tap-panel-head h3 { font-size: 13px; }
+  .tap-count-badge { min-height: 26px; padding: 0 10px; font-size: 11px; }
+
+  .tap-tab { padding: 10px 14px; font-size: 12.5px; }
+
+  .tap-search-box,
+  .tap-select-wrap,
+  .tap-tag-select { min-height: 44px; padding: 0 12px; }
+
+  .tap-table { min-width: 560px; font-size: 12px; }
+  .tap-table th,
+  .tap-table td { padding: 9px 10px; }
+
+  .tap-member-name { font-size: 12.5px; }
+  .tap-member-email { font-size: 10.5px; }
+
+  .tap-assign-btn,
+  .tap-role-select { font-size: 12px; }
+
+  .tap-actions { min-height: auto; }
+}
+
+/* ---------- Compact phones: up to 320px wide and 501px high ---------- */
+@media (max-width: 320px) and (max-height: 501px) {
+  .tap-page { padding: 4px; }
+  .tap-stage { min-height: calc(100vh - 8px); border-radius: 10px; }
+
+  .tap-topbar { padding: 8px; gap: 8px; }
+  .tap-back { height: 34px; font-size: 12px; }
+  .tap-title-wrap { gap: 8px; }
+  .tap-title-icon { width: 32px; height: 32px; font-size: 14px; }
+  .tap-subtitle { display: none; }
+  .tap-heading { font-size: 15px; }
+  .tap-heading-event { font-size: 12px; }
+
+  .tap-body { padding: 8px 6px 0; }
+  .tap-rail { padding: 4px; gap: 3px; }
+  .tap-step { width: 27px; height: 27px; font-size: 12px; }
+  .tap-progress-bar { margin-bottom: 12px; }
+
+  .tap-hero-card { padding: 10px; margin-bottom: 12px; gap: 8px; }
+  .tap-hero-card p { display: none; }
+  .tap-refresh-btn { min-height: 32px; font-size: 12px; }
+
+  .tap-panel { margin-bottom: 12px; border-radius: 12px; }
+  .tap-panel-head { padding: 10px 12px; }
+  .tap-tab-body { padding: 10px 10px 0; }
+  .tap-filter-label { margin-bottom: 4px; font-size: 10px; }
+  .tap-search-box,
+  .tap-select-wrap,
+  .tap-tag-select { min-height: 38px; font-size: 12px; }
+  .tap-actions { margin-top: 10px; padding: 10px 0; }
+  .tap-secondary,
+  .tap-primary { min-height: 40px; font-size: 12px; }
 }

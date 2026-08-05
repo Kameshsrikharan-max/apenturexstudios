@@ -1,36 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Avatar,
-  Button,
-  Card,
-  ConfigProvider,
-  Empty,
-  Input,
-  Layout,
-  message,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
+import {Avatar,Button,Card,ConfigProvider,Empty,Input,Layout,message,Select,Space,Table,Tag,Tooltip,Typography,} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {
-  AppstoreOutlined,
-  BarsOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseCircleOutlined,
-  CloseOutlined,
-  EnvironmentOutlined,
-  EyeOutlined,
-  IdcardOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  UsergroupAddOutlined,
-} from "@ant-design/icons";
+import {AppstoreOutlined,BarsOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseCircleOutlined,CloseOutlined,EnvironmentOutlined,EyeOutlined,IdcardOutlined,ReloadOutlined,SearchOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
 
@@ -46,12 +17,6 @@ const statusIconMap = {
 const fallbackImage =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80";
 
-/* -------------------------------------------------------------------------- */
-/*  ReviewProfileOverlay — same full-screen glass/HUD language as the         */
-/*  Users page's UserViewOverlay (blurred backdrop, particles, orbital glow,  */
-/*  avatar rings, info-card grid) but built for a referral record: no photo   */
-/*  gallery, instead a score gauge + inline Approve/Reject actions.           */
-/* -------------------------------------------------------------------------- */
 
 interface ReferralRecord {
   key: string;

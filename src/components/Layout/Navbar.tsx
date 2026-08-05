@@ -1,31 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  MenuOutlined,
-  CalendarOutlined,
-  BellOutlined,
-  SunOutlined,
-  MoonOutlined,
-  LeftOutlined,
-  RightOutlined,
-  DownOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-  ProfileOutlined,
-  CloseOutlined,
-  CompassOutlined,
-  SearchOutlined,
-  DashboardOutlined,
-  FileSearchOutlined,
-  TeamOutlined,
-  MailOutlined,
-  ShopOutlined,
-  PictureOutlined,
-  EnterOutlined,
-  WalletOutlined,
-} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
+
+type NavbarUser = {
+  email?: string;
+  identifier?: string;
+  role?: string;
+};
+
+type NavbarProps = {
+  user?: NavbarUser;
+  darkMode: boolean;
+  onToggleTheme: () => void;
+  onSidebarOpen: () => void;
+  onCalendarOpen?: () => void;
+  onLogout?: () => void;
+};
 
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
@@ -50,7 +42,7 @@ const getSavedEvents = () => {
   }
 };
 
-const normalizeEvent = (event, date, index) => {
+const normalizeEvent = (event: any, date: string, index: number) => {
   if (typeof event === "string") {
     return {
       id: `${date}-${index}`,
@@ -77,7 +69,7 @@ function Navbar({
   onSidebarOpen,
   onCalendarOpen,
   onLogout,
-}) {
+}: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -103,6 +95,8 @@ function Navbar({
   const [paletteQuery, setPaletteQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const paletteInputRef = useRef(null);
+  const calendarRef = useRef<HTMLDivElement | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
@@ -220,6 +214,24 @@ function Navbar({
     navigate(path);
   };
 
+  // Close each dropdown whenever the pointer lands outside its button/popover.
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+
+      if (target instanceof Node && !calendarRef.current?.contains(target)) {
+        setMiniCalendarOpen(false);
+      }
+
+      if (target instanceof Node && !userMenuRef.current?.contains(target)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
   // Global ⌘K / Ctrl+K shortcut
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -323,7 +335,7 @@ function Navbar({
             <span className="nav-tooltip">Studio Tour</span>
           </button>
 
-          <div className="mini-calendar-wrap">
+          <div className="mini-calendar-wrap" ref={calendarRef}>
             <button
               type="button"
               className={`nav-icon-button ${miniCalendarOpen ? "active" : ""}`}
@@ -441,7 +453,7 @@ function Navbar({
             <span className="nav-tooltip">{darkMode ? "Light Mode" : "Dark Mode"}</span>
           </button>
 
-          <div className="nav-user-wrap" data-tour-id="nav-profile">
+          <div className="nav-user-wrap" ref={userMenuRef} data-tour-id="nav-profile">
             <button
               type="button"
               className="nav-user"
@@ -554,8 +566,11 @@ function Navbar({
       )}
 
       {profileModalOpen && (
-        <div className="nav-modal-overlay">
-          <div className="nav-modal">
+        <div
+          className="nav-modal-overlay"
+          onMouseDown={() => setProfileModalOpen(false)}
+        >
+          <div className="nav-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="nav-modal-head">
               <h3>Profile</h3>
 
@@ -595,8 +610,11 @@ function Navbar({
       )}
 
       {upcomingEventsOpen && (
-        <div className="nav-modal-overlay">
-          <div className="nav-modal">
+        <div
+          className="nav-modal-overlay"
+          onMouseDown={() => setUpcomingEventsOpen(false)}
+        >
+          <div className="nav-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="nav-modal-head">
               <h3>Notification</h3>
 
@@ -638,8 +656,11 @@ function Navbar({
       )}
 
       {notificationSettingsOpen && (
-        <div className="nav-modal-overlay">
-          <div className="nav-modal">
+        <div
+          className="nav-modal-overlay"
+          onMouseDown={cancelNotificationSettings}
+        >
+          <div className="nav-modal" onMouseDown={(event) => event.stopPropagation()}>
             <div className="nav-modal-head">
               <h3>Notification Settings</h3>
 

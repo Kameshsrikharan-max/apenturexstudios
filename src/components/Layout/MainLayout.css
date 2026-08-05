@@ -159,6 +159,54 @@
 .site-light .scroll-top-btn {color: #082f49;background: rgba(255, 255, 255, 0.85);border-color: rgba(14, 116, 144, 0.25);box-shadow: 0 10px 26px rgba(8, 47, 73, 0.14);}
 .site-light .scroll-top-btn:hover {background: rgba(56, 189, 248, 0.16);box-shadow: 0 12px 30px rgba(14, 116, 144, 0.2);}
 
+/* ============ Responsive breakpoints ============ */
+
+/* Large desktop / wide screens: >= 1600px */
+@media (min-width: 1600px) {
+  .site-content {padding: 40px 8% 80px;}
+  .site-footer-bar {max-width: 1600px;}
+}
+
+/* Desktop: 1200px - 1599px */
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .site-content {padding: 36px 6% 76px;}
+}
+
+/* Laptop / small desktop: 992px - 1199px */
+@media (min-width: 992px) and (max-width: 1199px) {
+  .site-content {padding: 30px 5% 72px;}
+  .site-footer-bar {padding: 0 20px;}
+}
+
+/* Tablet: 576px - 991px */
+@media (min-width: 576px) and (max-width: 991px) {
+  .site-content {padding: 26px 20px 90px;}
+  .site-footer-bar {height: auto;min-height: 44px;padding: 8px 20px;flex-wrap: wrap;gap: 8px;}
+  .site-footer-copy {position: static;font-size: 10.5px;}
+  .site-footer-name {font-size: 11.5px;}
+  .scroll-top-btn {right: 20px;bottom: 76px;width: 40px;height: 40px;}
+}
+
+/* Mobile: 401px - 575px */
+@media (min-width: 401px) and (max-width: 575px) {
+  .site-content {padding: 22px 16px 96px;}
+  .site-footer-bar {height: auto;padding: 10px 16px;flex-direction: column;gap: 6px;}
+  .site-footer-copy {position: static;}
+  .site-footer-name {font-size: 11px;}
+  .scroll-top-btn {right: 16px;bottom: 88px;width: 40px;height: 40px;}
+}
+
+/* Small mobile: <= 400px */
+@media (max-width: 400px) {
+  .site-content {padding: 18px 12px 100px;}
+  .site-footer-bar {height: auto;padding: 8px 12px;flex-direction: column;gap: 4px;}
+  .site-footer-copy {position: static;font-size: 10px;}
+  .site-footer-name {font-size: 10.5px;}
+  .site-footer-aperture svg {width: 14px;height: 14px;}
+  .scroll-top-btn {right: 12px;bottom: 84px;width: 38px;height: 38px;font-size: 14px;}
+}
+
+/* Legacy alias retained (matches previous single mobile breakpoint) */
 @media (max-width: 760px) {
   .site-content {padding: 22px 16px 96px;}
   .site-footer-bar {height: auto;padding: 10px 16px;flex-direction: column;gap: 6px;}

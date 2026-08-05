@@ -1,51 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Col,
-  ConfigProvider,
-  DatePicker,
-  Drawer,
-  Empty,
-  FloatButton,
-  Form,
-  Input,
-  InputNumber,
-  message,
-  Modal,
-  Progress,
-  Row,
-  Segmented,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
-import {
-  ArrowRightOutlined,
-  CalendarOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  DollarOutlined,
-  EyeOutlined,
-  FireOutlined,
-  HistoryOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  RiseOutlined,
-  SafetyCertificateOutlined,
-  SearchOutlined,
-  TeamOutlined,
-  ThunderboltFilled,
-  UsergroupAddOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import {Avatar,Badge,Button,Card,Col,ConfigProvider,DatePicker,Drawer,Empty,FloatButton,Form,Input,InputNumber,message,Progress,Row,Segmented,Select,Space,Statistic,Table,Tag,Tooltip,Typography,} from "antd";
+import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,CloseOutlined,DollarOutlined,EyeOutlined,FireOutlined,HistoryOutlined,PictureOutlined,PlusOutlined,RiseOutlined,SafetyCertificateOutlined,SearchOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import dayjs from "dayjs";
 import "./DashboardPage.css";
@@ -116,6 +73,55 @@ const metricCards = [
   { title: "Leads", value: 36, suffix: "", percent: 64, icon: <TeamOutlined />, color: "#38BDF8" },
 ];
 
+/* -------------------------------------------------------------------------- */
+/*  CustomModal — replaces antd Modal entirely, uses the neon-glass tokens    */
+/*  (same pattern as UsersPage's edit modal)                                  */
+/* -------------------------------------------------------------------------- */
+
+interface CustomModalProps {
+  open: boolean;
+  onClose: () => void;
+  width?: number;
+  children: ReactNode;
+}
+
+const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps) => {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handler);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="cm-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cm-panel creative-modal" style={{ maxWidth: width }}>
+        <button className="cm-close" onClick={onClose} aria-label="Close">
+          <CloseOutlined />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+interface EventFormValues {
+  name: string;
+  studio: string;
+  client: string;
+  date: dayjs.Dayjs;
+  priority: "High" | "Medium" | "Low";
+  budget: number;
+}
+
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: any) => state.auth);
@@ -132,7 +138,7 @@ const DashboardPage = () => {
 
   // Create Event modal state
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm] = Form.useForm();
+  const [createForm] = Form.useForm<EventFormValues>();
   const [submitting, setSubmitting] = useState(false);
 
   const userData = useMemo(
@@ -216,11 +222,9 @@ const DashboardPage = () => {
     setCreateModalOpen(false);
   };
 
-  const handleCreateEvent = async () => {
+  const handleCreateEvent = async (values: EventFormValues) => {
+    setSubmitting(true);
     try {
-      const values = await createForm.validateFields();
-      setSubmitting(true);
-
       const newEvent = {
         key: String(eventsData.length + 1),
         id: `EVT-${String(eventsData.length + 1).padStart(3, "0")}`,
@@ -237,8 +241,6 @@ const DashboardPage = () => {
       message.success("Event created successfully");
       setCreateModalOpen(false);
       createForm.resetFields();
-    } catch (err) {
-      // validation errors are shown inline by the form itself
     } finally {
       setSubmitting(false);
     }
@@ -626,74 +628,110 @@ const DashboardPage = () => {
           )}
         </Drawer>
 
-        {/* Create Event modal */}
-        <Modal
-          title="Create Event"
-          open={createModalOpen}
-          onCancel={closeCreateModal}
-          onOk={handleCreateEvent}
-          okText="Create"
-          confirmLoading={submitting}
-          destroyOnHidden
-        >
-          <Form form={createForm} layout="vertical" requiredMark={false}>
-            <Form.Item
-              name="name"
-              label="Shoot Name"
-              rules={[{ required: true, message: "Please enter a shoot name" }]}
-            >
-              <Input placeholder="e.g. Portfolio Shoot" />
-            </Form.Item>
+        {/* Create Event modal — CustomModal, matches UsersPage edit modal styling */}
+        <CustomModal open={createModalOpen} onClose={closeCreateModal} width={660}>
+          <div className="modal-shell">
+            <div className="modal-title-row">
+              <Avatar className="modal-small-avatar">
+                <CalendarOutlined />
+              </Avatar>
+              <Title level={3}>Create Event</Title>
+            </div>
 
-            <Form.Item
-              name="studio"
-              label="Studio"
-              rules={[{ required: true, message: "Please enter a studio" }]}
+            <Form<EventFormValues>
+              form={createForm}
+              layout="vertical"
+              requiredMark={false}
+              onFinish={handleCreateEvent}
             >
-              <Input placeholder="e.g. Main Studio" />
-            </Form.Item>
+              <div className="edit-form-grid">
+                <Form.Item
+                  name="name"
+                  label="Shoot Name"
+                  rules={[{ required: true, message: "Please enter a shoot name" }]}
+                >
+                  <Input placeholder="e.g. Portfolio Shoot" />
+                </Form.Item>
 
-            <Form.Item
-              name="client"
-              label="Client"
-              rules={[{ required: true, message: "Please enter a client name" }]}
-            >
-              <Input placeholder="e.g. ApertureX Client" />
-            </Form.Item>
+                <Form.Item
+                  name="studio"
+                  label="Studio"
+                  rules={[{ required: true, message: "Please enter a studio" }]}
+                >
+                  <Input placeholder="e.g. Main Studio" />
+                </Form.Item>
 
-            <Form.Item
-              name="date"
-              label="Date"
-              rules={[{ required: true, message: "Please select a date" }]}
-              initialValue={dayjs()}
-            >
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
+                <Form.Item
+                  name="client"
+                  label="Client"
+                  rules={[{ required: true, message: "Please enter a client name" }]}
+                >
+                  <Input placeholder="e.g. ApertureX Client" />
+                </Form.Item>
 
-            <Form.Item
-              name="priority"
-              label="Priority"
-              rules={[{ required: true, message: "Please select a priority" }]}
-              initialValue="Medium"
-            >
-              <Select
-                options={[
-                  { value: "High", label: "High" },
-                  { value: "Medium", label: "Medium" },
-                  { value: "Low", label: "Low" },
-                ]}
-              />
-            </Form.Item>
+                <Form.Item
+                  name="date"
+                  label="Date"
+                  rules={[{ required: true, message: "Please select a date" }]}
+                  initialValue={dayjs()}
+                >
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
 
-            <Form.Item
-              name="budget"
-              label="Budget (Rs.)"
-              rules={[{ required: true, message: "Please enter a budget" }]}
-            >
-              <InputNumber style={{ width: "100%" }} min={0} placeholder="e.g. 18000" />
-            </Form.Item>
-          </Form>
-        </Modal>
+                <Form.Item
+                  name="priority"
+                  label="Priority"
+                  rules={[{ required: true, message: "Please select a priority" }]}
+                  initialValue="Medium"
+                >
+                  <Select
+                    classNames={{ popup: { root: "dark-select-dropdown" } }}
+                    options={[
+                      { value: "High", label: "High" },
+                      { value: "Medium", label: "Medium" },
+                      { value: "Low", label: "Low" },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="budget"
+                  label="Budget (Rs.)"
+                  rules={[
+                    { required: true, message: "Please enter a budget" },
+                    {
+                      validator: (_, value) =>
+                        value === undefined || value === null || value >= 0
+                          ? Promise.resolve()
+                          : Promise.reject(new Error("Budget cannot be negative")),
+                    },
+                  ]}
+                >
+                  <InputNumber style={{ width: "100%" }} min={0} placeholder="e.g. 18000" />
+                </Form.Item>
+              </div>
+
+              <div className="modal-action-row">
+                <Tooltip title="Discard event">
+                  <Button className="modal-cancel-btn" onClick={closeCreateModal} disabled={submitting}>
+                    Cancel
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Create event">
+                  <Button
+                    htmlType="submit"
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    className="invite-btn-styled"
+                    loading={submitting}
+                  >
+                    Create
+                  </Button>
+                </Tooltip>
+              </div>
+            </Form>
+          </div>
+        </CustomModal>
 
         <FloatButton
           icon={<PlusOutlined />}

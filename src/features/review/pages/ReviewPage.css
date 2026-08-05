@@ -148,25 +148,7 @@
 
 @keyframes riseIn {from {opacity: 0;transform: translateY(14px);}to {opacity: 1;transform: translateY(0);}}
 @keyframes cardEnter {from {opacity: 0;transform: translateY(16px);}to {opacity: 1;transform: translateY(0);}}
-@media (max-width: 900px) {
-  .review-hero {min-height: 260px;align-items: flex-start;flex-direction: column;}
-  .stats-row {flex-direction: column;}
-  .review-metric-card {width: 100%;flex-basis: auto;}
-  .review-toolbar {flex-direction: column;align-items: stretch;}
-  .review-search,
-  .status-select {width: 100%;}
-  .view-toggle {width: fit-content;}}
-@media (max-width: 620px) {
-  .review-hero {min-height: 300px;padding: 22px;}
-  .card-grid {grid-template-columns: 1fr;}
-}
 
-/* ============================================================ */
-/*  ReviewProfileOverlay (.rvo-*) — full-screen glass/HUD view,   */
-/*  same visual language as the Users page UserViewOverlay        */
-/*  (.uvo-*), rebuilt here for a single referral profile with a   */
-/*  score gauge instead of a photo gallery.                       */
-/* ============================================================ */
 
 .rvo-root {position: fixed;inset: 0;z-index: 9999;overflow: hidden;animation: rvoIn 0.45s cubic-bezier(0.22, 0.68, 0, 1.1) both;}
 @keyframes rvoIn { from { opacity: 0; } to { opacity: 1; } }
@@ -232,7 +214,155 @@
 .rvo-reject-btn {background: rgba(239,68,68,0.12) !important;border: 1px solid rgba(239,68,68,0.42) !important;color: #fecaca !important;}
 .rvo-reject-btn:hover { background: rgba(239,68,68,0.2) !important; color: #fff !important; }
 
-@media (max-width: 620px) {
+/*  RESPONSIVE BREAKPOINTS  */
+
+@media (max-width: 1023px) {
+  .review-page,
+  .dashboard-frame,
+  .dashboard-shell,
+  .review-shell,
+  .review-content {overflow-x: hidden !important;overflow-y: visible !important;height: auto !important;min-height: 0 !important;}
+
+  .review-page-scroll {overflow-x: hidden !important;overflow-y: visible !important;max-height: none !important;height: auto !important;}
+
+  .table-wrapper {overflow-x: auto !important;overflow-y: visible !important;-webkit-overflow-scrolling: touch;}
+  .table-wrapper::-webkit-scrollbar { height: 6px; }
+  .table-wrapper::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); border-radius: 999px; }
+  .table-wrapper::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #38bdf8, #0ea5e9); border-radius: 999px; }
+
+  .review-table-custom,
+  .review-table-custom .ant-table-wrapper,
+  .review-table-custom .ant-spin-nested-loading,
+  .review-table-custom .ant-spin-container,
+  .review-table-custom .ant-table,
+  .review-table-custom .ant-table-container,
+  .review-table-custom .ant-table-content {width: max-content !important;min-width: 100% !important;max-width: none !important;overflow: visible !important;}
+  .review-table-custom table {width: max-content !important;min-width: 100% !important;}
+  .review-table-custom .ant-table-body {overflow: visible !important;max-height: none !important;height: auto !important;}
+}
+
+/* ---------- Laptop / small desktop (≤1199px) ---------- */
+@media (max-width: 1199px) {
+  .review-page-inner { padding: 0 4px; }
+  .review-hero { padding: 26px; }
+  .review-search { width: 300px; }
+  .card-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+}
+
+/* ---------- Tablet (≤1023px) ---------- */
+@media (max-width: 1023px) {
+  .review-hero {min-height: 220px;padding: 26px 24px;flex-direction: column;align-items: flex-start;gap: 14px;}
+  .review-hero h1 { font-size: clamp(32px, 8vw, 58px) !important; }
+
+  .stats-row { gap: 14px; }
+  .review-metric-card { flex: 1 1 200px; min-height: 88px; }
+
+  .review-toolbar { gap: 12px; }
+  .review-search { width: 260px; }
+  .status-select { width: 140px; }
+
+  .review-table-custom .ant-table-thead > tr > th,
+  .review-table-custom .ant-table-tbody > tr > td { padding: 10px 12px !important; font-size: 13px; }
+
+  .card-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .talent-card .ant-card-body { padding: 18px !important; }
+
+  .rvo-card { max-width: 380px; }
+}
+
+/* ---------- Tablet portrait / large mobile (≤900px) ---------- */
+@media (max-width: 900px) {
+  .review-hero { min-height: 260px; align-items: flex-start; flex-direction: column; }
+  .stats-row { flex-direction: column; }
+  .review-metric-card { width: 100%; flex-basis: auto; }
+  .review-toolbar { flex-direction: column; align-items: stretch; }
+  .review-search,
+  .status-select { width: 100%; }
+  .view-toggle { width: fit-content; }
+}
+
+/* ---------- Mobile landscape / large phones (≤767px) ---------- */
+@media (max-width: 767px) {
+  .review-page-scroll { padding-bottom: 12px; }
+  .review-hero { padding: 22px; border-radius: 18px; margin-bottom: 18px; }
+  .review-hero h1 { font-size: clamp(28px, 9vw, 44px) !important; }
+  .hero-kicker { font-size: 11px; padding: 4px 10px; }
+
+  .stats-row { gap: 10px; margin-bottom: 18px; }
+  .review-metric-card .ant-card-body { padding: 16px !important; gap: 12px; }
+  .metric-icon { width: 44px; height: 44px; font-size: 18px; }
+  .review-metric-card h3 { font-size: 24px; }
+
+  .review-toolbar { margin-bottom: 18px; }
+  .icon-action { width: 36px !important; min-width: 36px !important; height: 36px !important; }
+  .refresh-btn { flex-shrink: 0; }
+
+  /* Table -> keep name/status legible, shrink paddings, allow horizontal scroll via .review-page-scroll */
+  .review-name-cell { max-width: 150px; gap: 8px; }
+  .review-name-avatar { width: 28px; height: 28px; }
+  .review-name-cell strong { font-size: 13px; }
+  .review-name-cell small { font-size: 9px; }
+  .review-date-tag { font-size: 11px !important; padding: 0 8px !important; }
+  .review-row-actions-overlay { width: 130px; padding-right: 8px; }
+  .review-action-btn { width: 28px; height: 28px; }
+
+  .card-grid { grid-template-columns: 1fr; gap: 14px; }
+  .talent-card h4 { font-size: 19px; }
+
   .rvo-card { padding: 26px 20px 22px; max-width: 100%; }
   .rvo-info-grid { grid-template-columns: 1fr; }
+  .rvo-x { top: 16px; right: 16px; width: 40px; height: 40px; }
+}
+
+/* ---------- Mobile portrait (≤620px) ---------- */
+@media (max-width: 620px) {
+  .review-hero { min-height: 300px; padding: 22px; }
+  .card-grid { grid-template-columns: 1fr; }
+
+  .review-table-custom .ant-table-thead > tr > th,
+  .review-table-custom .ant-table-tbody > tr > td { padding: 8px 10px !important; font-size: 12.5px; }
+  .review-table-custom .ant-pagination { justify-content: center; padding: 0 4px; }
+}
+
+/* ---------- Small phones (≤480px) ---------- */
+@media (max-width: 480px) {
+  .review-page-inner { padding: 0 2px; }
+  .review-hero { padding: 18px; border-radius: 16px; }
+  .review-hero h1 { font-size: clamp(24px, 10vw, 36px) !important; }
+  .hero-kicker { font-size: 10px; padding: 4px 9px; }
+
+  .review-metric-card h3 { font-size: 20px; }
+  .review-metric-card p { font-size: 12px; }
+  .metric-icon { width: 40px; height: 40px; font-size: 16px; border-radius: 12px; }
+
+  .review-search .ant-input-affix-wrapper,
+  .status-select .ant-select-selector { font-size: 13px; }
+
+  .review-name-cell { max-width: 120px; gap: 6px; }
+  .review-name-avatar { width: 24px; height: 24px; }
+  .review-name-cell strong { font-size: 12px; }
+  .review-name-cell small { display: none; }
+  .review-date-tag span:not(.anticon) { display: none; }
+  .review-row-actions-overlay { width: 110px; gap: 2px; }
+  .review-action-btn { width: 26px; height: 26px; font-size: 13px; }
+
+  .talent-card .ant-card-body { padding: 14px !important; }
+  .talent-card h4 { font-size: 17px; }
+  .card-actions { gap: 6px; }
+
+  .rvo-card { padding: 20px 16px 18px; border-radius: 18px; }
+  .rvo-avatar-shell { width: 70px; height: 70px; }
+  .rvo-avatar-glow { width: 92px; height: 92px; margin-bottom: -58px; }
+  .rvo-name { font-size: 16px !important; }
+  .rvo-info-icon { width: 24px; height: 24px; font-size: 11px; }
+  .rvo-info-text strong { font-size: 11px; }
+  .rvo-action-row .ant-btn { height: 34px; font-size: 12px !important; }
+}
+
+/* ---------- Very small phones (≤360px) ---------- */
+@media (max-width: 360px) {
+  .review-hero h1 { font-size: 22px !important; }
+  .review-metric-card { min-height: 76px; }
+  .review-name-cell { max-width: 96px; }
+  .rvo-card { max-width: 100%; padding: 18px 14px 16px; }
 }

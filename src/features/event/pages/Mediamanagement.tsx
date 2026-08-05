@@ -17,6 +17,19 @@ const STEPS = [
 
 const STORAGE_KEY = "mediaManagement__state";
 
+
+function resolveEventId(evt: any): string | null {
+  if (!evt) return null;
+  const candidate =
+    evt.id ?? evt.eventId ?? evt._id ?? evt.uuid ?? null;
+  if (candidate != null) return String(candidate);
+
+  const fallbackParts = [evt.eventName, evt.name, evt.date, evt.eventDate].filter(Boolean);
+  if (fallbackParts.length) return fallbackParts.join("|");
+
+  return null;
+}
+
 function loadPersistedState() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -32,6 +45,14 @@ function saveState(state: any) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.warn("MediaManagement: could not persist state", e);
+  }
+}
+
+export function clearMediaManagementState() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.warn("MediaManagement: could not clear persisted state", e);
   }
 }
 
@@ -54,22 +75,32 @@ function resolveInitialState() {
   const persisted = loadPersistedState();
 
   let eventServices: string[] = [];
+  let currentEvent: any = null;
   try {
     const raw = sessionStorage.getItem("currentEvent");
     if (raw) {
-      const evt = JSON.parse(raw);
-      if (Array.isArray(evt.selectedServices)) {
-        eventServices = evt.selectedServices;
+      currentEvent = JSON.parse(raw);
+      if (Array.isArray(currentEvent.selectedServices)) {
+        eventServices = currentEvent.selectedServices;
       }
     }
-  } catch(error){
-   console.error(error);
-}
-  if (persisted && persisted.services) {
-    const persistedNames = persisted.services.map((s: any) => s.name).sort().join(",");
-    const eventNames     = [...eventServices].sort().join(",");
-    if (persistedNames === eventNames) {
-      return persisted;
+  } catch (error) {
+    console.error(error);
+  }
+
+  const currentEventId = resolveEventId(currentEvent);
+
+  if (persisted) {
+    if (currentEventId != null && persisted.eventId != null) {
+      if (persisted.eventId === currentEventId) {
+        return persisted;
+      }
+    } else if (persisted.services) {
+      const persistedNames = persisted.services.map((s: any) => s.name).sort().join(",");
+      const eventNames     = [...eventServices].sort().join(",");
+      if (persistedNames === eventNames) {
+        return persisted;
+      }
     }
   }
 
@@ -81,7 +112,7 @@ function resolveInitialState() {
           { id: 2, name: "Candid Videography", assigned: "Unassigned", status: "Not Uploaded", images: 0, videos: 0, thumbnail: null, lastUploaded: null },
         ];
 
-  return { services, uploadedFilesMap: {}, selectedFilesMap: {} };
+  return { services, uploadedFilesMap: {}, selectedFilesMap: {}, eventId: currentEventId };
 }
 
 
@@ -614,6 +645,7 @@ export default function MediaManagement() {
   const [openServiceId,    setOpenServiceId]    = useState<number | null>(null); // store ID only, not object
   const [uploadedFilesMap, setUploadedFilesMap] = useState<Record<number, MediaFile[]>>(initialState.uploadedFilesMap || {});
   const [selectedFilesMap, setSelectedFilesMap] = useState<Record<number, MediaFile[]>>(initialState.selectedFilesMap || {});
+  const [eventId]                                = useState<string | null>(initialState.eventId ?? null);
 
   
   const openService = openServiceId != null
@@ -622,8 +654,8 @@ export default function MediaManagement() {
 
 
   useEffect(() => {
-    saveState({ services, uploadedFilesMap, selectedFilesMap });
-  }, [services, uploadedFilesMap, selectedFilesMap]);
+    saveState({ services, uploadedFilesMap, selectedFilesMap, eventId });
+  }, [services, uploadedFilesMap, selectedFilesMap, eventId]);
 
   const handleServicesUpdate = (id: number, patch: Record<string, any>) => {
     setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
