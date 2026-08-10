@@ -18,6 +18,7 @@ import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
 import ProfilePage          from "../features/profile/pages/ProfilePage";
 import ViewStudioPage       from "../features/studio/pages/ViewStudioPage";
 import CalendarPage         from "../components/UI/CalendarPage";
+import NotificationSettingsPage from "../components/UI/NotificationSettingsPage";
 import SubscriptionPage     from "../features/subscription/SubscriptionPage";
 import TransactionPage      from "../features/Transaction/pages/Transactionpage";
 import MainLayout           from "../components/Layout/MainLayout";
@@ -40,6 +41,7 @@ const MediaLibraryPageAny: any = MediaLibraryPage;
 const ProfilePageAny: any = ProfilePage;
 const ViewStudioPageAny: any = ViewStudioPage;
 const CalendarPageAny: any = CalendarPage;
+const NotificationSettingsPageAny: any = NotificationSettingsPage;
 const SubscriptionPageAny: any = SubscriptionPage;
 const TransactionPageAny: any = TransactionPage;
 
@@ -203,6 +205,9 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
 
       
         <Route path="/calendar" element={<CalendarPageAny />} />
+
+        {/* Notification Settings */}
+        <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />
 
         
         <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />

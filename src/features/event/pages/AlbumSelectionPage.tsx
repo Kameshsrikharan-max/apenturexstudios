@@ -1,24 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,AppstoreOutlined,} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,} from "@ant-design/icons";
 import "./AlbumSelectionPage.css";
 
-
 const STEPS = [
-  { label: "Event Details",   icon: <PlusOutlined /> },
+  { label: "Event Details", icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
-  { label: "Payment",         icon: <DollarOutlined /> },
-  { label: "Attendance",      icon: <ClockCircleOutlined /> },
-  { label: "Media",           icon: <CameraOutlined /> },
-  { label: "Album",           icon: <PictureOutlined /> },
-  { label: "Closure",         icon: <CheckCircleOutlined /> },
+  { label: "Payment", icon: <DollarOutlined /> },
+  { label: "Attendance", icon: <ClockCircleOutlined /> },
+  { label: "Media", icon: <CameraOutlined /> },
+  { label: "Album", icon: <PictureOutlined /> },
+  { label: "Closure", icon: <CheckCircleOutlined /> },
 ];
 
 const TEMPLATE_BASED_SERVICES = ["Traditional Photography", "Candid Photography"];
 
-const STAGE_LABELS = ["Draft", "In Review", "Submitted", "Finalized"];
+// Total number of version-card slots always rendered per album template.
+const TOTAL_VERSION_SLOTS = 5;
 
-/* ---------- Types describing the shape saved by CreateEventPage ---------- */
+/*  Types describing the shape saved by CreateEventPage */
 
 interface SavedAlbumTemplate {
   name: string;
@@ -43,36 +43,38 @@ interface SavedEventForm {
   albumData?: Record<string, SavedAlbumServiceData>;
 }
 
-/* ---------- Types used internally by this page ---------- */
-
 interface CuratedPhoto {
   name: string;
   size: string;
   preview: string;
 }
 
+interface AlbumVersion {
+  version: number;
+  status: string; // "Archived" for history entries
+}
+
 interface TemplateCardData {
   id: number;
   name: string;
-  status: string;
+  status: string; // Draft | In Progress | In Review | Finalized
   sheets: number;
   size: string;
   photosRequired: number;
   curatedPhotos: CuratedPhoto[];
-  reviewStage: number; // 1=Draft, 2=In Review, 3=Submitted, 4=Finalized
   note: string;
   deadline: string;
+  currentVersion: number;
+  versionHistory: AlbumVersion[]; // archived, oldest first
 }
 
 interface ServiceAlbumGroup {
   id: string;
   serviceName: string;
-  hasTemplates: boolean; // false for services like Drone / Candid Videography
+  hasTemplates: boolean;
   templates: TemplateCardData[];
 }
 
-/* Builds the page's working state directly from what the user picked
-   in Create Event (sessionStorage "currentEvent"). No dummy/demo data. */
 function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
   let saved: SavedEventForm | null = null;
   try {
@@ -92,8 +94,6 @@ function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
     const data = albumData[service] || {};
 
     if (!isTemplateBased) {
-      // Drone / Candid Videography etc. — no album template picker on
-      // Create Event, so there's nothing to curate here.
       return {
         id: service,
         serviceName: service,
@@ -111,14 +111,15 @@ function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
         return {
           id: nextTemplateId++,
           name: tpl.name,
-          status: "Not Started",
+          status: "Draft",
           sheets: tpl.sheets,
           size: tpl.size,
           photosRequired: tpl.photos,
           curatedPhotos: [],
-          reviewStage: 1,
           note: "",
           deadline: "",
+          currentVersion: 1,
+          versionHistory: [],
         };
       });
 
@@ -131,8 +132,8 @@ function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
   });
 }
 
-/*STAT CARD */
-function StatCard({ label, value, color }) {
+/* STAT CARD */
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="as-stat-card">
       <div className="as-stat-label">{label}</div>
@@ -141,34 +142,74 @@ function StatCard({ label, value, color }) {
   );
 }
 
-/*REVIEW STAGE STEPPER*/
-function ReviewStepper({ stage }) {
+/* STATUS PILL */
+function StatusPill({ status }: { status: string }) {
   return (
-    <div className="as-stepper">
-      {STAGE_LABELS.map((lbl, i) => {
-        const stepNum = i + 1;
-        const isDone    = stepNum < stage;
-        const isActive  = stepNum === stage;
-        return (
-          <React.Fragment key={lbl}>
-            <div className="as-stepper-item">
-              <div className={`as-stepper-circle ${isDone ? "done" : ""} ${isActive ? "active" : ""}`}>
-                {isDone ? <CheckCircleOutlined /> : stepNum}
-              </div>
-              <span className={`as-stepper-lbl ${isActive ? "active" : ""}`}>{lbl}</span>
-            </div>
-            {i < STAGE_LABELS.length - 1 && (
-              <div className={`as-stepper-line ${isDone ? "done" : ""}`} />
-            )}
-          </React.Fragment>
-        );
-      })}
+    <span className={`as-status-pill as-badge-${status.toLowerCase().replace(/\s/g, "-")}`}>
+      <CheckCircleOutlined /> {status}
+    </span>
+  );
+}
+
+/* VERSION CARD
+   `empty` renders a placeholder slot for a version that hasn't been created yet,
+   so the grid always shows TOTAL_VERSION_SLOTS cards. */
+function VersionCard({
+  versionNum,
+  isLatest,
+  status,
+  empty = false,
+}: {
+  versionNum: number;
+  isLatest: boolean;
+  status: string;
+  empty?: boolean;
+}) {
+  if (empty) {
+    return (
+      <div className="as-version-card as-version-card-empty">
+        <span className="as-version-badge as-version-badge-empty">v{versionNum}</span>
+        <div className="as-version-thumb as-version-thumb-empty">
+          <FileImageOutlined />
+        </div>
+        <div className="as-version-name as-version-name-empty">Version {versionNum}</div>
+        <div className="as-version-sub">Not started yet</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`as-version-card ${isLatest ? "latest" : ""}`}>
+      <span className={`as-version-badge ${isLatest ? "latest" : ""}`}>
+        {isLatest ? "Latest" : `v${versionNum}`}
+      </span>
+      <div className="as-version-thumb">
+        <FileImageOutlined />
+      </div>
+      <div className="as-version-name">Version {versionNum}</div>
+      <div className="as-version-sub">{isLatest ? "Current version" : "Older version"}</div>
+      <div className="as-version-fields">
+        <div className="as-version-field">
+          <span className="as-version-field-label">Album</span>
+          <span className="as-version-field-val">v{versionNum}</span>
+        </div>
+        <div className="as-version-field">
+          <span className="as-version-field-label">Status</span>
+          <span className="as-version-field-val">{status}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
 /* STAGED FILE PREVIEW */
-function StagedPreview({ files, onRemove }) {
+function StagedPreview({
+  files,
+  onRemove,
+}: {
+  files: { name: string; size: string; preview: string }[];
+  onRemove: (idx: number) => void;
+}) {
   if (!files.length) return null;
   return (
     <div className="as-staged-area">
@@ -190,20 +231,14 @@ function StagedPreview({ files, onRemove }) {
 }
 
 /* CURATED PHOTO GALLERY */
-function CuratedGallery({ photos, required }) {
+function CuratedGallery({ photos, required }: { photos: CuratedPhoto[]; required: number }) {
   if (!photos.length) {
     return (
       <div className="as-no-curated">
         <FileImageOutlined className="as-no-curated-icon" />
         <div>
-          <strong>
-            {required
-              ? "Curated photos are required"
-              : "No curated photos yet"}
-          </strong>
-          <p>
-            Stage photos above and click Upload to populate the gallery.
-          </p>
+          <strong>{required ? "Curated photos are required" : "No curated photos yet"}</strong>
+          <p>Stage photos above and click Upload to populate the gallery.</p>
         </div>
       </div>
     );
@@ -213,33 +248,44 @@ function CuratedGallery({ photos, required }) {
     <div className="as-curated-grid">
       {photos.map((p, i) => (
         <div className="as-curated-thumb" key={i}>
-          {p.preview ? (
-            <img src={p.preview} alt={p.name} />
-          ) : (
-            <FileImageOutlined className="as-curated-ph" />
-          )}
+          {p.preview ? <img src={p.preview} alt={p.name} /> : <FileImageOutlined className="as-curated-ph" />}
         </div>
       ))}
     </div>
   );
 }
-/* TEMPLATE CARD */
-function TemplateCard({ template, onUpdate }) {
-  const [stagedFiles, setStagedFiles] = useState<
-    { name: string; size: string; preview: string }[]
-  >([]);
+
+/* TEMPLATE CARD (album, shown as version history + curation panel) */
+function TemplateCard({
+  template,
+  onUpdate,
+}: {
+  template: TemplateCardData;
+  onUpdate: (templateId: number, patch: Partial<TemplateCardData>) => void;
+}) {
+  const [stagedFiles, setStagedFiles] = useState<{ name: string; size: string; preview: string }[]>([]);
   const imgRef = useRef<HTMLInputElement>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
 
   const formatBytes = (b: number) => {
-    if (b < 1024)    return b + " B";
+    if (b < 1024) return b + " B";
     if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
     return (b / 1048576).toFixed(1) + " MB";
   };
 
+  const bumpVersion = (patch: Partial<TemplateCardData>) => {
+    const archivedEntry: AlbumVersion = { version: template.currentVersion, status: "Archived" };
+    onUpdate(template.id, {
+      ...patch,
+      versionHistory: [...template.versionHistory, archivedEntry],
+      currentVersion: template.currentVersion + 1,
+    });
+  };
+
   const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []).map((f: File) => ({
-      name:    f.name,
-      size:    formatBytes(f.size),
+      name: f.name,
+      size: formatBytes(f.size),
       preview: URL.createObjectURL(f),
     }));
     setStagedFiles((prev) => [...prev, ...picked]);
@@ -253,7 +299,7 @@ function TemplateCard({ template, onUpdate }) {
   const handleUpload = () => {
     if (!stagedFiles.length) return;
     const merged = [...template.curatedPhotos, ...stagedFiles];
-    onUpdate(template.id, { curatedPhotos: merged, status: "In Progress" });
+    bumpVersion({ curatedPhotos: merged, status: "In Progress" });
     setStagedFiles([]);
   };
 
@@ -261,18 +307,42 @@ function TemplateCard({ template, onUpdate }) {
 
   const handleSendForReview = () => {
     if (!template.curatedPhotos.length) return;
-    onUpdate(template.id, { reviewStage: 2, status: "In Review" });
+    bumpVersion({ status: "In Review" });
   };
 
   const handleSelfSelect = () => {
     if (!template.curatedPhotos.length) return;
-    onUpdate(template.id, { reviewStage: 4, status: "Finalized" });
+    bumpVersion({ status: "Finalized" });
   };
 
-  const handleNoteChange  = (e) => onUpdate(template.id, { note: e.target.value });
-  const handleDeadline    = (e) => onUpdate(template.id, { deadline: e.target.value });
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+    onUpdate(template.id, { note: e.target.value });
+  const handleDeadline = (e: React.ChangeEvent<HTMLInputElement>) =>
+    onUpdate(template.id, { deadline: e.target.value });
+
+  // Open the native date picker when the custom calendar icon is clicked
+  // (the browser's own indicator is visually hidden — see CSS).
+  const handleCalendarIconClick = () => {
+    const el = dateRef.current;
+    if (!el) return;
+    if (typeof (el as any).showPicker === "function") {
+      (el as any).showPicker();
+    } else {
+      el.focus();
+    }
+  };
 
   const canSend = template.curatedPhotos.length > 0;
+  const selectedCount = template.curatedPhotos.length;
+
+  // Always render TOTAL_VERSION_SLOTS version cards: real archived versions +
+  // the current version, padded with empty placeholder slots.
+  const realVersionCount = template.versionHistory.length + 1; // +1 for current version
+  const placeholdersNeeded = Math.max(0, TOTAL_VERSION_SLOTS - realVersionCount);
+  const placeholderVersionNums = Array.from(
+    { length: placeholdersNeeded },
+    (_, i) => template.currentVersion + 1 + i
+  );
 
   return (
     <div className="as-template-card">
@@ -280,17 +350,32 @@ function TemplateCard({ template, onUpdate }) {
       <div className="as-tpl-header">
         <div className="as-tpl-title-row">
           <span className="as-tpl-name">{template.name}</span>
-          <span className={`as-tpl-badge as-badge-${template.status.toLowerCase().replace(/\s/g, "-")}`}>
-            {template.status}
+          <span className="as-tpl-meta-inline">
+            {template.sheets} Sheets &nbsp;·&nbsp; {template.size}
           </span>
         </div>
-        <div className="as-tpl-meta">
-          {template.sheets} Sheets &nbsp;·&nbsp; {template.size} &nbsp;·&nbsp; {template.photosRequired} Photos Required
+
+        <div className="as-tpl-status-row">
+          <StatusPill status={template.status} />
+          <span className="as-tpl-selected-count">
+            {selectedCount} / {template.photosRequired} photos selected
+          </span>
         </div>
       </div>
 
-      {/* Review stepper */}
-      <ReviewStepper stage={template.reviewStage} />
+      {/* Album versions grid — always shows TOTAL_VERSION_SLOTS cards */}
+      <div className="as-versions-section">
+        <div className="as-versions-label">Album Versions</div>
+        <div className="as-versions-grid">
+          {template.versionHistory.map((v) => (
+            <VersionCard key={v.version} versionNum={v.version} isLatest={false} status={v.status} />
+          ))}
+          <VersionCard versionNum={template.currentVersion} isLatest status={template.status} />
+          {placeholderVersionNums.map((vNum) => (
+            <VersionCard key={`empty-${vNum}`} versionNum={vNum} isLatest={false} status="" empty />
+          ))}
+        </div>
+      </div>
 
       {/* Add Photos / Folder buttons */}
       <div className="as-tpl-actions-row">
@@ -321,9 +406,7 @@ function TemplateCard({ template, onUpdate }) {
       </div>
 
       {/* Staged preview */}
-      {stagedFiles.length > 0 && (
-        <StagedPreview files={stagedFiles} onRemove={handleRemoveStaged} />
-      )}
+      {stagedFiles.length > 0 && <StagedPreview files={stagedFiles} onRemove={handleRemoveStaged} />}
 
       {/* Curated photos section */}
       <div className="as-curated-section">
@@ -333,10 +416,7 @@ function TemplateCard({ template, onUpdate }) {
             {template.curatedPhotos.length} / {template.photosRequired} required
           </span>
         </div>
-        <CuratedGallery
-          photos={template.curatedPhotos}
-          required={template.photosRequired}
-        />
+        <CuratedGallery photos={template.curatedPhotos} required={template.photosRequired} />
       </div>
 
       {/* Send for customer review */}
@@ -372,31 +452,23 @@ function TemplateCard({ template, onUpdate }) {
             </label>
             <div className="as-input-wrap">
               <input
+                ref={dateRef}
                 type="date"
                 className="as-input"
                 value={template.deadline}
                 onChange={handleDeadline}
-                placeholder="Set a deadline"
               />
-              <CalendarOutlined className="as-input-icon" />
+              <CalendarOutlined className="as-input-icon" onClick={handleCalendarIconClick} />
             </div>
             <span className="as-field-hint">Customer notified via email with access code.</span>
           </div>
         </div>
 
         <div className="as-review-btns">
-          <button
-            className={`as-btn-action ${!canSend ? "disabled" : ""}`}
-            disabled={!canSend}
-            onClick={handleSendForReview}
-          >
+          <button className={`as-btn-action ${!canSend ? "disabled" : ""}`} disabled={!canSend} onClick={handleSendForReview}>
             <SendOutlined /> Send for Review
           </button>
-          <button
-            className={`as-btn-action ${!canSend ? "disabled" : ""}`}
-            disabled={!canSend}
-            onClick={handleSelfSelect}
-          >
+          <button className={`as-btn-action ${!canSend ? "disabled" : ""}`} disabled={!canSend} onClick={handleSelfSelect}>
             <FlagOutlined /> Self Select &amp; Finalize
           </button>
         </div>
@@ -423,21 +495,22 @@ export default function AlbumSelectionPage() {
 
   /* Compute summary stats (template-based services only) */
   const allTemplates = albums.flatMap((a) => a.templates);
-  const totalAlbums  = allTemplates.length;
+  const totalAlbums = allTemplates.length;
   const photosRequired = allTemplates.reduce((s, t) => s + t.photosRequired, 0);
-  const customerSelected = allTemplates.reduce((s, t) => s + (t.reviewStage >= 3 ? t.curatedPhotos.length : 0), 0);
+  const customerSelected = allTemplates.reduce(
+    (s, t) => s + (t.status === "Finalized" || t.status === "In Review" ? t.curatedPhotos.length : 0),
+    0
+  );
   const pendingSelection = photosRequired - customerSelected;
 
-  const handleTemplateUpdate = (serviceIdx: number, templateId: number, patch: Record<string, any>) => {
+  const handleTemplateUpdate = (serviceIdx: number, templateId: number, patch: Partial<TemplateCardData>) => {
     setAlbums((prev) =>
       prev.map((group, gi) =>
         gi !== serviceIdx
           ? group
           : {
               ...group,
-              templates: group.templates.map((tpl) =>
-                tpl.id === templateId ? { ...tpl, ...patch } : tpl
-              ),
+              templates: group.templates.map((tpl) => (tpl.id === templateId ? { ...tpl, ...patch } : tpl)),
             }
       )
     );
@@ -446,7 +519,6 @@ export default function AlbumSelectionPage() {
   return (
     <main className="as-page">
       <section className="as-stage">
-
         {/* ── Top bar ── */}
         <header className="as-topbar">
           <button className="as-back" type="button" onClick={() => navigate(-1)}>
@@ -466,7 +538,6 @@ export default function AlbumSelectionPage() {
 
         {/* ── Body ── */}
         <div className="as-body">
-
           {/* Side rail */}
           <aside className="as-rail">
             {STEPS.map((step, i) => (
@@ -496,36 +567,36 @@ export default function AlbumSelectionPage() {
             {/* Page header */}
             <div className="as-page-header">
               <div className="as-page-header-left">
-                <AppstoreOutlined className="as-page-header-icon" />
                 <div>
                   <h2>Album Selection</h2>
                   <p>Curate photos by service, send the selection for customer review, and prepare the final album.</p>
                 </div>
               </div>
-              <button className="as-btn-outline" onClick={() => window.location.reload()}>
-                <ReloadOutlined /> Refresh
+              <button className="as-icon-btn" onClick={() => window.location.reload()} aria-label="Refresh">
+                <ReloadOutlined />
               </button>
             </div>
 
             {albums.length === 0 ? (
               <div className="as-info-banner">
                 <InfoCircleOutlined />
-                No services were selected in Event Details, so there's nothing to curate here yet. Go back and select at least one service.
+                No services were selected in Event Details, so there's nothing to curate here yet. Go back and select
+                at least one service.
               </div>
             ) : (
               <>
                 {/* Summary stats */}
                 <div className="as-stats-row">
-                  <StatCard label="Total Albums"      value={totalAlbums}       color="blue" />
-                  <StatCard label="Photos Required"   value={photosRequired}    color="cyan" />
-                  <StatCard label="Customer Selected" value={customerSelected}  color="amber" />
-                  <StatCard label="Pending Selection" value={pendingSelection}  color="amber" />
+                  <StatCard label="Total Albums" value={totalAlbums} color="blue" />
+                  <StatCard label="Photos Required" value={photosRequired} color="cyan" />
+                  <StatCard label="Customer Selected" value={customerSelected} color="amber" />
+                  <StatCard label="Pending Selection" value={pendingSelection} color="amber" />
                 </div>
 
                 {/* Service tabs — only the services chosen in Create Event */}
                 <div className="as-service-tabs">
                   {albums.map((group, idx) => {
-                    const doneCount = group.templates.filter((t) => t.reviewStage >= 3).length;
+                    const doneCount = group.templates.filter((t) => t.status === "Finalized").length;
                     return (
                       <button
                         key={group.id}
@@ -549,7 +620,8 @@ export default function AlbumSelectionPage() {
                   {!activeGroup?.hasTemplates ? (
                     <div className="as-info-banner">
                       <InfoCircleOutlined />
-                      {activeGroup?.serviceName} doesn't use album templates — there's nothing to curate for this service.
+                      {activeGroup?.serviceName} doesn't use album templates — there's nothing to curate for this
+                      service.
                     </div>
                   ) : activeGroup.templates.length === 0 ? (
                     <div className="as-info-banner">
@@ -561,9 +633,7 @@ export default function AlbumSelectionPage() {
                       <TemplateCard
                         key={tpl.id}
                         template={tpl}
-                        onUpdate={(templateId, patch) =>
-                          handleTemplateUpdate(activeService, templateId, patch)
-                        }
+                        onUpdate={(templateId, patch) => handleTemplateUpdate(activeService, templateId, patch)}
                       />
                     ))
                   )}
@@ -573,18 +643,10 @@ export default function AlbumSelectionPage() {
 
             {/* Footer nav */}
             <footer className="as-actions">
-              <button
-                className="as-btn-secondary"
-                type="button"
-                onClick={() => navigate("/events/create/media")}
-              >
+              <button className="as-btn-secondary" type="button" onClick={() => navigate("/events/create/media")}>
                 <ArrowLeftOutlined /> Previous Step
               </button>
-              <button
-                className="as-btn-primary"
-                type="button"
-                onClick={() => navigate("/events/create/closure")}
-              >
+              <button className="as-btn-primary" type="button" onClick={() => navigate("/events/create/closure")}>
                 Next Step <ArrowRightOutlined />
               </button>
             </footer>

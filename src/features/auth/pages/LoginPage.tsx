@@ -140,6 +140,7 @@ const formBoxVariants = {
       }}
     >
       <div
+        className="login-root"
         style={{
           ...timesFont,
           overflow: "hidden",
@@ -233,10 +234,9 @@ const formBoxVariants = {
                   duration: 3,
                   repeat: Infinity,
                 }}
+                className="splash-glow"
                 style={{
                   position: "absolute",
-                  width: "500px",
-                  height: "500px",
                   borderRadius: "50%",
                   background:
                     "radial-gradient(circle, rgba(56,189,248,0.25), transparent 70%)",
@@ -247,6 +247,7 @@ const formBoxVariants = {
 
               
               <div
+                className="splash-content"
                 style={{
                   position: "relative",
                   zIndex: 10,
@@ -284,8 +285,8 @@ const formBoxVariants = {
                     }}
                   >
                     <CameraOutlined
+                      className="splash-camera-icon"
                       style={{
-                        fontSize: "120px",
                         color: "#38BDF8",
                         filter:
                           "drop-shadow(0 0 25px rgba(56,189,248,0.8))",
@@ -332,10 +333,10 @@ const formBoxVariants = {
                   }}
                 >
                   <Text
+                    className="splash-welcome-text"
                     style={{
                       color: "#38BDF8",
                       letterSpacing: "12px",
-                      fontSize: "12px",
                       textTransform: "uppercase",
                       display: "block",
                       marginBottom: "20px",
@@ -346,6 +347,7 @@ const formBoxVariants = {
 
             
                   <div
+                    className="splash-brand-row"
                     style={{
                       display: "flex",
                       justifyContent: "center",
@@ -369,8 +371,8 @@ const formBoxVariants = {
                           type: "spring",
                           stiffness: 100,
                         }}
+                        className="splash-brand-char"
                         style={{
-                          fontSize: "min(60px, 6vw)",
                           color: "#fff",
                           fontWeight: 100,
                         }}
@@ -393,8 +395,8 @@ const formBoxVariants = {
                         type: "spring",
                         stiffness: 200,
                       }}
+                      className="splash-brand-x"
                       style={{
-                        fontSize: "min(70px, 7vw)",
                         color: "#38BDF8",
                         margin: "0 15px",
                         fontWeight: "bold",
@@ -419,8 +421,8 @@ const formBoxVariants = {
                           type: "spring",
                           stiffness: 100,
                         }}
+                        className="splash-brand-char"
                         style={{
-                          fontSize: "min(60px, 6vw)",
                           color: "#fff",
                           fontWeight: 100,
                         }}
@@ -444,9 +446,9 @@ const formBoxVariants = {
                     }}
                   >
                     <Text
+                      className="splash-tagline"
                       style={{
                         color: "rgba(255,255,255,0.7)",
-                        fontSize: "16px",
                         display: "block",
                         marginTop: "30px",
                         letterSpacing: "2px",
@@ -495,13 +497,9 @@ const formBoxVariants = {
           
           <Col
             xs={0}
+            sm={0}
             md={12}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              padding: "0 8%",
-            }}
+            className="login-left-col"
           >
             <motion.div
               initial={{ opacity: 0, x: -60 }}
@@ -515,18 +513,18 @@ const formBoxVariants = {
                 }}
               >
                 <CameraOutlined
+                  className="brand-icon"
                   style={{
-                    fontSize: "40px",
                     color: "#38BDF8",
                   }}
                 />
 
                 <Title
                   level={4}
+                  className="brand-title"
                   style={{
                     color: "#fff",
                     margin: 0,
-                    letterSpacing: "8px",
                     fontWeight: 200,
                     ...timesFont,
                   }}
@@ -536,9 +534,9 @@ const formBoxVariants = {
               </Space>
 
               <Title
+                className="hero-title"
                 style={{
                   color: "#fff",
-                  fontSize: "min(4.5rem, 5.5vw)",
                   margin: 0,
                   lineHeight: 1.1,
                   fontWeight: 100,
@@ -559,8 +557,8 @@ const formBoxVariants = {
 
               
               <div
+                className="quote-box"
                 style={{
-                  height: "60px",
                   marginTop: "30px",
                 }}
               >
@@ -584,9 +582,9 @@ const formBoxVariants = {
                     }}
                   >
                     <Text
+                      className="quote-text"
                       style={{
                         color: "rgba(255,255,255,0.7)",
-                        fontSize: "18px",
                         fontStyle: "italic",
                         fontWeight: 300,
                       }}
@@ -602,13 +600,9 @@ const formBoxVariants = {
         
           <Col
             xs={24}
+            sm={24}
             md={12}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "20px",
-            }}
+            className="login-right-col"
           >
             <motion.div
               style={{
@@ -622,22 +616,15 @@ const formBoxVariants = {
             >
               <Card
                 variant="borderless"
-                className="glass-card"
+                className="glass-card login-card"
                 style={{
-                  width: "90vw",
-                  maxWidth: "400px",
-
                   background: "rgba(0, 0, 0, 0.7)",
 
                   backdropFilter:
                     "blur(10px) saturate(100%)",
 
-                  borderRadius: "40px",
-
                   border:
                     "1px solid rgba(255,255,255,0.2)",
-
-                  padding: "20px",
 
                   boxShadow:
                     "0 40px 100px rgba(0,0,0,0.9)",
@@ -652,6 +639,7 @@ const formBoxVariants = {
                 >
                   <Title
                     level={3}
+                    className="card-title"
                     style={{
                       color: "#fff",
                       margin: 0,
@@ -794,6 +782,10 @@ const formBoxVariants = {
 
         
         <style>{`
+          /* ============================================
+             BASE / DESKTOP-FIRST DEFAULTS (>= 1440px)
+             ============================================ */
+
           .glass-card {
             transition: border 0.4s ease;
           }
@@ -801,6 +793,84 @@ const formBoxVariants = {
           .glass-card:hover {
             border-color:
               rgba(56, 189, 248, 0.5) !important;
+          }
+
+          .login-card {
+            width: 90vw;
+            max-width: 400px;
+            border-radius: 40px !important;
+            padding: 20px !important;
+          }
+
+          /* Hidden by default (mobile/tablet) — matches Col xs={0} sm={0} */
+          .login-left-col {
+            display: none !important;
+          }
+
+          /* Shown from tablet-landscape/laptop up — matches Col md={12} */
+          @media (min-width: 768px) {
+            .login-left-col {
+              display: flex !important;
+              flex-direction: column;
+              justify-content: center;
+              padding: 0 8%;
+            }
+          }
+
+          .login-right-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+          }
+
+          .brand-icon {
+            font-size: 40px;
+          }
+
+          .brand-title {
+            letter-spacing: 8px;
+          }
+
+          .hero-title {
+            font-size: min(4.5rem, 5.5vw) !important;
+          }
+
+          .quote-box {
+            height: 60px;
+          }
+
+          .quote-text {
+            font-size: 18px;
+          }
+
+          .card-title {
+            font-size: 28px;
+          }
+
+          .splash-camera-icon {
+            font-size: 120px;
+          }
+
+          .splash-welcome-text {
+            font-size: 12px;
+          }
+
+          .splash-brand-char {
+            font-size: min(60px, 6vw);
+          }
+
+          .splash-brand-x {
+            font-size: min(70px, 7vw);
+          }
+
+          .splash-tagline {
+            font-size: 16px;
+          }
+
+          .splash-glow {
+            width: 500px;
+            height: 500px;
           }
 
           .creative-input {
@@ -904,6 +974,233 @@ const formBoxVariants = {
           .ant-input-affix-wrapper {
             background: transparent !important;
             border: none !important;
+          }
+
+          /* ============================================
+             LAPTOP (1025px - 1439px)
+             ============================================ */
+          @media (max-width: 1439px) {
+            .login-left-col {
+              padding: 0 5%;
+            }
+
+            .hero-title {
+              font-size: min(3.6rem, 5vw) !important;
+            }
+
+            .login-card {
+              max-width: 380px;
+            }
+          }
+
+          /* ============================================
+             TABLET / SMALL LAPTOP (769px - 1024px)
+             ============================================ */
+          @media (max-width: 1024px) {
+            .login-left-col {
+              padding: 0 4%;
+            }
+
+            .hero-title {
+              font-size: min(2.8rem, 4.5vw) !important;
+            }
+
+            .brand-title {
+              font-size: 16px !important;
+              letter-spacing: 5px;
+            }
+
+            .brand-icon {
+              font-size: 32px;
+            }
+
+            .quote-text {
+              font-size: 15px;
+            }
+
+            .login-card {
+              max-width: 360px;
+              border-radius: 32px !important;
+            }
+
+            .card-title {
+              font-size: 24px;
+            }
+
+            .splash-camera-icon {
+              font-size: 90px;
+            }
+
+            .splash-brand-char {
+              font-size: min(46px, 6vw);
+            }
+
+            .splash-brand-x {
+              font-size: min(54px, 7vw);
+            }
+
+            .splash-tagline {
+              font-size: 14px;
+            }
+
+            .splash-glow {
+              width: 380px;
+              height: 380px;
+            }
+          }
+
+          /* ============================================
+             TABLET / PORTRAIT (481px - 768px)
+             Left brand column hides here (Ant Col xs/sm),
+             form card becomes the full view.
+             ============================================ */
+          @media (max-width: 768px) {
+            .login-right-col {
+              padding: 16px;
+            }
+
+            .login-card {
+              width: 92vw;
+              max-width: 420px;
+              border-radius: 28px !important;
+              padding: 16px !important;
+            }
+
+            .card-title {
+              font-size: 22px;
+              letter-spacing: 6px !important;
+            }
+
+            .submit-button-innovative {
+              height: 54px !important;
+            }
+
+            .social-icon {
+              font-size: 20px;
+            }
+
+            .splash-camera-icon {
+              font-size: 70px;
+            }
+
+            .splash-welcome-text {
+              font-size: 10px;
+              letter-spacing: 8px !important;
+            }
+
+            .splash-brand-char {
+              font-size: min(34px, 8vw);
+            }
+
+            .splash-brand-x {
+              font-size: min(40px, 9vw);
+              margin: 0 8px !important;
+            }
+
+            .splash-tagline {
+              font-size: 12px;
+            }
+
+            .splash-glow {
+              width: 300px;
+              height: 300px;
+            }
+          }
+
+          /* ============================================
+             MOBILE (up to 480px)
+             ============================================ */
+          @media (max-width: 480px) {
+            .login-right-col {
+              padding: 10px;
+            }
+
+            .login-card {
+              width: 94vw;
+              max-width: 100%;
+              border-radius: 22px !important;
+              padding: 14px !important;
+            }
+
+            .card-title {
+              font-size: 18px;
+              letter-spacing: 4px !important;
+            }
+
+            .creative-input {
+              border-radius: 16px !important;
+              padding: 12px 16px !important;
+            }
+
+            .submit-button-innovative {
+              height: 48px !important;
+              border-radius: 16px !important;
+              font-size: 13px;
+            }
+
+            .social-icon {
+              font-size: 18px;
+            }
+
+            .signup-link {
+              font-size: 12px !important;
+            }
+
+            .splash-camera-icon {
+              font-size: 54px;
+            }
+
+            .splash-welcome-text {
+              font-size: 9px;
+              letter-spacing: 6px !important;
+              margin-bottom: 10px !important;
+            }
+
+            .splash-brand-char {
+              font-size: min(24px, 8vw);
+            }
+
+            .splash-brand-x {
+              font-size: min(28px, 9vw);
+              margin: 0 6px !important;
+            }
+
+            .splash-tagline {
+              font-size: 10px;
+              letter-spacing: 1px !important;
+            }
+
+            .splash-glow {
+              width: 220px;
+              height: 220px;
+            }
+
+            .login-root {
+              height: 100dvh !important;
+            }
+          }
+
+          /* ============================================
+             VERY SMALL MOBILE (up to 360px)
+             ============================================ */
+          @media (max-width: 360px) {
+            .login-card {
+              width: 96vw;
+              padding: 10px !important;
+            }
+
+            .card-title {
+              font-size: 16px;
+              letter-spacing: 3px !important;
+            }
+
+            .splash-brand-char {
+              font-size: 18px;
+            }
+
+            .splash-brand-x {
+              font-size: 20px;
+            }
           }
         `}</style>
       </div>

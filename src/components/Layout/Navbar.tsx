@@ -84,12 +84,7 @@ function Navbar({
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [upcomingEventsOpen, setUpcomingEventsOpen] = useState(false);
-
-  const [notificationType, setNotificationType] = useState(
-    localStorage.getItem("notificationPreference") || ""
-  );
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
@@ -139,7 +134,6 @@ function Navbar({
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
     setProfileModalOpen(false);
-    setNotificationSettingsOpen(false);
     setUpcomingEventsOpen(false);
     window.dispatchEvent(new Event("startStudioTour"));
   };
@@ -173,17 +167,7 @@ function Navbar({
 
   const openNotificationSettings = () => {
     setUserMenuOpen(false);
-    setNotificationSettingsOpen(true);
-  };
-
-  const saveNotificationSettings = () => {
-    localStorage.setItem("notificationPreference", notificationType);
-    setNotificationSettingsOpen(false);
-  };
-
-  const cancelNotificationSettings = () => {
-    setNotificationType(localStorage.getItem("notificationPreference") || "");
-    setNotificationSettingsOpen(false);
+    navigate("/notification-settings");
   };
 
   const handleLogout = () => {
@@ -651,62 +635,6 @@ function Navbar({
                 <p>Your calendar events will appear here.</p>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {notificationSettingsOpen && (
-        <div
-          className="nav-modal-overlay"
-          onMouseDown={cancelNotificationSettings}
-        >
-          <div className="nav-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="nav-modal-head">
-              <h3>Notification Settings</h3>
-
-              <button type="button" onClick={cancelNotificationSettings}>
-                <CloseOutlined />
-              </button>
-            </div>
-
-            <p className="modal-description">
-              Choose how you want to receive admin notifications. Leave all unchecked to disable
-              them.
-            </p>
-
-            <div className="notification-options">
-              <label>
-                <input
-                  type="radio"
-                  name="notificationType"
-                  value="in-app"
-                  checked={notificationType === "in-app"}
-                  onChange={(event) => setNotificationType(event.target.value)}
-                />
-                <span>In App</span>
-              </label>
-
-              <label>
-                <input
-                  type="radio"
-                  name="notificationType"
-                  value="email"
-                  checked={notificationType === "email"}
-                  onChange={(event) => setNotificationType(event.target.value)}
-                />
-                <span>Email</span>
-              </label>
-            </div>
-
-            <div className="nav-modal-actions">
-              <button type="button" className="modal-cancel-button" onClick={cancelNotificationSettings}>
-                Cancel
-              </button>
-
-              <button type="button" className="modal-save-button" onClick={saveNotificationSettings}>
-                Save
-              </button>
-            </div>
           </div>
         </div>
       )}

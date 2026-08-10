@@ -21,11 +21,6 @@ function App() {
   const { user } = useSelector((state: RootState) => state.auth);
   const isAuthenticated = !!user;
 
-  // ✅ FIX: initialize from isAuthenticated instead of hardcoded false.
-  // On refresh, Redux rehydrates `user` from localStorage (via authReducer's
-  // initialState), so isAuthenticated is already true by the time this runs.
-  // Without this, readyForApp always started false and forced the login
-  // screen back up even though the user was still logged in.
   const [readyForApp, setReadyForApp] = useState<boolean>(isAuthenticated);
 
   const handleAuthComplete = (_data: any) => {

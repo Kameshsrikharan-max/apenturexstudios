@@ -188,9 +188,9 @@ const galleryPhotos: GalleryPhoto[] = [
   { id: 20, title: "Fashion Frame", category: "Portraits", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
 ];
 
-/* -------------------------------------------------------------------------- */
+
 /*  CustomModal — replaces antd Modal entirely, uses the neon-glass tokens    */
-/* -------------------------------------------------------------------------- */
+
 
 interface CustomModalProps {
   open: boolean;
@@ -227,9 +227,9 @@ const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps)
   );
 };
 
-/* -------------------------------------------------------------------------- */
+
 /*  AILightbox                                                                 */
-/* -------------------------------------------------------------------------- */
+
 
 interface AILightboxProps {
   photos: GalleryPhoto[];
@@ -418,9 +418,8 @@ const AILightbox = ({ photos, initialIdx, onClose, onStar, starredIds }: AILight
   );
 };
 
-/* -------------------------------------------------------------------------- */
+
 /*  UserViewOverlay                                                            */
-/* -------------------------------------------------------------------------- */
 
 interface UserViewOverlayProps {
   user: UserRecord;
@@ -702,9 +701,9 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
   );
 };
 
-/* -------------------------------------------------------------------------- */
+
 /*  UsersPage                                                                  */
-/* -------------------------------------------------------------------------- */
+
 
 const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -720,7 +719,7 @@ const UsersPage = () => {
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const PAGE_SIZE = 6;
+  const PAGE_SIZE = 10;
 
   const [editForm] = Form.useForm<EditFormValues>();
   const [inviteForm] = Form.useForm<InviteFormValues>();
@@ -776,7 +775,7 @@ const UsersPage = () => {
   // --- Advanced filter panel config, tab-aware ------------------------------
   const roleOptionsByTab = useMemo<string[]>(() => {
     if (activeTab === "referrals") return ["Referral"];
-    if (activeTab === "photographers") return []; // no Role field for Photographers tab
+    if (activeTab === "photographers") return []; 
     return ["Studio Admin", "Photographer", "Editor"];
   }, [activeTab]);
 
@@ -830,9 +829,6 @@ const UsersPage = () => {
     });
   }, [currentData, searchTerm, activeFilter, appliedFilters]);
 
-  // Reset back to page 1 whenever the visible dataset changes shape
-  // (tab switch, search, or filter change) so pagination never points
-  // at an empty page.
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchTerm, activeFilter, appliedFilters]);
@@ -942,12 +938,6 @@ const UsersPage = () => {
     </Tooltip>
   );
 
-  // ---------------------------------------------------------------------
-  // Gmail-style single-line columns: Name | Email | Phone | Studio/Shoots |
-  // Status | Signup | Created (hover reveals view/edit/delete).
-  // No `scroll.x` and no `fixed` column — everything fits within the
-  // container width, so there is no horizontal scrollbar at all.
-  // ---------------------------------------------------------------------
   const renderRowActionsOverlay = (record: UserRecord) => (
     <div className="user-row-actions-overlay">
       <Tooltip title="View profile">
@@ -1065,13 +1055,6 @@ const UsersPage = () => {
     },
   ];
 
-  // ---------------------------------------------------------------------
-  // Advanced filter panel — content of the Filter popover. Fields shown
-  // depend on the active tab: "All Users" / "Referrals" show Role, Status,
-  // Invite Status and Date Filter (2x2 grid). "Photographers" has no Role
-  // field, so Status + Invite Status sit on the top row and Date Filter
-  // flows naturally onto its own row below (grid auto-flow handles this).
-  // ---------------------------------------------------------------------
   const advancedFilterPanel = (
     <div className="filter-adv-panel">
       <div className="filter-adv-title">
@@ -1140,7 +1123,7 @@ const UsersPage = () => {
   const columns = commonColumns;
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 14 } }}>
+    <ConfigProvider theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 14, zIndexPopupBase: 3000 } }}>
       <Layout className="dashboard-page dashboard-dark review-page user-visual-page">
         <div className="dashboard-frame">
           <Sidebar dark />
@@ -1228,7 +1211,6 @@ const UsersPage = () => {
                         trigger="click"
                         placement="bottomLeft"
                         overlayClassName="filter-popover-overlay"
-                        zIndex={3000}
                       >
                         <Tooltip title="Filter">
                           <Badge dot={activeAdvancedFilterCount > 0} offset={[-4, 4]}>
@@ -1318,7 +1300,7 @@ const UsersPage = () => {
                       total: filteredData.length,
                       onChange: (page) => setCurrentPage(page),
                       showSizeChanger: false,
-                      hideOnSinglePage: true,
+                      hideOnSinglePage: false,
                       className: "user-table-pagination",
                     }}
                   />

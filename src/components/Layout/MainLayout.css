@@ -25,7 +25,7 @@
   50% { transform: scale(0.72); }
 }
 
-/* ============ Scroll to top button ============ */
+/* Scroll to top button  */
 
 .scroll-top-btn {position: fixed;right: 24px;bottom: 64px;z-index: 1100;width: 42px;height: 42px;display: grid;place-items: center;border: 1px solid rgba(125, 211, 248, 0.3);border-radius: 50%;color: #e0f2fe;background: rgba(15, 23, 42, 0.75);backdrop-filter: blur(12px);-webkit-backdrop-filter: blur(12px);box-shadow: 0 10px 26px rgba(3, 22, 51, 0.4);font-size: 16px;cursor: pointer;opacity: 0;transform: translateY(10px) scale(0.9);pointer-events: none;transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.2s ease, background 0.2s ease;}
 .scroll-top-btn.is-visible {opacity: 1;transform: translateY(0) scale(1);pointer-events: auto;}
@@ -159,7 +159,7 @@
 .site-light .scroll-top-btn {color: #082f49;background: rgba(255, 255, 255, 0.85);border-color: rgba(14, 116, 144, 0.25);box-shadow: 0 10px 26px rgba(8, 47, 73, 0.14);}
 .site-light .scroll-top-btn:hover {background: rgba(56, 189, 248, 0.16);box-shadow: 0 12px 30px rgba(14, 116, 144, 0.2);}
 
-/* ============ Responsive breakpoints ============ */
+/*  Responsive breakpoints  */
 
 /* Large desktop / wide screens: >= 1600px */
 @media (min-width: 1600px) {

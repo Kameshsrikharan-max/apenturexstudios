@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
+import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
 import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,PlusOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
@@ -61,6 +61,10 @@ const initialEvents = [
 ];
 
 const EVENTS_STORAGE_KEY = "ax.events.v1";
+// Fired by CreateEventPage.tsx after a new event is saved, so this page can
+// refresh immediately without waiting for a "focus" or "storage" event.
+const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
+const PAGE_SIZE = 10;
 
 const readStoredEvents = () => {
   if (typeof window === "undefined") return initialEvents;
@@ -140,6 +144,8 @@ export default function EventPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [assignEvent, setAssignEvent] = useState<any>(null);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [tablePage, setTablePage] = useState(1);
+  const [cardPage, setCardPage] = useState(1);
 
   const [form] = Form.useForm();
 
@@ -156,12 +162,20 @@ export default function EventPage() {
 
     window.addEventListener("focus", syncEvents);
     window.addEventListener("storage", syncEvents);
+    window.addEventListener(EVENTS_UPDATED_EVENT, syncEvents);
 
     return () => {
       window.removeEventListener("focus", syncEvents);
       window.removeEventListener("storage", syncEvents);
+      window.removeEventListener(EVENTS_UPDATED_EVENT, syncEvents);
     };
   }, []);
+
+  // Reset to page 1 whenever the visible dataset changes shape.
+  useEffect(() => {
+    setTablePage(1);
+    setCardPage(1);
+  }, [activeStatus, searchTerm, events.length]);
 
   const counts = useMemo(
     () =>
@@ -188,6 +202,11 @@ export default function EventPage() {
       return matchStatus && matchSearch;
     });
   }, [activeStatus, events, searchTerm]);
+
+  const pagedCardEvents = useMemo(
+    () => filteredEvents.slice((cardPage - 1) * PAGE_SIZE, cardPage * PAGE_SIZE),
+    [filteredEvents, cardPage]
+  );
 
   const highlightText = (value: any) => {
     if (!searchTerm.trim()) return value;
@@ -235,6 +254,7 @@ export default function EventPage() {
   const handleRefresh = () => {
     setIsLoading(true);
     dispatch(getEvents());
+    setEvents(readStoredEvents());
     setTimeout(() => {
       setIsLoading(false);
       message.success("Events refreshed");
@@ -569,7 +589,6 @@ export default function EventPage() {
             <Table
               columns={columns}
               dataSource={filteredEvents}
-              pagination={false}
               rowKey="id"
               className="event-table"
               scroll={{ x: 1260 }}
@@ -583,6 +602,14 @@ export default function EventPage() {
                 onTouchStart: () =>
                   setActiveRowId((current) => (current === record.id ? null : record.id)),
               })}
+              pagination={{
+                current: tablePage,
+                pageSize: PAGE_SIZE,
+                total: filteredEvents.length,
+                showSizeChanger: false,
+                showTotal: (total) => `${total} event${total === 1 ? "" : "s"}`,
+                onChange: (page) => setTablePage(page),
+              }}
               locale={{
                 emptyText: (
                   <Empty
@@ -593,42 +620,61 @@ export default function EventPage() {
               }}
             />
           ) : (
-            <div className="event-card-grid">
-              {filteredEvents.map((event) => (
-                <article className="event-card" key={event.id}>
-                  <img src={event.image} alt={event.name} />
-                  <div className="event-card-body">
-                    <span>{event.type}</span>
-                    <h3>{event.name}</h3>
-                    <p>
-                      <CalendarOutlined /> {event.date} at {event.time}
-                    </p>
-                    <p>
-                      <EnvironmentOutlined /> {event.city}
-                    </p>
-                    <div className="event-card-footer">
-                      {renderStatus(event.status)}
-                      <Space size={4}>
-                        <Tooltip title="Assign members">
-                          <Button
-                            type="text"
-                            icon={<TeamOutlined />}
-                            onClick={() => setAssignEvent(event)}
-                          />
-                        </Tooltip>
-                        <Tooltip title="Copy to clipboard">
-                          <Button
-                            type="text"
-                            icon={<CopyOutlined />}
-                            onClick={() => copyEventToClipboard(event)}
-                          />
-                        </Tooltip>
-                      </Space>
+            <>
+              <div className="event-card-grid">
+                {pagedCardEvents.map((event) => (
+                  <article className="event-card" key={event.id}>
+                    <img src={event.image} alt={event.name} />
+                    <div className="event-card-body">
+                      <span>{event.type}</span>
+                      <h3>{event.name}</h3>
+                      <p>
+                        <CalendarOutlined /> {event.date} at {event.time}
+                      </p>
+                      <p>
+                        <EnvironmentOutlined /> {event.city}
+                      </p>
+                      <div className="event-card-footer">
+                        {renderStatus(event.status)}
+                        <Space size={4}>
+                          <Tooltip title="Assign members">
+                            <Button
+                              type="text"
+                              icon={<TeamOutlined />}
+                              onClick={() => setAssignEvent(event)}
+                            />
+                          </Tooltip>
+                          <Tooltip title="Copy to clipboard">
+                            <Button
+                              type="text"
+                              icon={<CopyOutlined />}
+                              onClick={() => copyEventToClipboard(event)}
+                            />
+                          </Tooltip>
+                        </Space>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+                {filteredEvents.length === 0 && (
+                  <Empty
+                    description="No matching events"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </div>
+              {filteredEvents.length > PAGE_SIZE && (
+                <div className="event-card-pagination">
+                  <Pagination
+                    current={cardPage}
+                    pageSize={PAGE_SIZE}
+                    total={filteredEvents.length}
+                    showSizeChanger={false}
+                    onChange={(page) => setCardPage(page)}
+                  />
+                </div>
+              )}
+            </>
           )}
         </section>
 

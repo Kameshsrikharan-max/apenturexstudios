@@ -1,67 +1,34 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Tooltip,
-  Popover,
-  Select,
-  DatePicker,
-  Empty,
-  Badge,
-  message,
-} from "antd";
+import { useDispatch, useSelector } from "react-redux";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Tooltip,Popover,Select,DatePicker,Empty,Badge,message,Dropdown,} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  DownloadOutlined,
-  MoreOutlined,
-  WalletOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  RollbackOutlined,
-  CalendarOutlined,
-  CreditCardOutlined,
-  MobileOutlined,
-  BankOutlined,
-  SwapOutlined,
-  CloseOutlined,
-  ExportOutlined,
-  DollarCircleOutlined,
-} from "@ant-design/icons";
+import type { MenuProps } from "antd";
+import {SearchOutlined,ReloadOutlined,FilterOutlined,EyeOutlined,DownloadOutlined,MoreOutlined,WalletOutlined,CheckCircleOutlined,ClockCircleOutlined,RollbackOutlined,CalendarOutlined,CreditCardOutlined,MobileOutlined,BankOutlined,SwapOutlined,CloseOutlined,ExportOutlined,DollarCircleOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
-import {
-  getAllTransactions,
-  TRANSACTIONS_UPDATED_EVENT,
-  type StoredTransaction,
-  type TransactionStatus,
-  type PaymentMethod,
-} from "../../../utils/transactionStore"; // adjust path to your project structure
+import rootReducer from "../../../redux/rootReducer";
+import {fetchTransactionsRequest,refundTransactionRequest,exportTransactionsRequest,resetTransactionError,} from "../../../redux/actions/transactionActions";
+import type {StoredTransaction,TransactionStatus,PaymentMethod,} from "../../../redux/types/transactiontypes";
+// NEW — same-tab event fired by utils/transactionStore.ts whenever a
+// transaction is written from PaymentPage (or anywhere else)
+import { TRANSACTIONS_UPDATED_EVENT } from "../../../utils/transactionStore";
 import "./Transactionpage.css";
+
+type RootState = ReturnType<typeof rootReducer>;
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
-/* -------------------------------------------------------------------------- */
-/*  Types                                                                      */
-/* -------------------------------------------------------------------------- */
+
+/*  Types   */
 
 type StatusFilterKey = "All" | TransactionStatus;
 
 interface TransactionRecord extends StoredTransaction {}
 
-/* -------------------------------------------------------------------------- */
-/*  Constants / helpers                                                       */
-/* -------------------------------------------------------------------------- */
+
+/*  Constants / helpers  */
+
 
 const statusIconMap: Record<StatusFilterKey, ReactNode> = {
   All: <WalletOutlined />,
@@ -84,9 +51,9 @@ const formatINR = (value: number) => `₹ ${value.toLocaleString("en-IN")}`;
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/* -------------------------------------------------------------------------- */
+
 /*  CustomModal — matches AXS neon-glass modal pattern                        */
-/* -------------------------------------------------------------------------- */
+
 
 interface CustomModalProps {
   open: boolean;
@@ -123,14 +90,23 @@ const CustomModal = ({ open, onClose, width = 560, children }: CustomModalProps)
   );
 };
 
-/* -------------------------------------------------------------------------- */
+
 /*  TransactionPage                                                            */
-/* -------------------------------------------------------------------------- */
+
 
 const TransactionPage = () => {
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const dispatch = useDispatch<any>();
+
+  // ── Redux state (replaces local transactionStore + useState) ──
+  const {
+    list: transactions,
+    loading: isLoading,
+    error,
+    refundLoadingId,
+    exporting,
+  } = useSelector((state: RootState) => state.transaction);
+
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterKey>("All");
   const [methodFilter, setMethodFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<any>(null);
@@ -142,20 +118,26 @@ const TransactionPage = () => {
 
   const statusOptions: StatusFilterKey[] = ["All", "Paid", "Partial", "Pending", "Refunded"];
 
-  // ── Load real transaction data recorded from PaymentPage, and stay in sync ──
-  const refreshFromStore = () => {
-    setTransactions(getAllTransactions());
-  };
+  
+  useEffect(() => {
+    dispatch(fetchTransactionsRequest());
+  }, [dispatch]);
+
+  // NEW — refetch whenever PaymentPage (or any other component) writes a
+  // transaction to localStorage while this page is mounted, so the table
+  // reflects new/edited payments without a manual refresh.
+  useEffect(() => {
+    const handleUpdate = () => dispatch(fetchTransactionsRequest());
+    window.addEventListener(TRANSACTIONS_UPDATED_EVENT, handleUpdate);
+    return () => window.removeEventListener(TRANSACTIONS_UPDATED_EVENT, handleUpdate);
+  }, [dispatch]);
 
   useEffect(() => {
-    refreshFromStore();
-    window.addEventListener(TRANSACTIONS_UPDATED_EVENT, refreshFromStore);
-    window.addEventListener("storage", refreshFromStore);
-    return () => {
-      window.removeEventListener(TRANSACTIONS_UPDATED_EVENT, refreshFromStore);
-      window.removeEventListener("storage", refreshFromStore);
-    };
-  }, []);
+    if (error) {
+      message.error(error);
+      dispatch(resetTransactionError());
+    }
+  }, [error, dispatch]);
 
   const statusCounts = useMemo<Record<string, number>>(() => {
     return statusOptions.reduce((acc: Record<string, number>, status) => {
@@ -200,16 +182,19 @@ const TransactionPage = () => {
   };
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      refreshFromStore();
-      setIsLoading(false);
-      message.success("Refreshed");
-    }, 500);
+    dispatch(fetchTransactionsRequest());
   };
 
   const handleExport = () => {
-    message.success("Exporting transactions...");
+    dispatch(exportTransactionsRequest());
+  };
+
+  const handleRefund = (record: TransactionRecord) => {
+    if (record.status === "Refunded") {
+      message.info("This transaction is already refunded");
+      return;
+    }
+    dispatch(refundTransactionRequest(record.id));
   };
 
   const totals = useMemo(() => {
@@ -282,40 +267,55 @@ const TransactionPage = () => {
     </Tooltip>
   );
 
-  const renderRowActionsOverlay = (record: TransactionRecord) => (
-    <div className="tx-row-actions-overlay">
-      <Tooltip title="View transaction">
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          className="tx-action-btn view"
-          onClick={(e) => {
-            e.stopPropagation();
-            setViewTransaction(record);
-          }}
-        />
-      </Tooltip>
-      <Tooltip title="Download invoice / receipt">
-        <Button
-          type="text"
-          icon={<DownloadOutlined />}
-          className="tx-action-btn download"
-          onClick={(e) => {
-            e.stopPropagation();
-            message.success("Downloading receipt...");
-          }}
-        />
-      </Tooltip>
-      <Tooltip title="More options">
-        <Button
-          type="text"
-          icon={<MoreOutlined />}
-          className="tx-action-btn more"
-          onClick={(e) => e.stopPropagation()}
-        />
-      </Tooltip>
-    </div>
-  );
+  const renderRowActionsOverlay = (record: TransactionRecord) => {
+    const menuItems: MenuProps["items"] = [
+      {
+        key: "refund",
+        label: record.status === "Refunded" ? "Already Refunded" : "Mark as Refunded",
+        icon: <RollbackOutlined />,
+        disabled: record.status === "Refunded" || refundLoadingId === record.id,
+        onClick: () => handleRefund(record),
+      },
+    ];
+
+    return (
+      <div className="tx-row-actions-overlay">
+        <Tooltip title="View transaction">
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            className="tx-action-btn view"
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewTransaction(record);
+            }}
+          />
+        </Tooltip>
+        <Tooltip title="Download invoice / receipt">
+          <Button
+            type="text"
+            icon={<DownloadOutlined />}
+            className="tx-action-btn download"
+            onClick={(e) => {
+              e.stopPropagation();
+              message.success("Downloading receipt...");
+            }}
+          />
+        </Tooltip>
+        <Dropdown menu={{ items: menuItems }} trigger={["click"]} placement="bottomRight">
+          <Tooltip title="More options">
+            <Button
+              type="text"
+              icon={<MoreOutlined />}
+              className="tx-action-btn more"
+              loading={refundLoadingId === record.id}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Tooltip>
+        </Dropdown>
+      </div>
+    );
+  };
 
   const columns: ColumnsType<TransactionRecord> = [
     {
@@ -395,11 +395,19 @@ const TransactionPage = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      width: 80,
+      width: 130,
       align: "center",
-      
+      render: (status: TransactionStatus) => renderStatusTag(status),
     },
-    
+    {
+      title: "Actions",
+      key: "actions",
+      width: 130,
+      align: "center",
+      fixed: "right",
+      className: "tx-actions-anchor-cell",
+      render: (_, record) => renderRowActionsOverlay(record),
+    },
   ];
 
   return (
@@ -524,6 +532,7 @@ const TransactionPage = () => {
                         <Button
                           icon={<ExportOutlined />}
                           className="tx-export-btn"
+                          loading={exporting}
                           onClick={handleExport}
                         >
                           Export
@@ -538,7 +547,8 @@ const TransactionPage = () => {
                     className="user-table-custom tx-table-custom"
                     rowKey="id"
                     tableLayout="fixed"
-                    scroll={{ x: 1180 }}
+                    loading={isLoading}
+                    scroll={{ x: 1280 }}
                     locale={{
                       emptyText: (
                         <Empty
@@ -560,8 +570,6 @@ const TransactionPage = () => {
                     }}
                   />
                 </div>
-
-                
               </div>
             </Content>
           </Layout>

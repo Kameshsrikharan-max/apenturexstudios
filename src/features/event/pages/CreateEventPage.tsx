@@ -55,6 +55,10 @@ const MONTHS = [
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
+// Must match the storage key + custom event name used in EventPage.tsx
+const EVENTS_STORAGE_KEY = "ax.events.v1";
+const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
+
 interface TimeParts {
   h: string;
   m: string;
@@ -178,6 +182,64 @@ function syncEventToCalendar(form: EventFormState, createdAt: string): void {
     localStorage.setItem("calendarEvents", JSON.stringify(existing));
 
     window.dispatchEvent(new Event("calendarEventsUpdated"));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+interface BoardEvent {
+  id: string;
+  name: string;
+  type: string;
+  date: string;
+  time: string;
+  address: string;
+  city: string;
+  customer: string;
+  status: string;
+  pipeline: string;
+  members: number;
+  budget: string;
+  image: string;
+}
+
+function formatBoardDate(date: Date): string {
+  return `${MONTHS[date.getMonth()].slice(0, 3)} ${String(date.getDate()).padStart(2, "0")}, ${date.getFullYear()}`;
+}
+
+function formatBoardTime(time: TimeParts | null): string {
+  return time ? `${time.h}:${time.m} ${time.ap}` : "";
+}
+
+/** Pushes the newly created event into the Events board (localStorage) and
+ *  notifies any mounted EventPage instance to refresh immediately. */
+function syncEventToBoard(form: EventFormState, createdAt: string): void {
+  if (!form.eventDate) return;
+
+  try {
+    const newEvent: BoardEvent = {
+      id: `ev-${createdAt}`,
+      name: form.eventName.trim(),
+      type: form.selectedServices[0] || "Event",
+      date: formatBoardDate(form.eventDate),
+      time: formatBoardTime(form.startTime),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      customer: form.customerName.trim(),
+      status: "DRAFT",
+      pipeline: "Proposal",
+      members: 0,
+      budget: form.eventAmount,
+      image:
+        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+    };
+
+    const existingRaw = localStorage.getItem(EVENTS_STORAGE_KEY);
+    const existing = existingRaw ? JSON.parse(existingRaw) : [];
+    const nextEvents = [newEvent, ...(Array.isArray(existing) ? existing : [])];
+    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(nextEvents));
+
+    window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
   } catch (error) {
     console.error(error);
   }
@@ -987,6 +1049,7 @@ export default function CreateEventPage() {
     sessionStorage.removeItem("eventDraft");
 
     syncEventToCalendar(form, createdAt);
+    syncEventToBoard(form, createdAt);
 
     navigate("/events/create/team-assignment");
   };

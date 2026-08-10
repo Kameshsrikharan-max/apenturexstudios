@@ -264,6 +264,8 @@
 .uvo-orb-2 { width: 500px; height: 500px; bottom: -150px; left: 150px; animation-duration: 30s; animation-direction: reverse; border-color: rgba(34,197,94,0.06); }
 .uvo-orb-3 { width: 300px; height: 300px; top: 50%; right: 30%; animation-duration: 20s; border-color: rgba(245,158,11,0.06); }
 @keyframes uvoOrb { to { transform: rotate(360deg); } }
+
+/* Close button — fixed, always above the gallery header note */
 .uvo-x {position: fixed; top: 22px; right: 26px; z-index: 100;width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.18);border-radius: 50%; background: rgba(8,12,32,0.85); color: #fff;font-size: 14px; cursor: pointer; display: grid; place-items: center;backdrop-filter: blur(12px);transition: background 0.22s, transform 0.3s cubic-bezier(0.34,1.56,0.64,1), border-color 0.22s;animation: uvoXIn 0.6s 0.3s both;}
 .uvo-x:hover { background: #dc2626; border-color: #dc2626; transform: rotate(90deg) scale(1.15); }
 @keyframes uvoXIn { from { opacity: 0; transform: scale(0) rotate(-180deg); } to { opacity: 1; transform: scale(1) rotate(0deg); } }
@@ -308,13 +310,16 @@
 .uvo-gallery-pane::-webkit-scrollbar { width: 5px; }
 .uvo-gallery-pane::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.35); border-radius: 5px; }
 @keyframes uvoGalleryIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-.uvo-cat-strip {position: sticky;top: 0;z-index: 10;padding: 16px 28px 12px;background: rgba(2,6,22,0.7);backdrop-filter: blur(20px);border-bottom: 1px solid rgba(59,130,246,0.14);}
+
+/* Cat strip: right padding reserved so nothing (e.g. the "starred first" note)
+   ever sits underneath the fixed close (X) button in the corner */
+.uvo-cat-strip {position: sticky;top: 0;z-index: 10;padding: 16px 90px 12px 28px;background: rgba(2,6,22,0.7);backdrop-filter: blur(20px);border-bottom: 1px solid rgba(59,130,246,0.14);}
 .uvo-cat-inner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .uvo-cat-pill {height: 30px; padding: 0 12px;display: inline-flex; align-items: center; gap: 6px;border-radius: 999px; font-size: 11px; font-weight: 700;color: rgba(255,255,255,0.65);background: rgba(255,255,255,0.05);border: 1px solid rgba(255,255,255,0.12);cursor: pointer;transition: all 0.22s;}
 .uvo-cat-pill:hover { color: #fff; background: rgba(59,130,246,0.15); border-color: rgba(96,165,250,0.5); }
 .uvo-cat-pill.active { color: #fff; background: rgba(59,130,246,0.25); border-color: #3b82f6; box-shadow: 0 0 14px rgba(59,130,246,0.35); }
 .uvo-cat-count {width: 18px; height: 18px; border-radius: 50%;display: grid; place-items: center; font-size: 9px; font-weight: 900;background: rgba(59,130,246,0.3); color: #fff;}
-.uvo-gallery-note {margin-left: auto; color: rgba(255,255,255,0.4);font-size: 10px; font-weight: 600;display: flex; align-items: center; gap: 4px;}
+.uvo-gallery-note {margin-left: auto; flex-shrink: 0; white-space: nowrap; color: rgba(255,255,255,0.4);font-size: 10px; font-weight: 600;display: flex; align-items: center; gap: 4px;}
 .uvo-mosaic {padding: 20px 28px 40px;display: grid;grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));gap: 10px;}
 .uvo-mosaic-tile {position: relative; border: 0; padding: 0; cursor: pointer;border-radius: 14px; overflow: hidden;aspect-ratio: 4/3;background: rgba(255,255,255,0.04);border: 1px solid rgba(255,255,255,0.07);animation: uvoTileIn 0.45s var(--delay, 0s) both;transition: transform 0.32s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;}
 .uvo-mosaic-tile.is-starred { border-color: rgba(245,186,94,0.55); box-shadow: 0 0 16px rgba(245,186,94,0.2); }
@@ -376,14 +381,7 @@
 .ailb-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ailb-thumb-star {position: absolute; top: 3px; right: 3px;width: 16px; height: 16px; border-radius: 50%;background: #f5ba5e; color: #111; font-size: 8px;display: grid; place-items: center;}
 
-/* ==========================================================================
-   RESPONSIVE — Mobile / Tablet / Laptop / Desktop
-   Desktop        : > 1200px  (base styles above cover this, no query needed)
-   Laptop         : 1025px – 1200px
-   Tablet         : 769px  – 1024px
-   Mobile         : 481px  – 768px
-   Small Mobile   : ≤ 480px
-   ========================================================================== */
+/* RESPONSIVE — Mobile / Tablet / Laptop / Desktop */
 
 /* ---------------- LAPTOP (≤ 1200px) ---------------- */
 @media (max-width: 1200px) {
@@ -423,6 +421,7 @@
 
   .uvo-panel { grid-template-columns: 260px 1fr; }
   .uvo-info-grid { grid-template-columns: 1fr; }
+  .uvo-cat-strip { padding: 16px 80px 12px 20px; }
   .uvo-mosaic { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 16px 20px 32px; }
 
   .ailb-shell { grid-template-columns: 1fr 280px; }
@@ -471,7 +470,8 @@
   .uvo-avatar-shell { width: 78px; height: 78px; margin-bottom: 6px; }
   .uvo-name { font-size: 14px !important; }
   .uvo-gallery-pane { height: calc(100vh - 52vh); }
-  .uvo-cat-strip { padding: 12px 16px 10px; }
+  .uvo-cat-strip { padding: 12px 68px 10px 16px; }
+  .uvo-gallery-note { width: 100%; margin-left: 0; margin-top: 4px; }
   .uvo-mosaic { grid-template-columns: repeat(3, 1fr); padding: 14px 16px 28px; gap: 8px; }
 
   .ailb-shell { grid-template-columns: 1fr; max-height: 95vh; }
@@ -496,6 +496,7 @@
   .user-table-custom .ant-table-tbody > tr > td { padding: 8px 10px !important; font-size: 12px; }
 
   .uvo-x { top: 12px; right: 14px; width: 38px; height: 38px; }
+  .uvo-cat-strip { padding: 10px 58px 8px 12px; }
   .uvo-mosaic { grid-template-columns: repeat(2, 1fr); }
   .uvo-info-grid { gap: 4px; }
   .uvo-info-card { padding: 6px 8px; }

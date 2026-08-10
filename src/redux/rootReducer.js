@@ -9,6 +9,7 @@ import profileReducer from "./reducers/profileReducer";
 import reviewReducer from "./reducers/reviewReducer";
 import calendarReducer from "./reducers/calendarreducer";
 import subscriptionReducer from "./reducers/subscriptionreducer";
+import transactionReducer from "./reducers/transactionReducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,
@@ -20,6 +21,7 @@ const rootReducer = combineReducers({
   review: reviewReducer,
   calendar: calendarReducer,
   subscription: subscriptionReducer,
+  transaction: transactionReducer,
 });
 
 export default rootReducer;

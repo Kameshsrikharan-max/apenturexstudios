@@ -208,41 +208,39 @@
 .tap-primary {border: 1px solid var(--cyan);background: linear-gradient(135deg, var(--cyan), var(--mint));color: #06111f;box-shadow: 0 14px 30px rgba(56,213,255,0.22);}
 .tap-primary:hover { transform: translateY(-1px); }
 
-/* Desktop: 1441px and above. Base styles provide the desktop layout. */
-@media (min-width: 1441px) {
-  .tap-page { padding: 40px; }
-  .tap-stage { min-height: calc(100vh - 80px); }
-}
 
 
-/* RESPONSIVE — MOBILE / TABLET / LAPTOP / DESKTOP */
+html, body { overflow-x: hidden; }
+.tap-page  { overflow-x: hidden; }
 
-/* ---------- Laptop: 1025px – 1440px ---------- */
-@media (min-width: 1025px) and (max-width: 1440px) {
+
+/* RESPONSIVE */
+
+/* ---------- Laptop and below: ≤1440px ---------- */
+@media (max-width: 1440px) {
   .tap-page { padding: 32px 28px; }
   .tap-stage { min-height: calc(100vh - 64px); }
 
   .tap-filters-grid { grid-template-columns: 1fr 1fr; }
 }
 
-/* ---------- Tablet: 769px – 1024px ---------- */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* ---------- Tablet and below: ≤1024px ---------- */
+@media (max-width: 1024px) {
   .tap-page  { padding: 20px 16px; }
   .tap-stage { min-height: calc(100vh - 40px); border-radius: 20px; }
 
-  .tap-topbar {grid-template-columns: 120px minmax(0,1fr);padding: 16px 20px;gap: 16px;}
-  .tap-back { width: 92px; height: 38px; font-size: 13px; }
+  .tap-topbar {grid-template-columns: 1fr;grid-template-areas: "back" "title";gap: 12px;min-height: auto;padding: 16px 20px;}
+  .tap-back { grid-area: back; width: 92px; height: 38px; font-size: 13px; }
+  .tap-title-wrap { grid-area: title; }
 
   .tap-title-icon { width: 50px; height: 50px; font-size: 21px; border-radius: 14px; }
   .tap-heading { font-size: 23px; }
   .tap-heading-event { font-size: 17px; }
 
   .tap-body {grid-template-columns: 1fr;gap: 14px;padding: 18px 20px 0;}
-  .tap-rail {flex-direction: row;flex-wrap: wrap;width: auto;position: static;justify-content: flex-start;}
-  .tap-content { padding-left: 0; }
+  .tap-rail {flex-direction: row;flex-wrap: wrap;width: auto;max-width: 100%;position: static;justify-content: flex-start;}
+  .tap-content { padding-left: 0; min-width: 0; }
   .tap-tooltip { display: none; }
-
-  .tap-filters-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .tap-hero-card { flex-wrap: wrap; }
 
@@ -256,15 +254,15 @@
   .tap-table td { padding: 10px 12px; }
 }
 
-/* ---------- Mobile (large / phablet): 481px – 768px ---------- */
-@media (min-width: 481px) and (max-width: 768px) {
+/* ---------- Mobile ---------- */
+@media (max-width: 768px) {
   .tap-page { padding: 12px; }
   .tap-stage { min-height: calc(100vh - 24px); border-radius: 16px; }
 
-  .tap-topbar {grid-template-columns: 1fr;gap: 14px;min-height: auto;padding: 16px;}
+  .tap-topbar { padding: 16px; }
   .tap-back { width: 100%; }
 
-  .tap-title-wrap { gap: 12px; }
+  .tap-title-wrap { gap: 12px; flex-wrap: wrap; }
   .tap-title-icon { width: 44px; height: 44px; font-size: 19px; border-radius: 12px; }
   .tap-heading { font-size: 20px; }
   .tap-heading-row { gap: 6px; }
@@ -298,12 +296,13 @@
   .tap-primary { width: 100%; }
 }
 
-/* ---------- Mobile (small phones): up to 480px ---------- */
+/* ---------- Mobile (small phones) and below: ≤480px ---------- */
 @media (max-width: 480px) {
   .tap-page { padding: 8px; }
   .tap-stage { border-radius: 12px; }
 
-  .tap-topbar { padding: 12px; }
+  .tap-topbar { padding: 12px; gap: 10px; }
+  .tap-title-wrap { gap: 10px; }
   .tap-title-icon { width: 38px; height: 38px; font-size: 17px; border-radius: 10px; }
   .tap-subtitle { font-size: 10px; letter-spacing: 1.4px; }
   .tap-heading { font-size: 17px; }
@@ -339,8 +338,8 @@
   .tap-actions { min-height: auto; }
 }
 
-/* ---------- Compact phones: up to 320px wide and 501px high ---------- */
-@media (max-width: 320px) and (max-height: 501px) {
+/* ---------- Compact phones  ---------- */
+@media (max-width: 360px) {
   .tap-page { padding: 4px; }
   .tap-stage { min-height: calc(100vh - 8px); border-radius: 10px; }
 
@@ -349,7 +348,7 @@
   .tap-title-wrap { gap: 8px; }
   .tap-title-icon { width: 32px; height: 32px; font-size: 14px; }
   .tap-subtitle { display: none; }
-  .tap-heading { font-size: 15px; }
+  .tap-heading { font-size: 15px; line-height: 1.25; }
   .tap-heading-event { font-size: 12px; }
 
   .tap-body { padding: 8px 6px 0; }
