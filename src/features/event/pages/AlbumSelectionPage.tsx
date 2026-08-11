@@ -153,33 +153,48 @@ function StatusPill({ status }: { status: string }) {
 
 /* VERSION CARD
    `empty` renders a placeholder slot for a version that hasn't been created yet,
-   so the grid always shows TOTAL_VERSION_SLOTS cards. */
+   so the grid always shows TOTAL_VERSION_SLOTS cards.
+   Clicking any card (real or empty) navigates to the Template Editor page. */
 function VersionCard({
   versionNum,
   isLatest,
   status,
   empty = false,
+  onClick,
 }: {
   versionNum: number;
   isLatest: boolean;
   status: string;
   empty?: boolean;
+  onClick?: () => void;
 }) {
   if (empty) {
     return (
-      <div className="as-version-card as-version-card-empty">
+      <div
+        className="as-version-card as-version-card-empty"
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick?.()}
+      >
         <span className="as-version-badge as-version-badge-empty">v{versionNum}</span>
         <div className="as-version-thumb as-version-thumb-empty">
           <FileImageOutlined />
         </div>
         <div className="as-version-name as-version-name-empty">Version {versionNum}</div>
-        <div className="as-version-sub">Not started yet</div>
+        <div className="as-version-sub">Not started yet — click to create</div>
       </div>
     );
   }
 
   return (
-    <div className={`as-version-card ${isLatest ? "latest" : ""}`}>
+    <div
+      className={`as-version-card ${isLatest ? "latest" : ""}`}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick?.()}
+    >
       <span className={`as-version-badge ${isLatest ? "latest" : ""}`}>
         {isLatest ? "Latest" : `v${versionNum}`}
       </span>
@@ -263,6 +278,7 @@ function TemplateCard({
   template: TemplateCardData;
   onUpdate: (templateId: number, patch: Partial<TemplateCardData>) => void;
 }) {
+  const navigate = useNavigate();
   const [stagedFiles, setStagedFiles] = useState<{ name: string; size: string; preview: string }[]>([]);
   const imgRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -332,6 +348,23 @@ function TemplateCard({
     }
   };
 
+  // Navigate to the Template Editor page for a given version.
+  // Context is stashed in sessionStorage so the editor page can read it on mount.
+  const openTemplateEditor = (versionNum: number, isLatest: boolean, status: string) => {
+    const payload = {
+      templateId: template.id,
+      templateName: template.name,
+      sheetsCount: template.sheets,
+      canvasSize: template.size,
+      photosRequired: template.photosRequired,
+      versionNum,
+      isLatest,
+      status: status || "Draft",
+    };
+    sessionStorage.setItem("currentTemplateEditor", JSON.stringify(payload));
+    navigate("/events/create/album/template-editor");
+  };
+
   const canSend = template.curatedPhotos.length > 0;
   const selectedCount = template.curatedPhotos.length;
 
@@ -368,11 +401,29 @@ function TemplateCard({
         <div className="as-versions-label">Album Versions</div>
         <div className="as-versions-grid">
           {template.versionHistory.map((v) => (
-            <VersionCard key={v.version} versionNum={v.version} isLatest={false} status={v.status} />
+            <VersionCard
+              key={v.version}
+              versionNum={v.version}
+              isLatest={false}
+              status={v.status}
+              onClick={() => openTemplateEditor(v.version, false, v.status)}
+            />
           ))}
-          <VersionCard versionNum={template.currentVersion} isLatest status={template.status} />
+          <VersionCard
+            versionNum={template.currentVersion}
+            isLatest
+            status={template.status}
+            onClick={() => openTemplateEditor(template.currentVersion, true, template.status)}
+          />
           {placeholderVersionNums.map((vNum) => (
-            <VersionCard key={`empty-${vNum}`} versionNum={vNum} isLatest={false} status="" empty />
+            <VersionCard
+              key={`empty-${vNum}`}
+              versionNum={vNum}
+              isLatest={false}
+              status=""
+              empty
+              onClick={() => openTemplateEditor(vNum, false, "Draft")}
+            />
           ))}
         </div>
       </div>

@@ -12,6 +12,7 @@ import PaymentPage          from "../features/event/pages/PaymentPage";
 import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
+import TemplateEditorPage   from "../features/event/pages/TemplateEditorPage";
 import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
@@ -35,6 +36,7 @@ const PaymentPageAny: any = PaymentPage;
 const AttendancePageAny: any = AttendancePage;
 const MediaManagementPageAny: any = MediaManagementPage;
 const AlbumSelectionPageAny: any = AlbumSelectionPage;
+const TemplateEditorPageAny: any = TemplateEditorPage;
 const EventClosurePageAny: any = EventClosurePage;
 const EnquiryPageAny: any = EnquiryPage;
 const MediaLibraryPageAny: any = MediaLibraryPage;
@@ -182,6 +184,10 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         <Route
           path="/events/create/album"
           element={<AlbumSelectionPageAny user={user} />}
+        />
+        <Route
+          path="/events/create/album/template-editor"
+          element={<TemplateEditorPageAny user={user} />}
         />
 
       
