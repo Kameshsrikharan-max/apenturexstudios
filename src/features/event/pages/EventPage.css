@@ -164,10 +164,8 @@
 /* ---------- TABLET ---------- */
 @media (max-width: 980px) {
   .event-page {padding-inline: 12px;}
-
   .event-hero,
   .event-toolbar {align-items: stretch;flex-direction: column;}
-
   .event-hero-copy,
   .event-hero-art {width: 100%;}
   .event-hero-art {min-height: 210px;}

@@ -163,9 +163,7 @@
 .tap-table tbody tr {transition: background 0.15s;}
 .tap-table tbody tr:hover { background: rgba(56,213,255,0.04); }
 .tap-table tbody tr:last-child td { border-bottom: none; }
-
 .tap-row-assigned { background: rgba(82,231,166,0.05) !important; }
-
 .tap-empty {text-align: center;color: var(--muted);padding: 32px 16px !important;font-size: 13px;font-weight: 700;font-style: italic;}
 
 /* Member cell */

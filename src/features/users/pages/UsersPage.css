@@ -149,18 +149,8 @@
 
 /* --- Advanced filter panel (tab-aware: Role / Status / Invite Status / Date) --- */
 .filter-adv-panel { width: 520px; max-width: 90vw; }
-.filter-adv-title {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 900;
-  margin-bottom: 16px;
-  font-family: "Playfair Display", serif;
-}
-.filter-adv-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 20px;
-}
+.filter-adv-title {color: #ffffff;font-size: 18px;font-weight: 900;margin-bottom: 16px;font-family: "Playfair Display", serif;}
+.filter-adv-grid {display: grid;grid-template-columns: 1fr 1fr;gap: 4px 20px;}
 .filter-adv-item { margin-bottom: 14px !important; }
 .filter-adv-item .ant-form-item-label { padding-bottom: 6px !important; }
 .filter-adv-item .ant-form-item-label > label {color: #93c5fd !important;font-weight: 800 !important;text-transform: uppercase;font-size: 11px;letter-spacing: 0.5px;height: auto !important;}
@@ -311,8 +301,6 @@
 .uvo-gallery-pane::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.35); border-radius: 5px; }
 @keyframes uvoGalleryIn { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
 
-/* Cat strip: right padding reserved so nothing (e.g. the "starred first" note)
-   ever sits underneath the fixed close (X) button in the corner */
 .uvo-cat-strip {position: sticky;top: 0;z-index: 10;padding: 16px 90px 12px 28px;background: rgba(2,6,22,0.7);backdrop-filter: blur(20px);border-bottom: 1px solid rgba(59,130,246,0.14);}
 .uvo-cat-inner { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .uvo-cat-pill {height: 30px; padding: 0 12px;display: inline-flex; align-items: center; gap: 6px;border-radius: 999px; font-size: 11px; font-weight: 700;color: rgba(255,255,255,0.65);background: rgba(255,255,255,0.05);border: 1px solid rgba(255,255,255,0.12);cursor: pointer;transition: all 0.22s;}

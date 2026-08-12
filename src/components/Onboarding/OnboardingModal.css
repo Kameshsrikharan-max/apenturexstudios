@@ -172,10 +172,7 @@
   .ob-error,
   .ob-field--shake,
   .ob-field-status,
-  .ob-btn-primary::before {
-    animation: none !important;
-    transition: none !important;
-  }
+  .ob-btn-primary::before {animation: none !important;transition: none !important;}
 }
 
 @media (max-width: 640px) {

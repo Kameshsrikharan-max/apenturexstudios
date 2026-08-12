@@ -96,7 +96,6 @@
 .cep-field textarea:focus,
 .cep-input-icon:hover input {border-color: rgba(56, 213, 255, 0.72);background: rgba(8, 20, 36, 0.88);box-shadow: 0 0 0 4px rgba(56, 213, 255, 0.1);}
 
-
 .cep-field input:-webkit-autofill,
 .cep-field input:-webkit-autofill:hover,
 .cep-field input:-webkit-autofill:focus,
@@ -113,7 +112,6 @@
 .cep-field input:autofill,
 .cep-field textarea:autofill {box-shadow: 0 0 0 1000px var(--field) inset !important;-moz-text-fill-color: var(--ink) !important;}
 /* End autofill fix */
-
 .cep-input-icon {position: relative;}
 .cep-input-icon input {padding-right: 42px;cursor: pointer;}
 .cep-input-icon .anticon {position: absolute;right: 14px;top: 50%;transform: translateY(-50%);color: rgba(56, 213, 255, 0.68);font-size: 15px;pointer-events: none;}
