@@ -198,6 +198,11 @@ function Navbar({
     navigate(path);
   };
 
+  const openNotificationDetail = (eventId: string) => {
+    setUpcomingEventsOpen(false);
+    navigate(`/notification/${eventId}`);
+  };
+
   // Close each dropdown whenever the pointer lands outside its button/popover.
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -610,7 +615,19 @@ function Navbar({
             {upcomingEvents.length > 0 ? (
               <div className="upcoming-events-list">
                 {upcomingEvents.map((event) => (
-                  <div className="upcoming-event-card" key={event.id}>
+                  <div
+                    className="upcoming-event-card"
+                    key={event.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openNotificationDetail(event.id)}
+                    onKeyDown={(keyEvent) => {
+                      if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+                        keyEvent.preventDefault();
+                        openNotificationDetail(event.id);
+                      }
+                    }}
+                  >
                     <div className="upcoming-event-date">
                       <strong>{dayjs(event.date).format("DD")}</strong>
                       <span>{dayjs(event.date).format("MMM")}</span>
