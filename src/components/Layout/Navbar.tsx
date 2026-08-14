@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Navbar.css";
 
@@ -29,6 +29,7 @@ const PAGES = [
   { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace" },
   { label: "Transactions", path: "/transactions", icon: <WalletOutlined />, group: "Workspace" },
   { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace" },
+  { label: "Today's Agenda", path: "/agenda", icon: <ClockCircleOutlined />, group: "Workspace" },
   { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio" },
   { label: "Media Library", path: "/media", icon: <PictureOutlined />, group: "Studio" },
 ];
@@ -154,6 +155,12 @@ function Navbar({
   const openFullCalendar = () => {
     setMiniCalendarOpen(false);
     navigate("/calendar");
+  };
+
+  const openAgenda = () => {
+    setMiniCalendarOpen(false);
+    setUserMenuOpen(false);
+    navigate("/agenda");
   };
 
   const getFullDate = (date) => {
@@ -322,6 +329,17 @@ function Navbar({
           >
             <CompassOutlined />
             <span className="nav-tooltip">Studio Tour</span>
+          </button>
+
+          <button
+            type="button"
+            className="nav-icon-button"
+            onClick={openAgenda}
+            aria-label="Open today's agenda"
+            data-tour-id="nav-agenda"
+          >
+            <ClockCircleOutlined />
+            <span className="nav-tooltip">Today's Agenda</span>
           </button>
 
           <div className="mini-calendar-wrap" ref={calendarRef}>
@@ -535,7 +553,7 @@ function Navbar({
                   );
                 })
               ) : (
-                <div className="command-empty">No pages match “{paletteQuery}”.</div>
+                <div className="command-empty">No pages match "{paletteQuery}".</div>
               )}
             </div>
 

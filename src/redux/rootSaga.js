@@ -10,6 +10,8 @@ import { reviewSaga } from "./sagas/reviewSaga";
 import { calendarSaga } from "./sagas/calendarsaga";
 import { subscriptionSaga } from "./sagas/subscriptionsaga";
 import { transactionSaga } from "./sagas/transactionsaga";
+import { notificationSaga } from "./sagas/notificationSaga";
+import { notificationDetailSaga } from "./sagas/notificationDetailSaga";
 
 export default function* rootSaga() {
   yield all([
@@ -23,5 +25,7 @@ export default function* rootSaga() {
     calendarSaga(),
     subscriptionSaga(),
     transactionSaga(),
+    notificationSaga(),
+    notificationDetailSaga(),
   ]);
 }

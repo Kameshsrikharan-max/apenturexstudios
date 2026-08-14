@@ -23,6 +23,7 @@ import NotificationSettingsPage from "../components/UI/NotificationSettingsPage"
 import NotificationDetailsPage  from "../components/UI/NotificationDetailsPage";
 import SubscriptionPage     from "../features/subscription/SubscriptionPage";
 import TransactionPage      from "../features/Transaction/pages/Transactionpage";
+import TodaysAgendaWidget   from "../components/UI/TodaysAgendaWidget";
 import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 
@@ -48,6 +49,7 @@ const NotificationSettingsPageAny: any = NotificationSettingsPage;
 const NotificationDetailsPageAny: any = NotificationDetailsPage;
 const SubscriptionPageAny: any = SubscriptionPage;
 const TransactionPageAny: any = TransactionPage;
+const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -222,6 +224,9 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
 
         
         <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
+
+        {/* Today's Agenda */}
+        <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
       </Route>
 
     
