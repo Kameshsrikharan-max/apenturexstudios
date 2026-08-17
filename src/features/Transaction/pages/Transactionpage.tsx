@@ -8,8 +8,6 @@ import Sidebar from "../../../components/UI/Sidebar";
 import rootReducer from "../../../redux/rootReducer";
 import {fetchTransactionsRequest,refundTransactionRequest,exportTransactionsRequest,resetTransactionError,} from "../../../redux/actions/transactionActions";
 import type {StoredTransaction,TransactionStatus,PaymentMethod,} from "../../../redux/types/transactiontypes";
-// NEW — same-tab event fired by utils/transactionStore.ts whenever a
-// transaction is written from PaymentPage (or anywhere else)
 import { TRANSACTIONS_UPDATED_EVENT } from "../../../utils/transactionStore";
 import "./Transactionpage.css";
 
@@ -28,7 +26,6 @@ interface TransactionRecord extends StoredTransaction {}
 
 
 /*  Constants / helpers  */
-
 
 const statusIconMap: Record<StatusFilterKey, ReactNode> = {
   All: <WalletOutlined />,
@@ -50,10 +47,6 @@ const formatINR = (value: number) => `₹ ${value.toLocaleString("en-IN")}`;
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-
-/*  CustomModal — matches AXS neon-glass modal pattern                        */
-
 
 interface CustomModalProps {
   open: boolean;
@@ -97,7 +90,6 @@ const CustomModal = ({ open, onClose, width = 560, children }: CustomModalProps)
 const TransactionPage = () => {
   const dispatch = useDispatch<any>();
 
-  // ── Redux state (replaces local transactionStore + useState) ──
   const {
     list: transactions,
     loading: isLoading,
@@ -123,9 +115,6 @@ const TransactionPage = () => {
     dispatch(fetchTransactionsRequest());
   }, [dispatch]);
 
-  // NEW — refetch whenever PaymentPage (or any other component) writes a
-  // transaction to localStorage while this page is mounted, so the table
-  // reflects new/edited payments without a manual refresh.
   useEffect(() => {
     const handleUpdate = () => dispatch(fetchTransactionsRequest());
     window.addEventListener(TRANSACTIONS_UPDATED_EVENT, handleUpdate);

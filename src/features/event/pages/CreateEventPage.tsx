@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,DoubleLeftOutlined,EnvironmentOutlined,InfoCircleOutlined,LeftOutlined,MailOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,ReloadOutlined,RightOutlined,TeamOutlined,ThunderboltOutlined,UserOutlined,} from "@ant-design/icons";
 import "./CreateEventPage.css";
+import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 
 interface StepDef {
   label: string;
@@ -151,6 +152,7 @@ interface EventFormState {
   address: string;
   city: string;
   state: string;
+  location: LocationData | null;
   selectedServices: string[];
   albumData: Record<string, any>;
 }
@@ -201,6 +203,7 @@ interface BoardEvent {
   members: number;
   budget: string;
   image: string;
+  location?: LocationData | null;
 }
 
 function formatBoardDate(date: Date): string {
@@ -232,6 +235,7 @@ function syncEventToBoard(form: EventFormState, createdAt: string): void {
       budget: form.eventAmount,
       image:
         "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+      location: form.location,
     };
 
     const existingRaw = localStorage.getItem(EVENTS_STORAGE_KEY);
@@ -799,6 +803,7 @@ export default function CreateEventPage() {
     address: "",
     city: "",
     state: "",
+    location: null,
     selectedServices: [],
     albumData: {},
   };
@@ -809,6 +814,7 @@ export default function CreateEventPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [showCal, setShowCal] = useState(false);
   const [showTime, setShowTime] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const calRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
 
@@ -1350,7 +1356,7 @@ export default function CreateEventPage() {
               <section className="cep-panel">
                 <div className="cep-panel-head">
                   <h2><EnvironmentOutlined /> Venue Details</h2>
-                  <small>Manual city and state entry</small>
+                  <small>Manual city and state entry, plus an exact map pin</small>
                 </div>
                 <div className="cep-fields">
                   <label
@@ -1393,6 +1399,62 @@ export default function CreateEventPage() {
                       className={errors.state ? "inp-error" : ""}
                     />
                     {renderError("state")}
+                  </label>
+
+                  <label className="cep-field wide">
+                    <span>Venue Location on Map</span>
+                    {form.location ? (
+                      <div className="cep-loc-set">
+                        <a
+                          className="cep-loc-thumb"
+                          href={`https://www.google.com/maps?q=${form.location.lat},${form.location.lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Tap to open the exact pinned location"
+                        >
+                          <img
+                            src={`https://staticmap.openstreetmap.de/staticmap.php?center=${form.location.lat},${form.location.lng}&zoom=15&size=440x160&markers=${form.location.lat},${form.location.lng},red-pushpin`}
+                            alt="Pinned venue location"
+                            loading="lazy"
+                          />
+                          <span className="cep-loc-overlay">
+                            <EnvironmentOutlined /> Tap to view exact location
+                          </span>
+                        </a>
+                        <div className="cep-loc-meta">
+                          <span className="cep-loc-coords">
+                            {form.location.lat.toFixed(6)}, {form.location.lng.toFixed(6)}
+                          </span>
+                          {form.location.address && (
+                            <span className="cep-loc-address">{form.location.address}</span>
+                          )}
+                          <div className="cep-loc-btns">
+                            <button
+                              type="button"
+                              className="cep-loc-edit"
+                              onClick={() => setShowLocationPicker(true)}
+                            >
+                              Change Pin
+                            </button>
+                            <button
+                              type="button"
+                              className="cep-loc-remove"
+                              onClick={() => set("location", null)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cep-loc-add"
+                        onClick={() => setShowLocationPicker(true)}
+                      >
+                        <EnvironmentOutlined /> Pin Venue on Map
+                      </button>
+                    )}
                   </label>
                 </div>
               </section>
@@ -1463,6 +1525,17 @@ export default function CreateEventPage() {
           </form>
         </div>
       </section>
+
+      {showLocationPicker && (
+        <LocationPickerModal
+          initialLocation={form.location}
+          onClose={() => setShowLocationPicker(false)}
+          onSave={location => {
+            set("location", location);
+            setShowLocationPicker(false);
+          }}
+        />
+      )}
     </main>
   );
 }

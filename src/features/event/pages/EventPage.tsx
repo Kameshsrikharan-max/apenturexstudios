@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
-import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,PlusOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
+import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,PlusOutlined,QrcodeOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
 import { getEvents } from "../../../redux/actions/eventActions";
+import LocationPickerModal, { LocationData } from "./LocationPickerModal";
+import EventQRModal from "../../../components/UI/EventQRModal";
 
 const { Title, Text } = Typography;
 
@@ -61,8 +63,6 @@ const initialEvents = [
 ];
 
 const EVENTS_STORAGE_KEY = "ax.events.v1";
-// Fired by CreateEventPage.tsx after a new event is saved, so this page can
-// refresh immediately without waiting for a "focus" or "storage" event.
 const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 const PAGE_SIZE = 10;
 
@@ -125,6 +125,12 @@ const pipelineColor: Record<string, string> = {
 
 const escapeRegExp = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const staticMapThumb = (lat: number, lng: number, size = "600x180") =>
+  `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=${size}&markers=${lat},${lng},red-pushpin`;
+
+const googleMapsUrl = (lat: number, lng: number) =>
+  `https://www.google.com/maps?q=${lat},${lng}`;
+
 export default function EventPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -146,6 +152,13 @@ export default function EventPage() {
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [tablePage, setTablePage] = useState(1);
   const [cardPage, setCardPage] = useState(1);
+
+  // --- Venue location pin state ---
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [locationEventId, setLocationEventId] = useState<string | null>(null);
+
+  // --- QR code state ---
+  const [qrEvent, setQrEvent] = useState<any>(null);
 
   const [form] = Form.useForm();
 
@@ -171,7 +184,6 @@ export default function EventPage() {
     };
   }, []);
 
-  // Reset to page 1 whenever the visible dataset changes shape.
   useEffect(() => {
     setTablePage(1);
     setCardPage(1);
@@ -271,6 +283,9 @@ export default function EventPage() {
       `Status: ${event.status}`,
       `Stage: ${event.pipeline}`,
       `Assigned Members: ${event.members}`,
+      ...(event.location
+        ? [`Map: ${googleMapsUrl(event.location.lat, event.location.lng)}`]
+        : []),
     ].join("\n");
 
     try {
@@ -289,6 +304,55 @@ export default function EventPage() {
     );
     setAssignEvent(null);
   };
+
+  // --- Venue location pin handlers ---
+  const openLocationPicker = (eventId: string) => {
+    setLocationEventId(eventId);
+    setShowLocationPicker(true);
+  };
+
+  const handleLocationSave = (location: LocationData) => {
+    setEvents((prev) =>
+      prev.map((e) => (e.id === locationEventId ? { ...e, location } : e))
+    );
+    setViewEvent((current: any) =>
+      current && current.id === locationEventId ? { ...current, location } : current
+    );
+    setEditEvent((current: any) =>
+      current && current.id === locationEventId ? { ...current, location } : current
+    );
+    setShowLocationPicker(false);
+    setLocationEventId(null);
+    message.success("Venue location pinned");
+  };
+
+  const removeLocation = (eventId: string) => {
+    setEvents((prev) =>
+      prev.map((e) => (e.id === eventId ? { ...e, location: null } : e))
+    );
+    setViewEvent((current: any) =>
+      current && current.id === eventId ? { ...current, location: null } : current
+    );
+    setEditEvent((current: any) =>
+      current && current.id === eventId ? { ...current, location: null } : current
+    );
+  };
+
+  // Row-action handler: view pin on map if already pinned, otherwise open the picker
+  const handleLocationAction = (record: any) => {
+    if (record.location) {
+      window.open(
+        googleMapsUrl(record.location.lat, record.location.lng),
+        "_blank",
+        "noreferrer"
+      );
+    } else {
+      openLocationPicker(record.id);
+    }
+  };
+
+  const locationPickerInitial: LocationData | null =
+    (locationEventId && events.find((e) => e.id === locationEventId)?.location) || null;
 
   const renderStatus = (status: string) => {
     const meta = statusMeta[status] || statusMeta.DRAFT;
@@ -325,6 +389,17 @@ export default function EventPage() {
 
   const renderRowActionsOverlay = (record: any) => (
     <div className="event-row-actions-overlay">
+      <Tooltip title={record.location ? "View pinned venue" : "Pin venue location"}>
+        <Button
+          type="text"
+          icon={<EnvironmentOutlined />}
+          className={`event-action-btn location ${record.location ? "is-pinned" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLocationAction(record);
+          }}
+        />
+      </Tooltip>
       <Tooltip title="Assign members">
         <Button
           type="text"
@@ -333,6 +408,17 @@ export default function EventPage() {
           onClick={(e) => {
             e.stopPropagation();
             setAssignEvent(record);
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="Show QR code">
+        <Button
+          type="text"
+          icon={<QrcodeOutlined />}
+          className="event-action-btn qr"
+          onClick={(e) => {
+            e.stopPropagation();
+            setQrEvent(record);
           }}
         />
       </Tooltip>
@@ -393,7 +479,9 @@ export default function EventPage() {
       dataIndex: "address",
       key: "address",
       width: 100,
-      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any) => (
+        <span className="event-soft-cell event-address-cell">{highlightText(t)}</span>
+      ),
     },
     {
       title: "City",
@@ -477,7 +565,6 @@ export default function EventPage() {
               >
                 Create Event
               </Button>
-             
             </div>
           </div>
 
@@ -637,11 +724,26 @@ export default function EventPage() {
                       <div className="event-card-footer">
                         {renderStatus(event.status)}
                         <Space size={4}>
+                          <Tooltip title={event.location ? "View pinned venue" : "Pin venue location"}>
+                            <Button
+                              type="text"
+                              icon={<EnvironmentOutlined />}
+                              className={event.location ? "is-pinned" : ""}
+                              onClick={() => handleLocationAction(event)}
+                            />
+                          </Tooltip>
                           <Tooltip title="Assign members">
                             <Button
                               type="text"
                               icon={<TeamOutlined />}
                               onClick={() => setAssignEvent(event)}
+                            />
+                          </Tooltip>
+                          <Tooltip title="Show QR code">
+                            <Button
+                              type="text"
+                              icon={<QrcodeOutlined />}
+                              onClick={() => setQrEvent(event)}
                             />
                           </Tooltip>
                           <Tooltip title="Copy to clipboard">
@@ -656,14 +758,14 @@ export default function EventPage() {
                     </div>
                   </article>
                 ))}
-                {filteredEvents.length === 0 && (
+                {filteredEvents.length === 0 ? (
                   <Empty
                     description="No matching events"
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                   />
-                )}
+                ) : null}
               </div>
-              {filteredEvents.length > PAGE_SIZE && (
+              {filteredEvents.length > PAGE_SIZE ? (
                 <div className="event-card-pagination">
                   <Pagination
                     current={cardPage}
@@ -673,7 +775,7 @@ export default function EventPage() {
                     onChange={(page) => setCardPage(page)}
                   />
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </section>
@@ -687,7 +789,7 @@ export default function EventPage() {
           centered
           className="event-modal event-view-modal"
         >
-          {viewEvent && (
+          {viewEvent ? (
             <div className="event-view-shell">
               <div className="event-view-cover">
                 <img src={viewEvent.image} alt={viewEvent.name} />
@@ -729,8 +831,64 @@ export default function EventPage() {
                 </span>
               </div>
 
+              <div className="event-view-map">
+                <small>Venue Pin</small>
+                {viewEvent.location ? (
+                  <>
+                    <a
+                      className="event-map-thumb"
+                      href={googleMapsUrl(viewEvent.location.lat, viewEvent.location.lng)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Tap to open the exact pinned location"
+                    >
+                      <img
+                        src={staticMapThumb(viewEvent.location.lat, viewEvent.location.lng)}
+                        alt="Venue location"
+                        loading="lazy"
+                      />
+                      <span className="event-map-overlay">
+                        <EnvironmentOutlined /> Tap to view exact location
+                      </span>
+                    </a>
+                    <div className="event-map-meta">
+                      <span className="event-map-coords">
+                        {viewEvent.location.lat.toFixed(6)}, {viewEvent.location.lng.toFixed(6)}
+                      </span>
+                      <div className="event-map-actions">
+                        <button
+                          type="button"
+                          className="event-map-edit"
+                          onClick={() => openLocationPicker(viewEvent.id)}
+                        >
+                          Change Pin
+                        </button>
+                        <button
+                          type="button"
+                          className="event-map-remove"
+                          onClick={() => removeLocation(viewEvent.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="event-map-add"
+                    onClick={() => openLocationPicker(viewEvent.id)}
+                  >
+                    <EnvironmentOutlined /> Pin Venue on Map
+                  </button>
+                )}
+              </div>
+
               <div className="event-modal-actions">
                 <Button onClick={() => setViewEvent(null)}>Close</Button>
+                <Button icon={<QrcodeOutlined />} onClick={() => setQrEvent(viewEvent)}>
+                  Show QR
+                </Button>
                 <Button
                   type="primary"
                   icon={<EditOutlined />}
@@ -744,7 +902,7 @@ export default function EventPage() {
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </Modal>
 
         <Modal
@@ -858,6 +1016,58 @@ export default function EventPage() {
                 </Form.Item>
               </div>
 
+              <div className="event-form-map-block">
+                <span className="event-form-map-label">Venue Location on Map</span>
+                {editEvent?.location ? (
+                  <div className="event-form-map-set">
+                    <a
+                      className="event-map-thumb"
+                      href={googleMapsUrl(editEvent.location.lat, editEvent.location.lng)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <img
+                        src={staticMapThumb(editEvent.location.lat, editEvent.location.lng, "500x150")}
+                        alt="Venue location"
+                        loading="lazy"
+                      />
+                      <span className="event-map-overlay">
+                        <EnvironmentOutlined /> Tap to view exact location
+                      </span>
+                    </a>
+                    <div className="event-map-meta">
+                      <span className="event-map-coords">
+                        {editEvent.location.lat.toFixed(6)}, {editEvent.location.lng.toFixed(6)}
+                      </span>
+                      <div className="event-map-actions">
+                        <button
+                          type="button"
+                          className="event-map-edit"
+                          onClick={() => openLocationPicker(editEvent.id)}
+                        >
+                          Change Pin
+                        </button>
+                        <button
+                          type="button"
+                          className="event-map-remove"
+                          onClick={() => removeLocation(editEvent.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="event-map-add"
+                    onClick={() => editEvent && openLocationPicker(editEvent.id)}
+                  >
+                    <EnvironmentOutlined /> Pin Venue on Map
+                  </button>
+                )}
+              </div>
+
               <div className="event-modal-actions">
                 <Button
                   onClick={() => {
@@ -874,6 +1084,19 @@ export default function EventPage() {
             </Form>
           </div>
         </Modal>
+
+        {showLocationPicker ? (
+          <LocationPickerModal
+            initialLocation={locationPickerInitial}
+            onClose={() => {
+              setShowLocationPicker(false);
+              setLocationEventId(null);
+            }}
+            onSave={handleLocationSave}
+          />
+        ) : null}
+
+        <EventQRModal event={qrEvent} onClose={() => setQrEvent(null)} />
       </main>
     </ConfigProvider>
   );

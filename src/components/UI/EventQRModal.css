@@ -1,0 +1,11 @@
+.event-qr-modal .ant-modal-content {border-radius: 16px !important;padding: 26px 24px !important;}
+.event-qr-shell { display: grid; gap: 16px; text-align: center; }
+.event-qr-heading h4 { margin: 0 0 4px !important; color: #111827 !important; font-weight: 900 !important; }
+.event-qr-heading .ant-typography { color: #64748b !important; font-size: 13px; font-weight: 650; }
+.event-qr-canvas-wrap {width: fit-content;margin: 0 auto;padding: 16px;border-radius: 14px;background: #ffffff;border: 1px solid rgba(148, 163, 184, 0.24);box-shadow: 0 12px 30px rgba(2, 6, 23, 0.1);}
+.event-qr-summary {padding: 12px 14px;border-radius: 10px;background: rgba(59, 130, 246, 0.06);border: 1px solid rgba(59, 130, 246, 0.14);text-align: left;}
+.event-qr-summary strong { display: block; color: #111827; font-size: 15px; font-weight: 900; margin-bottom: 6px; }
+.event-qr-tag { margin-bottom: 8px; border-radius: 999px !important; font-weight: 800 !important; }
+.event-qr-summary p { margin: 4px 0 0; display: flex; align-items: center; gap: 6px; color: #4b5563; font-size: 12.5px; font-weight: 650; }
+.event-qr-actions { justify-content: center; width: 100%; }
+.event-qr-actions .ant-btn-primary { background: linear-gradient(135deg, #3b82f6, #4f46e5) !important; border: 0 !important; }

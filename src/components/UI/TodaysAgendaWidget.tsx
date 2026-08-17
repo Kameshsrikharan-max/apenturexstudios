@@ -1,24 +1,15 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  CameraOutlined,
-  WalletOutlined,
-  PictureOutlined,
-  BellOutlined,
-  RightOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleFilled,
-} from "@ant-design/icons";
+import {CameraOutlined,WalletOutlined,PictureOutlined,BellOutlined,RightOutlined,ClockCircleOutlined,ExclamationCircleFilled,} from "@ant-design/icons";
 import "./TodaysAgendaWidget.css";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+
+/*  Types  */
 
 export interface AgendaShoot {
   id: string;
-  time: string; // e.g. "10:30 AM"
+  time: string;
   clientName: string;
   eventType: string;
   location?: string;
@@ -28,7 +19,7 @@ export interface AgendaPayment {
   id: string;
   clientName: string;
   amount: number;
-  dueLabel: string; // e.g. "Due today", "2 days overdue"
+  dueLabel: string;
   overdue?: boolean;
 }
 
@@ -36,13 +27,13 @@ export interface AgendaAlbum {
   id: string;
   albumName: string;
   clientName: string;
-  submittedLabel: string; // e.g. "Waiting 3 days"
+  submittedLabel: string; 
 }
 
 export interface AgendaNotification {
   id: string;
   message: string;
-  timeLabel: string; // e.g. "12m ago"
+  timeLabel: string; 
   read?: boolean;
 }
 
@@ -52,13 +43,9 @@ export interface TodaysAgendaWidgetProps {
   albums?: AgendaAlbum[];
   notifications?: AgendaNotification[];
   loading?: boolean;
-  /** Called instead of internal navigation, if you want to control routing yourself */
   onNavigate?: (section: "shoots" | "payments" | "albums" | "notifications") => void;
 }
 
-/* ------------------------------------------------------------------ */
-/*  localStorage fallback (matches axs_ key + CustomEvent pattern)     */
-/* ------------------------------------------------------------------ */
 
 const STORAGE_KEYS = {
   shoots: "axs_agenda_shoots",
@@ -78,18 +65,7 @@ function readFromStorage<T>(key: string): T[] {
   }
 }
 
-/**
- * Fire this from anywhere in the app (e.g. after creating a payment,
- * approving an album, marking a notification read) to make the widget
- * refresh instantly in the same tab — mirrors the pattern used for
- * axs_transactions.
- *
- * Example: window.dispatchEvent(new CustomEvent("axs-agenda-update"));
- */
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+/*  Component  */
 
 type SectionKey = "shoots" | "payments" | "albums" | "notifications";
 
@@ -128,7 +104,6 @@ export default function TodaysAgendaWidget({
   }, []);
 
   useEffect(() => {
-    // If the parent is driving data via props, respect that and skip storage.
     if (shootsProp !== undefined) return;
 
     loadFromStorage();

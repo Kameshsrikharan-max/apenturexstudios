@@ -26,6 +26,7 @@ import TransactionPage      from "../features/Transaction/pages/Transactionpage"
 import TodaysAgendaWidget   from "../components/UI/TodaysAgendaWidget";
 import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
+import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 
 const LoginPageAny: any = LoginPage;
 const DashboardPageAny: any = DashboardPage;
@@ -50,6 +51,7 @@ const NotificationDetailsPageAny: any = NotificationDetailsPage;
 const SubscriptionPageAny: any = SubscriptionPage;
 const TransactionPageAny: any = TransactionPage;
 const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
+const EventPublicViewPageAny: any = EventPublicViewPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -80,8 +82,6 @@ function SignUpPage({ onLogin }: any) {
       phone: basic.phone || "",
     };
 
-    // Persist onboarding data the same way OnboardingGate does,
-    // so the user isn't re-prompted for onboarding after this signup.
     try {
       const key = (basic.email || "guest@apenturexstudios.com");
       localStorage.setItem(`axsOnboardingComplete_${key}`, JSON.stringify(true));
@@ -119,7 +119,6 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
   return (
     <Routes>
 
-  
       <Route
         path="/"
         element={
@@ -145,7 +144,10 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         }
       />
 
-    
+      {/* Public QR scan destination — intentionally OUTSIDE ProtectedLayout so it
+          works without login when someone scans an event's QR code */}
+      <Route path="/events/public" element={<EventPublicViewPageAny />} />
+
       <Route
         element={
           <ProtectedLayout
@@ -155,20 +157,11 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           />
         }
       >
-      
         <Route path="/dashboard" element={<DashboardPageAny user={user} />} />
-
-      
         <Route path="/review" element={<ReviewPageAny user={user} />} />
-
-        
         <Route path="/users" element={<UsersPageAny user={user} />} />
-
-      
         <Route path="/events"        element={<EventPageAny user={user} />} />
         <Route path="/events/create" element={<CreateEventPageAny user={user} />} />
-
-    
         <Route
           path="/events/create/team-assignment"
           element={<TeamAssignmentPageAny user={user} />}
@@ -193,43 +186,22 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           path="/events/create/album/template-editor"
           element={<TemplateEditorPageAny user={user} />}
         />
-
-      
         <Route
           path="/events/create/closure"
           element={<EventClosurePageAny user={user} />}
         />
-
-      
         <Route path="/enquiry" element={<EnquiryPageAny user={user} />} />
-
-        {/* Transaction Management */}
         <Route path="/transactions" element={<TransactionPageAny user={user} />} />
-
-      
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
-
-        
         <Route path="/profile"     element={<ProfilePageAny user={user} />} />
         <Route path="/studio/view" element={<ViewStudioPageAny user={user} />} />
-
-      
         <Route path="/calendar" element={<CalendarPageAny />} />
-
-        {/* Notification Settings */}
         <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />
-
-        {/* Notification Details */}
         <Route path="/notification/:id" element={<NotificationDetailsPageAny />} />
-
-        
         <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
-
-        {/* Today's Agenda */}
         <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
       </Route>
 
-    
       <Route
         path="*"
         element={<Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />}
