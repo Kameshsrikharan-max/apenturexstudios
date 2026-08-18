@@ -2,22 +2,11 @@ import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  LeftOutlined,
-  CheckOutlined,
-  BellOutlined,
-  SaveOutlined,
-  ThunderboltFilled,
-  LoadingOutlined,
-} from "@ant-design/icons";
+import {LeftOutlined,CheckOutlined,BellOutlined,SaveOutlined,ThunderboltFilled,LoadingOutlined,} from "@ant-design/icons";
 import { CATEGORIES } from "./notificationCategories";
 import { Channel, NotificationPrefsMap } from "../../redux/types/notificationTypes";
 import {
-  fetchNotificationPrefsRequest,
-  toggleNotificationChannel,
-  saveNotificationPrefsRequest,
-  resetNotificationSavedFlag,
-} from "../../redux/actions/notificationActions";
+  fetchNotificationPrefsRequest,toggleNotificationChannel,saveNotificationPrefsRequest,resetNotificationSavedFlag,} from "../../redux/actions/notificationActions";
 import "./NotificationSettingsPage.css";
 
 interface RootState {

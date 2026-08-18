@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {ArrowLeftOutlined,CalendarOutlined,ClockCircleOutlined,FileTextOutlined,DeleteOutlined,
-  ShareAltOutlined,CheckCircleOutlined,FireOutlined,HistoryOutlined,BellOutlined,RightOutlined,
+  ShareAltOutlined,CheckCircleOutlined,FireOutlined,HistoryOutlined,BellOutlined,
   StarOutlined,StarFilled,EyeOutlined,EyeInvisibleOutlined,UserOutlined,InfoCircleOutlined,
   DownOutlined,UpOutlined,CheckOutlined,CloseOutlined,ThunderboltOutlined,TagsOutlined,
   LoadingOutlined,} from "@ant-design/icons";
@@ -11,8 +11,6 @@ import {NotificationDetailItem,NotificationMeta,NotificationEvent,NotificationMe
 import { DEFAULT_META } from "../../redux/api/notificationDetailApi";
 import {fetchNotificationDataRequest,updateNotificationMetaRequest,deleteNotificationRequest,} from "../../redux/actions/notificationDetailActions";
 import "./NotificationDetailsPage.css";
-
-type SidebarFilter = "today" | "week" | "month";
 
 interface RootState {
   notificationDetail: {
@@ -33,12 +31,6 @@ const getStatus = (date: string) => {
   return "upcoming";
 };
 
-const SIDEBAR_FILTER_LABELS: Record<SidebarFilter, string> = {
-  today: "Today",
-  week: "This Week",
-  month: "This Month",
-};
-
 function NotificationDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -50,7 +42,6 @@ function NotificationDetailsPage() {
 
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
-  const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>("month");
 
   useEffect(() => {
     dispatch(fetchNotificationDataRequest() as any);
@@ -76,31 +67,6 @@ function NotificationDetailsPage() {
     }
   
   }, [event?.id]);
-
-  const otherEvents = useMemo(() => {
-    const today = dayjs();
-    let rangeStart = today.startOf("month");
-    let rangeEnd = today.endOf("month");
-
-    if (sidebarFilter === "today") {
-      rangeStart = today.startOf("day");
-      rangeEnd = today.endOf("day");
-    } else if (sidebarFilter === "week") {
-      rangeStart = today.startOf("week");
-      rangeEnd = today.endOf("week");
-    } else {
-      rangeStart = today.startOf("month");
-      rangeEnd = today.endOf("month");
-    }
-
-    return allEvents
-      .filter((item) => item.id !== id)
-      .filter((item) => {
-        const d = dayjs(item.date);
-        return !d.isBefore(rangeStart, "day") && !d.isAfter(rangeEnd, "day");
-      })
-      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
-  }, [allEvents, id, sidebarFilter]);
 
   const status = event ? getStatus(event.date) : "upcoming";
   const daysDiff = event ? dayjs(event.date).diff(dayjs(), "day") : 0;
@@ -456,63 +422,6 @@ function NotificationDetailsPage() {
             </button>
           </div>
         </div>
-
-        <aside className="notif-detail-sidebar">
-          <div className="notif-sidebar-header">
-            <h4>Other Notifications</h4>
-            <span className="notif-sidebar-count">{otherEvents.length}</span>
-          </div>
-
-          <div className="notif-sidebar-filters">
-            {(Object.keys(SIDEBAR_FILTER_LABELS) as SidebarFilter[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                className={`notif-sidebar-filter-btn ${sidebarFilter === key ? "is-active" : ""}`}
-                onClick={() => setSidebarFilter(key)}
-              >
-                {SIDEBAR_FILTER_LABELS[key]}
-              </button>
-            ))}
-          </div>
-
-          <div className="notif-sidebar-list-wrap">
-            {otherEvents.length > 0 ? (
-              <div className="notif-sidebar-list">
-                {otherEvents.map((item) => {
-                  const itemStatus = getStatus(item.date);
-                  return (
-                    <button
-                      type="button"
-                      key={item.id}
-                      className="notif-sidebar-item"
-                      onClick={() => navigate(`/notification/${item.id}`)}
-                    >
-                      <div className={`notif-sidebar-date notif-sidebar-date-${itemStatus}`}>
-                        <strong>{dayjs(item.date).format("DD")}</strong>
-                        <span>{dayjs(item.date).format("MMM")}</span>
-                      </div>
-
-                      <div className="notif-sidebar-text">
-                        <strong>{item.title}</strong>
-                        <small>
-                          {dayjs(item.date).format("ddd, DD MMM")}
-                          {item.time ? ` · ${item.time}` : ""}
-                        </small>
-                      </div>
-
-                      <RightOutlined className="notif-sidebar-arrow" />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="notif-sidebar-empty">
-                No notifications {sidebarFilter === "today" ? "today" : sidebarFilter === "week" ? "this week" : "this month"}.
-              </p>
-            )}
-          </div>
-        </aside>
       </div>
     </div>
   );

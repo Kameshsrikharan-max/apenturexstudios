@@ -34,6 +34,8 @@
 .event-search:focus-within {border-color: rgba(96, 165, 250, 0.74) !important;box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14) !important;}
 .event-tool-btn {width: 40px;height: 40px;border-radius: 8px !important;color: #dbeafe !important;border: 1px solid rgba(96, 165, 250, 0.18) !important;background: rgba(255, 255, 255, 0.04) !important;font-size: 16px;}
 .event-tool-btn:hover {color: #ffffff !important;background: rgba(59, 130, 246, 0.18) !important;border-color: rgba(96, 165, 250, 0.42) !important;}
+.event-map-toggle-btn {position: relative;}
+.event-map-toggle-badge {position: absolute;top: -4px;right: -4px;min-width: 16px;height: 16px;padding: 0 4px;display: grid;place-items: center;border-radius: 999px;color: #062033;background: #38bdf8;font-size: 9px;font-weight: 900;line-height: 1;box-shadow: 0 0 0 2px rgba(2,6,23,0.9);}
 .event-view-toggle {height: 42px;padding: 3px;display: inline-flex;gap: 4px;border-radius: 9px;background: rgba(255, 255, 255, 0.05);border: 1px solid rgba(96, 165, 250, 0.18);}
 .event-view-toggle button {width: 36px;height: 34px;display: grid;place-items: center;border: 0;border-radius: 7px;color: #dbeafe;background: transparent;cursor: pointer;font-size: 15px;}
 .event-view-toggle button.active,
