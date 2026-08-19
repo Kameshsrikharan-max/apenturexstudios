@@ -1,10 +1,6 @@
 import dayjs from "dayjs";
-import {
-  NotificationEvent,
-  NotificationDetailItem,
-  NotificationMeta,
-  NotificationMetaMap,
-} from "../types/notificationDetailTypes";
+import {NotificationEvent,NotificationDetailItem,NotificationMeta,NotificationMetaMap,} from "../types/notificationDetailTypes";
+import { getStoredNotifications, deleteStoredNotification } from "../../utils/notificationStore";
 
 const EVENTS_KEY = "calendarEvents";
 const META_KEY = "axsNotificationMeta";
@@ -41,7 +37,6 @@ const persistMeta = (all: NotificationMetaMap) => {
   try {
     localStorage.setItem(META_KEY, JSON.stringify(all));
   } catch {
-    // ignore quota / serialization errors
   }
 };
 
@@ -112,6 +107,13 @@ const normalizeEvent = (raw: any, date: string, index: number): NotificationEven
   return {
     id: (isObject && raw.id) || `${date}-${index}`,
     date, title, time, description, category, triggeredBy, priority, tags, isActionable, extraDetails,
+    notifCategory: "eventAssignment",
+    payload: {
+      eventName: title,
+      role: category,
+      venue: isObject ? raw.venue || raw.location || undefined : undefined,
+      assignedBy: triggeredBy,
+    },
   };
 };
 
@@ -130,7 +132,13 @@ export const fetchNotificationDataApi = async (): Promise<{
 }> => {
   await delay(SIMULATED_LATENCY_MS);
   try {
-    const events = flattenEvents(getSavedEvents());
+    const calendarEvents = flattenEvents(getSavedEvents());
+    const genericNotifications = getStoredNotifications();
+    const events = [
+      ...genericNotifications,
+      ...calendarEvents.sort((a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf()),
+    ];
+
     const metaMap = getAllMeta();
     return { events, metaMap };
   } catch {
@@ -158,6 +166,12 @@ export const updateNotificationMetaApi = async (
 export const deleteNotificationApi = async (id: string, date: string): Promise<string> => {
   await delay(200);
   try {
+  
+    if (id.startsWith("notif-")) {
+      deleteStoredNotification(id);
+      return id;
+    }
+
     const stored = getSavedEvents();
     const dayEvents = stored[date];
     if (Array.isArray(dayEvents)) {

@@ -16,6 +16,11 @@ import {
   type PaymentMethod,
   type StoredTransaction,
 } from "../../../utils/transactionStore"; // adjust path to your project structure
+import {
+  notifyPaymentReceived,
+  notifyPaymentPending,
+  notifyPaymentCompleted,
+} from "../../../components/UI/notificationTriggers";
 
 // ─── Constants ───
 
@@ -957,6 +962,11 @@ export default function PaymentPage() {
     setPayments(prev => prev.filter(p => p.id !== id));
   }, [setPayments]);
 
+  // Tracks the transaction status from the previous run of the effect below,
+  // so we only fire a notification on a genuine status transition rather than
+  // on every re-render (this effect re-runs whenever `payments` changes).
+  const prevStatusRef = useRef<StoredTransaction["status"] | null>(null);
+
   // ── Push a computed transaction record into the shared store used by TransactionPage ──
   useEffect(() => {
     if (!event) return;
@@ -988,6 +998,29 @@ export default function PaymentPage() {
       status,
       method: (lastPayment?.method as PaymentMethod) || "UPI",
     });
+
+    // Fire a notification only on a genuine status transition (Pending ->
+    // Partial -> Paid), not on every render this effect happens to run on.
+    if (prevStatusRef.current !== status && lastPayment) {
+      const notifParams = {
+        amount: Number(stripCommas(String(lastPayment.amount))),
+        clientName: event.clientName || "—",
+        transactionId: String(event._createdAt || event.eventName || "default"),
+      };
+
+      if (status === "Paid") {
+        notifyPaymentCompleted(notifParams);
+      } else if (status === "Partial" && prevStatusRef.current !== "Paid") {
+        notifyPaymentReceived(notifParams);
+      } else if (status === "Pending" && prevStatusRef.current !== null) {
+        // A payment was removed and the event dropped back to Pending —
+        // surface it as a pending notification rather than staying silent.
+        notifyPaymentPending(notifParams);
+      }
+      // status === "Pending" && prevStatusRef.current === null: initial
+      // mount with no payments recorded yet — nothing worth notifying.
+    }
+    prevStatusRef.current = status;
   }, [payments, event, eventAmount]);
 
   const [activeStep, setActiveStep] = useState(2);

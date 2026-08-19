@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,6 +7,8 @@ import { CATEGORIES } from "./notificationCategories";
 import { Channel, NotificationPrefsMap } from "../../redux/types/notificationTypes";
 import {
   fetchNotificationPrefsRequest,toggleNotificationChannel,saveNotificationPrefsRequest,resetNotificationSavedFlag,} from "../../redux/actions/notificationActions";
+import { pushNotification } from "../../utils/notificationStore";
+import { NotificationCategoryKey, NotificationPayload } from "../../redux/types/notificationDetailTypes";
 import "./NotificationSettingsPage.css";
 
 interface RootState {
@@ -23,6 +25,88 @@ interface RootState {
 const countActive = (prefs: NotificationPrefsMap) =>
   Object.values(prefs).filter((p) => p?.inApp || p?.email).length;
 
+const channelSummary = (pref?: { inApp?: boolean; email?: boolean }) => {
+  if (!pref || (!pref.inApp && !pref.email)) return "turned off";
+  const parts: string[] = [];
+  if (pref.inApp) parts.push("In App");
+  if (pref.email) parts.push("Email");
+  return `enabled for ${parts.join(" & ")}`;
+};
+
+const buildNotificationForCategory = (
+  categoryKey: NotificationCategoryKey,
+  categoryTitle: string,
+  summary: string
+): { title: string; description: string; payload: NotificationPayload } => {
+  switch (categoryKey) {
+    case "reviewEndorsement":
+      return {
+        title: "Review Endorsement preferences updated",
+        description: `Alerts for referral, endorsement, and approval decisions are now ${summary}.`,
+        payload: {
+          referralName: categoryTitle,
+          decisionType: "Preference Update",
+          remarks: `Notifications ${summary}.`,
+        },
+      };
+    case "changeRequest":
+      return {
+        title: "Change Request preferences updated",
+        description: `Alerts for profile and studio update requests are now ${summary}.`,
+        payload: {
+          studioName: "Notification Settings",
+          requestedField: categoryTitle,
+          newValue: summary,
+          requestedBy: "You",
+        },
+      };
+    case "deleteRequest":
+      return {
+        title: "Delete Request preferences updated",
+        description: `Alerts for delete request submissions and decisions are now ${summary}.`,
+        payload: {
+          targetType: categoryTitle,
+          reason: `Notifications ${summary}.`,
+          requestedBy: "You",
+        },
+      };
+    case "eventAssignment":
+      return {
+        title: "Event Assignment preferences updated",
+        description: `Alerts for new assignments and responses are now ${summary}.`,
+        payload: {
+          eventName: categoryTitle,
+          role: "Preference Update",
+          assignedBy: "You",
+        },
+      };
+    case "paymentExpenses":
+      return {
+        title: "Payment & Expenses preferences updated",
+        description: `Payment reminders and expense alerts are now ${summary}.`,
+        payload: {
+          expenseType: categoryTitle,
+          invoiceId: "—",
+        },
+      };
+    case "mediaNotifications":
+      return {
+        title: "Media Notifications preferences updated",
+        description: `Media submission and upload alerts are now ${summary}.`,
+        payload: {
+          albumName: categoryTitle,
+          uploadedBy: "You",
+        },
+      };
+    default:
+      return {
+        title: `${categoryTitle} preferences updated`,
+        description: `Notifications for ${categoryTitle} are now ${summary}.`,
+        payload: {},
+      };
+  }
+};
+
 function NotificationSettingsPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -31,12 +115,43 @@ function NotificationSettingsPage() {
     (state: RootState) => state.notification
   );
 
+  const pendingChangedKeysRef = useRef<string[]>([]);
+
   useEffect(() => {
     dispatch(fetchNotificationPrefsRequest() as any);
   }, [dispatch]);
 
   useEffect(() => {
     if (!saved) return;
+
+    const changedKeys = pendingChangedKeysRef.current;
+
+    changedKeys.forEach((key) => {
+      const categoryMeta = CATEGORIES.find((c) => c.key === key);
+      if (!categoryMeta) return;
+
+      const pref = prefs[key] ?? { inApp: false, email: false };
+      const summary = channelSummary(pref);
+      const { title, description, payload } = buildNotificationForCategory(
+        key as NotificationCategoryKey,
+        categoryMeta.title,
+        summary
+      );
+
+      pushNotification({
+        title,
+        notifCategory: key as NotificationCategoryKey,
+        category: categoryMeta.title,
+        description,
+        triggeredBy: "You",
+        priority: "low",
+        isActionable: false,
+        payload,
+      });
+    });
+
+    pendingChangedKeysRef.current = [];
+
     const timer = window.setTimeout(() => dispatch(resetNotificationSavedFlag() as any), 2600);
     return () => window.clearTimeout(timer);
   }, [saved, dispatch]);
@@ -55,6 +170,13 @@ function NotificationSettingsPage() {
   const handleGoBack = () => navigate(-1);
 
   const handleSave = () => {
+    const changed = CATEGORIES.filter((category) => {
+      const before = savedPrefs[category.key] ?? { inApp: false, email: false };
+      const after = prefs[category.key] ?? { inApp: false, email: false };
+      return before.inApp !== after.inApp || before.email !== after.email;
+    }).map((category) => category.key);
+
+    pendingChangedKeysRef.current = changed;
     dispatch(saveNotificationPrefsRequest() as any);
   };
 

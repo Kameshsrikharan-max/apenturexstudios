@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from "react";
 import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
+import {
+  notifyUserRegistered,
+  notifyUserDeactivated,
+  notifyUserActivated,
+} from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -862,6 +867,25 @@ const UsersPage = () => {
       ...values,
       shoots: values.shoots !== undefined ? Number(values.shoots) : (values.shoots as unknown as number),
     };
+
+    // Fire a status-change notification only when the status actually
+    // transitions (avoids firing on unrelated edits like phone/email).
+    if (editUser.status !== values.status) {
+      if (values.status === "Inactive") {
+        notifyUserDeactivated({
+          userName: editUser.name,
+          userEmail: editUser.email,
+          actionBy: "Studio Admin", // swap for the logged-in admin's name if available
+        });
+      } else if (values.status === "Active" && editUser.status !== "Active") {
+        notifyUserActivated({
+          userName: editUser.name,
+          userEmail: editUser.email,
+          actionBy: "Studio Admin",
+        });
+      }
+    }
+
     if (editUser.id.startsWith("p")) {
       setPhotographersData((prev) => prev.map((item) => (item.id === editUser.id ? { ...item, ...upd } : item)));
     } else {
@@ -886,9 +910,21 @@ const UsersPage = () => {
   };
 
   const handleBulkStatus = (status: UserStatus) => {
+    const affected = photographersData.filter((item) => selectedRowKeys.includes(item.id));
+
     setPhotographersData((prev) =>
       prev.map((item) => (selectedRowKeys.includes(item.id) ? { ...item, status } : item))
     );
+
+    // Fire one notification per affected user, based on the new status.
+    affected.forEach((u) => {
+      if (status === "Inactive") {
+        notifyUserDeactivated({ userName: u.name, userEmail: u.email, actionBy: "Studio Admin" });
+      } else if (status === "Active") {
+        notifyUserActivated({ userName: u.name, userEmail: u.email, actionBy: "Studio Admin" });
+      }
+    });
+
     message.success("Updated");
   };
 
@@ -918,6 +954,13 @@ const UsersPage = () => {
     };
     if (isPhotographer) setPhotographersData((prev) => [newUser, ...prev]);
     else setUsersData((prev) => [newUser, ...prev]);
+
+    // Fire a "new user registered" notification for the invited/created user.
+    notifyUserRegistered({
+      userName: newUser.name,
+      userEmail: newUser.email,
+    });
+
     inviteForm.resetFields();
     setInviteOpen(false);
     message.success("Invite sent");

@@ -1,5 +1,111 @@
 export type NotificationDetailItem = { label: string; value: string };
 
+// ===== Notification Category =====
+export type NotificationCategoryKey =
+  // existing
+  | "reviewEndorsement"
+  | "changeRequest"
+  | "deleteRequest"
+  | "eventAssignment"
+  | "paymentExpenses"
+  | "mediaNotifications"
+  // gallery
+  | "photoUploaded"
+  | "photoLiked"
+  // album
+  | "albumCreated"
+  // user / admin
+  | "userRegistered"
+  | "userLogin"
+  | "passwordChanged"
+  | "userDeactivated"
+  | "userActivated"
+  // payment / transaction
+  | "paymentReceived"
+  | "paymentPending"
+  | "paymentFailed"
+  | "paymentDue"
+  | "paymentCompleted";
+
+export interface ReviewEndorsementPayload {
+  referralName?: string;
+  referredTo?: string;
+  decisionType?: string;
+  remarks?: string;
+}
+
+export interface ChangeRequestPayload {
+  requestedField?: string;
+  oldValue?: string;
+  newValue?: string;
+  requestedBy?: string;
+  studioName?: string;
+}
+
+export interface DeleteRequestPayload {
+  targetType?: string;
+  targetName?: string;
+  reason?: string;
+  requestedBy?: string;
+}
+
+export interface EventAssignmentPayload {
+  eventName?: string;
+  role?: string;
+  venue?: string;
+  assignedBy?: string;
+}
+
+export interface PaymentExpensesPayload {
+  amount?: number;
+  currency?: string;
+  dueDate?: string;
+  invoiceId?: string;
+  expenseType?: string;
+}
+
+export interface MediaNotificationPayload {
+  mediaCount?: number;
+  albumName?: string;
+  uploadedBy?: string;
+  fileTypes?: string[];
+}
+
+
+export interface MediaEngagementPayload {
+  photoTitle?: string;
+  albumName?: string;
+  likedBy?: string;
+}
+
+export interface UserAccountPayload {
+  userName?: string;
+  userEmail?: string;
+  actionBy?: string;
+  ipAddress?: string;
+  device?: string;
+}
+
+export interface PaymentStatusPayload {
+  amount?: number;
+  currency?: string;
+  transactionId?: string;
+  dueDate?: string;
+  clientName?: string;
+  reason?: string;
+}
+
+export type NotificationPayload =
+  | ReviewEndorsementPayload
+  | ChangeRequestPayload
+  | DeleteRequestPayload
+  | EventAssignmentPayload
+  | PaymentExpensesPayload
+  | MediaNotificationPayload
+  | MediaEngagementPayload
+  | UserAccountPayload
+  | PaymentStatusPayload;
+
 export type NotificationEvent = {
   id: string;
   date: string;
@@ -12,6 +118,8 @@ export type NotificationEvent = {
   tags: string[];
   isActionable: boolean;
   extraDetails: NotificationDetailItem[];
+  notifCategory: NotificationCategoryKey;
+  payload?: NotificationPayload;
 };
 
 export type NotificationMeta = {

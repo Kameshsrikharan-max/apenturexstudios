@@ -80,7 +80,6 @@ function OnboardingGate({ children }) {
   }, [email]);
 
   const handleComplete = (formData) => {
-    // Keep a raw copy of everything submitted, useful for support/debugging
     saveLS(onboardingDataKey(email), formData);
     saveLS(onboardingKey(email), true);
 

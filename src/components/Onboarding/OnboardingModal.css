@@ -10,7 +10,6 @@
 @keyframes ob-glow-drift {
   from { filter: brightness(1); transform: scale(1); }
   to   { filter: brightness(1.25); transform: scale(1.04); }}
-/*  Ambient drifting particles  */
 .ob-particles {position: fixed;inset: 0;pointer-events: none;overflow: hidden;}
 .ob-particle {position: absolute;top: 105%;border-radius: 50%;background: var(--sky);box-shadow: 0 0 6px 1px var(--sky-dim);opacity: 0;animation-name: ob-particle-rise;animation-timing-function: linear;animation-iteration-count: infinite;}
 @keyframes ob-particle-rise {

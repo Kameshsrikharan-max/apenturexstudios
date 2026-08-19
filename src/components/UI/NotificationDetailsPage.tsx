@@ -10,6 +10,7 @@ import dayjs from "dayjs";
 import {NotificationDetailItem,NotificationMeta,NotificationEvent,NotificationMetaMap,} from "../../redux/types/notificationDetailTypes";
 import { DEFAULT_META } from "../../redux/api/notificationDetailApi";
 import {fetchNotificationDataRequest,updateNotificationMetaRequest,deleteNotificationRequest,} from "../../redux/actions/notificationDetailActions";
+import { getCategoryConfig } from "./notificationCategoryConfig";
 import "./NotificationDetailsPage.css";
 
 interface RootState {
@@ -54,7 +55,11 @@ function NotificationDetailsPage() {
 
   const meta: NotificationMeta = event ? metaMap[event.id] || DEFAULT_META : DEFAULT_META;
 
-  
+  const catConfig = useMemo(
+    () => (event ? getCategoryConfig(event.notifCategory) : null),
+    [event]
+  );
+
   useEffect(() => {
     if (!event) return;
     if (!meta.read) {
@@ -65,7 +70,6 @@ function NotificationDetailsPage() {
         }) as any
       );
     }
-  
   }, [event?.id]);
 
   const status = event ? getStatus(event.date) : "upcoming";
@@ -75,19 +79,19 @@ function NotificationDetailsPage() {
   const dashOffset = circumference * (1 - ringPercent);
 
   const summaryText = useMemo(() => {
-    if (!event) return "";
+    if (!event || !catConfig) return "";
     if (status === "today") {
-      return `${event.title} is happening today${event.time ? ` at ${event.time}` : ""}. This one's live — worth a final check before it kicks off.`;
+      return `${event.title} (${catConfig.label}) is happening today${event.time ? ` at ${event.time}` : ""}. This one's live — worth a final check before it kicks off.`;
     }
     if (status === "upcoming") {
       const urgency =
         event.priority === "high"
           ? "It's marked high priority, so don't let this one slip."
           : "Nothing urgent yet, but it's on the radar.";
-      return `${event.title} is scheduled for ${dayjs(event.date).format("DD MMM YYYY")}, ${Math.abs(daysDiff)} day${Math.abs(daysDiff) === 1 ? "" : "s"} from now. ${urgency}`;
+      return `${event.title} is a ${catConfig.label} notification scheduled for ${dayjs(event.date).format("DD MMM YYYY")}, ${Math.abs(daysDiff)} day${Math.abs(daysDiff) === 1 ? "" : "s"} from now. ${urgency}`;
     }
-    return `${event.title} took place on ${dayjs(event.date).format("DD MMM YYYY")}, ${Math.abs(daysDiff)} day${Math.abs(daysDiff) === 1 ? "" : "s"} ago. This notification is now archived for reference.`;
-  }, [event, status, daysDiff]);
+    return `${event.title} (${catConfig.label}) took place on ${dayjs(event.date).format("DD MMM YYYY")}, ${Math.abs(daysDiff)} day${Math.abs(daysDiff) === 1 ? "" : "s"} ago. This notification is now archived for reference.`;
+  }, [event, catConfig, status, daysDiff]);
 
   const displayTags = useMemo(() => {
     if (!event) return [];
@@ -97,11 +101,12 @@ function NotificationDetailsPage() {
   }, [event]);
 
   const detailsList = useMemo<NotificationDetailItem[]>(() => {
-    if (!event) return [];
+    if (!event || !catConfig) return [];
     const base: NotificationDetailItem[] = [
-      { label: "Event Title", value: event.title },
+      { label: "Title", value: event.title },
       { label: "Date", value: dayjs(event.date).format("DD MMMM YYYY") },
       { label: "Time", value: event.time || "Not specified" },
+      { label: "Notification Type", value: catConfig.label },
       { label: "Category", value: event.category },
       { label: "Priority", value: event.priority.charAt(0).toUpperCase() + event.priority.slice(1) },
       { label: "Triggered By", value: event.triggeredBy },
@@ -116,8 +121,9 @@ function NotificationDetailsPage() {
       },
       { label: "Read Status", value: meta.read ? "Read" : "Unread" },
     ];
-    return [...base, ...event.extraDetails];
-  }, [event, status, daysDiff, meta.read]);
+    const payloadFields = catConfig.getPayloadFields(event);
+    return [...base, ...payloadFields, ...event.extraDetails];
+  }, [event, catConfig, status, daysDiff, meta.read]);
 
   const toggleRead = () => {
     if (!event) return;
@@ -170,7 +176,7 @@ function NotificationDetailsPage() {
     );
   }
 
-  if (!event) {
+  if (!event || !catConfig) {
     return (
       <div className="notif-detail-page">
         <div className="notif-detail-empty">
@@ -187,6 +193,8 @@ function NotificationDetailsPage() {
     );
   }
 
+  const decisionLabels = catConfig.decisionLabels;
+
   return (
     <div className="notif-detail-page">
       <button type="button" className="notif-detail-back" onClick={() => navigate(-1)}>
@@ -195,7 +203,10 @@ function NotificationDetailsPage() {
 
       <div className="notif-detail-layout">
         <div className="notif-detail-main">
-          <div className={`notif-detail-hero notif-status-${status}`}>
+          <div
+            className={`notif-detail-hero notif-status-${status}`}
+            style={{ "--notif-accent": catConfig.accent } as React.CSSProperties}
+          >
             <div className="notif-hero-glow" />
 
             <div className="notif-hero-utility">
@@ -217,12 +228,15 @@ function NotificationDetailsPage() {
               </button>
             </div>
 
+            <div className="notif-type-chip">
+              {catConfig.icon}
+              <span>{catConfig.label}</span>
+            </div>
+
             <div className="notif-hero-top">
               <div className="notif-badge-row">
                 <span className={`notif-status-badge notif-status-${status}`}>
-                  {status === "today" && (<><FireOutlined /> Today</>)}
-                  {status === "upcoming" && (<><CheckCircleOutlined /> Upcoming</>)}
-                  {status === "past" && (<><HistoryOutlined /> Past</>)}
+                  {status === "today" ? (<><FireOutlined /> Today</>) : status === "upcoming" ? (<><CheckCircleOutlined /> Upcoming</>) : (<><HistoryOutlined /> Past</>)}
                 </span>
                 <span className="notif-category-badge">{event.category}</span>
                 <span className={`notif-priority-badge notif-priority-${event.priority}`}>
@@ -258,18 +272,18 @@ function NotificationDetailsPage() {
 
             <div className="notif-hero-meta">
               <span><CalendarOutlined /> {dayjs(event.date).format("dddd, DD MMMM YYYY")}</span>
-              {event.time && (<span><ClockCircleOutlined /> {event.time}</span>)}
+              {event.time ? (<span><ClockCircleOutlined /> {event.time}</span>) : null}
               <span><UserOutlined /> {event.triggeredBy}</span>
             </div>
 
-            {displayTags.length > 0 && (
+            {displayTags.length > 0 ? (
               <div className="notif-tags-row">
                 <TagsOutlined className="notif-tags-icon" />
                 {displayTags.map((tag) => (
                   <span key={tag} className="notif-tag-chip">{tag}</span>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="notif-quickinfo-grid">
@@ -289,7 +303,7 @@ function NotificationDetailsPage() {
                 <span className={`notif-quickinfo-dot ${meta.read ? "is-read" : "is-unread"}`} />
                 {meta.read ? "Already Read" : "Unread"}
               </strong>
-              {meta.viewedAt && <small className="notif-quickinfo-sub">Viewed {meta.viewedAt}</small>}
+              {meta.viewedAt ? <small className="notif-quickinfo-sub">Viewed {meta.viewedAt}</small> : null}
             </div>
           </div>
 
@@ -308,13 +322,13 @@ function NotificationDetailsPage() {
             </p>
           </div>
 
-          {event.isActionable && (
+          {event.isActionable ? (
             <div className={`notif-decision-card ${meta.decision ? `is-${meta.decision}` : ""}`}>
               {meta.decision ? (
                 <div className="notif-decision-result">
                   {meta.decision === "approved" ? <CheckCircleOutlined /> : <CloseOutlined />}
                   <span>
-                    This request was <strong>{meta.decision === "approved" ? "approved" : "declined"}</strong>.
+                    This request was <strong>{meta.decision === "approved" ? decisionLabels.approvedText : decisionLabels.declinedText}</strong>.
                   </span>
                   <button type="button" className="notif-decision-undo" onClick={() => handleDecision(null)}>
                     Undo
@@ -324,7 +338,7 @@ function NotificationDetailsPage() {
                 <>
                   <div className="notif-decision-copy">
                     <strong>Action required</strong>
-                    <span>This notification is awaiting your decision.</span>
+                    <span>{decisionLabels.actionPrompt}</span>
                   </div>
                   <div className="notif-decision-actions">
                     <button
@@ -332,26 +346,26 @@ function NotificationDetailsPage() {
                       className="notif-decision-btn notif-decision-approve"
                       onClick={() => handleDecision("approved")}
                     >
-                      <CheckOutlined /> Approve
+                      <CheckOutlined /> {decisionLabels.approve}
                     </button>
                     <button
                       type="button"
                       className="notif-decision-btn notif-decision-decline"
                       onClick={() => handleDecision("declined")}
                     >
-                      <CloseOutlined /> Decline
+                      <CloseOutlined /> {decisionLabels.decline}
                     </button>
                   </div>
                 </>
               )}
             </div>
-          )}
+          ) : null}
 
           <div className="notif-details-section">
             <button type="button" className="notif-details-header" onClick={() => setDetailsOpen((v) => !v)}>
               <div>
                 <h3>Details</h3>
-                <p>Additional information related to this notification.</p>
+                <p>Additional information related to this {catConfig.label.toLowerCase()} notification.</p>
               </div>
               <div className="notif-details-header-right">
                 <span className="notif-details-count">{detailsList.length} items</span>
@@ -359,16 +373,16 @@ function NotificationDetailsPage() {
               </div>
             </button>
 
-            {detailsOpen && (
+            {detailsOpen ? (
               <div className="notif-details-grid">
-                {detailsList.map((item) => (
-                  <div key={item.label} className="notif-details-field">
+                {detailsList.map((item, idx) => (
+                  <div key={`${item.label}-${idx}`} className="notif-details-field">
                     <span className="notif-details-field-label">{item.label}</span>
                     <span className="notif-details-field-value">{item.value}</span>
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="notif-timeline-card">
@@ -377,7 +391,7 @@ function NotificationDetailsPage() {
               <div className="notif-timeline-step is-complete">
                 <span className="notif-timeline-dot" />
                 <div>
-                  <strong>Event Scheduled</strong>
+                  <strong>Notification Created</strong>
                   <span>
                     {dayjs(event.date).format("DD MMM YYYY")}
                     {event.time ? ` · ${event.time}` : ""}
@@ -391,17 +405,19 @@ function NotificationDetailsPage() {
                   <span>{meta.read ? meta.viewedAt : "Not yet viewed"}</span>
                 </div>
               </div>
-              {event.isActionable && (
+              {event.isActionable ? (
                 <div className={`notif-timeline-step ${meta.decision ? "is-complete" : ""}`}>
                   <span className="notif-timeline-dot" />
                   <div>
                     <strong>Decision Recorded</strong>
                     <span>
-                      {meta.decision ? `Marked as ${meta.decision}` : "Awaiting approval or decline"}
+                      {meta.decision
+                        ? `Marked as ${meta.decision === "approved" ? decisionLabels.approvedText : decisionLabels.declinedText}`
+                        : "Awaiting a decision"}
                     </span>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,FolderOpenOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,CloseOutlined,ExclamationCircleOutlined,FileImageOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import "./MediaManagement.css";
+import { notifyPhotoUploaded } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
 
 
 const STEPS = [
@@ -395,6 +396,16 @@ function UploadView({
     if (!selectedFiles.length) return;
     const merged = [...uploadedFiles, ...selectedFiles];
     onUploadedFilesChange(merged);
+
+    // Fire a "photos uploaded" notification for this batch — feeds the bell
+    // dropdown and the notification detail page via notifCategory "photoUploaded".
+    notifyPhotoUploaded({
+      mediaCount: selectedFiles.length,
+      albumName: service.name,
+      uploadedBy: "AXS System", // swap for the logged-in user's name if available
+      fileTypes: [...new Set(selectedFiles.map((f) => f.type))],
+    });
+
     onSelectedFilesChange([]);
 
     const imgs  = merged.filter((f) => f.type === "image").length;

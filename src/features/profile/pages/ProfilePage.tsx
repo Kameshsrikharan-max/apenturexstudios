@@ -7,6 +7,7 @@ import {
   ThunderboltOutlined, UploadOutlined, UserOutlined,
 } from "@ant-design/icons";
 import "./ProfilePage.css";
+import { notifyPhotoLiked } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
 
 const DEFAULT_PROFILE = {
   firstName: "Kamesh", lastName: "Srikharan.T",
@@ -425,7 +426,27 @@ function ProfilePage() {
     const r=new FileReader(); r.onload=()=>saveField("profilePhoto",r.result); r.readAsDataURL(f); e.target.value="";
   };
 
-  const toggleFavorite=id=>{ setFavorites(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarred",n); return n; }); };
+  const toggleFavorite=id=>{
+    setFavorites(c=>{
+      const isLiking = !c.includes(id);
+      const n = c.includes(id) ? c.filter(x=>x!==id) : [...c,id];
+      saveLS("axsStarred",n);
+
+      // Fire a "photo liked" notification only on the like transition (not unlike).
+      if (isLiking) {
+        const photo = photos.find(p => p.id === id);
+        if (photo) {
+          notifyPhotoLiked({
+            photoTitle: photo.title,
+            albumName: photo.category,
+            likedBy: fullName,
+          });
+        }
+      }
+
+      return n;
+    });
+  };
   const toggleStarred=id=>{ setStarred(c=>{ const n=c.includes(id)?c.filter(x=>x!==id):[...c,id]; saveLS("axsStarredPhotos",n); return n; }); };
   const openLightbox=photo=>{ const i=filteredPhotos.findIndex(p=>p.id===photo.id); setPreviewPhoto(photo); setPreviewIndex(i); };
   const lbPrev=()=>{ const i=(previewIndex-1+filteredPhotos.length)%filteredPhotos.length; setPreviewPhoto(filteredPhotos[i]); setPreviewIndex(i); };

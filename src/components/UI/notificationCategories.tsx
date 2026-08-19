@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  FileSearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  TeamOutlined,
-  DollarOutlined,
-  PictureOutlined,
-} from "@ant-design/icons";
+import {FileSearchOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,} from "@ant-design/icons";
 
 export interface NotificationCategory {
   key: string;

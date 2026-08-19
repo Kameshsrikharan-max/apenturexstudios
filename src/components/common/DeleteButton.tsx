@@ -1,8 +1,4 @@
-import {
-  useState,
-  useRef,
-  useCallback,
-  useEffect,
+import {useState,useRef,useCallback,useEffect,
   type ReactNode,
   type CSSProperties,
 } from "react";
@@ -74,7 +70,7 @@ const DeleteButton: React.FC<DeleteButtonProps> = ({
   onSuccess,
   onError,
 }) => {
-  // `title` and `label` are interchangeable — `title` wins if both are passed.
+
   const resolvedTitle = title ?? label ?? "Delete";
 
   const [open, setOpen] = useState(false);
@@ -196,7 +192,7 @@ const DeleteButton: React.FC<DeleteButtonProps> = ({
       setLoading(false);
       setHolding(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [onDelete, onSuccess, onError, itemName, mode]);
 
   const handleModalConfirm = async () => {

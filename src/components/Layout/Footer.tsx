@@ -1,8 +1,4 @@
-import {
-  CameraOutlined,
-  ThunderboltFilled,
-  SafetyCertificateOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,ThunderboltFilled,SafetyCertificateOutlined,} from "@ant-design/icons";
 import "./Footer.css";
 
 function Footer() {

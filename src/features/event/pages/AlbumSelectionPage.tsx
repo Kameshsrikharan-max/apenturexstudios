@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,DeleteOutlined,LeftOutlined,RightOutlined,InboxOutlined,} from "@ant-design/icons";
 import "./AlbumSelectionPage.css";
+import { notifyAlbumCreated } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
 
 const STEPS = [
   { label: "Event Details", icon: <PlusOutlined /> },
@@ -502,6 +503,17 @@ function TemplateCard({
   const handleUpload = () => {
     if (!stagedFiles.length) return;
     const merged = [...template.curatedPhotos, ...stagedFiles];
+
+    // Fire an "album created" notification the first time this template
+    // receives its initial batch of curated photos (Draft -> In Progress).
+    if (template.curatedPhotos.length === 0) {
+      notifyAlbumCreated({
+        albumName: template.name,
+        createdBy: "AXS System", // swap for the logged-in user's name if available
+        mediaCount: merged.length,
+      });
+    }
+
     bumpVersion({ curatedPhotos: merged, status: "In Progress" });
     setStagedFiles([]);
   };

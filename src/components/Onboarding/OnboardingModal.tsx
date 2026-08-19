@@ -1,24 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeftOutlined,
-  BankOutlined,
-  CameraOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  EnvironmentOutlined,
-  FileTextOutlined,
-  GlobalOutlined,
-  HomeOutlined,
-  IdcardOutlined,
-  LockOutlined,
-  MailOutlined,
-  NumberOutlined,
-  PhoneOutlined,
-  SafetyCertificateOutlined,
-  StarOutlined,
-  ThunderboltFilled,
-  ToolOutlined,
-  UserOutlined,
+import {ArrowLeftOutlined,BankOutlined,CameraOutlined,CheckCircleOutlined,CloseCircleOutlined,EnvironmentOutlined,FileTextOutlined,GlobalOutlined,HomeOutlined,IdcardOutlined,
+  LockOutlined,MailOutlined,NumberOutlined,PhoneOutlined,SafetyCertificateOutlined,StarOutlined,ThunderboltFilled,ToolOutlined,UserOutlined,
 } from "@ant-design/icons";
 import "./OnboardingModal.css";
 
@@ -87,7 +69,7 @@ const DOC_FIELDS: Record<string, DocField[]> = {
   ],
 };
 
-/* ---------------- Validators ---------------- */
+/* Validators */
 
 const isValidCalendarDate = (dd: number, mm: number, yyyy: number) => {
   const d = new Date(yyyy, mm - 1, dd);
@@ -179,7 +161,7 @@ const validators: Record<string, (value: string) => string> = {
 
 const validate = (key: string, value: string) => (validators[key] ? validators[key](value) : "");
 
-/* ---------------- Decorative HUD primitives ---------------- */
+/*  Decorative HUD primitives */
 
 function ScanFrame() {
   return (
@@ -224,7 +206,7 @@ function DriftParticles() {
   );
 }
 
-/* ---------------- Field primitives ---------------- */
+/* Field primitives */
 
 type FieldStatus = "idle" | "error" | "success";
 
@@ -484,7 +466,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
     return studioOk && portfolioOk;
   }, [studio, studioErrors, portfolio, portfolioErrors]);
 
-  // rough live completion % for the progress rail (purely cosmetic)
+
   const progress = useMemo(() => {
     if (step === 1) {
       const fields = [basic.name, basic.email, basic.phone, basic.studioName, basic.address];

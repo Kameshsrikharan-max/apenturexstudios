@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
+import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -82,6 +83,7 @@ function Navbar({
   const [miniCalendarOpen, setMiniCalendarOpen] = useState(false);
   const [miniMonth, setMiniMonth] = useState(dayjs());
   const [events, setEvents] = useState(getSavedEvents);
+  const [genericNotifications, setGenericNotifications] = useState(getStoredNotifications);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -109,7 +111,7 @@ function Navbar({
   }, [miniMonth]);
 
   const upcomingEvents = useMemo(() => {
-    return Object.entries(events)
+    const fromCalendar = Object.entries(events)
       .filter(([date]) => {
         const eventDate = dayjs(date);
         return eventDate.isSame(dayjs(), "day") || eventDate.isAfter(dayjs(), "day");
@@ -119,7 +121,22 @@ function Navbar({
         if (!Array.isArray(dayEvents)) return [];
         return dayEvents.map((event, index) => normalizeEvent(event, date, index));
       });
-  }, [events]);
+
+    const fromGeneric = genericNotifications
+      .filter((item) => {
+        const itemDate = dayjs(item.date);
+        return itemDate.isSame(dayjs(), "day") || itemDate.isAfter(dayjs(), "day");
+      })
+      .map((item) => ({
+        id: item.id,
+        date: item.date,
+        title: item.title,
+        time: item.time,
+        description: item.description,
+      }));
+
+    return [...fromGeneric, ...fromCalendar];
+  }, [events, genericNotifications]);
 
   const filteredPages = useMemo(() => {
     const query = paletteQuery.trim().toLowerCase();
@@ -129,6 +146,7 @@ function Navbar({
 
   const refreshEvents = () => {
     setEvents(getSavedEvents());
+    setGenericNotifications(getStoredNotifications());
   };
 
   const startTour = () => {
@@ -210,7 +228,7 @@ function Navbar({
     navigate(`/notification/${eventId}`);
   };
 
-  // Close each dropdown whenever the pointer lands outside its button/popover.
+  
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -228,7 +246,18 @@ function Navbar({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  // Global ⌘K / Ctrl+K shortcut
+  useEffect(() => {
+    const handleExternalUpdate = () => refreshEvents();
+
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, handleExternalUpdate);
+    window.addEventListener("storage", handleExternalUpdate);
+
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, handleExternalUpdate);
+      window.removeEventListener("storage", handleExternalUpdate);
+    };
+  }, []);
+  
   useEffect(() => {
     const handleKeyDown = (event) => {
       const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
