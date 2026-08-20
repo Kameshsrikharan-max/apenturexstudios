@@ -1,26 +1,4 @@
-import {
-  FETCH_NOTIFICATION_DATA_REQUEST,
-  FETCH_NOTIFICATION_DATA_SUCCESS,
-  FETCH_NOTIFICATION_DATA_FAILURE,
-  UPDATE_NOTIFICATION_META_REQUEST,
-  UPDATE_NOTIFICATION_META_SUCCESS,
-  UPDATE_NOTIFICATION_META_FAILURE,
-  DELETE_NOTIFICATION_REQUEST,
-  DELETE_NOTIFICATION_SUCCESS,
-  DELETE_NOTIFICATION_FAILURE,
-  NotificationEvent,
-  NotificationMeta,
-  NotificationMetaMap,
-  FetchNotificationDataRequestAction,
-  FetchNotificationDataSuccessAction,
-  FetchNotificationDataFailureAction,
-  UpdateNotificationMetaRequestAction,
-  UpdateNotificationMetaSuccessAction,
-  UpdateNotificationMetaFailureAction,
-  DeleteNotificationRequestAction,
-  DeleteNotificationSuccessAction,
-  DeleteNotificationFailureAction,
-} from "../types/notificationDetailTypes";
+import {FETCH_NOTIFICATION_DATA_REQUEST,FETCH_NOTIFICATION_DATA_SUCCESS,FETCH_NOTIFICATION_DATA_FAILURE,UPDATE_NOTIFICATION_META_REQUEST,UPDATE_NOTIFICATION_META_SUCCESS,UPDATE_NOTIFICATION_META_FAILURE,DELETE_NOTIFICATION_REQUEST,DELETE_NOTIFICATION_SUCCESS,DELETE_NOTIFICATION_FAILURE,NotificationEvent,NotificationMeta,NotificationMetaMap,FetchNotificationDataRequestAction,FetchNotificationDataSuccessAction,FetchNotificationDataFailureAction,UpdateNotificationMetaRequestAction,UpdateNotificationMetaSuccessAction,UpdateNotificationMetaFailureAction,DeleteNotificationRequestAction,DeleteNotificationSuccessAction,DeleteNotificationFailureAction,} from "../types/notificationDetailTypes";
 
 export const fetchNotificationDataRequest = (): FetchNotificationDataRequestAction => ({
   type: FETCH_NOTIFICATION_DATA_REQUEST,

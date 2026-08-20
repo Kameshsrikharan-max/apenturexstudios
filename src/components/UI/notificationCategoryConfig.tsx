@@ -1,6 +1,37 @@
-import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,
-  FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,} from "@ant-design/icons";
-import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,
+import {
+  StarOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  TeamOutlined,
+  DollarOutlined,
+  PictureOutlined,
+  UploadOutlined,
+  HeartOutlined,
+  FolderAddOutlined,
+  UserAddOutlined,
+  LoginOutlined,
+  LockOutlined,
+  StopOutlined,
+  CheckCircleOutlined,
+  WalletOutlined,
+  HourglassOutlined,
+  CloseCircleOutlined,
+  CalendarOutlined,
+  CheckOutlined,
+} from "@ant-design/icons";
+import {
+  NotificationCategoryKey,
+  NotificationEvent,
+  NotificationDetailItem,
+  ReviewEndorsementPayload,
+  ChangeRequestPayload,
+  DeleteRequestPayload,
+  EventAssignmentPayload,
+  PaymentExpensesPayload,
+  MediaNotificationPayload,
+  MediaEngagementPayload,
+  UserAccountPayload,
+  PaymentStatusPayload,
 } from "../../redux/types/notificationDetailTypes";
 
 export interface DecisionLabels {
@@ -301,9 +332,13 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
     icon: <WalletOutlined />,
     getPayloadFields: (event) => {
       const payload = (event.payload || {}) as PaymentStatusPayload;
+      const cur = payload.currency || "₹";
       return compact([
-        field("Amount", payload.amount ? `${payload.currency || "₹"}${payload.amount}` : undefined),
+        field("Amount Received", payload.amount != null ? `${cur}${payload.amount}` : undefined),
         field("Client", payload.clientName),
+        field("Total Event Amount", payload.totalAmount != null ? `${cur}${payload.totalAmount}` : undefined),
+        field("Total Amount Paid", payload.amountPaid != null ? `${cur}${payload.amountPaid}` : undefined),
+        field("Balance Remaining", payload.balanceAmount != null ? `${cur}${payload.balanceAmount}` : undefined),
         field("Transaction ID", payload.transactionId),
       ]);
     },
@@ -317,9 +352,13 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
     icon: <HourglassOutlined />,
     getPayloadFields: (event) => {
       const payload = (event.payload || {}) as PaymentStatusPayload;
+      const cur = payload.currency || "₹";
       return compact([
-        field("Amount", payload.amount ? `${payload.currency || "₹"}${payload.amount}` : undefined),
+        field("Amount", payload.amount != null ? `${cur}${payload.amount}` : undefined),
         field("Client", payload.clientName),
+        field("Total Event Amount", payload.totalAmount != null ? `${cur}${payload.totalAmount}` : undefined),
+        field("Total Amount Paid", payload.amountPaid != null ? `${cur}${payload.amountPaid}` : undefined),
+        field("Balance Remaining", payload.balanceAmount != null ? `${cur}${payload.balanceAmount}` : undefined),
         field("Transaction ID", payload.transactionId),
       ]);
     },
@@ -350,10 +389,14 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
     icon: <CalendarOutlined />,
     getPayloadFields: (event) => {
       const payload = (event.payload || {}) as PaymentStatusPayload;
+      const cur = payload.currency || "₹";
       return compact([
-        field("Amount", payload.amount ? `${payload.currency || "₹"}${payload.amount}` : undefined),
+        field("Amount Due", payload.amount != null ? `${cur}${payload.amount}` : undefined),
         field("Client", payload.clientName),
         field("Due Date", payload.dueDate),
+        field("Total Event Amount", payload.totalAmount != null ? `${cur}${payload.totalAmount}` : undefined),
+        field("Total Amount Paid", payload.amountPaid != null ? `${cur}${payload.amountPaid}` : undefined),
+        field("Balance Remaining", payload.balanceAmount != null ? `${cur}${payload.balanceAmount}` : undefined),
         field("Transaction ID", payload.transactionId),
       ]);
     },
@@ -367,9 +410,13 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
     icon: <CheckOutlined />,
     getPayloadFields: (event) => {
       const payload = (event.payload || {}) as PaymentStatusPayload;
+      const cur = payload.currency || "₹";
       return compact([
-        field("Amount", payload.amount ? `${payload.currency || "₹"}${payload.amount}` : undefined),
+        field("Final Payment", payload.amount != null ? `${cur}${payload.amount}` : undefined),
         field("Client", payload.clientName),
+        field("Total Event Amount", payload.totalAmount != null ? `${cur}${payload.totalAmount}` : undefined),
+        field("Total Amount Paid", payload.amountPaid != null ? `${cur}${payload.amountPaid}` : undefined),
+        field("Balance Remaining", payload.balanceAmount != null ? `${cur}${payload.balanceAmount}` : undefined),
         field("Transaction ID", payload.transactionId),
       ]);
     },
@@ -377,7 +424,7 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
   },
 };
 
-
+/** Returns the config for a category, or null if the key is unrecognized. */
 export const getCategoryConfig = (key: NotificationCategoryKey | undefined | null): CategoryConfig | null => {
   if (!key) return null;
   return CATEGORY_CONFIG[key] || null;

@@ -9,6 +9,7 @@ import rootReducer from "../../../redux/rootReducer";
 import {fetchTransactionsRequest,refundTransactionRequest,exportTransactionsRequest,resetTransactionError,} from "../../../redux/actions/transactionActions";
 import type {StoredTransaction,TransactionStatus,PaymentMethod,} from "../../../redux/types/transactiontypes";
 import { TRANSACTIONS_UPDATED_EVENT } from "../../../utils/transactionStore";
+import { scanAndNotifyPaymentsDue } from "../../../components/UI/notificationTriggers";
 import "./Transactionpage.css";
 
 type RootState = ReturnType<typeof rootReducer>;
@@ -127,6 +128,24 @@ const TransactionPage = () => {
       dispatch(resetTransactionError());
     }
   }, [error, dispatch]);
+
+  // Scan the current transaction list for anything overdue and unpaid, and
+  // push a "paymentDue" notification for each (deduped internally so it
+  // won't re-fire for the same transaction on every list refresh).
+  useEffect(() => {
+    if (!transactions || transactions.length === 0) return;
+    scanAndNotifyPaymentsDue(
+      transactions.map((t) => ({
+        id: t.id,
+        clientName: t.clientName,
+        totalAmount: t.totalAmount,
+        amountPaid: t.amountPaid,
+        balanceAmount: t.balanceAmount,
+        status: t.status,
+        dueDate: (t as any).dueDate, // present once StoredTransaction includes dueDate
+      }))
+    );
+  }, [transactions]);
 
   const statusCounts = useMemo<Record<string, number>>(() => {
     return statusOptions.reduce((acc: Record<string, number>, status) => {

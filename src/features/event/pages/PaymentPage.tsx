@@ -15,12 +15,12 @@ import {
   upsertTransaction,
   type PaymentMethod,
   type StoredTransaction,
-} from "../../../utils/transactionStore"; // adjust path to your project structure
+} from "../../../utils/transactionStore";
 import {
   notifyPaymentReceived,
   notifyPaymentPending,
   notifyPaymentCompleted,
-} from "../../../components/UI/notificationTriggers";
+} from "../../../components/UI/notificationTriggers"; 
 
 // ─── Constants ───
 
@@ -110,11 +110,6 @@ function StatCard({ label, value, color, sub }: { label: string; value: string; 
     </div>
   );
 }
-
-// ─── Custom Payment Method dropdown ─────────────────────────────────────────
-// Replaces the native <select> (which was rendering as an unstyled white pill).
-// Fully themed to the pp-* design system, portalled to <body> so it never gets
-// clipped by the modal's overflow/backdrop-filter, and keyboard accessible.
 
 function PaymentMethodSelect({
   id,
@@ -1006,6 +1001,9 @@ export default function PaymentPage() {
         amount: Number(stripCommas(String(lastPayment.amount))),
         clientName: event.clientName || "—",
         transactionId: String(event._createdAt || event.eventName || "default"),
+        totalAmount: eventAmount,
+        amountPaid: totalReceived,
+        balanceAmount: balance,
       };
 
       if (status === "Paid") {

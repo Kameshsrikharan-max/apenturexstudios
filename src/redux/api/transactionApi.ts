@@ -3,7 +3,7 @@ import type { StoredTransaction } from "../types/transactiontypes";
 const STORAGE_KEY = "axs_transactions";
 export const TRANSACTIONS_UPDATED_EVENT = "axs-transactions-updated";
 
-// Seed data used only the very first time the app runs (empty storage)
+
 const SEED_TRANSACTIONS: StoredTransaction[] = [
   {
     id: "txn-1001",
@@ -80,22 +80,17 @@ function readRaw(): StoredTransaction[] {
 function writeRaw(list: StoredTransaction[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    // Notify any listeners in the SAME tab (storage event only fires cross-tab)
     window.dispatchEvent(new CustomEvent(TRANSACTIONS_UPDATED_EVENT, { detail: list }));
   } catch (err) {
     console.error("transactionApi: failed to write localStorage", err);
   }
 }
 
-/** Get all transactions currently in storage. */
+
 export function getTransactions(): StoredTransaction[] {
   return readRaw();
 }
 
-/**
- * Insert or update a transaction by id.
- * Called from PaymentPage whenever a customer payment is recorded/edited/deleted.
- */
 export function upsertTransaction(txn: StoredTransaction): StoredTransaction[] {
   const current = readRaw();
   const index = current.findIndex((t) => t.id === txn.id);
@@ -109,7 +104,7 @@ export function upsertTransaction(txn: StoredTransaction): StoredTransaction[] {
   return next;
 }
 
-/** Mark a transaction as refunded. */
+
 export function refundTransactionInStore(id: string): StoredTransaction | null {
   const current = readRaw();
   const target = current.find((t) => t.id === id);

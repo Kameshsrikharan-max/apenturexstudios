@@ -1,8 +1,4 @@
-import {
-  GET_DASHBOARD_STATS,
-  GET_DASHBOARD_STATS_SUCCESS,
-  GET_DASHBOARD_STATS_FAILURE,
-} from "../types/dashboardTypes";
+import {GET_DASHBOARD_STATS,GET_DASHBOARD_STATS_SUCCESS,GET_DASHBOARD_STATS_FAILURE,} from "../types/dashboardTypes";
 
 const initialState = {
   loading: false,

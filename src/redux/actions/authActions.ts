@@ -1,16 +1,9 @@
-import {
-  LOGIN_REQUEST,
-  LOGIN_SUCCESS,
-  LOGIN_FAILURE,
-  SIGNUP_REQUEST,
-  SIGNUP_SUCCESS,
-  SIGNUP_FAILURE,
-  LOGOUT,
+import {LOGIN_REQUEST,LOGIN_SUCCESS,LOGIN_FAILURE,SIGNUP_REQUEST,SIGNUP_SUCCESS,SIGNUP_FAILURE,LOGOUT,
 } from "../types/authTypes";
 
 export const loginRequest = (credentials) => ({
   type: LOGIN_REQUEST,
-  payload: credentials, // { identifier, password }
+  payload: credentials,
 });
 
 export const loginSuccess = (data) => ({
@@ -25,7 +18,7 @@ export const loginFailure = (error) => ({
 
 export const signupRequest = (credentials) => ({
   type: SIGNUP_REQUEST,
-  payload: credentials, // { name, identifier, password }
+  payload: credentials, 
 });
 
 export const signupSuccess = (data) => ({

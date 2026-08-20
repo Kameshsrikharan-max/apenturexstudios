@@ -1,8 +1,4 @@
-import {
-  GET_ENQUIRIES,
-  GET_ENQUIRIES_SUCCESS,
-  GET_ENQUIRIES_FAILURE,
-} from "../types/enquiryTypes";
+import {GET_ENQUIRIES,GET_ENQUIRIES_SUCCESS,GET_ENQUIRIES_FAILURE,} from "../types/enquiryTypes";
 
 const initialState = {
   loading: false,

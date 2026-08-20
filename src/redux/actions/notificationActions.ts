@@ -1,22 +1,4 @@
-import {
-  FETCH_NOTIFICATION_PREFS_REQUEST,
-  FETCH_NOTIFICATION_PREFS_SUCCESS,
-  FETCH_NOTIFICATION_PREFS_FAILURE,
-  TOGGLE_NOTIFICATION_CHANNEL,
-  SAVE_NOTIFICATION_PREFS_REQUEST,
-  SAVE_NOTIFICATION_PREFS_SUCCESS,
-  SAVE_NOTIFICATION_PREFS_FAILURE,
-  RESET_NOTIFICATION_SAVED_FLAG,
-  Channel,
-  NotificationPrefsMap,
-  FetchNotificationPrefsRequestAction,
-  FetchNotificationPrefsSuccessAction,
-  FetchNotificationPrefsFailureAction,
-  ToggleNotificationChannelAction,
-  SaveNotificationPrefsRequestAction,
-  SaveNotificationPrefsSuccessAction,
-  SaveNotificationPrefsFailureAction,
-  ResetNotificationSavedFlagAction,
+import {FETCH_NOTIFICATION_PREFS_REQUEST,FETCH_NOTIFICATION_PREFS_SUCCESS,FETCH_NOTIFICATION_PREFS_FAILURE,TOGGLE_NOTIFICATION_CHANNEL,SAVE_NOTIFICATION_PREFS_REQUEST,SAVE_NOTIFICATION_PREFS_SUCCESS,SAVE_NOTIFICATION_PREFS_FAILURE,RESET_NOTIFICATION_SAVED_FLAG,Channel,NotificationPrefsMap,FetchNotificationPrefsRequestAction,FetchNotificationPrefsSuccessAction,FetchNotificationPrefsFailureAction,ToggleNotificationChannelAction,SaveNotificationPrefsRequestAction,SaveNotificationPrefsSuccessAction,SaveNotificationPrefsFailureAction,ResetNotificationSavedFlagAction,
 } from "../types/notificationTypes";
 
 export const fetchNotificationPrefsRequest = (): FetchNotificationPrefsRequestAction => ({

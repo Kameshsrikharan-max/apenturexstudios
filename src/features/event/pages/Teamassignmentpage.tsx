@@ -82,9 +82,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
   const navigate = useNavigate();
 
   const [event, setEvent] = useState<any>(eventProp ?? null);
-
-  // --- Scroll-to-top on mount (fixes page landing mid-scroll after navigating
-  // here from CreateEventPage, since React Router doesn't reset scroll on its own) ---
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, []);

@@ -1,7 +1,15 @@
 import { pushNotification } from "../../utils/notificationStore";
-import {MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,} from "../../redux/types/notificationDetailTypes";
+import {
+  MediaNotificationPayload,
+  MediaEngagementPayload,
+  UserAccountPayload,
+  PaymentStatusPayload,
+} from "../../redux/types/notificationDetailTypes";
 
-/* Gallery */
+/* ------------------------------------------------------------------ */
+/* Gallery                                                             */
+/* ------------------------------------------------------------------ */
+
 export function notifyPhotoUploaded(params: {
   mediaCount: number;
   albumName: string;
@@ -47,8 +55,9 @@ export function notifyPhotoLiked(params: {
   });
 }
 
-
-/* Album */
+/* ------------------------------------------------------------------ */
+/* Album                                                                */
+/* ------------------------------------------------------------------ */
 
 export function notifyAlbumCreated(params: {
   albumName: string;
@@ -71,9 +80,9 @@ export function notifyAlbumCreated(params: {
   });
 }
 
-
-/* User / Admin */
-
+/* ------------------------------------------------------------------ */
+/* User / Admin                                                        */
+/* ------------------------------------------------------------------ */
 
 export function notifyUserRegistered(params: { userName: string; userEmail: string }) {
   const payload: UserAccountPayload = {
@@ -177,20 +186,27 @@ export function notifyUserActivated(params: {
   });
 }
 
-
-/* Payment / Transaction */
+/* ------------------------------------------------------------------ */
+/* Payment / Transaction                                                */
+/* ------------------------------------------------------------------ */
 
 export function notifyPaymentReceived(params: {
   amount: number;
   currency?: string;
   clientName: string;
   transactionId: string;
+  totalAmount?: number;
+  amountPaid?: number;
+  balanceAmount?: number;
 }) {
   const payload: PaymentStatusPayload = {
     amount: params.amount,
     currency: params.currency || "₹",
     clientName: params.clientName,
     transactionId: params.transactionId,
+    totalAmount: params.totalAmount,
+    amountPaid: params.amountPaid,
+    balanceAmount: params.balanceAmount,
   };
 
   return pushNotification({
@@ -208,12 +224,18 @@ export function notifyPaymentPending(params: {
   currency?: string;
   clientName: string;
   transactionId: string;
+  totalAmount?: number;
+  amountPaid?: number;
+  balanceAmount?: number;
 }) {
   const payload: PaymentStatusPayload = {
     amount: params.amount,
     currency: params.currency || "₹",
     clientName: params.clientName,
     transactionId: params.transactionId,
+    totalAmount: params.totalAmount,
+    amountPaid: params.amountPaid,
+    balanceAmount: params.balanceAmount,
   };
 
   return pushNotification({
@@ -258,6 +280,9 @@ export function notifyPaymentDue(params: {
   clientName: string;
   transactionId: string;
   dueDate: string; // YYYY-MM-DD
+  totalAmount?: number;
+  amountPaid?: number;
+  balanceAmount?: number;
 }) {
   const payload: PaymentStatusPayload = {
     amount: params.amount,
@@ -265,6 +290,9 @@ export function notifyPaymentDue(params: {
     clientName: params.clientName,
     transactionId: params.transactionId,
     dueDate: params.dueDate,
+    totalAmount: params.totalAmount,
+    amountPaid: params.amountPaid,
+    balanceAmount: params.balanceAmount,
   };
 
   return pushNotification({
@@ -273,6 +301,9 @@ export function notifyPaymentDue(params: {
     category: "Payment",
     triggeredBy: "AXS System",
     priority: "high",
+    // Stamp with today's date (not the due date) so overdue items still
+    // pass the navbar's "today or later" filter and stay visible in the bell.
+    // The actual due date is preserved in payload.dueDate for display.
     payload,
   });
 }
@@ -282,12 +313,18 @@ export function notifyPaymentCompleted(params: {
   currency?: string;
   clientName: string;
   transactionId: string;
+  totalAmount?: number;
+  amountPaid?: number;
+  balanceAmount?: number;
 }) {
   const payload: PaymentStatusPayload = {
     amount: params.amount,
     currency: params.currency || "₹",
     clientName: params.clientName,
     transactionId: params.transactionId,
+    totalAmount: params.totalAmount,
+    amountPaid: params.amountPaid,
+    balanceAmount: params.balanceAmount,
   };
 
   return pushNotification({
@@ -300,21 +337,37 @@ export function notifyPaymentCompleted(params: {
   });
 }
 
-
-/* Payment-due scanner — run once on Dashboard mount / app init        */
-
+/* ------------------------------------------------------------------ */
+/* Payment-due scanner — run on TransactionPage mount / whenever the   */
+/* transaction list refreshes                                          */
+/* ------------------------------------------------------------------ */
 
 const DUE_PUSHED_KEY = "axsPaymentDuePushedIds";
 
+// Matches the real StoredTransaction shape from utils/transactionStore.ts,
+// plus an optional dueDate (add this field to StoredTransaction if you want
+// due-date tracking — see note below).
 interface DueScanTransaction {
-  transactionId: string;
-  amount: number;
-  currency?: string;
+  id: string;
   clientName: string;
-  dueDate: string; // YYYY-MM-DD
-  status: "paid" | "unpaid" | "pending";
+  totalAmount: number;
+  amountPaid: number;
+  balanceAmount: number;
+  status: "Paid" | "Partial" | "Pending" | "Refunded";
+  dueDate?: string; // YYYY-MM-DD — optional until you add it to StoredTransaction
 }
 
+/**
+ * Scans stored transactions and pushes a "paymentDue" notification for any
+ * transaction that still has a balance, isn't Paid/Refunded, and whose
+ * dueDate has arrived (today or earlier). Guards against duplicate pushes
+ * across reloads using a localStorage id set.
+ *
+ * Transactions without a `dueDate` are skipped entirely — StoredTransaction
+ * doesn't currently track one, so this only does anything once you add
+ * `dueDate?: string` to StoredTransaction and populate it in PaymentPage's
+ * upsertTransaction call.
+ */
 export function scanAndNotifyPaymentsDue(transactions: DueScanTransaction[]) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -329,19 +382,23 @@ export function scanAndNotifyPaymentsDue(transactions: DueScanTransaction[]) {
   let didPush = false;
 
   transactions.forEach((txn) => {
-    if (txn.status !== "unpaid") return;
+    if (txn.status === "Paid" || txn.status === "Refunded") return;
+    if (txn.balanceAmount <= 0) return;
+    if (!txn.dueDate) return; // no due date tracked yet — nothing to compare
     if (txn.dueDate > todayStr) return; // not due yet
-    if (pushedSet.has(txn.transactionId)) return; // already notified
+    if (pushedSet.has(txn.id)) return; // already notified
 
     notifyPaymentDue({
-      amount: txn.amount,
-      currency: txn.currency,
+      amount: txn.balanceAmount,
       clientName: txn.clientName,
-      transactionId: txn.transactionId,
+      transactionId: txn.id,
       dueDate: txn.dueDate,
+      totalAmount: txn.totalAmount,
+      amountPaid: txn.amountPaid,
+      balanceAmount: txn.balanceAmount,
     });
 
-    pushedSet.add(txn.transactionId);
+    pushedSet.add(txn.id);
     didPush = true;
   });
 

@@ -299,7 +299,13 @@ export default function EventPage() {
   const handleAssignSave = (assignedList: any[]) => {
     setEvents((prev) =>
       prev.map((e) =>
-        e.id === assignEvent?.id ? { ...e, members: assignedList.length } : e
+        e.id === assignEvent?.id
+          ? {
+              ...e,
+              members: assignedList.length,
+              assignedMembersList: assignedList,
+            }
+          : e
       )
     );
     setAssignEvent(null);

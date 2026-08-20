@@ -1,34 +1,4 @@
-import {
-  FETCH_PLANS_REQUEST,
-  FETCH_PLANS_SUCCESS,
-  FETCH_PLANS_FAILURE,
-  FETCH_CURRENT_SUBSCRIPTION_REQUEST,
-  FETCH_CURRENT_SUBSCRIPTION_SUCCESS,
-  FETCH_CURRENT_SUBSCRIPTION_FAILURE,
-  SUBSCRIBE_PLAN_REQUEST,
-  SUBSCRIBE_PLAN_SUCCESS,
-  SUBSCRIBE_PLAN_FAILURE,
-  CONTACT_SALES_REQUEST,
-  CONTACT_SALES_SUCCESS,
-  CONTACT_SALES_FAILURE,
-  RESET_SUBSCRIBE_STATUS,
-  SubscriptionPlan,
-  CurrentSubscription,
-  ContactSalesPayload,
-  FetchPlansRequestAction,
-  FetchPlansSuccessAction,
-  FetchPlansFailureAction,
-  FetchCurrentSubscriptionRequestAction,
-  FetchCurrentSubscriptionSuccessAction,
-  FetchCurrentSubscriptionFailureAction,
-  SubscribePlanRequestAction,
-  SubscribePlanSuccessAction,
-  SubscribePlanFailureAction,
-  ContactSalesRequestAction,
-  ContactSalesSuccessAction,
-  ContactSalesFailureAction,
-  ResetSubscribeStatusAction,
-} from "../types/subscriptiontypes";
+import {FETCH_PLANS_REQUEST,FETCH_PLANS_SUCCESS,FETCH_PLANS_FAILURE,FETCH_CURRENT_SUBSCRIPTION_REQUEST,FETCH_CURRENT_SUBSCRIPTION_SUCCESS,FETCH_CURRENT_SUBSCRIPTION_FAILURE,SUBSCRIBE_PLAN_REQUEST,SUBSCRIBE_PLAN_SUCCESS,SUBSCRIBE_PLAN_FAILURE,CONTACT_SALES_REQUEST,CONTACT_SALES_SUCCESS,CONTACT_SALES_FAILURE,RESET_SUBSCRIBE_STATUS,SubscriptionPlan,CurrentSubscription,ContactSalesPayload,FetchPlansRequestAction,FetchPlansSuccessAction,FetchPlansFailureAction,FetchCurrentSubscriptionRequestAction,FetchCurrentSubscriptionSuccessAction,FetchCurrentSubscriptionFailureAction,SubscribePlanRequestAction,SubscribePlanSuccessAction,SubscribePlanFailureAction,ContactSalesRequestAction,ContactSalesSuccessAction,ContactSalesFailureAction,ResetSubscribeStatusAction,} from "../types/subscriptiontypes";
 
 // ---------- Fetch plans ----------
 

@@ -1,6 +1,6 @@
 export type NotificationDetailItem = { label: string; value: string };
 
-// ===== Notification Category =====
+// ===== Notification Category (per-type detail rendering) =====
 export type NotificationCategoryKey =
   // existing
   | "reviewEndorsement"
@@ -71,7 +71,8 @@ export interface MediaNotificationPayload {
   fileTypes?: string[];
 }
 
-
+/** Gallery like / new-album style payloads reuse MediaNotificationPayload
+ *  where possible; this covers cases that need a "liked by" actor instead. */
 export interface MediaEngagementPayload {
   photoTitle?: string;
   albumName?: string;
@@ -87,12 +88,15 @@ export interface UserAccountPayload {
 }
 
 export interface PaymentStatusPayload {
-  amount?: number;
+  amount?: number;          // amount of the specific payment/event that triggered this notification
   currency?: string;
   transactionId?: string;
   dueDate?: string;
   clientName?: string;
-  reason?: string;
+  reason?: string;          // used for paymentFailed
+  totalAmount?: number;     // full event amount
+  amountPaid?: number;      // total received so far (cumulative, may differ from `amount`)
+  balanceAmount?: number;   // remaining balance
 }
 
 export type NotificationPayload =
