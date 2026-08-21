@@ -1,39 +1,33 @@
 import { call, put, takeLatest } from "redux-saga/effects";
-
-import { LOGIN_REQUEST, SIGNUP_REQUEST, LOGOUT } from "../types/authTypes";
-
 import {
-  loginSuccess,
-  loginFailure,
-  signupSuccess,
-  signupFailure,
+  LOGIN_REQUEST, SIGNUP_REQUEST, LOGOUT,
+  SEND_OTP_REQUEST, VERIFY_OTP_REQUEST,
+} from "../types/authTypes";
+import {
+  loginSuccess, loginFailure,
+  signupSuccess, signupFailure,
+  sendOtpSuccess, sendOtpFailure,
+  verifyOtpFailure,
 } from "../actions/authActions";
+import { sendOtpApi, verifyOtpApi } from "../api/authApi";
 
-import { loginApi, signupApi } from "../api/authApi";
-
-function* handleLogin(action) {
+function* handleSendOtp(action: any): any {
   try {
-    const data = yield call(loginApi, action.payload);
-
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("token", data.token);
-
-    yield put(loginSuccess(data));
-  } catch (error) {
-    yield put(loginFailure(error.message));
+    yield call(sendOtpApi, action.payload);
+    yield put(sendOtpSuccess());
+  } catch (error: any) {
+    yield put(sendOtpFailure(error.message));
   }
 }
 
-function* handleSignup(action) {
+function* handleVerifyOtp(action: any): any {
   try {
-    const data = yield call(signupApi, action.payload);
-
+    const data = yield call(verifyOtpApi, action.payload);
     localStorage.setItem("user", JSON.stringify(data.user));
     localStorage.setItem("token", data.token);
-
-    yield put(signupSuccess(data));
-  } catch (error) {
-    yield put(signupFailure(error.message));
+    yield put(loginSuccess(data));
+  } catch (error: any) {
+    yield put(verifyOtpFailure(error.message));
   }
 }
 
@@ -43,7 +37,7 @@ function handleLogout() {
 }
 
 export function* authSaga() {
-  yield takeLatest(LOGIN_REQUEST, handleLogin);
-  yield takeLatest(SIGNUP_REQUEST, handleSignup);
+  yield takeLatest(SEND_OTP_REQUEST, handleSendOtp);
+  yield takeLatest(VERIFY_OTP_REQUEST, handleVerifyOtp);
   yield takeLatest(LOGOUT, handleLogout);
 }

@@ -6,7 +6,7 @@ import { Button, Input, Space, Typography, Card, message, ConfigProvider, Row, C
 import {CameraOutlined,ScanOutlined,UserOutlined,LoadingOutlined,GoogleOutlined,TwitterOutlined,FacebookOutlined,} from "@ant-design/icons";
 
 import { useDispatch, useSelector } from "react-redux";
-import { loginRequest } from "../../../redux/actions/authActions";
+import { sendOtpRequest, verifyOtpRequest, resetOtpState } from "../../../redux/actions/authActions";
 
 const { Title, Text } = Typography;
 
@@ -22,10 +22,11 @@ export default function LoginPage({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
 
   const dispatch = useDispatch();
-  const { loading, error, user } = useSelector((state: any) => state.auth);
+  const { loading, error, user, otpSent, otpLoading, otpError, verifyingOtp } = useSelector((state: any) => state.auth);
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [identifier, setIdentifier] = useState("");
+  const [otp, setOtp] = useState("");
   const [quoteIndex, setQuoteIndex] = useState(0);
 
   const timesFont = {
@@ -75,15 +76,31 @@ export default function LoginPage({ onLogin, onSignUp }) {
       );
   }, [mouseX, mouseY]);
 
-
   const triggerAdvancedSequence = () => {
     if (!identifier) {
       return msgApi.warning(
         "Access denied: Identification missing."
       );
     }
+    if (!otpSent) {
+      dispatch(sendOtpRequest(identifier));
+    } else {
+      if (!otp || otp.length !== 6) {
+        return msgApi.warning("Enter the 6-digit code sent to your email.");
+      }
+      dispatch(verifyOtpRequest(identifier, otp));
+    }
+  };
 
-    dispatch(loginRequest({ identifier }));
+  const handleResendOtp = () => {
+    setOtp("");
+    dispatch(sendOtpRequest(identifier));
+    msgApi.info("A new code has been sent.");
+  };
+
+  const handleChangeEmail = () => {
+    setOtp("");
+    dispatch(resetOtpState());
   };
 
   useEffect(() => {
@@ -106,6 +123,18 @@ export default function LoginPage({ onLogin, onSignUp }) {
       msgApi.error(error);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (otpError) {
+      msgApi.error(otpError);
+    }
+  }, [otpError]);
+
+  useEffect(() => {
+    if (otpSent) {
+      msgApi.success("Code sent — check your email.");
+    }
+  }, [otpSent]);
 
 const formBoxVariants = {
   hidden: { opacity: 0, scale: 0.9, y: 20, rotateX: -10 },
@@ -675,39 +704,92 @@ const formBoxVariants = {
                   }}
                 >
               
-                  <motion.div variants={itemVariants}>
-                    <Text className="label-text">
-                      Email or Number
-                    </Text>
+                  {!otpSent ? (
+                    <motion.div variants={itemVariants}>
+                      <Text className="label-text">
+                        Email or Number
+                      </Text>
 
-                    <Input
-                      placeholder="Email or Number"
-                      prefix={
-                        <UserOutlined
-                          style={{
-                            color: "#38BDF8",
-                            marginRight: "10px",
-                          }}
-                        />
-                      }
-                      value={identifier}
-                      onChange={(e) =>
-                        setIdentifier(e.target.value)
-                      }
-                      onPressEnter={triggerAdvancedSequence}
-                      disabled={loading || isAnimating}
-                      className="creative-input"
-                    />
-                  </motion.div>
+                      <Input
+                        placeholder="Email or Number"
+                        prefix={
+                          <UserOutlined
+                            style={{
+                              color: "#38BDF8",
+                              marginRight: "10px",
+                            }}
+                          />
+                        }
+                        value={identifier}
+                        onChange={(e) =>
+                          setIdentifier(e.target.value)
+                        }
+                        onPressEnter={triggerAdvancedSequence}
+                        disabled={otpLoading || isAnimating}
+                        className="creative-input"
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div variants={itemVariants}>
+                      <Text className="label-text">
+                        6-Digit Code
+                      </Text>
+
+                      <Input
+                        placeholder="Enter code"
+                        maxLength={6}
+                        prefix={
+                          <ScanOutlined
+                            style={{
+                              color: "#38BDF8",
+                              marginRight: "10px",
+                            }}
+                          />
+                        }
+                        value={otp}
+                        onChange={(e) =>
+                          setOtp(e.target.value.replace(/\D/g, ""))
+                        }
+                        onPressEnter={triggerAdvancedSequence}
+                        disabled={verifyingOtp || isAnimating}
+                        className="creative-input"
+                      />
+
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginTop: "10px",
+                        }}
+                      >
+                        <Button
+                          type="link"
+                          onClick={handleChangeEmail}
+                          className="signup-link"
+                          style={{ padding: 0 }}
+                        >
+                          Change email
+                        </Button>
+                        <Button
+                          type="link"
+                          onClick={handleResendOtp}
+                          className="signup-link"
+                          style={{ padding: 0 }}
+                        >
+                          Resend code
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
 
                   
                   <motion.div variants={itemVariants}>
                     <Button
                       block
                       onClick={triggerAdvancedSequence}
-                      disabled={loading || isAnimating}
+                      disabled={otpLoading || verifyingOtp || isAnimating}
                       icon={
-                        loading || isAnimating ? (
+                        otpLoading || verifyingOtp || isAnimating ? (
                           <LoadingOutlined />
                         ) : (
                           <ScanOutlined />
@@ -715,11 +797,15 @@ const formBoxVariants = {
                       }
                       className="submit-button-innovative"
                     >
-                      {loading
-                        ? "AUTHENTICATING..."
+                      {otpLoading
+                        ? "SENDING CODE..."
+                        : verifyingOtp
+                        ? "VERIFYING..."
                         : isAnimating
                         ? "WELCOME TO ..."
-                        : "LOG IN"}
+                        : !otpSent
+                        ? "SEND CODE"
+                        : "VERIFY & LOG IN"}
                     </Button>
                   </motion.div>
 
@@ -782,425 +868,96 @@ const formBoxVariants = {
 
         
         <style>{`
-          /* ============================================
-             BASE / DESKTOP-FIRST DEFAULTS (>= 1440px)
-             ============================================ */
+          .glass-card {transition: border 0.4s ease;}
+          .glass-card:hover {border-color:rgba(56, 189, 248, 0.5) !important;}
+          .login-card {width: 90vw;max-width: 400px;border-radius: 40px !important;padding: 20px !important;}
+          .login-left-col {display: none !important;}
 
-          .glass-card {
-            transition: border 0.4s ease;
-          }
-
-          .glass-card:hover {
-            border-color:
-              rgba(56, 189, 248, 0.5) !important;
-          }
-
-          .login-card {
-            width: 90vw;
-            max-width: 400px;
-            border-radius: 40px !important;
-            padding: 20px !important;
-          }
-
-          /* Hidden by default (mobile/tablet) — matches Col xs={0} sm={0} */
-          .login-left-col {
-            display: none !important;
-          }
-
-          /* Shown from tablet-landscape/laptop up — matches Col md={12} */
           @media (min-width: 768px) {
-            .login-left-col {
-              display: flex !important;
-              flex-direction: column;
-              justify-content: center;
-              padding: 0 8%;
-            }
-          }
+            .login-left-col {display: flex !important;flex-direction: column;justify-content: center;padding: 0 8%;}}
+          .login-right-col {display: flex;align-items: center;justify-content: center;padding: 20px;}
+          .brand-icon {font-size: 40px;}
+          .brand-title {letter-spacing: 8px;}
+          .hero-title {font-size: min(4.5rem, 5.5vw) !important;}
+          .quote-box {height: 60px;}
+          .quote-text {font-size: 18px;}
+          .card-title {font-size: 28px;}
+          .splash-camera-icon {font-size: 120px;}
+          .splash-welcome-text {font-size: 12px;}
+          .splash-brand-char {font-size: min(60px, 6vw);}
+          .splash-brand-x {font-size: min(70px, 7vw);}
+          .splash-tagline {font-size: 16px;}
+          .splash-glow {width: 500px;height: 500px;}
+          .creative-input {background:rgba(255, 255, 255, 0.08) !important;border:1px solid rgba(255, 255, 255, 0.1) !important;border-radius: 20px !important;padding: 14px 20px !important;color: #fff !important;}
+          .creative-input:focus {background:rgba(255, 255, 255, 0.12) !important;border-color: #38BDF8 !important;box-shadow:0 0 15px rgba(56, 189, 248, 0.2) !important;}
+          .label-text {color: rgba(255,255,255,0.5);margin-left: 8px;margin-bottom: 8px;display: block;font-size: 10px;letter-spacing: 2px;}
+          .submit-button-innovative {height: 60px !important;
+            background:linear-gradient(135deg,#38BDF8,#0ea5e9) !important;color: #000 !important;border: none !important;border-radius: 20px !important;font-weight: 800 !important;letter-spacing: 2px;box-shadow:0 10px 30px rgba(56, 189, 248, 0.4) !important;}
+          .submit-button-innovative:hover {transform: translateY(-4px);filter: brightness(1.1);}
+          .social-icon {font-size: 22px;color: rgba(255,255,255,0.4);cursor: pointer;transition: all 0.3s;}
+          .social-icon:hover {color: #38BDF8;transform:translateY(-5px)scale(1.2);}
+          .signup-link {color: rgba(255,255,255,0.5) !important;font-size: 13px !important;}
+          .ant-input {color: #fff !important;}
+          .ant-input::placeholder {color:rgba(255,255,255,0.2) !important;}
+          .ant-input-affix-wrapper {background: transparent !important;border: none !important;}
 
-          .login-right-col {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-          }
-
-          .brand-icon {
-            font-size: 40px;
-          }
-
-          .brand-title {
-            letter-spacing: 8px;
-          }
-
-          .hero-title {
-            font-size: min(4.5rem, 5.5vw) !important;
-          }
-
-          .quote-box {
-            height: 60px;
-          }
-
-          .quote-text {
-            font-size: 18px;
-          }
-
-          .card-title {
-            font-size: 28px;
-          }
-
-          .splash-camera-icon {
-            font-size: 120px;
-          }
-
-          .splash-welcome-text {
-            font-size: 12px;
-          }
-
-          .splash-brand-char {
-            font-size: min(60px, 6vw);
-          }
-
-          .splash-brand-x {
-            font-size: min(70px, 7vw);
-          }
-
-          .splash-tagline {
-            font-size: 16px;
-          }
-
-          .splash-glow {
-            width: 500px;
-            height: 500px;
-          }
-
-          .creative-input {
-            background:
-              rgba(255, 255, 255, 0.08) !important;
-
-            border:
-              1px solid rgba(255, 255, 255, 0.1) !important;
-
-            border-radius: 20px !important;
-
-            padding: 14px 20px !important;
-
-            color: #fff !important;
-          }
-
-          .creative-input:focus {
-            background:
-              rgba(255, 255, 255, 0.12) !important;
-
-            border-color: #38BDF8 !important;
-
-            box-shadow:
-              0 0 15px rgba(56, 189, 248, 0.2) !important;
-          }
-
-          .label-text {
-            color: rgba(255,255,255,0.5);
-
-            margin-left: 8px;
-
-            margin-bottom: 8px;
-
-            display: block;
-
-            font-size: 10px;
-
-            letter-spacing: 2px;
-          }
-
-          .submit-button-innovative {
-            height: 60px !important;
-
-            background:
-              linear-gradient(
-                135deg,
-                #38BDF8,
-                #0ea5e9
-              ) !important;
-
-            color: #000 !important;
-
-            border: none !important;
-
-            border-radius: 20px !important;
-
-            font-weight: 800 !important;
-
-            letter-spacing: 2px;
-
-            box-shadow:
-              0 10px 30px rgba(56, 189, 248, 0.4) !important;
-          }
-
-          .submit-button-innovative:hover {
-            transform: translateY(-4px);
-            filter: brightness(1.1);
-          }
-
-          .social-icon {
-            font-size: 22px;
-            color: rgba(255,255,255,0.4);
-            cursor: pointer;
-            transition: all 0.3s;
-          }
-
-          .social-icon:hover {
-            color: #38BDF8;
-
-            transform:
-              translateY(-5px)
-              scale(1.2);
-          }
-
-          .signup-link {
-            color:
-              rgba(255,255,255,0.5) !important;
-
-            font-size: 13px !important;
-          }
-
-          .ant-input {
-            color: #fff !important;
-          }
-
-          .ant-input::placeholder {
-            color:
-              rgba(255,255,255,0.2) !important;
-          }
-
-          .ant-input-affix-wrapper {
-            background: transparent !important;
-            border: none !important;
-          }
-
-          /* ============================================
-             LAPTOP (1025px - 1439px)
-             ============================================ */
           @media (max-width: 1439px) {
-            .login-left-col {
-              padding: 0 5%;
-            }
-
-            .hero-title {
-              font-size: min(3.6rem, 5vw) !important;
-            }
-
-            .login-card {
-              max-width: 380px;
-            }
+            .login-left-col {padding: 0 5%;}
+            .hero-title {font-size: min(3.6rem, 5vw) !important;}
+            .login-card {max-width: 380px;}
           }
 
-          /* ============================================
-             TABLET / SMALL LAPTOP (769px - 1024px)
-             ============================================ */
           @media (max-width: 1024px) {
-            .login-left-col {
-              padding: 0 4%;
-            }
-
-            .hero-title {
-              font-size: min(2.8rem, 4.5vw) !important;
-            }
-
-            .brand-title {
-              font-size: 16px !important;
-              letter-spacing: 5px;
-            }
-
-            .brand-icon {
-              font-size: 32px;
-            }
-
-            .quote-text {
-              font-size: 15px;
-            }
-
-            .login-card {
-              max-width: 360px;
-              border-radius: 32px !important;
-            }
-
-            .card-title {
-              font-size: 24px;
-            }
-
-            .splash-camera-icon {
-              font-size: 90px;
-            }
-
-            .splash-brand-char {
-              font-size: min(46px, 6vw);
-            }
-
-            .splash-brand-x {
-              font-size: min(54px, 7vw);
-            }
-
-            .splash-tagline {
-              font-size: 14px;
-            }
-
-            .splash-glow {
-              width: 380px;
-              height: 380px;
-            }
+            .login-left-col {padding: 0 4%;}
+            .hero-title {font-size: min(2.8rem, 4.5vw) !important;}
+            .brand-title {font-size: 16px !important;letter-spacing: 5px;}
+            .brand-icon {font-size: 32px;}
+            .quote-text {font-size: 15px;}
+            .login-card {max-width: 360px;border-radius: 32px !important;}
+            .card-title {font-size: 24px;}
+            .splash-camera-icon {font-size: 90px;}
+            .splash-brand-char {font-size: min(46px, 6vw);}
+            .splash-brand-x {font-size: min(54px, 7vw);}
+            .splash-tagline {font-size: 14px;}
+            .splash-glow {width: 380px;height: 380px;}
           }
 
-          /* ============================================
-             TABLET / PORTRAIT (481px - 768px)
-             Left brand column hides here (Ant Col xs/sm),
-             form card becomes the full view.
-             ============================================ */
           @media (max-width: 768px) {
-            .login-right-col {
-              padding: 16px;
-            }
-
-            .login-card {
-              width: 92vw;
-              max-width: 420px;
-              border-radius: 28px !important;
-              padding: 16px !important;
-            }
-
-            .card-title {
-              font-size: 22px;
-              letter-spacing: 6px !important;
-            }
-
-            .submit-button-innovative {
-              height: 54px !important;
-            }
-
-            .social-icon {
-              font-size: 20px;
-            }
-
-            .splash-camera-icon {
-              font-size: 70px;
-            }
-
-            .splash-welcome-text {
-              font-size: 10px;
-              letter-spacing: 8px !important;
-            }
-
-            .splash-brand-char {
-              font-size: min(34px, 8vw);
-            }
-
-            .splash-brand-x {
-              font-size: min(40px, 9vw);
-              margin: 0 8px !important;
-            }
-
-            .splash-tagline {
-              font-size: 12px;
-            }
-
-            .splash-glow {
-              width: 300px;
-              height: 300px;
-            }
+            .login-right-col {padding: 16px;}
+            .login-card {width: 92vw;max-width: 420px;border-radius: 28px !important;padding: 16px !important;}
+            .card-title {font-size: 22px;letter-spacing: 6px !important;}
+            .submit-button-innovative {height: 54px !important;}
+            .social-icon {font-size: 20px;}
+            .splash-camera-icon {font-size: 70px;}
+            .splash-welcome-text {font-size: 10px;letter-spacing: 8px !important;}
+            .splash-brand-char {font-size: min(34px, 8vw);}
+            .splash-brand-x {font-size: min(40px, 9vw);margin: 0 8px !important;}
+            .splash-tagline {font-size: 12px;}
+            .splash-glow {width: 300px;height: 300px;}
           }
 
-          /* ============================================
-             MOBILE (up to 480px)
-             ============================================ */
           @media (max-width: 480px) {
-            .login-right-col {
-              padding: 10px;
-            }
-
-            .login-card {
-              width: 94vw;
-              max-width: 100%;
-              border-radius: 22px !important;
-              padding: 14px !important;
-            }
-
-            .card-title {
-              font-size: 18px;
-              letter-spacing: 4px !important;
-            }
-
-            .creative-input {
-              border-radius: 16px !important;
-              padding: 12px 16px !important;
-            }
-
-            .submit-button-innovative {
-              height: 48px !important;
-              border-radius: 16px !important;
-              font-size: 13px;
-            }
-
-            .social-icon {
-              font-size: 18px;
-            }
-
-            .signup-link {
-              font-size: 12px !important;
-            }
-
-            .splash-camera-icon {
-              font-size: 54px;
-            }
-
-            .splash-welcome-text {
-              font-size: 9px;
-              letter-spacing: 6px !important;
-              margin-bottom: 10px !important;
-            }
-
-            .splash-brand-char {
-              font-size: min(24px, 8vw);
-            }
-
-            .splash-brand-x {
-              font-size: min(28px, 9vw);
-              margin: 0 6px !important;
-            }
-
-            .splash-tagline {
-              font-size: 10px;
-              letter-spacing: 1px !important;
-            }
-
-            .splash-glow {
-              width: 220px;
-              height: 220px;
-            }
-
-            .login-root {
-              height: 100dvh !important;
-            }
+            .login-right-col {padding: 10px;}
+            .login-card {width: 94vw;max-width: 100%;border-radius: 22px !important;padding: 14px !important;}
+            .card-title {font-size: 18px;letter-spacing: 4px !important;}
+            .creative-input {border-radius: 16px !important;padding: 12px 16px !important;}
+            .submit-button-innovative {height: 48px !important;border-radius: 16px !important;font-size: 13px;}
+            .social-icon {font-size: 18px;}
+            .signup-link {font-size: 12px !important;}
+            .splash-camera-icon {font-size: 54px;}
+            .splash-welcome-text {font-size: 9px;letter-spacing: 6px !important;margin-bottom: 10px !important;}
+            .splash-brand-char {font-size: min(24px, 8vw);}
+            .splash-brand-x {font-size: min(28px, 9vw);margin: 0 6px !important;}
+            .splash-tagline {font-size: 10px;letter-spacing: 1px !important;}
+            .splash-glow {width: 220px;height: 220px;}
+            .login-root {height: 100dvh !important;}
           }
 
-          /* ============================================
-             VERY SMALL MOBILE (up to 360px)
-             ============================================ */
           @media (max-width: 360px) {
-            .login-card {
-              width: 96vw;
-              padding: 10px !important;
-            }
-
-            .card-title {
-              font-size: 16px;
-              letter-spacing: 3px !important;
-            }
-
-            .splash-brand-char {
-              font-size: 18px;
-            }
-
-            .splash-brand-x {
-              font-size: 20px;
-            }
+            .login-card {width: 96vw;padding: 10px !important;}
+            .card-title {font-size: 16px;letter-spacing: 3px !important;}
+            .splash-brand-char {font-size: 18px;}
+            .splash-brand-x {font-size: 20px;}
           }
         `}</style>
       </div>
