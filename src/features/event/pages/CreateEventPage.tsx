@@ -56,7 +56,7 @@ const MONTHS = [
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
-// Must match the storage key + custom event name used in EventPage.tsx
+
 const EVENTS_STORAGE_KEY = "ax.events.v1";
 const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 
@@ -214,8 +214,7 @@ function formatBoardTime(time: TimeParts | null): string {
   return time ? `${time.h}:${time.m} ${time.ap}` : "";
 }
 
-/** Pushes the newly created event into the Events board (localStorage) and
- *  notifies any mounted EventPage instance to refresh immediately. */
+
 function syncEventToBoard(form: EventFormState, createdAt: string): void {
   if (!form.eventDate) return;
 
@@ -773,7 +772,7 @@ interface FormErrors {
   albums?: string;
 }
 
-/** Order in which fields should be checked/scrolled-to when validation fails. */
+
 const FIELD_ORDER: (keyof FormErrors)[] = [
   "eventName",
   "eventDate",
@@ -837,8 +836,6 @@ export default function CreateEventPage() {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    // Reset then re-apply on next tick so the glow animation restarts
-    // even if the same field is already glowing from a previous attempt.
     window.clearTimeout(glowTimeoutRef.current);
     window.clearTimeout(glowRestartRef.current);
     setGlowField(null);
@@ -856,7 +853,7 @@ export default function CreateEventPage() {
   }, []);
 
   const glowClass = (key: keyof FormErrors) => (glowField === key ? " cep-glow" : "");
-  // --- end error focus / glow handling ---
+  
 
   const commandWrapRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);

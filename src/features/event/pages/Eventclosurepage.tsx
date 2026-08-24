@@ -1,22 +1,7 @@
 import React, { useState, useRef, useEffect, ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  CameraOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  ReloadOutlined,
-  ArrowLeftOutlined,
-  StarOutlined,
-  StarFilled,
-  FileTextOutlined,
-  DollarCircleOutlined,
-  FileOutlined,
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowLeftOutlined,StarOutlined,StarFilled,FileTextOutlined,DollarCircleOutlined,FileOutlined,
 } from "@ant-design/icons";
 import "./EventClosurePage.css";
 

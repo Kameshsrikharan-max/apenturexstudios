@@ -396,13 +396,10 @@ function UploadView({
     if (!selectedFiles.length) return;
     const merged = [...uploadedFiles, ...selectedFiles];
     onUploadedFilesChange(merged);
-
-    // Fire a "photos uploaded" notification for this batch — feeds the bell
-    // dropdown and the notification detail page via notifCategory "photoUploaded".
     notifyPhotoUploaded({
       mediaCount: selectedFiles.length,
       albumName: service.name,
-      uploadedBy: "AXS System", // swap for the logged-in user's name if available
+      uploadedBy: "AXS System",
       fileTypes: [...new Set(selectedFiles.map((f) => f.type))],
     });
 

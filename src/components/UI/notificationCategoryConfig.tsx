@@ -1,38 +1,5 @@
-import {
-  StarOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  TeamOutlined,
-  DollarOutlined,
-  PictureOutlined,
-  UploadOutlined,
-  HeartOutlined,
-  FolderAddOutlined,
-  UserAddOutlined,
-  LoginOutlined,
-  LockOutlined,
-  StopOutlined,
-  CheckCircleOutlined,
-  WalletOutlined,
-  HourglassOutlined,
-  CloseCircleOutlined,
-  CalendarOutlined,
-  CheckOutlined,
-} from "@ant-design/icons";
-import {
-  NotificationCategoryKey,
-  NotificationEvent,
-  NotificationDetailItem,
-  ReviewEndorsementPayload,
-  ChangeRequestPayload,
-  DeleteRequestPayload,
-  EventAssignmentPayload,
-  PaymentExpensesPayload,
-  MediaNotificationPayload,
-  MediaEngagementPayload,
-  UserAccountPayload,
-  PaymentStatusPayload,
-} from "../../redux/types/notificationDetailTypes";
+import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,} from "@ant-design/icons";
+import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,} from "../../redux/types/notificationDetailTypes";
 
 export interface DecisionLabels {
   approve: string;
@@ -68,7 +35,6 @@ const compact = (items: (NotificationDetailItem | null)[]): NotificationDetailIt
   items.filter((item): item is NotificationDetailItem => item !== null);
 
 const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
-  // ===== existing categories =====
   reviewEndorsement: {
     key: "reviewEndorsement",
     label: "Review Endorsement",
@@ -424,7 +390,7 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
   },
 };
 
-/** Returns the config for a category, or null if the key is unrecognized. */
+
 export const getCategoryConfig = (key: NotificationCategoryKey | undefined | null): CategoryConfig | null => {
   if (!key) return null;
   return CATEGORY_CONFIG[key] || null;

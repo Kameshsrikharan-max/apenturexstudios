@@ -372,13 +372,13 @@ export default function TodaysAgendaWidget({
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  /* live clock */
+
   useEffect(() => {
     const tick = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(tick);
   }, []);
 
-  /* close notif popover on outside click */
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -389,7 +389,7 @@ export default function TodaysAgendaWidget({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* derived data */
+
   const todaysEvents = useMemo(
     () =>
       events
@@ -427,7 +427,7 @@ export default function TodaysAgendaWidget({
     navigate(SECTION_ROUTES[section]);
   };
 
-  /* donut geometry (SVG stroke-based ring) */
+  
   const RADIUS = 42;
   const CIRC = 2 * Math.PI * RADIUS;
   const receivedLen = (receivedPct / 100) * CIRC;

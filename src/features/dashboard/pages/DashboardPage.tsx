@@ -73,10 +73,9 @@ const metricCards = [
   { title: "Leads", value: 36, suffix: "", percent: 64, icon: <TeamOutlined />, color: "#38BDF8" },
 ];
 
-/* -------------------------------------------------------------------------- */
-/*  CustomModal — replaces antd Modal entirely, uses the neon-glass tokens    */
-/*  (same pattern as UsersPage's edit modal)                                  */
-/* -------------------------------------------------------------------------- */
+
+/*  CustomModal */
+
 
 interface CustomModalProps {
   open: boolean;
@@ -133,10 +132,9 @@ const DashboardPage = () => {
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
-  // Events are now stateful so newly created ones show up immediately
   const [eventsData, setEventsData] = useState(initialEventsData);
 
-  // Create Event modal state
+  
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<EventFormValues>();
   const [submitting, setSubmitting] = useState(false);

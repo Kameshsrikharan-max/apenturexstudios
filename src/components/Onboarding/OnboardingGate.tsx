@@ -66,7 +66,18 @@ function buildStudioFromOnboarding(formData) {
   };
 }
 
-function OnboardingGate({ children }) {
+type OnboardingGateProps = {
+  children: React.ReactNode;
+  /**
+   * Called when the user taps "Back to login" inside the onboarding modal.
+   * Wire this to your real logout/auth-reset action from the parent
+   * (e.g. dispatch(logout()) or setIsAuthenticated(false)) for a clean flow.
+   * If not supplied, a safe fallback clears the local auth flag and reloads.
+   */
+  onBackToLogin?: () => void;
+};
+
+function OnboardingGate({ children, onBackToLogin }: OnboardingGateProps) {
   const { user } = useSelector((state: any) => state.auth);
   const email = user?.email || "guest@apenturexstudios.com";
 
@@ -97,6 +108,23 @@ function OnboardingGate({ children }) {
     setCompleted(true);
   };
 
+  const handleBack = () => {
+    if (onBackToLogin) {
+      onBackToLogin();
+      return;
+    }
+    // Fallback: clear the local session flag and reload so the app falls
+    // back to its login screen. Pass onBackToLogin from the parent to
+    // replace this with your actual logout dispatch.
+    try {
+      localStorage.removeItem("axsAuthToken");
+      localStorage.removeItem("axsCurrentUser");
+    } catch {
+      /* ignore */
+    }
+    window.location.reload();
+  };
+
   if (!completed) {
     return (
       <OnboardingModal
@@ -106,6 +134,7 @@ function OnboardingGate({ children }) {
           phone: user?.phone || "",
         }}
         onComplete={handleComplete}
+        onBack={handleBack}
       />
     );
   }

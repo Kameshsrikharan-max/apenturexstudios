@@ -16,13 +16,9 @@ const STEPS = [
 
 const TEMPLATE_BASED_SERVICES = ["Traditional Photography", "Candid Photography"];
 
-// Total number of version-card slots always rendered per album template.
 const TOTAL_VERSION_SLOTS = 5;
 
-// Ordered lifecycle used by the status timeline.
 const STATUS_STAGES = ["Draft", "In Progress", "In Review", "Finalized"];
-
-/*  Types describing the shape saved by CreateEventPage */
 
 interface SavedAlbumTemplate {
   name: string;
@@ -55,13 +51,13 @@ interface CuratedPhoto {
 
 interface AlbumVersion {
   version: number;
-  status: string; // "Archived" for history entries
+  status: string; 
 }
 
 interface TemplateCardData {
   id: number;
   name: string;
-  status: string; // Draft | In Progress | In Review | Finalized
+  status: string;
   sheets: number;
   size: string;
   photosRequired: number;
@@ -69,7 +65,7 @@ interface TemplateCardData {
   note: string;
   deadline: string;
   currentVersion: number;
-  versionHistory: AlbumVersion[]; // archived, oldest first
+  versionHistory: AlbumVersion[]; 
 }
 
 interface ServiceAlbumGroup {
@@ -504,12 +500,10 @@ function TemplateCard({
     if (!stagedFiles.length) return;
     const merged = [...template.curatedPhotos, ...stagedFiles];
 
-    // Fire an "album created" notification the first time this template
-    // receives its initial batch of curated photos (Draft -> In Progress).
     if (template.curatedPhotos.length === 0) {
       notifyAlbumCreated({
         albumName: template.name,
-        createdBy: "AXS System", // swap for the logged-in user's name if available
+        createdBy: "AXS System", 
         mediaCount: merged.length,
       });
     }
@@ -543,8 +537,6 @@ function TemplateCard({
   const handleDeadline = (e: React.ChangeEvent<HTMLInputElement>) =>
     onUpdate(template.id, { deadline: e.target.value });
 
-  // Open the native date picker when the custom calendar icon is clicked
-  // (the browser's own indicator is visually hidden — see CSS).
   const handleCalendarIconClick = () => {
     const el = dateRef.current;
     if (!el) return;
@@ -555,7 +547,6 @@ function TemplateCard({
     }
   };
 
-  // Navigate to the Template Editor page for a given version.
   const openTemplateEditor = (versionNum: number, isLatest: boolean, status: string) => {
     const payload = {
       templateId: template.id,
@@ -574,9 +565,7 @@ function TemplateCard({
   const canSend = template.curatedPhotos.length > 0;
   const selectedCount = template.curatedPhotos.length;
 
-  // Always render TOTAL_VERSION_SLOTS version cards: real archived versions +
-  // the current version, padded with empty placeholder slots.
-  const realVersionCount = template.versionHistory.length + 1; // +1 for current version
+  const realVersionCount = template.versionHistory.length + 1;
   const placeholdersNeeded = Math.max(0, TOTAL_VERSION_SLOTS - realVersionCount);
   const placeholderVersionNums = Array.from(
     { length: placeholdersNeeded },
@@ -823,12 +812,10 @@ function TemplateCard({
 /* MAIN PAGE */
 export default function AlbumSelectionPage() {
   const navigate = useNavigate();
-  const [activeStep, setActiveStep] = useState(5); // step index 5 = Album
+  const [activeStep, setActiveStep] = useState(5);
   const [albums, setAlbums] = useState<ServiceAlbumGroup[]>(() => buildAlbumsFromSavedEvent());
-  const [activeService, setActiveService] = useState(0); // tab index
+  const [activeService, setActiveService] = useState(0);
 
-  // Re-sync from sessionStorage in case Create Event saved after first mount
-  // (e.g. navigating back and forth between steps).
   useEffect(() => {
     setAlbums(buildAlbumsFromSavedEvent());
     setActiveService(0);
@@ -836,7 +823,6 @@ export default function AlbumSelectionPage() {
 
   const activeGroup = albums[activeService];
 
-  /* Compute summary stats (template-based services only) */
   const allTemplates = albums.flatMap((a) => a.templates);
   const totalAlbums = allTemplates.length;
   const photosRequired = allTemplates.reduce((s, t) => s + t.photosRequired, 0);

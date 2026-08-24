@@ -44,7 +44,7 @@
   92%  { opacity: 1; }
   100% { transform: translateY(140vh); opacity: 0; }}
 /*  Back to login button  */
-.ob-back-btn {position: absolute;top: 18px;left: 20px;display: inline-flex;align-items: center;gap: 6px;background: rgba(255, 255, 255, 0.04);border: 1px solid rgba(255, 255, 255, 0.1);color: #c7c7cf;font-size: 12.5px;font-weight: 600;border-radius: 999px;padding: 6px 14px 6px 10px;cursor: pointer;z-index: 3;transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;}
+.ob-back-btn {position: absolute;top: 18px;left: 20px;display: inline-flex;align-items: center;gap: 6px;background: rgba(255, 255, 255, 0.04);border: 1px solid rgba(255, 255, 255, 0.1);color: #c7c7cf;font-size: 12.5px;font-weight: 600;border-radius: 999px;padding: 6px 14px 6px 10px;cursor: pointer;z-index: 5;transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;}
 .ob-back-btn:hover {background: var(--sky-dim);border-color: var(--sky-border);color: var(--sky);transform: translateX(-2px);}
 /*  Progress rail  */
 .ob-progress-rail {position: absolute;top: 0;left: 0;right: 0;height: 3px;background: rgba(255, 255, 255, 0.06);overflow: hidden;}
@@ -85,7 +85,7 @@
 .ob-verified-chip {display: inline-flex;align-items: center;gap: 4px;margin-left: auto;font-size: 11px;font-weight: 700;color: #22c55e;background: rgba(34, 197, 94, 0.12);border: 1px solid rgba(34, 197, 94, 0.35);border-radius: 999px;padding: 3px 10px;animation: ob-chip-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);}
 @keyframes ob-chip-pop {from { opacity: 0; transform: scale(0.7); }to   { opacity: 1; transform: scale(1); }}
 .ob-grid-2 {display: grid;grid-template-columns: 1fr 1fr;gap: 14px 16px;margin-bottom: 4px;}
-.ob-field { margin-bottom: 16px; }
+.ob-field { margin-bottom: 16px; scroll-margin: 90px; }
 .ob-field--shake { animation: ob-shake 0.4s ease; }
 .ob-field-label {display: block;font-size: 12.5px;font-weight: 600;color: #c7c7cf;margin-bottom: 6px;}
 .ob-req { color: #f87171; margin-right: 2px; }
@@ -119,8 +119,22 @@
 .ob-field-control--error .ob-input,
 .ob-field-control--error .ob-select,
 .ob-field-control--error .ob-textarea {border-color: rgba(248, 113, 113, 0.6);background: rgba(248, 113, 113, 0.05);}
+
+/* Stop browser/Chrome autofill from repainting the field a different colour */
+.ob-input:-webkit-autofill,
+.ob-input:-webkit-autofill:hover,
+.ob-input:-webkit-autofill:focus,
+.ob-input:-webkit-autofill:active,
+.ob-select:-webkit-autofill,
+.ob-textarea:-webkit-autofill {-webkit-text-fill-color: #f8f8f4 !important;caret-color: #f8f8f4 !important;-webkit-box-shadow: 0 0 0px 1000px #2a2a30 inset !important;box-shadow: 0 0 0px 1000px #2a2a30 inset !important;border-color: rgba(255, 255, 255, 0.1) !important;transition: background-color 999999s ease-in-out 0s, color 999999s ease-in-out 0s;}
+.ob-field-control--success .ob-input:-webkit-autofill {border-color: rgba(34, 197, 94, 0.5) !important;}
+.ob-field-control--error .ob-input:-webkit-autofill {border-color: rgba(248, 113, 113, 0.6) !important;}
+.ob-input:autofill,
+.ob-select:autofill,
+.ob-textarea:autofill {-webkit-text-fill-color: #f8f8f4 !important;box-shadow: 0 0 0px 1000px #2a2a30 inset !important;}
+
 .ob-info-banner {background: var(--sky-dim);border: 1px solid var(--sky-border);color: #7dd3fc;font-size: 12.5px;border-radius: 10px;padding: 10px 14px;margin-bottom: 14px;animation: ob-section-in 0.35s ease both;}
-.ob-consent {display: flex;align-items: center;gap: 8px;font-size: 12.5px;color: #c7c7cf;cursor: pointer;}
+.ob-consent {display: flex;align-items: center;gap: 8px;font-size: 12.5px;color: #c7c7cf;cursor: pointer;scroll-margin: 90px;}
 .ob-consent input { accent-color: var(--sky); width: 15px; height: 15px; }
 .ob-consent--error { color: #fca5a5; }
 .ob-error {background: rgba(248, 113, 113, 0.1);border: 1px solid rgba(248, 113, 113, 0.35);color: #fca5a5;font-size: 13px;border-radius: 10px;padding: 10px 14px;margin-bottom: 16px;animation: ob-shake 0.4s ease;}

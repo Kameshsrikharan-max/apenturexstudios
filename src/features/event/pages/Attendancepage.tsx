@@ -416,7 +416,6 @@ export default function AttendancePage() {
   const [members,         setMembers]         = useState([]);
   const [subView,         setSubView]         = useState("list");
   const [selectedMember,  setSelectedMember]  = useState(null);
-  /* Track which event ID this page is currently loaded for */
   const [loadedEventId,   setLoadedEventId]   = useState(null);
 
   /* ─── Core refresh logic ─── */
@@ -439,7 +438,6 @@ export default function AttendancePage() {
       const currentId = getCurrentEventId();
       setLoadedEventId((prev) => {
         if (prev !== currentId) {
-          // Event changed — reload attendance for the new event
           const freshMembers = loadMembers();
           setMembers(freshMembers);
           setSubView("list");

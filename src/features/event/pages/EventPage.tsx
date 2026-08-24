@@ -344,7 +344,7 @@ export default function EventPage() {
     );
   };
 
-  // Row-action handler: view pin on map if already pinned, otherwise open the picker
+  
   const handleLocationAction = (record: any) => {
     if (record.location) {
       window.open(

@@ -90,7 +90,7 @@ const validators: Record<string, (value: string) => string> = {
   },
   phone: (v) => {
     if (!v.trim()) return "Phone number is required";
-    const digits = v.trim().replace(/^\+?91/, "").replace(/[\s-]/g, "");
+    const digits = v.trim().replace(/\D/g, "");
     if (!/^[6-9]\d{9}$/.test(digits)) return "Enter a valid 10-digit mobile number";
     return "";
   },
@@ -161,6 +161,17 @@ const validators: Record<string, (value: string) => string> = {
 
 const validate = (key: string, value: string) => (validators[key] ? validators[key](value) : "");
 
+/* Scroll-to-field helper */
+const scrollToField = (id: string) => {
+  requestAnimationFrame(() => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = el.querySelector<HTMLElement>("input, select, textarea");
+    window.setTimeout(() => focusable?.focus({ preventScroll: true }), 250);
+  });
+};
+
 /*  Decorative HUD primitives */
 
 function ScanFrame() {
@@ -211,6 +222,7 @@ function DriftParticles() {
 type FieldStatus = "idle" | "error" | "success";
 
 type FieldProps = {
+  id?: string;
   icon?: React.ReactNode;
   label: string;
   required?: boolean;
@@ -220,9 +232,9 @@ type FieldProps = {
   children?: React.ReactNode;
 };
 
-function Field({ icon, label, required, status = "idle", errorText, hint, children }: FieldProps) {
+function Field({ id, icon, label, required, status = "idle", errorText, hint, children }: FieldProps) {
   return (
-    <div className={`ob-field${status === "error" ? " ob-field--shake" : ""}`}>
+    <div id={id} className={`ob-field${status === "error" ? " ob-field--shake" : ""}`}>
       <label className="ob-field-label">
         {required && <span className="ob-req">*</span>} {label}
       </label>
@@ -242,6 +254,7 @@ function Field({ icon, label, required, status = "idle", errorText, hint, childr
 }
 
 type TextInputProps = {
+  id?: string;
   icon?: React.ReactNode;
   label: string;
   required?: boolean;
@@ -253,9 +266,14 @@ type TextInputProps = {
   error?: string;
   touched?: boolean;
   hint?: string;
+  maxLength?: number;
+  digitsOnly?: boolean;
+  inputMode?: "text" | "numeric" | "tel" | "email" | "decimal" | "search" | "url" | "none";
+  autoComplete?: string;
 };
 
 function TextInput({
+  id,
   icon,
   label,
   required,
@@ -267,16 +285,55 @@ function TextInput({
   error,
   touched,
   hint,
+  maxLength,
+  digitsOnly,
+  inputMode,
+  autoComplete,
 }: TextInputProps) {
   const status: FieldStatus = touched ? (error ? "error" : value.trim() ? "success" : "idle") : "idle";
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value;
+    if (digitsOnly) v = v.replace(/\D/g, "");
+    if (maxLength) v = v.slice(0, maxLength);
+    onChange(v);
+  };
+
+  // Blocks extra keystrokes at the DOM level (belt-and-braces alongside handleChange stripping)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!digitsOnly) return;
+    const navKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Tab", "Home", "End", "Enter"];
+    if (navKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    if (maxLength && value.replace(/\D/g, "").length >= maxLength) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (!digitsOnly) return;
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+    const combined = (value + pasted).slice(0, maxLength || undefined);
+    onChange(combined);
+  };
+
   return (
-    <Field icon={icon} label={label} required={required} status={status} errorText={error} hint={hint}>
+    <Field id={id} icon={icon} label={label} required={required} status={status} errorText={error} hint={hint}>
       <input
         type={type}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
         className="ob-input"
         value={value}
         placeholder={placeholder || label}
-        onChange={(e) => onChange(e.target.value)}
+        maxLength={maxLength}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={onBlur}
       />
     </Field>
@@ -284,6 +341,7 @@ function TextInput({
 }
 
 type TextAreaProps = {
+  id?: string;
   icon?: React.ReactNode;
   label: string;
   required?: boolean;
@@ -298,6 +356,7 @@ type TextAreaProps = {
 };
 
 function TextArea({
+  id,
   icon,
   label,
   required,
@@ -312,7 +371,7 @@ function TextArea({
 }: TextAreaProps) {
   const status: FieldStatus = touched ? (error ? "error" : value.trim() ? "success" : "idle") : "idle";
   return (
-    <Field icon={icon} label={label} required={required} status={status} errorText={error} hint={hint}>
+    <Field id={id} icon={icon} label={label} required={required} status={status} errorText={error} hint={hint}>
       <textarea
         className="ob-textarea"
         rows={rows}
@@ -352,7 +411,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
   const [basic, setBasic] = useState({
     name: prefill?.name || "",
     email: prefill?.email || "",
-    phone: prefill?.phone || "",
+    phone: (prefill?.phone || "").replace(/\D/g, "").slice(0, 10),
     studioName: "",
     address: "",
   });
@@ -466,6 +525,51 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
     return studioOk && portfolioOk;
   }, [studio, studioErrors, portfolio, portfolioErrors]);
 
+  // Ordered field-id lookups so we can jump straight to the first thing that's wrong/missing
+  const getFirstInvalidStep1Field = (): string | null => {
+    const order: { key: keyof typeof basic; id: string }[] = [
+      { key: "name", id: "ob-field-name" },
+      { key: "email", id: "ob-field-email" },
+      { key: "phone", id: "ob-field-phone" },
+      { key: "studioName", id: "ob-field-studioName" },
+      { key: "address", id: "ob-field-address" },
+    ];
+    for (const { key, id } of order) {
+      if (basicErrors[key]) return id;
+    }
+    if (!kyc.docType) return "ob-field-docType";
+    for (const f of kycFields) {
+      if (f.required && (!(kyc.vals[f.key] || "").trim() || kycFieldErrors[f.key])) {
+        return `ob-field-${f.key}`;
+      }
+    }
+    if (!kyc.consent) return "ob-field-consent";
+    return null;
+  };
+
+  const getFirstInvalidStep2Field = (): string | null => {
+    const studioOrder: { key: keyof typeof studio; id: string }[] = [
+      { key: "studioName", id: "ob-field-s-studioName" },
+      { key: "phone", id: "ob-field-s-phone" },
+      { key: "address", id: "ob-field-s-address" },
+      { key: "city", id: "ob-field-s-city" },
+      { key: "state", id: "ob-field-s-state" },
+      { key: "country", id: "ob-field-s-country" },
+      { key: "postalCode", id: "ob-field-s-postalCode" },
+    ];
+    for (const { key, id } of studioOrder) {
+      if (!studio[key].trim() || studioErrors[key]) return id;
+    }
+    const portfolioOrder: { key: keyof typeof portfolio; id: string }[] = [
+      { key: "about", id: "ob-field-about" },
+      { key: "specialization", id: "ob-field-specialization" },
+      { key: "services", id: "ob-field-services" },
+    ];
+    for (const { key, id } of portfolioOrder) {
+      if (!portfolio[key].trim() || portfolioErrors[key]) return id;
+    }
+    return null;
+  };
 
   const progress = useMemo(() => {
     if (step === 1) {
@@ -516,6 +620,8 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
       markStep1Touched();
       triggerShake();
       setError("Please fix the highlighted fields and complete KYC verification before continuing.");
+      const target = getFirstInvalidStep1Field();
+      if (target) scrollToField(target);
       return;
     }
     setError("");
@@ -534,6 +640,8 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
       markStep2Touched();
       triggerShake();
       setError("Please fix the highlighted fields in Studio and Portfolio details to finish.");
+      const target = getFirstInvalidStep2Field();
+      if (target) scrollToField(target);
       return;
     }
     setError("");
@@ -572,7 +680,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
       <div className={`ob-card${cardShake ? " ob-card--shake" : ""}`}>
         <ScanFrame />
 
-        {step === 1 && onBack && (
+        {onBack && (
           <button type="button" className="ob-back-btn" onClick={onBack}>
             <ArrowLeftOutlined /> <span>Back to login</span>
           </button>
@@ -619,6 +727,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                   </h3>
                   <div className="ob-grid-2">
                     <TextInput
+                      id="ob-field-name"
                       icon={<UserOutlined />}
                       label="Name"
                       required
@@ -627,8 +736,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchBasicField("name")}
                       error={basicErrors.name}
                       touched={basicTouched.name}
+                      autoComplete="name"
                     />
                     <TextInput
+                      id="ob-field-email"
                       icon={<MailOutlined />}
                       label="Email ID"
                       required
@@ -638,8 +749,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       type="email"
                       error={basicErrors.email}
                       touched={basicTouched.email}
+                      autoComplete="email"
                     />
                     <TextInput
+                      id="ob-field-phone"
                       icon={<PhoneOutlined />}
                       label="Phone Number"
                       required
@@ -649,8 +762,14 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       error={basicErrors.phone}
                       touched={basicTouched.phone}
                       hint="10-digit mobile number"
+                      type="tel"
+                      inputMode="numeric"
+                      digitsOnly
+                      maxLength={10}
+                      autoComplete="tel"
                     />
                     <TextInput
+                      id="ob-field-studioName"
                       icon={<BankOutlined />}
                       label="Studio Name"
                       required
@@ -659,9 +778,11 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchBasicField("studioName")}
                       error={basicErrors.studioName}
                       touched={basicTouched.studioName}
+                      autoComplete="organization"
                     />
                   </div>
                   <TextInput
+                    id="ob-field-address"
                     icon={<EnvironmentOutlined />}
                     label="Address"
                     required
@@ -670,6 +791,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                     onBlur={touchBasicField("address")}
                     error={basicErrors.address}
                     touched={basicTouched.address}
+                    autoComplete="street-address"
                   />
                 </div>
 
@@ -684,6 +806,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                   </h3>
 
                   <Field
+                    id="ob-field-docType"
                     icon={<IdcardOutlined />}
                     label="Document Type"
                     required
@@ -719,6 +842,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       {kycFields.map((f) => (
                         <TextInput
                           key={f.key}
+                          id={`ob-field-${f.key}`}
                           label={f.label}
                           required={f.required}
                           placeholder={f.placeholder}
@@ -734,7 +858,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                   )}
 
                   {kyc.docType && (
-                    <label className={`ob-consent${kycTouched.consent && !kyc.consent ? " ob-consent--error" : ""}`}>
+                    <label
+                      id="ob-field-consent"
+                      className={`ob-consent${kycTouched.consent && !kyc.consent ? " ob-consent--error" : ""}`}
+                    >
                       <input
                         type="checkbox"
                         checked={kyc.consent}
@@ -769,6 +896,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                   </h3>
                   <div className="ob-grid-2">
                     <TextInput
+                      id="ob-field-s-studioName"
                       icon={<BankOutlined />}
                       label="Studio Name"
                       required
@@ -777,8 +905,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchStudioField("studioName")}
                       error={studioErrors.studioName}
                       touched={studioTouched.studioName}
+                      autoComplete="organization"
                     />
                     <TextInput
+                      id="ob-field-s-phone"
                       icon={<PhoneOutlined />}
                       label="Phone Number"
                       required
@@ -788,8 +918,14 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       error={studioErrors.phone}
                       touched={studioTouched.phone}
                       hint="10-digit mobile number"
+                      type="tel"
+                      inputMode="numeric"
+                      digitsOnly
+                      maxLength={10}
+                      autoComplete="tel"
                     />
                     <TextInput
+                      id="ob-field-s-address"
                       icon={<EnvironmentOutlined />}
                       label="Address"
                       required
@@ -798,8 +934,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchStudioField("address")}
                       error={studioErrors.address}
                       touched={studioTouched.address}
+                      autoComplete="street-address"
                     />
                     <TextInput
+                      id="ob-field-s-city"
                       icon={<EnvironmentOutlined />}
                       label="City"
                       required
@@ -808,8 +946,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchStudioField("city")}
                       error={studioErrors.city}
                       touched={studioTouched.city}
+                      autoComplete="address-level2"
                     />
                     <TextInput
+                      id="ob-field-s-state"
                       icon={<EnvironmentOutlined />}
                       label="State"
                       required
@@ -818,8 +958,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchStudioField("state")}
                       error={studioErrors.state}
                       touched={studioTouched.state}
+                      autoComplete="address-level1"
                     />
                     <TextInput
+                      id="ob-field-s-country"
                       icon={<GlobalOutlined />}
                       label="Country"
                       required
@@ -828,8 +970,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       onBlur={touchStudioField("country")}
                       error={studioErrors.country}
                       touched={studioTouched.country}
+                      autoComplete="country-name"
                     />
                     <TextInput
+                      id="ob-field-s-postalCode"
                       icon={<NumberOutlined />}
                       label="Postal Code"
                       required
@@ -839,6 +983,10 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       error={studioErrors.postalCode}
                       touched={studioTouched.postalCode}
                       hint="6-digit PIN code"
+                      inputMode="numeric"
+                      digitsOnly
+                      maxLength={6}
+                      autoComplete="postal-code"
                     />
                   </div>
                 </div>
@@ -848,6 +996,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                     <span className="ob-section-icon"><CameraOutlined /></span> Portfolio Details
                   </h3>
                   <TextArea
+                    id="ob-field-about"
                     icon={<FileTextOutlined />}
                     label="About"
                     required
@@ -861,6 +1010,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                   />
                   <div className="ob-grid-2">
                     <TextInput
+                      id="ob-field-specialization"
                       icon={<StarOutlined />}
                       label="Specialization"
                       required
@@ -872,6 +1022,7 @@ function OnboardingModal({ prefill, onComplete, onBack }: OnboardingModalProps) 
                       touched={portfolioTouched.specialization}
                     />
                     <TextInput
+                      id="ob-field-services"
                       icon={<ToolOutlined />}
                       label="Services"
                       required

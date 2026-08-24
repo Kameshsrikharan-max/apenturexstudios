@@ -133,7 +133,6 @@ const EnquiryFormModal = ({ open, width = 680, children }: EnquiryFormModalProps
 
 /*  EnquiryPage  */
 
-
 const EnquiryPage = () => {
   const [enquiriesData, setEnquiriesData] = useState<EnquiryRecord[]>(initialEnquiries);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -266,7 +265,6 @@ const EnquiryPage = () => {
         closeFormModal();
       })
       .catch(() => {
-        // validation failed — antd already highlights the offending fields
       });
   };
 
@@ -330,10 +328,8 @@ const EnquiryPage = () => {
     </div>
   );
 
-  /* ------------------------------------------------------------------ */
   /*  Table columns — text-only, no thumbnails, no Budget/Priority       */
-  /*  columns. Row actions reveal on hover, anchored to the last column. */
-  /* ------------------------------------------------------------------ */
+
   const columns: ColumnsType<EnquiryRecord> = [
     {
       title: "Enquiry",
