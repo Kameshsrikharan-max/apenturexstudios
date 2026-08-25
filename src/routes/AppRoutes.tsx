@@ -92,7 +92,7 @@ function SignUpPage({ onLogin }: any) {
         JSON.stringify({ docType: formData.kyc.docType, vals: formData.kyc.vals })
       );
     } catch {
-      // localStorage may be unavailable; safe to ignore
+
     }
 
     if (onLogin) {

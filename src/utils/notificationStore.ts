@@ -1,8 +1,4 @@
-import {
-  NotificationEvent,
-  NotificationCategoryKey,
-  NotificationPayload,
-} from "../redux/types/notificationDetailTypes";
+import {NotificationEvent,NotificationCategoryKey,NotificationPayload,} from "../redux/types/notificationDetailTypes";
 
 const NOTIFICATIONS_KEY = "axsNotifications";
 export const NOTIFICATIONS_UPDATED_EVENT = "axsNotificationsUpdated";
@@ -11,7 +7,7 @@ export interface NewNotificationInput {
   title: string;
   notifCategory: NotificationCategoryKey;
   category?: string;
-  date?: string; // YYYY-MM-DD, defaults to today
+  date?: string;
   time?: string;
   description?: string;
   triggeredBy?: string;
@@ -34,7 +30,7 @@ const persistStored = (list: NotificationEvent[]) => {
   try {
     localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(list));
   } catch {
-    // ignore quota / serialization errors
+    
   }
 };
 
@@ -42,14 +38,9 @@ const notifyUpdated = () => {
   window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT));
 };
 
-/** Read every generic (non-calendar) notification currently stored. */
+
 export const getStoredNotifications = (): NotificationEvent[] => getStoredRaw();
 
-/**
- * Create and persist a new notification. Call this from anywhere in the app
- * (settings save, payment flow, media upload, etc.) to make it show up in
- * the navbar bell and be openable on the detail page.
- */
 export const pushNotification = (input: NewNotificationInput): NotificationEvent => {
   const now = new Date();
   const id = `notif-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`;

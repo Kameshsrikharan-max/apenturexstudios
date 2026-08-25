@@ -1,9 +1,8 @@
-// Adjust the path when importing from PaymentPage/TransactionPage to match your folder depth
 export type TransactionStatus = "Paid" | "Partial" | "Pending" | "Refunded";
 export type PaymentMethod = "UPI" | "Card" | "Net Banking" | "Cash" | "Bank Transfer";
 
 export interface StoredTransaction {
-  id: string; // stable per-event identifier
+  id: string; 
   eventName: string;
   clientName: string;
   date: string;
