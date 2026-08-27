@@ -28,6 +28,14 @@
 .command-input::placeholder {color: #64748b;font-weight: 600;}
 .command-close {width: 28px;height: 28px;display: grid;place-items: center;flex-shrink: 0;border: 1px solid rgba(125, 211, 252, 0.2);border-radius: 8px;color: #f8fafc;background: rgba(255, 255, 255, 0.06);cursor: pointer;font-size: 11px;transition: 160ms ease;}
 .command-close:hover {color: #082f49;background: #38bdf8;}
+
+/* ===== VOICE SEARCH ===== */
+.command-mic-button {width: 32px;height: 32px;flex-shrink: 0;display: grid;place-items: center;border: 1px solid rgba(125, 211, 252, 0.2);border-radius: 8px;color: #f8fafc;background: rgba(255, 255, 255, 0.06);font-size: 13px;cursor: pointer;transition: 160ms ease;}
+.command-mic-button:hover {color: #082f49;background: #38bdf8;}
+.command-mic-button.listening {color: #450a0a;background: #f87171;animation: micPulse 1.2s infinite;}
+@keyframes micPulse {0% {box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.55);}70% {box-shadow: 0 0 0 10px rgba(248, 113, 113, 0);}100% {box-shadow: 0 0 0 0 rgba(248, 113, 113, 0);}}
+.command-voice-status {padding: 8px 18px;color: #93c5fd;font-size: 12px;font-weight: 700;border-bottom: 1px solid rgba(125, 211, 252, 0.14);flex-shrink: 0;}
+
 .command-results {padding: 8px;display: grid;gap: 4px;overflow-y: auto;}
 .command-item {display: flex;align-items: center;gap: 12px;width: 100%;padding: 10px;border: 0;border-radius: 12px;color: #f8fafc;background: transparent;font-family: inherit;cursor: pointer;text-align: left;transition: 120ms ease;}
 .command-item.highlighted {background: rgba(56, 189, 248, 0.16);}

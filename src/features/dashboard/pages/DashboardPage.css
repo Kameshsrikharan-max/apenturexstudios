@@ -92,7 +92,7 @@
 .ant-tag {border-radius: 999px;font-weight: 700;font-family: "Times New Roman", Times, serif !important;}
 .ant-segmented {background: rgba(8, 13, 24, 0.74) !important;color: #bfdbfe !important;padding: 4px;border: 1px solid rgba(125, 211, 252, 0.14);font-family: "Times New Roman", Times, serif !important;}
 .ant-segmented-item-selected {background: linear-gradient(135deg, #38bdf8, #0284c7) !important;color: #082f49 !important;font-weight: 800;font-family: "Times New Roman", Times, serif !important;}
-.empty-schedule {padding: 76px 20px;text-align: center;font-family: "Times New Roman", Times, serif !important;}
+.empty-schedule {padding: 76px 20px;text-align: center;font-family: "Times New Roman", Times, serif !important;display: flex;flex-direction: column;align-items: center;gap: 16px;}
 .empty-schedule .ant-empty-description {color: #bfdbfe;font-family: "Times New Roman", Times, serif !important;}
 .ant-drawer-content {background: #0f172a !important;color: #f8fafc !important;font-family: "Times New Roman", Times, serif !important;}
 .ant-drawer-header {background: #0f172a !important;border-bottom-color: rgba(125, 211, 252, 0.16) !important;}
@@ -107,7 +107,7 @@
 .live-clock-chip {background: rgba(8, 13, 24, 0.66) !important;border: 1px solid rgba(125, 211, 252, 0.3) !important;color: #bfdbfe !important;font-variant-numeric: tabular-nums;letter-spacing: 0.4px;}
 
 
-/*  STUDIO PULSE MARQUEE  */
+/*  STUDIO PULSE MARQUEE — today's / tomorrow's real events  */
 .studio-pulse-bar {display: flex;align-items: center;gap: 14px;margin-bottom: 28px;padding: 10px 16px;border-radius: 999px;background: rgba(15, 23, 42, 0.6) !important;border: 1px solid rgba(125, 211, 252, 0.16) !important;backdrop-filter: blur(14px);overflow: hidden;}
 .pulse-live-dot {flex: 0 0 auto;position: relative;padding-left: 22px !important;}
 .pulse-live-dot::before {content: "";position: absolute;left: 10px;top: 50%;width: 7px;height: 7px;border-radius: 50%;background: #22c55e;transform: translateY(-50%);box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);animation: pulseDot 1.8s ease-out infinite;}
@@ -150,18 +150,10 @@
 .countdown-empty {display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 10px;min-height: 160px;text-align: center;}
 
 
-/*  TEAM PULSE  */
-.team-pulse-grid {display: flex;flex-wrap: wrap;gap: 18px;min-height: 160px;align-content: flex-start;}
-.team-pulse-item {display: flex;flex-direction: column;align-items: center;gap: 4px;width: 76px;text-align: center;}
-.team-pulse-avatar-wrap {position: relative;}
-.team-pulse-dot {position: absolute;bottom: 1px;right: 1px;width: 12px;height: 12px;border-radius: 50%;border: 2px solid #0f172a;}
-.team-pulse-online .team-pulse-dot {background: #22c55e;box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);}
-.team-pulse-on-shoot .team-pulse-dot {background: #f59e0b;box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);}
-.team-pulse-offline .team-pulse-dot {background: #64748b;}
-.team-pulse-status-text {display: block;}
-.team-pulse-text-online {color: #4ade80 !important;}
-.team-pulse-text-on-shoot {color: #fbbf24 !important;}
-.team-pulse-text-offline {color: #94a3b8 !important;}
+/*  EVENTS PANEL — "view all" link when more than 5 match  */
+.events-view-more {display: flex;justify-content: flex-end;padding: 10px 4px 2px;}
+.events-view-more .ant-btn-link {color: #38bdf8;font-weight: 700;padding: 0;}
+.events-view-more .ant-btn-link:hover {color: #7dd3fc;}
 
 
 /*  SPEED DIAL FAB — vertical stack, stays fully on-screen  */
@@ -316,8 +308,6 @@
 }
 
 
-/* MOBILE (up to 575px) */
-
 @media (max-width: 575px) {
   .dashboard-page-content {padding: 0 2px;}
   .dashboard-page-top {gap: 14px;margin-bottom: 20px;}
@@ -353,14 +343,12 @@
   .studio-pulse-bar {margin-bottom: 20px;}
 
   .countdown-wrap {flex-direction: column;align-items: flex-start;gap: 14px;}
-  .team-pulse-grid {gap: 14px;}
-  .team-pulse-item {width: 66px;}
 
   .speed-dial-root {right: 16px;bottom: 16px;}
   .speed-dial-item {padding: 8px 14px 8px 10px;font-size: 12px;}
   .speed-dial-item-icon {width: 22px;height: 22px;font-size: 11px;}
 
-  /* Modal goes near-fullscreen on small phones */
+
   .cm-backdrop {padding: 10px;align-items: flex-end;}
   .cm-panel {max-height: 92vh;padding: 20px 16px 20px;border-radius: 18px 18px 0 0;}
   .modal-title-row {gap: 12px;}
@@ -371,7 +359,7 @@
   .edit-notes-field {grid-column: span 1;}
 }
 
-/* EXTRA SMALL (up to 380px) */
+
 
 @media (max-width: 380px) {
   .hero-content h1 {font-size: 22px !important;}

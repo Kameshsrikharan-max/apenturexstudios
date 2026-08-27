@@ -1,0 +1,186 @@
+.tc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: rgba(15, 15, 20, 0.55);
+  backdrop-filter: blur(4px);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tc-card {
+  position: relative;
+  width: 100%;
+  max-width: 940px;
+  max-height: 88vh;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  padding: 32px 36px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tc-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tc-close:hover { background: #f3f4f6; color: #111827; }
+
+.tc-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  margin: 4px 0 8px;
+}
+.tc-subtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 22px;
+}
+
+.tc-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+.tc-sidebar {
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  background: #fafbfc;
+  padding: 12px;
+  overflow-y: auto;
+}
+.tc-sidebar-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  text-transform: uppercase;
+  padding: 4px 8px 10px;
+}
+.tc-sidebar-list { display: flex; flex-direction: column; gap: 4px; }
+
+.tc-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.tc-sidebar-item:hover { background: #f2f4f7; }
+.tc-sidebar-item--active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1e293b;
+}
+.tc-sidebar-bar {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+.tc-sidebar-item--active .tc-sidebar-bar { background: #4f46e5; }
+.tc-sidebar-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tc-sidebar-check { color: #22c55e; font-size: 14px; flex-shrink: 0; }
+
+.tc-content {
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  padding: 26px 28px;
+  overflow-y: auto;
+  background: #fff;
+}
+.tc-section-badge {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  border-radius: 999px;
+  padding: 3px 12px;
+  margin-bottom: 14px;
+}
+.tc-content-heading {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 16px;
+}
+.tc-content-text { color: #374151; font-size: 14.5px; line-height: 1.7; }
+.tc-content-text p { margin: 0 0 14px; }
+.tc-content-text ul { margin: 0 0 14px; padding-left: 20px; }
+.tc-content-text li { margin-bottom: 8px; }
+.tc-content-text b { color: #111827; }
+
+.tc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #eceef1;
+  flex-wrap: wrap;
+}
+.tc-footer-meta {
+  display: flex;
+  gap: 18px;
+  font-size: 12.5px;
+  color: #9ca3af;
+  flex-wrap: wrap;
+}
+.tc-footer-actions { display: flex; gap: 10px; }
+
+.tc-btn-primary, .tc-btn-secondary {
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+.tc-btn-primary { background: #4f46e5; color: #fff; }
+.tc-btn-primary:hover:not(:disabled) { background: #4338ca; }
+.tc-btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+.tc-btn-secondary { background: #fff; border: 1px solid #e5e7eb; color: #374151; }
+.tc-btn-secondary:hover { background: #f9fafb; }
+
+@media (max-width: 720px) {
+  .tc-body { grid-template-columns: 1fr; }
+  .tc-sidebar { max-height: 160px; }
+  .tc-card { padding: 24px 18px 18px; max-height: 92vh; }
+}

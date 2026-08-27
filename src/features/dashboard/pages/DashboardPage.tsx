@@ -5,53 +5,128 @@ import {Avatar,Badge,Button,Card,Col,ConfigProvider,DatePicker,Drawer,Empty,Form
 import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,EnvironmentOutlined,EyeOutlined,FireOutlined,HistoryOutlined,HourglassOutlined,PictureOutlined,PlusOutlined,QuestionCircleOutlined,RiseOutlined,RocketOutlined,SafetyCertificateOutlined,SearchOutlined,SunOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,VideoCameraOutlined,} from "@ant-design/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import "./DashboardPage.css";
+
+dayjs.extend(customParseFormat);
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 
 const THEME_COLOR = "#38BDF8";
-const TODAY_ANCHOR = "2026-04-30";
 
-// Studio location for the Golden Hour & Weather widget — replace with the
-// studio's actual coordinates or wire up to a saved settings value later.
 const STUDIO_LAT = 13.0827;
 const STUDIO_LON = 80.2707;
 const STUDIO_LABEL = "Chennai";
 
-const featureCards = [
-  { title: "Shoots", value: "18", icon: <CameraOutlined />, background: "linear-gradient(135deg, #38BDF8, #2563eb)" },
-  { title: "Views", value: "12.8K", icon: <EyeOutlined />, background: "linear-gradient(135deg, #38BDF8, #06b6d4)" },
-  { title: "Frames", value: "64", icon: <PictureOutlined />, background: "linear-gradient(135deg, #38BDF8, #22c55e)" },
-  { title: "Bookings", value: "+27%", icon: <FireOutlined />, background: "linear-gradient(135deg, #38BDF8, #f59e0b)" },
+const EVENTS_STORAGE_KEY = "ax.events.v1";
+const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
+const EVENTS_LIST_LIMIT = 5;
+
+const eventTypes = ["Wedding", "Reception", "Corporate", "Family", "Birthday", "Engagement"];
+
+interface StudioEvent {
+  id: string;
+  name: string;
+  type: string;
+  date: string;
+  time: string;
+  address: string;
+  city: string;
+  customer: string;
+  status: string;
+  pipeline: string;
+  members: number;
+  budget: string;
+  image?: string;
+  location?: { lat: number; lng: number } | null;
+}
+
+interface ParsedStudioEvent extends StudioEvent {
+  dateObj: dayjs.Dayjs;
+}
+
+const DEFAULT_EVENTS: StudioEvent[] = [
+  {
+    id: "ev-1001",
+    name: "John - Wedding",
+    type: "Wedding",
+    date: "Jun 16, 2026",
+    time: "12:00 AM",
+    address: "mettupalayam",
+    city: "coimbatore",
+    customer: "Apsi",
+    status: "DRAFT",
+    pipeline: "Converted",
+    members: 0,
+    budget: "INR 1.8L",
+    image:
+      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "ev-1002",
+    name: "Aarav - Reception",
+    type: "Reception",
+    date: "Jun 20, 2026",
+    time: "06:30 PM",
+    address: "Le Meridien Hall",
+    city: "Chennai",
+    customer: "Meera",
+    status: "LIVE",
+    pipeline: "Booked",
+    members: 6,
+    budget: "INR 2.4L",
+    image:
+      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "ev-1003",
+    name: "Studio Launch Night",
+    type: "Corporate",
+    date: "Jul 02, 2026",
+    time: "05:00 PM",
+    address: "Race Course Road",
+    city: "Coimbatore",
+    customer: "Nova Labs",
+    status: "PLANNED",
+    pipeline: "Proposal",
+    members: 3,
+    budget: "INR 95K",
+    image:
+      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80",
+  },
 ];
 
-const initialEventsData = [
-  { key: "1", id: "EVT-001", name: "Portfolio Shoot", studio: "Main Studio", date: "2026-05-02", status: "Pending", priority: "High", client: "ApertureX Client", budget: "Rs. 18,000" },
-  { key: "2", id: "EVT-002", name: "Product Campaign", studio: "Creative Bay", date: "2026-05-08", status: "Confirmed", priority: "Medium", client: "Brand Studio", budget: "Rs. 42,000" },
-];
+const readStoredEvents = (): StudioEvent[] => {
+  if (typeof window === "undefined") return DEFAULT_EVENTS;
 
-const metricCards = [
-  { title: "Users", value: 1042, suffix: "", percent: 100, icon: <UsergroupAddOutlined />, color: "#38BDF8" },
-  { title: "Events", value: 2, suffix: "", percent: 40, icon: <VideoCameraOutlined />, color: "#f59e0b" },
-  { title: "Health", value: 98, suffix: "%", percent: 98, icon: <SafetyCertificateOutlined />, color: "#06b6d4" },
-  { title: "Profile", value: 82, suffix: "%", percent: 82, icon: <CheckCircleOutlined />, color: "#22c55e" },
-  { title: "Revenue", value: 180000, suffix: "Rs", percent: 76, icon: <DollarOutlined />, color: "#14b8a6" },
-  { title: "Leads", value: 36, suffix: "", percent: 64, icon: <TeamOutlined />, color: "#38BDF8" },
-];
+  try {
+    const saved = window.localStorage.getItem(EVENTS_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : null;
+    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_EVENTS;
+  } catch {
+    return DEFAULT_EVENTS;
+  }
+};
 
-const teamPulse = [
-  { name: "You", status: "online" as const },
-  { name: "Priya · Lead", status: "on-shoot" as const },
-  { name: "Arjun · Editor", status: "online" as const },
-  { name: "Meera · Assist", status: "offline" as const },
-  { name: "Divya · Retouch", status: "online" as const },
-];
 
-const statusLabel: Record<string, string> = {
-  online: "Online",
-  "on-shoot": "On a shoot",
-  offline: "Offline",
+const parseEventDateTime = (dateStr: string, timeStr?: string) => {
+  if (timeStr) {
+    const withTime = dayjs(`${dateStr} ${timeStr}`, "MMM D, YYYY hh:mm A", true);
+    if (withTime.isValid()) return withTime;
+  }
+
+  const dateOnly = dayjs(dateStr, "MMM D, YYYY", true);
+  if (dateOnly.isValid()) return dateOnly;
+
+  return dayjs(dateStr);
+};
+
+const statusTagColor: Record<string, string> = {
+  DRAFT: "default",
+  PLANNED: "blue",
+  LIVE: "green",
+  DONE: "purple",
 };
 
 const getGreeting = (date: Date) => {
@@ -63,7 +138,7 @@ const getGreeting = (date: Date) => {
   return "Burning the midnight oil";
 };
 
-/*  Confetti — lightweight canvas burst, no dependency  */
+
 
 const triggerConfetti = () => {
   const canvas = document.createElement("canvas");
@@ -123,7 +198,7 @@ const triggerConfetti = () => {
   requestAnimationFrame(animate);
 };
 
-/*  GoldenHourWeather — live Open-Meteo fetch, no API key required  */
+
 
 interface WeatherState {
   temperature: number;
@@ -216,12 +291,12 @@ const GoldenHourWeather = () => {
   );
 };
 
-/*  NextShootCountdown  */
+
 
 interface CountdownEvent {
   name: string;
-  date: string;
-  studio: string;
+  city: string;
+  dateObj: dayjs.Dayjs;
 }
 
 interface NextShootCountdownProps {
@@ -234,7 +309,6 @@ const COUNTDOWN_WINDOW_DAYS = 14;
 const NextShootCountdown = ({ events, now }: NextShootCountdownProps) => {
   const nextEvent = useMemo(() => {
     const upcoming = events
-      .map((event) => ({ ...event, dateObj: dayjs(event.date) }))
       .filter((event) => event.dateObj.isAfter(dayjs(now)))
       .sort((a, b) => a.dateObj.valueOf() - b.dateObj.valueOf());
 
@@ -277,7 +351,7 @@ const NextShootCountdown = ({ events, now }: NextShootCountdownProps) => {
 
       <div className="countdown-details">
         <Text strong className="countdown-event-name">{nextEvent.name}</Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>{nextEvent.studio}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>{nextEvent.city}</Text>
 
         <Space size={6} className="countdown-time-chips">
           <Tag>{days}d</Tag>
@@ -289,36 +363,7 @@ const NextShootCountdown = ({ events, now }: NextShootCountdownProps) => {
   );
 };
 
-/*  TeamPulse  */
 
-interface TeamMember {
-  name: string;
-  status: "online" | "on-shoot" | "offline";
-}
-
-const TeamPulseGrid = ({ members }: { members: TeamMember[] }) => {
-  return (
-    <div className="team-pulse-grid">
-      {members.map((member) => (
-        <div key={member.name} className="team-pulse-item">
-          <div className={`team-pulse-avatar-wrap team-pulse-${member.status}`}>
-            <Avatar
-              src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.name}`}
-              size={44}
-            />
-            <span className="team-pulse-dot" />
-          </div>
-          <Text style={{ fontSize: 11 }} type="secondary">{member.name}</Text>
-          <Text style={{ fontSize: 10 }} className={`team-pulse-status-text team-pulse-text-${member.status}`}>
-            {statusLabel[member.status]}
-          </Text>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-/*  SpeedDialFab — vertical, contained, no off-screen overflow  */
 
 interface SpeedDialAction {
   key: string;
@@ -386,7 +431,7 @@ const SpeedDialFab = ({ actions }: SpeedDialFabProps) => {
   );
 };
 
-/*  CustomModal */
+
 
 interface CustomModalProps {
   open: boolean;
@@ -423,12 +468,12 @@ const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps)
   );
 };
 
-interface EventFormValues {
+interface CreateEventFormValues {
   name: string;
-  studio: string;
-  client: string;
-  date: dayjs.Dayjs;
-  priority: "High" | "Medium" | "Low";
+  type: string;
+  customer: string;
+  city: string;
+  schedule: dayjs.Dayjs;
   budget: number;
 }
 
@@ -441,14 +486,14 @@ const DashboardPage = () => {
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState("All");
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<ParsedStudioEvent | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  const [eventsData, setEventsData] = useState(initialEventsData);
+  const [events, setEvents] = useState<StudioEvent[]>(() => readStoredEvents());
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm] = Form.useForm<EventFormValues>();
+  const [createForm] = Form.useForm<CreateEventFormValues>();
   const [submitting, setSubmitting] = useState(false);
 
   const userData = useMemo(
@@ -465,16 +510,71 @@ const DashboardPage = () => {
     [displayName, displayEmail, user]
   );
 
+
+  useEffect(() => {
+    const syncEvents = () => setEvents(readStoredEvents());
+
+    window.addEventListener("focus", syncEvents);
+    window.addEventListener("storage", syncEvents);
+    window.addEventListener(EVENTS_UPDATED_EVENT, syncEvents);
+
+    return () => {
+      window.removeEventListener("focus", syncEvents);
+      window.removeEventListener("storage", syncEvents);
+      window.removeEventListener(EVENTS_UPDATED_EVENT, syncEvents);
+    };
+  }, []);
+
+  const eventsWithDate = useMemo<ParsedStudioEvent[]>(
+    () => events.map((event) => ({ ...event, dateObj: parseEventDateTime(event.date, event.time) })),
+    [events]
+  );
+
+  const todaysEvents = useMemo(
+    () => eventsWithDate.filter((event) => event.dateObj.isSame(currentTime, "day")),
+    [eventsWithDate, currentTime]
+  );
+
+  const tomorrowsEvents = useMemo(
+    () => eventsWithDate.filter((event) => event.dateObj.isSame(dayjs(currentTime).add(1, "day"), "day")),
+    [eventsWithDate, currentTime]
+  );
+
   const pulseItems = useMemo(() => {
-    return [
-      ...eventsData.map(
-        (event) => `${event.name} at ${event.studio} scheduled for ${dayjs(event.date).format("D MMM")} · ${event.priority} priority`
-      ),
-      `${userData.length} studio admin${userData.length === 1 ? "" : "s"} active right now`,
-      "12.8K portfolio views this month · +27% bookings",
-      "64 frames delivered across all active shoots",
-    ];
-  }, [eventsData, userData]);
+    const todayItems = todaysEvents.map(
+      (event) => `Today · ${event.name} at ${event.time} · ${event.city}`
+    );
+    const tomorrowItems = tomorrowsEvents.map(
+      (event) => `Tomorrow · ${event.name} at ${event.time} · ${event.city}`
+    );
+    const combined = [...todayItems, ...tomorrowItems];
+
+    return combined.length
+      ? combined
+      : ["No shoots scheduled today or tomorrow — plan one from the Events board"];
+  }, [todaysEvents, tomorrowsEvents]);
+
+  const metricCards = useMemo(
+    () => [
+      { title: "Users", value: 1042, suffix: "", percent: 100, icon: <UsergroupAddOutlined />, color: "#38BDF8" },
+      { title: "Events", value: events.length, suffix: "", percent: Math.min(100, events.length * 20), icon: <VideoCameraOutlined />, color: "#f59e0b" },
+      { title: "Health", value: 98, suffix: "%", percent: 98, icon: <SafetyCertificateOutlined />, color: "#06b6d4" },
+      { title: "Profile", value: 82, suffix: "%", percent: 82, icon: <CheckCircleOutlined />, color: "#22c55e" },
+      { title: "Revenue", value: 180000, suffix: "Rs", percent: 76, icon: <DollarOutlined />, color: "#14b8a6" },
+      { title: "Leads", value: 36, suffix: "", percent: 64, icon: <TeamOutlined />, color: "#38BDF8" },
+    ],
+    [events.length]
+  );
+
+  const featureCards = useMemo(
+    () => [
+      { title: "Shoots", value: String(events.length), icon: <CameraOutlined />, background: "linear-gradient(135deg, #38BDF8, #2563eb)" },
+      { title: "Views", value: "12.8K", icon: <EyeOutlined />, background: "linear-gradient(135deg, #38BDF8, #06b6d4)" },
+      { title: "Frames", value: "64", icon: <PictureOutlined />, background: "linear-gradient(135deg, #38BDF8, #22c55e)" },
+      { title: "Bookings", value: "+27%", icon: <FireOutlined />, background: "linear-gradient(135deg, #38BDF8, #f59e0b)" },
+    ],
+    [events.length]
+  );
 
   useEffect(() => {
     const featureTimer = setInterval(() => {
@@ -482,7 +582,7 @@ const DashboardPage = () => {
     }, 4200);
 
     return () => clearInterval(featureTimer);
-  }, []);
+  }, [featureCards.length]);
 
   useEffect(() => {
     const clockTimer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -522,24 +622,19 @@ const DashboardPage = () => {
   }, [searchText, userData]);
 
   const filteredEvents = useMemo(() => {
-    const value = searchText.toLowerCase();
+    const value = searchText.trim().toLowerCase();
 
-    return eventsData.filter((event) => {
-      const matchesSearch = [
-        event.id,
-        event.name,
-        event.studio,
-        event.status,
-        event.priority,
-        event.client,
-      ].some((field) => field.toLowerCase().includes(value));
+    return eventsWithDate.filter((event) => {
+      const matchesSearch =
+        !value ||
+        [event.id, event.name, event.type, event.city, event.customer, event.status, event.pipeline].some(
+          (field) => String(field).toLowerCase().includes(value)
+        );
 
       if (!matchesSearch) return false;
       if (dateFilter === "All") return true;
 
-      const today = new Date(TODAY_ANCHOR);
-      const eventDate = new Date(event.date);
-      const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDays = event.dateObj.startOf("day").diff(dayjs(currentTime).startOf("day"), "day");
 
       if (dateFilter === "Today") return diffDays === 0;
       if (dateFilter === "Week") return diffDays >= 0 && diffDays <= 7;
@@ -547,7 +642,19 @@ const DashboardPage = () => {
 
       return true;
     });
-  }, [searchText, dateFilter, eventsData]);
+  }, [searchText, dateFilter, eventsWithDate, currentTime]);
+
+  const displayedEvents = useMemo(
+    () => filteredEvents.slice(0, EVENTS_LIST_LIMIT),
+    [filteredEvents]
+  );
+
+  const upcomingSchedule = useMemo(() => {
+    return eventsWithDate
+      .filter((event) => event.dateObj.startOf("day").diff(dayjs(currentTime).startOf("day"), "day") >= 0)
+      .sort((a, b) => a.dateObj.valueOf() - b.dateObj.valueOf())
+      .slice(0, EVENTS_LIST_LIMIT);
+  }, [eventsWithDate, currentTime]);
 
   // ---- Navigation handlers ----
   const goToUsersPage = () => navigate("/users");
@@ -570,22 +677,38 @@ const DashboardPage = () => {
     setCreateModalOpen(false);
   };
 
-  const handleCreateEvent = async (values: EventFormValues) => {
+  const handleCreateEvent = async (values: CreateEventFormValues) => {
     setSubmitting(true);
     try {
-      const newEvent = {
-        key: String(eventsData.length + 1),
-        id: `EVT-${String(eventsData.length + 1).padStart(3, "0")}`,
+      const schedule = values.schedule;
+      const newEvent: StudioEvent = {
+        id: `ev-${Date.now()}`,
         name: values.name,
-        studio: values.studio,
-        date: values.date.format("YYYY-MM-DD"),
-        status: "Pending",
-        priority: values.priority,
-        client: values.client,
-        budget: `Rs. ${Number(values.budget).toLocaleString("en-IN")}`,
+        type: values.type,
+        date: schedule.format("MMM D, YYYY"),
+        time: schedule.format("hh:mm A"),
+        address: values.city,
+        city: values.city,
+        customer: values.customer,
+        status: "DRAFT",
+        pipeline: "Proposal",
+        members: 0,
+        budget: `INR ${Number(values.budget).toLocaleString("en-IN")}`,
       };
 
-      setEventsData((prev) => [newEvent, ...prev]);
+      setEvents((prev) => {
+        const updated = [newEvent, ...prev];
+
+        try {
+          window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updated));
+          window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
+        } catch {
+
+        }
+
+        return updated;
+      });
+
       message.success("Event created successfully");
       triggerConfetti();
       setCreateModalOpen(false);
@@ -633,53 +756,60 @@ const DashboardPage = () => {
 
   const eventColumns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      render: (id: string) => <Text code>{id}</Text>,
-    },
-    {
       title: "Shoot",
       dataIndex: "name",
       key: "name",
-      render: (text: string) => <Text strong>{text}</Text>,
-    },
-    { title: "Studio", dataIndex: "studio", key: "studio" },
-    {
-      title: "Date",
-      dataIndex: "date",
-      key: "date",
-      render: (date: string) => (
+      render: (text: string, record: ParsedStudioEvent) => (
         <Space>
-          <CalendarOutlined style={{ color: THEME_COLOR }} />
-          <Text>{date}</Text>
+          <CameraOutlined style={{ color: THEME_COLOR }} />
+          <div>
+            <Text strong>{text}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {record.type}
+            </Text>
+          </div>
         </Space>
       ),
     },
     {
-      title: "Priority",
-      dataIndex: "priority",
-      key: "priority",
-      render: (priority: string) => (
-        <Tag color={priority === "High" ? "red" : priority === "Medium" ? "gold" : "blue"}>
-          {priority}
-        </Tag>
+      title: "Date",
+      dataIndex: "date",
+      key: "date",
+      render: (date: string, record: ParsedStudioEvent) => (
+        <Space>
+          <CalendarOutlined style={{ color: THEME_COLOR }} />
+          <div>
+            <Text>{date}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {record.time}
+            </Text>
+          </div>
+        </Space>
       ),
+    },
+    { title: "City", dataIndex: "city", key: "city" },
+    {
+      title: "Stage",
+      dataIndex: "pipeline",
+      key: "pipeline",
+      render: (pipeline: string) => <Tag>{pipeline}</Tag>,
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
       render: (status: string) => {
-        const confirmed = status === "Confirmed";
+        const isLive = status === "LIVE";
 
         return (
           <Badge
-            status={confirmed ? "processing" : "warning"}
+            status={isLive ? "processing" : status === "DONE" ? "success" : "warning"}
             text={
-              <Text strong style={{ color: confirmed ? "#38BDF8" : "#f59e0b" }}>
+              <Tag color={statusTagColor[status] || "default"} style={{ margin: 0 }}>
                 {status}
-              </Text>
+              </Tag>
             }
           />
         );
@@ -755,7 +885,7 @@ const DashboardPage = () => {
             <div className="hero-mini-stats">
               <div>
                 <CameraOutlined />
-                <strong>18</strong>
+                <strong>{events.length}</strong>
                 <span>Shoots</span>
               </div>
 
@@ -871,7 +1001,7 @@ const DashboardPage = () => {
         </Row>
 
         <Row gutter={[24, 24]} className="insight-row">
-          <Col xs={24} md={12} lg={8}>
+          <Col xs={24} md={12}>
             <Card
               title={
                 <Space>
@@ -885,7 +1015,7 @@ const DashboardPage = () => {
             </Card>
           </Col>
 
-          <Col xs={24} md={12} lg={8}>
+          <Col xs={24} md={12}>
             <Card
               title={
                 <Space>
@@ -895,21 +1025,14 @@ const DashboardPage = () => {
               }
               className="dashboard-panel"
             >
-              <NextShootCountdown events={eventsData} now={currentTime} />
-            </Card>
-          </Col>
-
-          <Col xs={24} md={24} lg={8}>
-            <Card
-              title={
-                <Space>
-                  <TeamOutlined className="inline-blue" />
-                  Team Pulse
-                </Space>
-              }
-              className="dashboard-panel"
-            >
-              <TeamPulseGrid members={teamPulse} />
+              <NextShootCountdown
+                events={eventsWithDate.map((event) => ({
+                  name: event.name,
+                  city: event.city,
+                  dateObj: event.dateObj,
+                }))}
+                now={currentTime}
+              />
             </Card>
           </Col>
         </Row>
@@ -956,14 +1079,28 @@ const DashboardPage = () => {
         >
           <Table
             columns={eventColumns}
-            dataSource={filteredEvents}
+            dataSource={displayedEvents}
+            rowKey="id"
             pagination={false}
             scroll={{ x: 900 }}
             onRow={(record) => ({
               onClick: () => setSelectedEvent(record),
               style: { cursor: "pointer" },
             })}
+            locale={{
+              emptyText: (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching events" />
+              ),
+            }}
           />
+
+          {filteredEvents.length > EVENTS_LIST_LIMIT ? (
+            <div className="events-view-more">
+              <Button type="link" onClick={() => goToEventPage()}>
+                View all {filteredEvents.length} events <ArrowRightOutlined />
+              </Button>
+            </div>
+          ) : null}
         </Card>
 
         <Card
@@ -986,13 +1123,18 @@ const DashboardPage = () => {
         >
           <Table
             columns={eventColumns}
-            dataSource={[]}
+            dataSource={upcomingSchedule}
+            rowKey="id"
             pagination={false}
             scroll={{ x: 900 }}
+            onRow={(record) => ({
+              onClick: () => setSelectedEvent(record),
+              style: { cursor: "pointer" },
+            })}
             locale={{
               emptyText: (
                 <div className="empty-schedule">
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={false} />
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nothing on the schedule yet" />
 
                   <Button
                     type="primary"
@@ -1030,22 +1172,26 @@ const DashboardPage = () => {
               </Text>
 
               <Text>
-                <strong>Studio:</strong> {selectedEvent.studio}
+                <strong>Type:</strong> {selectedEvent.type}
               </Text>
 
               <Text>
-                <strong>Date:</strong> {selectedEvent.date}
+                <strong>Date:</strong> {selectedEvent.date} at {selectedEvent.time}
               </Text>
 
               <Text>
-                <strong>Client:</strong> {selectedEvent.client}
+                <strong>City:</strong> {selectedEvent.city}
+              </Text>
+
+              <Text>
+                <strong>Customer:</strong> {selectedEvent.customer}
               </Text>
 
               <Text>
                 <strong>Budget:</strong> {selectedEvent.budget}
               </Text>
 
-              <Tag color={selectedEvent.status === "Confirmed" ? "blue" : "gold"}>
+              <Tag color={statusTagColor[selectedEvent.status] || "default"}>
                 {selectedEvent.status}
               </Tag>
             </Space>
@@ -1062,7 +1208,7 @@ const DashboardPage = () => {
               <Title level={3}>Create Event</Title>
             </div>
 
-            <Form<EventFormValues>
+            <Form<CreateEventFormValues>
               form={createForm}
               layout="vertical"
               requiredMark={false}
@@ -1074,47 +1220,47 @@ const DashboardPage = () => {
                   label="Shoot Name"
                   rules={[{ required: true, message: "Please enter a shoot name" }]}
                 >
-                  <Input placeholder="e.g. Portfolio Shoot" />
+                  <Input placeholder="e.g. John - Wedding" />
                 </Form.Item>
 
                 <Form.Item
-                  name="studio"
-                  label="Studio"
-                  rules={[{ required: true, message: "Please enter a studio" }]}
-                >
-                  <Input placeholder="e.g. Main Studio" />
-                </Form.Item>
-
-                <Form.Item
-                  name="client"
-                  label="Client"
-                  rules={[{ required: true, message: "Please enter a client name" }]}
-                >
-                  <Input placeholder="e.g. ApertureX Client" />
-                </Form.Item>
-
-                <Form.Item
-                  name="date"
-                  label="Date"
-                  rules={[{ required: true, message: "Please select a date" }]}
-                  initialValue={dayjs()}
-                >
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-
-                <Form.Item
-                  name="priority"
-                  label="Priority"
-                  rules={[{ required: true, message: "Please select a priority" }]}
-                  initialValue="Medium"
+                  name="type"
+                  label="Event Type"
+                  rules={[{ required: true, message: "Please select an event type" }]}
+                  initialValue="Wedding"
                 >
                   <Select
                     classNames={{ popup: { root: "dark-select-dropdown" } }}
-                    options={[
-                      { value: "High", label: "High" },
-                      { value: "Medium", label: "Medium" },
-                      { value: "Low", label: "Low" },
-                    ]}
+                    options={eventTypes.map((type) => ({ value: type, label: type }))}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="customer"
+                  label="Customer"
+                  rules={[{ required: true, message: "Please enter a customer name" }]}
+                >
+                  <Input placeholder="e.g. Apsi" />
+                </Form.Item>
+
+                <Form.Item
+                  name="city"
+                  label="City"
+                  rules={[{ required: true, message: "Please enter a city" }]}
+                >
+                  <Input placeholder="e.g. Chennai" />
+                </Form.Item>
+
+                <Form.Item
+                  name="schedule"
+                  label="Date & Time"
+                  rules={[{ required: true, message: "Please select a date and time" }]}
+                  initialValue={dayjs()}
+                >
+                  <DatePicker
+                    showTime={{ format: "hh:mm A", use12Hours: true }}
+                    format="MMM D, YYYY hh:mm A"
+                    style={{ width: "100%" }}
                   />
                 </Form.Item>
 

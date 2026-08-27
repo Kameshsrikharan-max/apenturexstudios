@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import "./Navbar.css";
@@ -64,6 +64,32 @@ const normalizeEvent = (event: any, date: string, index: number) => {
   };
 };
 
+// Finds the best matching page for a spoken phrase. Tries an exact label
+// match first, then a "phrase contains label" / "label contains phrase"
+// match, so saying "open users" or "go to transactions page" both resolve.
+const findBestPageMatch = (spoken: string) => {
+  const query = spoken.trim().toLowerCase();
+  if (!query) return null;
+
+  const exact = PAGES.find((page) => page.label.toLowerCase() === query);
+  if (exact) return exact;
+
+  const contains = PAGES.find(
+    (page) =>
+      query.includes(page.label.toLowerCase()) || page.label.toLowerCase().includes(query)
+  );
+  if (contains) return contains;
+
+  const wordOverlap = PAGES.find((page) =>
+    page.label
+      .toLowerCase()
+      .split(/\s+/)
+      .some((word) => query.includes(word))
+  );
+
+  return wordOverlap || null;
+};
+
 function Navbar({
   user,
   darkMode,
@@ -95,6 +121,10 @@ function Navbar({
   const paletteInputRef = useRef(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const recognitionRef = useRef<any>(null);
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
@@ -208,14 +238,18 @@ function Navbar({
   const openPalette = () => {
     setPaletteQuery("");
     setActiveIndex(0);
+    setVoiceStatus("");
     setPaletteOpen(true);
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
   };
 
   const closePalette = () => {
+    recognitionRef.current?.stop?.();
+    setIsListening(false);
     setPaletteOpen(false);
     setPaletteQuery("");
+    setVoiceStatus("");
   };
 
   const goToPage = (path) => {
@@ -228,7 +262,72 @@ function Navbar({
     navigate(`/notification/${eventId}`);
   };
 
-  
+  // Voice search: speak a page name and it navigates there directly.
+  // If nothing matches, the spoken text is left in the search box so the
+  // normal text results still show what came close.
+  const startVoiceSearch = () => {
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) {
+      setVoiceStatus("Voice search isn't supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      let isFinal = false;
+
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0]?.transcript || "";
+        if (event.results[i].isFinal) isFinal = true;
+      }
+
+      setPaletteQuery(transcript);
+
+      if (isFinal) {
+        const match = findBestPageMatch(transcript);
+
+        if (match) {
+          setVoiceStatus(`Heard "${transcript.trim()}" — opening ${match.label}…`);
+          goToPage(match.path);
+        } else {
+          setVoiceStatus(`Heard "${transcript.trim()}" — no matching page found.`);
+        }
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setVoiceStatus("Didn't catch that — try again.");
+    };
+
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    setVoiceStatus("Listening…");
+    setIsListening(true);
+    recognition.start();
+  };
+
+  const stopVoiceSearch = () => {
+    recognitionRef.current?.stop?.();
+    setIsListening(false);
+  };
+
+  const handleMicClick = () => {
+    if (isListening) {
+      stopVoiceSearch();
+    } else {
+      startVoiceSearch();
+    }
+  };
+
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -257,7 +356,7 @@ function Navbar({
       window.removeEventListener("storage", handleExternalUpdate);
     };
   }, []);
-  
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
@@ -292,6 +391,13 @@ function Navbar({
   useEffect(() => {
     setActiveIndex(0);
   }, [paletteQuery]);
+
+  // Stop any live voice recognition session on unmount.
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop?.();
+    };
+  }, []);
 
   const handlePaletteKeyDown = (event) => {
     if (event.key === "ArrowDown") {
@@ -541,15 +647,27 @@ function Navbar({
                 ref={paletteInputRef}
                 type="text"
                 className="command-input"
-                placeholder="Search pages… Dashboard, Studio, Media Library"
+                placeholder="Search pages, or tap the mic and say a page name…"
                 value={paletteQuery}
                 onChange={(event) => setPaletteQuery(event.target.value)}
                 onKeyDown={handlePaletteKeyDown}
               />
+
+              <button
+                type="button"
+                className={`command-mic-button ${isListening ? "listening" : ""}`}
+                onClick={handleMicClick}
+                aria-label={isListening ? "Stop voice search" : "Start voice search"}
+              >
+                {isListening ? <AudioMutedOutlined /> : <AudioOutlined />}
+              </button>
+
               <button type="button" className="command-close" onClick={closePalette}>
                 <CloseOutlined />
               </button>
             </div>
+
+            {voiceStatus && <div className="command-voice-status">{voiceStatus}</div>}
 
             <div className="command-results">
               {filteredPages.length > 0 ? (
