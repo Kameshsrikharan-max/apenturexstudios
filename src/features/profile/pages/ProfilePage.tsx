@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   AppstoreOutlined, CameraOutlined, CheckCircleOutlined, CloseOutlined,
-  DeleteOutlined, EnvironmentOutlined, HeartFilled, HeartOutlined,
+  DeleteOutlined, EnvironmentOutlined, ExclamationCircleOutlined, HeartFilled, HeartOutlined,
   MailOutlined, MenuFoldOutlined, PhoneOutlined,
   SafetyCertificateOutlined, StarFilled, StarOutlined,
   ThunderboltOutlined, UploadOutlined, UserOutlined,
 } from "@ant-design/icons";
 import "./ProfilePage.css";
 import { notifyPhotoLiked } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
+import { requestAccountDeleteRequest } from "../../../redux/actions/deleteRequestActions"; // adjust path to match your redux folder depth
 
 const DEFAULT_PROFILE = {
   firstName: "Kamesh", lastName: "Srikharan.T",
@@ -360,6 +362,7 @@ function DetailField({ icon, field, value, editable=true, editingField, onStartE
 }
 
 function ProfilePage() {
+  const dispatch = useDispatch();
   const fileInputRef=useRef(null);
   const [activeCategory,setActiveCategory]=useState("All");
   const [previewPhoto,setPreviewPhoto]=useState(null);
@@ -373,6 +376,25 @@ function ProfilePage() {
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [galleryPage,setGalleryPage]=useState(0);
   const [pageFlipping,setPageFlipping]=useState(false);
+
+  // ---- Delete-account (danger zone) state ----
+  // NOTE: relies on the "deleteRequest" slice key being registered in your root reducer/saga.
+  const { ownStatus, requesting, requestError } = useSelector(
+    (state) => state.deleteRequest || { ownStatus: "none", requesting: false, requestError: null }
+  );
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  useEffect(() => {
+    // Once the request succeeds, ownStatus flips to "pending" — collapse the confirm box.
+    if (ownStatus === "pending") {
+      setConfirmingDelete(false);
+    }
+  }, [ownStatus]);
+
+  const handleConfirmDelete = () => {
+    dispatch(requestAccountDeleteRequest(deleteReason.trim()));
+  };
 
   // ---- Editable field state ----
   const [editingField,setEditingField]=useState(null);
@@ -564,6 +586,58 @@ function ProfilePage() {
           <span className="social-icon facebook"  title="Facebook"><FacebookIcon/></span>
           <span className="social-icon twitter"   title="Twitter"><TwitterIcon/></span>
           <span className="social-icon google"    title="Google"><GoogleIcon/></span>
+        </div>
+
+        <div className="sb-danger-zone">
+          <div className="danger-zone-hdr">
+            <span className="danger-zone-icon"><ExclamationCircleOutlined /></span>
+            <div className="danger-zone-content">
+              <p className="danger-zone-label">Danger Zone</p>
+              <span className="danger-zone-sub">Permanently delete your account</span>
+            </div>
+          </div>
+
+          {ownStatus === "pending" ? (
+            <div className="danger-pending-banner">
+              <ExclamationCircleOutlined /> Delete request pending super admin approval.
+            </div>
+          ) : !confirmingDelete ? (
+            <button type="button" className="danger-trigger-btn" onClick={() => setConfirmingDelete(true)}>
+              <DeleteOutlined /> Delete My Account
+            </button>
+          ) : (
+            <div className="danger-confirm-box">
+              <p className="danger-confirm-text">
+                This can't be undone once a super admin approves it. You'll be signed out and will need to sign up again from scratch.
+              </p>
+              <textarea
+                className="danger-reason-input"
+                placeholder="Optional: tell us why (helps the super admin review faster)"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                rows={3}
+              />
+              {requestError && <span className="danger-error-text">{requestError}</span>}
+              <div className="danger-confirm-actions">
+                <button
+                  type="button"
+                  className="danger-btn-cancel"
+                  onClick={() => { setConfirmingDelete(false); setDeleteReason(""); }}
+                  disabled={requesting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="danger-btn-confirm"
+                  onClick={handleConfirmDelete}
+                  disabled={requesting}
+                >
+                  {requesting ? "Submitting..." : "Confirm Delete Request"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 

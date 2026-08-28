@@ -1,17 +1,22 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,} from "@ant-design/icons";
+import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,ExclamationCircleOutlined,} from "@ant-design/icons";
 
 import "./Sidebar.css";
 
 const { Sider } = Layout;
 const { Text } = Typography;
 
+interface SidebarUser {
+  role?: string;
+}
+
 interface SidebarProps {
   dark?: boolean;
   open?: boolean;
   onClose?: () => void;
   onCalendarOpen?: () => void;
+  user?: SidebarUser;
 }
 
 const Sidebar = ({
@@ -19,9 +24,12 @@ const Sidebar = ({
   open = false,
   onClose,
   onCalendarOpen,
+  user,
 }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isSuperAdmin = user?.role === "super_admin";
 
   const menuItems = [
     {key: "dashboard",icon: <DashboardOutlined />,label: "Dashboard",path: "/dashboard",},
@@ -41,6 +49,17 @@ const Sidebar = ({
     {key: "studio",icon: <ShopOutlined />,label: "My Studio",path: "/studio/view",},
 
     {key: "subscription",icon: <CreditCardOutlined />,label: "Subscription",path: "/subscription",},
+
+    ...(isSuperAdmin
+      ? [
+          {
+            key: "delete-requests",
+            icon: <ExclamationCircleOutlined />,
+            label: "Delete Requests",
+            path: "/delete-requests",
+          },
+        ]
+      : []),
   ];
 
   const handleMenuClick = ({ key }) => {

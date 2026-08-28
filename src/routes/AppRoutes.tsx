@@ -27,6 +27,7 @@ import TodaysAgendaWidget   from "../components/UI/TodaysAgendaWidget";
 import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
+import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
 
 const LoginPageAny: any = LoginPage;
 const DashboardPageAny: any = DashboardPage;
@@ -52,6 +53,7 @@ const SubscriptionPageAny: any = SubscriptionPage;
 const TransactionPageAny: any = TransactionPage;
 const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
 const EventPublicViewPageAny: any = EventPublicViewPage;
+const DeleteRequestsPageAny: any = DeleteRequestsPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -64,6 +66,15 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
       <Outlet />
     </MainLayout>
   );
+}
+
+
+function SuperAdminRoute({ user, children }: any) {
+  if (user?.role !== "super_admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
 }
 
 
@@ -200,6 +211,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         <Route path="/notification/:id" element={<NotificationDetailsPageAny />} />
         <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
         <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
+        <Route
+          path="/delete-requests"
+          element={
+            <SuperAdminRoute user={user}>
+              <DeleteRequestsPageAny user={user} />
+            </SuperAdminRoute>
+          }
+        />
       </Route>
 
       <Route

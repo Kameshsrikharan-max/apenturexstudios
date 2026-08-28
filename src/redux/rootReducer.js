@@ -12,6 +12,7 @@ import subscriptionReducer from "./reducers/subscriptionreducer";
 import transactionReducer from "./reducers/transactionReducer";
 import notificationReducer from "./reducers/notificationReducer";
 import notificationDetailReducer from "./reducers/notificationDetailReducer";
+import deleteRequestReducer from "./reducers/deleteRequestReducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,
@@ -26,6 +27,7 @@ const rootReducer = combineReducers({
   transaction: transactionReducer,
   notification: notificationReducer,
   notificationDetail: notificationDetailReducer,
+  deleteRequest: deleteRequestReducer,
 });
 
 export default rootReducer;

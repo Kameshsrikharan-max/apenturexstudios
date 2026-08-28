@@ -59,6 +59,7 @@ const MainLayout = ({ children, user, onLogout }) => {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onCalendarOpen={goToCalendar}
+          user={user}
         />
 
         <main className="site-content">{children}</main>
