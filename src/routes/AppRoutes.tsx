@@ -1,5 +1,6 @@
 import { Routes, Route, useNavigate, Navigate, useLocation, Outlet } from "react-router-dom";
 import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import LoginPage            from "../features/auth/pages/LoginPage";
 import DashboardPage        from "../features/dashboard/pages/DashboardPage";
@@ -28,6 +29,7 @@ import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
+import { signupRequest } from "../redux/actions/authActions";
 
 const LoginPageAny: any = LoginPage;
 const DashboardPageAny: any = DashboardPage;
@@ -68,33 +70,50 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
   );
 }
 
-
-function SuperAdminRoute({ user, children }: any) {
+// Gate a route to super_admin only. The backend already enforces this on
+// every /admin/* endpoint (requireSuperAdmin middleware) — this is just the
+// frontend UX so a non-admin who lands on the URL gets redirected instead
+// of seeing an empty/erroring page.
+function SuperAdminOnly({ user, children }: any) {
   if (user?.role !== "super_admin") {
     return <Navigate to="/dashboard" replace />;
   }
-
   return children;
 }
 
 
 function SignUpPage({ onLogin }: any) {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { signupEmail, signupToken, user, error, loading } = useSelector(
+    (state: any) => state.auth
+  );
+
+  // signupToken comes from LoginPage's verify-otp call (email confirmed,
+  // no account exists yet). Without it, this route was reached directly
+  // rather than through the OTP flow, so send them back to log in first.
+  useEffect(() => {
+    if (!signupToken) {
+      navigate("/", { replace: true });
+    }
+  }, [signupToken, navigate]);
+
+  // Once completeSignup succeeds, auth.user is populated the same way a
+  // normal login does — finish the handoff into the app.
+  useEffect(() => {
+    if (user) {
+      if (onLogin) {
+        onLogin(user);
+      }
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user]);
 
   const handleComplete = (formData: any) => {
     const { basic } = formData;
-    const nameParts = (basic.name || "").trim().split(/\s+/);
-
-    const newUser = {
-      email: basic.email || "",
-      name: basic.name || "",
-      firstName: nameParts[0] || "",
-      lastName: nameParts.slice(1).join(" ") || "",
-      phone: basic.phone || "",
-    };
 
     try {
-      const key = (basic.email || "guest@apenturexstudios.com");
+      const key = signupEmail || "guest@apenturexstudios.com";
       localStorage.setItem(`axsOnboardingComplete_${key}`, JSON.stringify(true));
       localStorage.setItem(`axsOnboardingData_${key}`, JSON.stringify(formData));
       localStorage.setItem("axsKycVerified", JSON.stringify(true));
@@ -103,14 +122,19 @@ function SignUpPage({ onLogin }: any) {
         JSON.stringify({ docType: formData.kyc.docType, vals: formData.kyc.vals })
       );
     } catch {
-
+      // localStorage writes are best-effort UI state; the real account
+      // creation below is what actually matters.
     }
 
-    if (onLogin) {
-      onLogin(newUser);
-    }
-
-    navigate("/dashboard", { replace: true });
+    // This is what actually creates the account — nothing was persisted to
+    // the database before this point.
+    dispatch(
+      signupRequest({
+        signupToken,
+        name: basic.name || "",
+        phone: basic.phone || "",
+      })
+    );
   };
 
   return <OnboardingModal onComplete={handleComplete} />;
@@ -212,11 +236,11 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
         <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
         <Route
-          path="/delete-requests"
+          path="/admin/delete-requests"
           element={
-            <SuperAdminRoute user={user}>
+            <SuperAdminOnly user={user}>
               <DeleteRequestsPageAny user={user} />
-            </SuperAdminRoute>
+            </SuperAdminOnly>
           }
         />
       </Route>

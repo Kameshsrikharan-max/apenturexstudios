@@ -22,7 +22,10 @@ export default function LoginPage({ onLogin, onSignUp }) {
   const [msgApi, contextHolder] = message.useMessage();
 
   const dispatch = useDispatch();
-  const { loading, error, user, otpSent, otpLoading, otpError, verifyingOtp } = useSelector((state: any) => state.auth);
+  const {
+    loading, error, user, otpSent, otpLoading, otpError, verifyingOtp,
+    needsSignup, signupEmail,
+  } = useSelector((state: any) => state.auth);
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [identifier, setIdentifier] = useState("");
@@ -135,6 +138,20 @@ export default function LoginPage({ onLogin, onSignUp }) {
       msgApi.success("Code sent — check your email.");
     }
   }, [otpSent]);
+
+  // The email checks out, but there's no account for it (new user, or a
+  // previously-deleted one). Hand off to onboarding instead of logging in —
+  // the signupToken needed to actually create the account is already
+  // sitting in auth state (signupToken), read by the signup page directly.
+  useEffect(() => {
+    if (needsSignup) {
+      msgApi.info("No account found for this email — let's get you set up.");
+      setOtp("");
+      if (onSignUp) {
+        onSignUp(signupEmail);
+      }
+    }
+  }, [needsSignup]);
 
 const formBoxVariants = {
   hidden: { opacity: 0, scale: 0.9, y: 20, rotateX: -10 },
@@ -851,7 +868,7 @@ const formBoxVariants = {
                   >
                     <Button
                       type="link"
-                      onClick={onSignUp}
+                      onClick={() => onSignUp && onSignUp()}
                       className="signup-link"
                     >
                       Don't have an account?{" "}

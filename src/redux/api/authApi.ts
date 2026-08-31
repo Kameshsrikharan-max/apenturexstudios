@@ -23,5 +23,28 @@ export async function verifyOtpApi({ email, otp }: { email: string; otp: string 
   if (!res.ok || !data.success) {
     throw new Error(data.message || "Invalid OTP");
   }
+  // Shape: either { needsSignup: true, email, signupToken }
+  // or     { needsSignup: false, user, token }
+  return data;
+}
+
+export async function completeSignupApi({
+  signupToken,
+  name,
+  phone,
+}: {
+  signupToken: string;
+  name?: string;
+  phone?: string;
+}) {
+  const res = await fetch(`${API_BASE}/complete-signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ signupToken, name, phone }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || "Failed to complete signup");
+  }
   return data; // { user, token }
 }

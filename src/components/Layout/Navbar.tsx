@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import "./Navbar.css";
@@ -23,7 +23,7 @@ type NavbarProps = {
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
 
-const PAGES = [
+const BASE_PAGES = [
   { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlined />, group: "Workspace" },
   { label: "Review", path: "/review", icon: <FileSearchOutlined />, group: "Workspace" },
   { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace" },
@@ -67,20 +67,21 @@ const normalizeEvent = (event: any, date: string, index: number) => {
 // Finds the best matching page for a spoken phrase. Tries an exact label
 // match first, then a "phrase contains label" / "label contains phrase"
 // match, so saying "open users" or "go to transactions page" both resolve.
-const findBestPageMatch = (spoken: string) => {
+// Takes the current page list as an argument since it now varies by role.
+const findBestPageMatch = (spoken: string, pages: typeof BASE_PAGES) => {
   const query = spoken.trim().toLowerCase();
   if (!query) return null;
 
-  const exact = PAGES.find((page) => page.label.toLowerCase() === query);
+  const exact = pages.find((page) => page.label.toLowerCase() === query);
   if (exact) return exact;
 
-  const contains = PAGES.find(
+  const contains = pages.find(
     (page) =>
       query.includes(page.label.toLowerCase()) || page.label.toLowerCase().includes(query)
   );
   if (contains) return contains;
 
-  const wordOverlap = PAGES.find((page) =>
+  const wordOverlap = pages.find((page) =>
     page.label
       .toLowerCase()
       .split(/\s+/)
@@ -105,6 +106,23 @@ function Navbar({
     user?.email || (user?.identifier?.includes("@") ? user.identifier : DEFAULT_EMAIL);
   const displayName = displayEmail.split("@")[0];
   const displayRole = user?.role || DEFAULT_ROLE;
+
+  // Role-aware page list: only super admins get the Delete Requests entry,
+  // in the command palette (⌘K) and in voice-search matching.
+  const PAGES = useMemo(() => {
+    if (user?.role === "super_admin") {
+      return [
+        ...BASE_PAGES,
+        {
+          label: "Delete Requests",
+          path: "/admin/delete-requests",
+          icon: <ExclamationCircleOutlined />,
+          group: "Workspace",
+        },
+      ];
+    }
+    return BASE_PAGES;
+  }, [user?.role]);
 
   const [miniCalendarOpen, setMiniCalendarOpen] = useState(false);
   const [miniMonth, setMiniMonth] = useState(dayjs());
@@ -172,7 +190,7 @@ function Navbar({
     const query = paletteQuery.trim().toLowerCase();
     if (!query) return PAGES;
     return PAGES.filter((page) => page.label.toLowerCase().includes(query));
-  }, [paletteQuery]);
+  }, [paletteQuery, PAGES]);
 
   const refreshEvents = () => {
     setEvents(getSavedEvents());
@@ -291,7 +309,7 @@ function Navbar({
       setPaletteQuery(transcript);
 
       if (isFinal) {
-        const match = findBestPageMatch(transcript);
+        const match = findBestPageMatch(transcript, PAGES);
 
         if (match) {
           setVoiceStatus(`Heard "${transcript.trim()}" — opening ${match.label}…`);

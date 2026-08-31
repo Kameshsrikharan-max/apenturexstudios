@@ -165,6 +165,10 @@ function NotificationDetailsPage() {
     }
   };
 
+  const goToDeleteRequests = () => {
+    navigate("/admin/delete-requests");
+  };
+
   if (loading) {
     return (
       <div className="notif-detail-page">
@@ -194,6 +198,7 @@ function NotificationDetailsPage() {
   }
 
   const decisionLabels = catConfig.decisionLabels;
+  const isDeleteRequest = event.notifCategory === "deleteRequest";
 
   return (
     <div className="notif-detail-page">
@@ -322,7 +327,23 @@ function NotificationDetailsPage() {
             </p>
           </div>
 
-          {event.isActionable ? (
+          {isDeleteRequest ? (
+            <div className="notif-decision-card">
+              <div className="notif-decision-copy">
+                <strong>Action required</strong>
+                <span>Review and confirm this deletion in the Delete Requests queue.</span>
+              </div>
+              <div className="notif-decision-actions">
+                <button
+                  type="button"
+                  className="notif-decision-btn notif-decision-approve"
+                  onClick={goToDeleteRequests}
+                >
+                  <CheckOutlined /> Review Request
+                </button>
+              </div>
+            </div>
+          ) : event.isActionable ? (
             <div className={`notif-decision-card ${meta.decision ? `is-${meta.decision}` : ""}`}>
               {meta.decision ? (
                 <div className="notif-decision-result">

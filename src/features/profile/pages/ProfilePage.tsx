@@ -380,7 +380,7 @@ function ProfilePage() {
   // ---- Delete-account (danger zone) state ----
   // NOTE: relies on the "deleteRequest" slice key being registered in your root reducer/saga.
   const { ownStatus, requesting, requestError } = useSelector(
-    (state) => state.deleteRequest || { ownStatus: "none", requesting: false, requestError: null }
+    (state: any) => state.deleteRequest || { ownStatus: "none", requesting: false, requestError: null }
   );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");

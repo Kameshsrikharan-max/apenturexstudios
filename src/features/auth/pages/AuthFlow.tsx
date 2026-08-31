@@ -1,22 +1,81 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
+import { message } from "antd";
 import LoginPage from "./LoginPage";
+import OnboardingModal from "../../../components/Onboarding/OnboardingModal";
+import { signupRequest, resetOtpState } from "../../../redux/actions/authActions";
 
-type AuthStep = "login" | "camera";
+type AuthStep = "login" | "onboarding" | "camera";
 
 interface AuthFlowProps {
-  onSignUp: () => void;
   onComplete: (data: any) => void;
 }
 
-export default function AuthFlow({ onSignUp, onComplete }: AuthFlowProps) {
+export default function AuthFlow({ onComplete }: AuthFlowProps) {
+  const [msgApi, contextHolder] = message.useMessage();
+  const dispatch = useDispatch();
+
+  const { signupEmail, signupToken, user, loading, error } = useSelector(
+    (state: any) => state.auth
+  );
+
   const [step, setStep] = useState<AuthStep>("login");
   const [authData, setAuthData] = useState<any>(null);
-
+  const [signupSubmitted, setSignupSubmitted] = useState(false);
   const handleLoginPageDone = (data: any) => {
     setAuthData(data);
     setStep("camera");
   };
+
+  const handleSignUp = () => {
+    setStep("onboarding");
+  };
+
+  const handleBackToLogin = () => {
+    setSignupSubmitted(false);
+    dispatch(resetOtpState());
+    setStep("login");
+  };
+
+  const handleOnboardingComplete = (formData: any) => {
+    if (!signupToken) {
+      msgApi.error("Your signup session expired — please verify your email again.");
+      setStep("login");
+      return;
+    }
+
+  
+    try {
+      localStorage.setItem(`axsOnboardingData_${signupEmail}`, JSON.stringify(formData));
+    } catch {
+      /* ignore storage errors */
+    }
+
+    setSignupSubmitted(true);
+    dispatch(
+      signupRequest({
+        signupToken,
+        name: formData?.basic?.name,
+        phone: formData?.basic?.phone,
+      })
+    );
+  };
+
+  useEffect(() => {
+    if (signupSubmitted && step === "onboarding" && user && !loading) {
+      setSignupSubmitted(false);
+      setAuthData(user);
+      setStep("camera");
+    }
+  }, [signupSubmitted, step, user, loading]);
+
+  useEffect(() => {
+    if (signupSubmitted && error) {
+      msgApi.error(error);
+      setSignupSubmitted(false);
+    }
+  }, [error]);
 
   const handleCameraFinished = () => {
     onComplete(authData);
@@ -24,7 +83,17 @@ export default function AuthFlow({ onSignUp, onComplete }: AuthFlowProps) {
 
   return (
     <>
-      {step === "login" && <LoginPage onLogin={handleLoginPageDone} onSignUp={onSignUp} />}
+      {contextHolder}
+
+      {step === "login" && <LoginPage onLogin={handleLoginPageDone} onSignUp={handleSignUp} />}
+
+      {step === "onboarding" && (
+        <OnboardingModal
+          prefill={{ email: signupEmail || "" }}
+          onComplete={handleOnboardingComplete}
+          onBack={handleBackToLogin}
+        />
+      )}
 
       <AnimatePresence>
         {step === "camera" && (
@@ -83,7 +152,6 @@ export default function AuthFlow({ onSignUp, onComplete }: AuthFlowProps) {
             ))}
 
             <div style={{ position: "relative", zIndex: 20, textAlign: "center" }}>
-              {/* CAMERA ICON */}
               <motion.div
                 initial={{ scale: 0, rotate: -180, opacity: 0 }}
                 animate={{ scale: 1, rotate: 0, opacity: 1 }}
@@ -156,7 +224,6 @@ export default function AuthFlow({ onSignUp, onComplete }: AuthFlowProps) {
                 </motion.p>
               </motion.div>
 
-              {/* LOADING BAR */}
               <motion.div
                 initial={{ opacity: 0, scaleX: 0 }}
                 animate={{ opacity: 1, scaleX: 1 }}

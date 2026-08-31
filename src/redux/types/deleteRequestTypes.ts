@@ -42,54 +42,73 @@ export const REJECT_DELETE_REQUEST_REQUEST = "REJECT_DELETE_REQUEST_REQUEST";
 export const REJECT_DELETE_REQUEST_SUCCESS = "REJECT_DELETE_REQUEST_SUCCESS";
 export const REJECT_DELETE_REQUEST_FAILURE = "REJECT_DELETE_REQUEST_FAILURE";
 
+// NOTE: each action interface below carries `[key: string]: unknown;`.
+// Without it, TypeScript won't treat these as assignable to Redux's
+// `UnknownAction` type when passed to a typed `dispatch()` call — named
+// interfaces (unlike inline object literals) don't get an implicit index
+// signature, so `dispatch(someAction())` fails to type-check otherwise.
+// This doesn't loosen anything at runtime; it only satisfies the type checker.
+
 export interface RequestAccountDeleteRequestAction {
   type: typeof REQUEST_ACCOUNT_DELETE_REQUEST;
   payload: { reason: string };
+  [key: string]: unknown;
 }
 export interface RequestAccountDeleteSuccessAction {
   type: typeof REQUEST_ACCOUNT_DELETE_SUCCESS;
+  [key: string]: unknown;
 }
 export interface RequestAccountDeleteFailureAction {
   type: typeof REQUEST_ACCOUNT_DELETE_FAILURE;
   payload: string;
+  [key: string]: unknown;
 }
 
 export interface FetchPendingDeleteRequestsRequestAction {
   type: typeof FETCH_PENDING_DELETE_REQUESTS_REQUEST;
+  [key: string]: unknown;
 }
 export interface FetchPendingDeleteRequestsSuccessAction {
   type: typeof FETCH_PENDING_DELETE_REQUESTS_SUCCESS;
   payload: PendingDeleteUser[];
+  [key: string]: unknown;
 }
 export interface FetchPendingDeleteRequestsFailureAction {
   type: typeof FETCH_PENDING_DELETE_REQUESTS_FAILURE;
   payload: string;
+  [key: string]: unknown;
 }
 
 export interface ApproveDeleteRequestRequestAction {
   type: typeof APPROVE_DELETE_REQUEST_REQUEST;
   payload: { userId: string };
+  [key: string]: unknown;
 }
 export interface ApproveDeleteRequestSuccessAction {
   type: typeof APPROVE_DELETE_REQUEST_SUCCESS;
   payload: { userId: string };
+  [key: string]: unknown;
 }
 export interface ApproveDeleteRequestFailureAction {
   type: typeof APPROVE_DELETE_REQUEST_FAILURE;
   payload: string;
+  [key: string]: unknown;
 }
 
 export interface RejectDeleteRequestRequestAction {
   type: typeof REJECT_DELETE_REQUEST_REQUEST;
   payload: { userId: string };
+  [key: string]: unknown;
 }
 export interface RejectDeleteRequestSuccessAction {
   type: typeof REJECT_DELETE_REQUEST_SUCCESS;
   payload: { userId: string };
+  [key: string]: unknown;
 }
 export interface RejectDeleteRequestFailureAction {
   type: typeof REJECT_DELETE_REQUEST_FAILURE;
   payload: string;
+  [key: string]: unknown;
 }
 
 export type DeleteRequestActionTypes =

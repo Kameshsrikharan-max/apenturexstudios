@@ -1,4 +1,4 @@
-import { call, put, takeLatest } from "redux-saga/effects";
+import { call, put, select, takeLatest } from "redux-saga/effects";
 import {
   REQUEST_ACCOUNT_DELETE_REQUEST,
   FETCH_PENDING_DELETE_REQUESTS_REQUEST,
@@ -25,11 +25,48 @@ import {
   approveDeleteRequestApi,
   rejectDeleteRequestApi,
 } from "../api/deleteRequestApi";
+import { pushNotification } from "../../utils/notificationStore"; // adjust path to match your redux folder depth
+
+// NOTE: adjust this if your auth slice lives somewhere else or has a
+// different shape — it only needs to resolve to something with
+// email / identifier / name so we can label who asked for the deletion.
+const selectCurrentUser = (state: any): { email?: string; identifier?: string; name?: string } =>
+  state?.auth?.user || {};
+
+function getRequesterLabel(user: { email?: string; identifier?: string; name?: string }): string {
+  if (user.name) return user.name;
+  if (user.email) return user.email;
+  if (user.identifier) return user.identifier;
+  return "A user";
+}
 
 function* requestAccountDeleteWorker(action: RequestAccountDeleteRequestAction) {
   try {
     yield call(requestAccountDeleteApi, action.payload.reason);
     yield put(requestAccountDeleteSuccess());
+
+    const currentUser: { email?: string; identifier?: string; name?: string } = yield select(
+      selectCurrentUser
+    );
+    const requesterLabel = getRequesterLabel(currentUser);
+
+    
+    pushNotification({
+      title: `${requesterLabel} requested account deletion`,
+      notifCategory: "deleteRequest",
+      category: "Account",
+      priority: "high",
+      triggeredBy: requesterLabel,
+      description: action.payload.reason || "No reason was provided.",
+      tags: ["account", "deletion"],
+      isActionable: false,
+      payload: {
+        targetType: "User Account",
+        targetName: requesterLabel,
+        reason: action.payload.reason,
+        requestedBy: requesterLabel,
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to submit delete request.";
     yield put(requestAccountDeleteFailure(message));
