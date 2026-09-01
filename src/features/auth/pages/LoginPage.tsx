@@ -18,7 +18,7 @@ const quotes = [
   "A camera is a save button for the mind's eye.",
 ];
 
-export default function LoginPage({ onLogin, onSignUp }) {
+export default function LoginPage({ onLogin, onRegister }) {
   const [msgApi, contextHolder] = message.useMessage();
 
   const dispatch = useDispatch();
@@ -139,17 +139,15 @@ export default function LoginPage({ onLogin, onSignUp }) {
     }
   }, [otpSent]);
 
-  // The email checks out, but there's no account for it (new user, or a
-  // previously-deleted one). Hand off to onboarding instead of logging in —
-  // the signupToken needed to actually create the account is already
-  // sitting in auth state (signupToken), read by the signup page directly.
+  // The email checks out, but there's no account for it. This should only
+  // happen if someone types a brand-new email into the login form directly
+  // (registration now happens through the dedicated Register flow). Nudge
+  // them there instead of silently jumping into onboarding.
   useEffect(() => {
     if (needsSignup) {
-      msgApi.info("No account found for this email — let's get you set up.");
+      msgApi.info("No account found for this email — please use Register to sign up.");
       setOtp("");
-      if (onSignUp) {
-        onSignUp(signupEmail);
-      }
+      dispatch(resetOtpState());
     }
   }, [needsSignup]);
 
@@ -860,21 +858,36 @@ const formBoxVariants = {
                   </motion.div>
 
               
-                  <motion.div
-                    variants={itemVariants}
-                    style={{
-                      textAlign: "center",
-                    }}
-                  >
-                    <Button
-                      type="link"
-                      onClick={() => onSignUp && onSignUp()}
-                      className="signup-link"
+                  <motion.div variants={itemVariants} style={{ textAlign: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        margin: "4px 0 16px",
+                      }}
                     >
-                      Don't have an account?{" "}
-                      <span style={{ color: "#38BDF8" }}>
-                        Sign Up
-                      </span>
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+                      <Text style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px", letterSpacing: "2px" }}>
+                        NEW TO AXS STUDIO
+                      </Text>
+                      <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.1)" }} />
+                    </div>
+                    <Button
+                      block
+                      onClick={() => onRegister && onRegister()}
+                      className="register-cta-button"
+                      style={{
+                        height: "48px",
+                        borderRadius: "18px",
+                        background: "transparent",
+                        border: "1px solid rgba(56,189,248,0.5)",
+                        color: "#38BDF8",
+                        fontWeight: 700,
+                        letterSpacing: "1px",
+                      }}
+                    >
+                      Register
                     </Button>
                   </motion.div>
                 </div>
@@ -911,6 +924,7 @@ const formBoxVariants = {
           .submit-button-innovative {height: 60px !important;
             background:linear-gradient(135deg,#38BDF8,#0ea5e9) !important;color: #000 !important;border: none !important;border-radius: 20px !important;font-weight: 800 !important;letter-spacing: 2px;box-shadow:0 10px 30px rgba(56, 189, 248, 0.4) !important;}
           .submit-button-innovative:hover {transform: translateY(-4px);filter: brightness(1.1);}
+          .register-cta-button:hover {background: rgba(56,189,248,0.1) !important;transform: translateY(-2px);}
           .social-icon {font-size: 22px;color: rgba(255,255,255,0.4);cursor: pointer;transition: all 0.3s;}
           .social-icon:hover {color: #38BDF8;transform:translateY(-5px)scale(1.2);}
           .signup-link {color: rgba(255,255,255,0.5) !important;font-size: 13px !important;}

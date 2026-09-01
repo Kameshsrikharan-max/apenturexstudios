@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, type ReactNode } from "react";
 import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,} from "@ant-design/icons";
+import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,UserOutlined,CopyOutlined,ArrowLeftOutlined,RedoOutlined,UndoOutlined,CheckOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
@@ -22,6 +22,7 @@ type SignupType = "Registered" | "Google" | "Invited";
 type TabKey = "all" | "referrals" | "photographers";
 type FilterKey = "All" | UserStatus | SignupType;
 type DatePeriod = "today" | "week" | "month" | "year";
+type InviteRole = "Studio Admin" | "Studio Manager" | "Freelance Photographer" | "Studio Photographer";
 
 interface UserRecord {
   id: string;
@@ -47,12 +48,11 @@ interface GalleryPhoto {
 }
 
 interface InviteFormValues {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  role?: string;
-  location?: string;
-  image?: string;
+  role: InviteRole;
 }
 
 interface EditFormValues {
@@ -118,6 +118,16 @@ const filterIconMap: Record<string, ReactNode> = {
   Registered: <UserSwitchOutlined />,
   Google: <GoogleOutlined />,
   Invited: <SendOutlined />,
+};
+
+// Role metadata for the Invite modal — reuses colors already established
+// elsewhere in the app (blue / purple / amber / green) rather than
+// introducing a new palette.
+const inviteRoleMeta: Record<InviteRole, { color: string; icon: ReactNode }> = {
+  "Studio Admin": { color: "#3b82f6", icon: <TeamOutlined /> },
+  "Studio Manager": { color: "#a78bfa", icon: <UserSwitchOutlined /> },
+  "Freelance Photographer": { color: "#f59e0b", icon: <CameraOutlined /> },
+  "Studio Photographer": { color: "#22c55e", icon: <CameraOutlined /> },
 };
 
 const tabItems: { key: TabKey; label: ReactNode }[] = [
@@ -719,6 +729,9 @@ const UsersPage = () => {
   const [viewUser, setViewUser] = useState<UserRecord | null>(null);
   const [editUser, setEditUser] = useState<UserRecord | null>(null);
   const [inviteOpen, setInviteOpen] = useState<boolean>(false);
+  const [inviteSent, setInviteSent] = useState<boolean>(false);
+  const [inviteLink, setInviteLink] = useState<string>("");
+  const [sentInviteUser, setSentInviteUser] = useState<UserRecord | null>(null);
   const [filterOpen, setFilterOpen] = useState<boolean>(false);
   const [appliedFilters, setAppliedFilters] = useState<AdvancedFilters>(emptyAdvancedFilters);
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
@@ -729,6 +742,19 @@ const UsersPage = () => {
   const [editForm] = Form.useForm<EditFormValues>();
   const [inviteForm] = Form.useForm<InviteFormValues>();
   const [advFilterForm] = Form.useForm<AdvancedFilters>();
+
+  // Live-watched invite field values — drive the creative preview card
+  const watchFirstName = Form.useWatch("firstName", inviteForm);
+  const watchLastName = Form.useWatch("lastName", inviteForm);
+  const watchEmail = Form.useWatch("email", inviteForm);
+  const watchPhone = Form.useWatch("phone", inviteForm);
+  const watchRole = Form.useWatch("role", inviteForm) as InviteRole | undefined;
+
+  const inviteProgress = useMemo(() => {
+    const fields = [watchFirstName, watchLastName, watchEmail, watchPhone, watchRole];
+    const filled = fields.filter((f) => f && String(f).trim().length > 0).length;
+    return Math.round((filled / fields.length) * 100);
+  }, [watchFirstName, watchLastName, watchEmail, watchPhone, watchRole]);
 
   const [usersData, setUsersData] = useState<UserRecord[]>([
     { id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com", phone: "8888888888", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80", notes: "Manages studio users and booking activity." },
@@ -935,35 +961,63 @@ const UsersPage = () => {
     message.success("Invited");
   };
 
-  const handleInvite = (values: InviteFormValues) => {
-    const isPhotographer = activeTab === "photographers";
+  // --- Invite modal handlers -------------------------------------------------
+
+  const handleSendInvite = (values: InviteFormValues) => {
+    const isPhotographerRole = values.role === "Freelance Photographer" || values.role === "Studio Photographer";
+    const fullName = `${values.firstName} ${values.lastName}`.trim();
+    const id = `${isPhotographerRole ? "p" : "u"}${Date.now()}`;
+
     const newUser: UserRecord = {
-      id: `${isPhotographer ? "p" : "u"}${Date.now()}`,
-      name: values.name,
+      id,
+      name: fullName,
       email: values.email,
       phone: values.phone,
       studio: "Wave Studios",
-      role: isPhotographer ? "Freelance Photographer" : values.role || "Photographer",
+      role: values.role,
       status: "Pending",
       signupType: "Invited",
       created: "01 Jun 2026",
-      shoots: 0,
-      location: values.location || "Chennai",
-      image: values.image || fallbackImage,
+      location: "Chennai",
+      image: fallbackImage,
       notes: "Invited from users page.",
+      ...(isPhotographerRole ? { shoots: 0 } : {}),
     };
-    if (isPhotographer) setPhotographersData((prev) => [newUser, ...prev]);
+
+    if (isPhotographerRole) setPhotographersData((prev) => [newUser, ...prev]);
     else setUsersData((prev) => [newUser, ...prev]);
 
-    // Fire a "new user registered" notification for the invited/created user.
     notifyUserRegistered({
       userName: newUser.name,
       userEmail: newUser.email,
     });
 
-    inviteForm.resetFields();
-    setInviteOpen(false);
+    const link = `${window.location.origin}/invite/${id}`;
+    setInviteLink(link);
+    setSentInviteUser(newUser);
+    setInviteSent(true);
     message.success("Invite sent");
+  };
+
+  const handleResendInvite = () => {
+    if (!sentInviteUser) return;
+    notifyUserRegistered({
+      userName: sentInviteUser.name,
+      userEmail: sentInviteUser.email,
+    });
+    message.success(`Invite resent to ${sentInviteUser.email}`);
+  };
+
+  const handleResetInviteForm = () => {
+    inviteForm.resetFields();
+    setInviteSent(false);
+    setInviteLink("");
+    setSentInviteUser(null);
+  };
+
+  const handleCloseInviteModal = () => {
+    setInviteOpen(false);
+    handleResetInviteForm();
   };
 
   // Status / Signup tags — icon-only, full word shown via Tooltip on hover
@@ -1437,53 +1491,183 @@ const UsersPage = () => {
           )}
         </CustomModal>
 
-        <CustomModal open={inviteOpen} onClose={() => setInviteOpen(false)} width={580}>
-          <div className="modal-shell">
-            <div className="modal-title-row">
-              <Avatar className="modal-small-avatar">
+        {/* ===================== Invite Users modal (creative) ===================== */}
+        <CustomModal open={inviteOpen} onClose={handleCloseInviteModal} width={860}>
+          <div className="invite-creative-shell">
+            <div className="invite-creative-header">
+              <div className="invite-header-icon">
                 <UserAddOutlined />
-              </Avatar>
-              <Title level={3}>Invite</Title>
+              </div>
+              <div>
+                <Title level={3} className="invite-heading-title">
+                  Invite users
+                </Title>
+                <Text className="invite-heading-sub">Send an invite link to a new team member</Text>
+              </div>
+              <div className="invite-progress-wrap">
+                <div className="invite-progress-track">
+                  <div className="invite-progress-fill" style={{ width: `${inviteProgress}%` }} />
+                </div>
+                <span className="invite-progress-label">{inviteProgress}% complete</span>
+              </div>
             </div>
-            <Form<InviteFormValues> form={inviteForm} layout="vertical" onFinish={handleInvite}>
-              <div className="edit-form-grid">
-                <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="email" label="Email" rules={[{ required: true }, { type: "email" }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="role" label="Role" initialValue="Photographer">
-                  <Select
-                    classNames={{ popup: { root: "dark-select-dropdown" } }}
-                    options={[
-                      { value: "Studio Admin", label: "Studio Admin" },
-                      { value: "Photographer", label: "Photographer" },
-                      { value: "Editor", label: "Editor" },
-                    ]}
-                  />
-                </Form.Item>
-                <Form.Item name="location" label="Location">
-                  <Input />
-                </Form.Item>
-                <Form.Item name="image" label="Image URL">
-                  <Input />
-                </Form.Item>
-              </div>
-              <div className="modal-action-row">
-                <Tooltip title="Discard invite">
-                  <Button className="modal-cancel-btn" onClick={() => setInviteOpen(false)}>
-                    Cancel
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Send invite">
-                  <Button htmlType="submit" type="primary" icon={<SendOutlined />} className="invite-btn-styled" />
-                </Tooltip>
-              </div>
-            </Form>
+
+            <div className="invite-creative-body">
+              <aside className="invite-preview-pane">
+                <div
+                  className="invite-preview-card"
+                  style={{ "--pc": (watchRole && inviteRoleMeta[watchRole]?.color) || "#3b82f6" } as React.CSSProperties}
+                >
+                  <div className="invite-preview-avatar-wrap">
+                    <div className="invite-preview-avatar-glow" />
+                    <div className="invite-preview-avatar">
+                      {(watchFirstName?.charAt(0) || "") + (watchLastName?.charAt(0) || "") || <UserOutlined />}
+                    </div>
+                  </div>
+
+                  <h4 className="invite-preview-name">
+                    {watchFirstName || watchLastName
+                      ? `${watchFirstName || ""} ${watchLastName || ""}`.trim()
+                      : "New Team Member"}
+                  </h4>
+
+                  {watchRole && (
+                    <span className="invite-preview-role-pill" style={{ "--pc": inviteRoleMeta[watchRole].color } as React.CSSProperties}>
+                      {inviteRoleMeta[watchRole].icon} {watchRole}
+                    </span>
+                  )}
+
+                  <div className="invite-preview-divider" />
+
+                  <div className="invite-preview-chip-list">
+                    <div className="invite-preview-chip">
+                      <MailOutlined /> <span>{watchEmail || "email@studio.com"}</span>
+                    </div>
+                    <div className="invite-preview-chip">
+                      <PhoneOutlined /> <span>{watchPhone || "Phone number"}</span>
+                    </div>
+                  </div>
+
+                  {inviteSent && (
+                    <div className="invite-link-box">
+                      <div className="invite-link-label">
+                        <LinkOutlined /> Invite link
+                      </div>
+                      <div className="invite-link-row">
+                        <span className="invite-link-text">{inviteLink}</span>
+                        <Tooltip title="Copy link">
+                          <button
+                            type="button"
+                            className="invite-link-copy-btn"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(inviteLink);
+                              message.success("Link copied");
+                            }}
+                          >
+                            <CopyOutlined />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <span className="invite-sent-badge">
+                        <CheckOutlined /> Invite sent
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </aside>
+
+              <main className="invite-form-pane">
+                <Form<InviteFormValues>
+                  form={inviteForm}
+                  layout="vertical"
+                  onFinish={handleSendInvite}
+                  disabled={inviteSent}
+                >
+                  <div className="invite-field-grid">
+                    <Form.Item name="firstName" label="First Name" rules={[{ required: true, message: "Required" }]}>
+                      <Input prefix={<UserOutlined />} placeholder="e.g. Arun" />
+                    </Form.Item>
+                    <Form.Item name="lastName" label="Last Name" rules={[{ required: true, message: "Required" }]}>
+                      <Input prefix={<UserOutlined />} placeholder="e.g. Kumar" />
+                    </Form.Item>
+                    <Form.Item
+                      name="email"
+                      label="Email Address"
+                      className="invite-field-full"
+                      rules={[
+                        { required: true, message: "Required" },
+                        { type: "email", message: "Enter a valid email" },
+                      ]}
+                    >
+                      <Input prefix={<MailOutlined />} placeholder="name@studio.com" />
+                    </Form.Item>
+                    <Form.Item name="phone" label="Phone Number" rules={[{ required: true, message: "Required" }]}>
+                      <Input prefix={<PhoneOutlined />} placeholder="98765 43210" />
+                    </Form.Item>
+                    <Form.Item name="role" label="Role" rules={[{ required: true, message: "Required" }]}>
+                      <Select
+                        placeholder="Select a role"
+                        popupMatchSelectWidth
+                        classNames={{ popup: { root: "dark-select-dropdown invite-role-dropdown" } }}
+                        options={(Object.keys(inviteRoleMeta) as InviteRole[]).map((r) => ({
+                          value: r,
+                          label: (
+                            <span className="invite-role-option" style={{ "--rc": inviteRoleMeta[r].color } as React.CSSProperties}>
+                              <span className="invite-role-option-icon">{inviteRoleMeta[r].icon}</span>
+                              {r}
+                            </span>
+                          ),
+                        }))}
+                      />
+                    </Form.Item>
+                  </div>
+                </Form>
+
+                {inviteSent && (
+                  <div className="invite-sent-note">
+                    <CheckCircleOutlined /> The invite is on its way to <b>{watchEmail}</b>. You can resend it anytime.
+                  </div>
+                )}
+
+                <div className="invite-actions-row">
+                  <Tooltip title="Close without sending">
+                    <Button className="invite-action-btn back" icon={<ArrowLeftOutlined />} onClick={handleCloseInviteModal}>
+                      Back
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title="Clear the form">
+                    <Button className="invite-action-btn reset" icon={<UndoOutlined />} onClick={handleResetInviteForm}>
+                      Reset
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title={inviteSent ? "Send the invite again" : "Send an invite first"}>
+                    <span>
+                      <Button
+                        className="invite-action-btn resend"
+                        icon={<RedoOutlined />}
+                        disabled={!inviteSent}
+                        onClick={handleResendInvite}
+                      >
+                        Resend Invite
+                      </Button>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title={inviteSent ? "Invite already sent" : "Send invite"}>
+                    <span>
+                      <Button
+                        type="primary"
+                        className="invite-action-btn send invite-btn-styled"
+                        icon={inviteSent ? <CheckOutlined /> : <SendOutlined />}
+                        disabled={inviteSent}
+                        onClick={() => inviteForm.submit()}
+                      >
+                        {inviteSent ? "Sent" : "Send Invite"}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </div>
+              </main>
+            </div>
           </div>
         </CustomModal>
       </Layout>

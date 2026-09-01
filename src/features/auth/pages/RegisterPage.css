@@ -1,0 +1,81 @@
+.register-root {font-family: "Times New Roman", Times, serif;position: relative;min-height: 100vh;width: 100%;background-color: #020617;overflow-x: hidden;}
+
+.register-backdrop {position: absolute;inset: 0;
+  background-image: linear-gradient(rgba(2, 6, 23, 0.75), rgba(2, 6, 23, 0.92)),
+    url("https://images.unsplash.com/photo-1520390138845-fd2d229dd553?q=80&w=2070");
+  background-size: cover;background-position: center;z-index: 1;}
+.register-content {position: relative;z-index: 10;min-height: 100vh;display: flex;flex-direction: column;padding-bottom: 60px;}
+.register-topbar {display: flex;align-items: center;justify-content: space-between;padding: 24px 40px;}
+.register-topbar-brand {display: flex;align-items: center;gap: 10px;}
+.register-topbar-brand-icon {color: #38bdf8;font-size: 26px;}
+.register-topbar-brand-text {color: #fff;font-weight: 200;letter-spacing: 4px;font-size: 15px;}
+.register-back-link {color: rgba(255, 255, 255, 0.6) !important;}
+.register-stepper {display: flex;justify-content: center;margin-bottom: 30px;}
+.register-stepper-inner {display: flex;align-items: center;gap: 12px;}
+.step-dot {display: flex;align-items: center;gap: 8px;}
+.step-dot-circle {width: 26px;height: 26px;border-radius: 50%;display: flex;align-items: center;justify-content: center;background: rgba(255, 255, 255, 0.08);color: rgba(255, 255, 255, 0.4);font-size: 12px;font-weight: 700;transition: all 0.3s ease;}
+.step-dot-circle-active {background: #38bdf8;color: #02040c;}
+.step-dot-label {color: rgba(255, 255, 255, 0.4);font-size: 12px;letter-spacing: 1px;}
+.step-dot-label-active {color: #fff;}
+.step-connector {width: 60px;height: 2px;background: rgba(255, 255, 255, 0.15);transition: background 0.4s ease;}
+.step-connector-active {background: #38bdf8;}
+.register-stage-wrap {flex: 1;display: flex;align-items: flex-start;justify-content: center;padding: 0 20px 40px;}
+.register-role-stage {width: 100%;max-width: 960px;padding-bottom: 20px;}
+.role-header {text-align: center;margin-bottom: 40px;}
+.role-header-title {color: #fff !important;font-weight: 100 !important;margin: 0 !important;}
+.role-header-highlight {color: #38bdf8;font-weight: 600;}
+.role-header-subtitle {color: rgba(255, 255, 255, 0.5);font-size: 14px;}
+.role-card {cursor: pointer;border-radius: 28px;padding: 34px 28px;background: rgba(255, 255, 255, 0.04);backdrop-filter: blur(14px);border: 1px solid rgba(255, 255, 255, 0.1);position: relative;overflow: hidden;height: 100%;transition: border-color 0.3s ease, box-shadow 0.3s ease;}
+.role-card:hover {border-color: rgba(255, 255, 255, 0.25) !important;box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);}
+.role-card-glow {position: absolute;top: -60px;right: -60px;width: 180px;height: 180px;border-radius: 50%;background: radial-gradient(circle, var(--accent-soft), transparent 70%);filter: blur(10px);pointer-events: none;}
+.role-card-icon {width: 64px;height: 64px;border-radius: 20px;display: flex;align-items: center;justify-content: center;background: var(--accent-soft);color: var(--accent);font-size: 28px;margin-bottom: 20px;box-shadow: 0 0 30px var(--accent-soft);position: relative;z-index: 1;}
+.role-card-title {color: #fff !important;margin: 0 !important;font-weight: 500 !important;position: relative;z-index: 1;}
+.role-card-subtitle {color: rgba(255, 255, 255, 0.55);font-size: 13px;display: block;margin-top: 8px;margin-bottom: 20px;position: relative;z-index: 1;}
+.role-card-features-label {color: rgba(255, 255, 255, 0.35);font-size: 10px;letter-spacing: 2px;text-transform: uppercase;position: relative;z-index: 1;}
+.role-card-features {margin-top: 12px;display: flex;flex-direction: column;gap: 8px;position: relative;z-index: 1;}
+.role-card-feature {display: flex;align-items: center;gap: 8px;}
+.role-card-feature-dot {color: var(--accent);font-size: 12px;}
+.role-card-feature-text {color: rgba(255, 255, 255, 0.75);font-size: 13px;}
+.role-card-cta {margin-top: 26px;height: 46px;border-radius: 16px !important;background: linear-gradient(135deg, var(--accent), var(--accent)) !important;border: none !important;color: #02040c !important;font-weight: 700 !important;letter-spacing: 1px;position: relative;z-index: 1;}
+.role-card-cta:hover {filter: brightness(1.1);transform: translateY(-2px);}
+.register-verify-stage {width: 100%;max-width: 420px;}
+.glass-card {transition: border 0.4s ease;}
+.register-card {background: rgba(0, 0, 0, 0.7);backdrop-filter: blur(10px) saturate(100%);border: 1px solid rgba(255, 255, 255, 0.15);border-radius: 32px;padding: 36px 30px;box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9);}
+.verify-header {text-align: center;margin-bottom: 8px;}
+.verify-badge {display: inline-flex;align-items: center;gap: 8px;padding: 6px 14px;border-radius: 999px;background: var(--accent-soft);margin-bottom: 16px;}
+.verify-badge-icon {color: var(--accent);}
+.verify-badge-text {color: var(--accent) !important;font-size: 12px;letter-spacing: 1px;}
+.verify-title {color: #fff !important;margin: 0 !important;font-weight: 100 !important;letter-spacing: 6px !important;}
+.verify-subtitle {color: rgba(255, 255, 255, 0.4);font-size: 10px;letter-spacing: 2px;}
+.verify-body {display: flex;flex-direction: column;gap: 22px;margin-top: 26px;}
+.verify-actions-row {display: flex;justify-content: space-between;margin-top: 10px;}
+.verify-submit-button {height: 56px !important;border-radius: 18px !important;background: linear-gradient(135deg, var(--accent), var(--accent)) !important;border: none !important;color: #02040c !important;font-weight: 800 !important;letter-spacing: 2px;}
+.verify-submit-button:hover {filter: brightness(1.1);}
+.input-prefix-icon {color: var(--accent);margin-right: 10px;}
+.creative-input {background: rgba(255, 255, 255, 0.08) !important;border: 1px solid rgba(255, 255, 255, 0.1) !important;border-radius: 20px !important;padding: 14px 20px !important;color: #fff !important;}
+.creative-input:focus {background: rgba(255, 255, 255, 0.12) !important;box-shadow: 0 0 15px rgba(56, 189, 248, 0.2) !important;}
+.label-text {color: rgba(255, 255, 255, 0.5);margin-left: 8px;margin-bottom: 8px;display: block;font-size: 10px;letter-spacing: 2px;}
+.signup-link {color: rgba(255, 255, 255, 0.5) !important;font-size: 13px !important;padding: 0 !important;}
+.ant-input {color: #fff !important;}
+.ant-input::placeholder {color: rgba(255, 255, 255, 0.2) !important;}
+.ant-input-affix-wrapper {background: transparent !important;border: none !important;}
+
+/* Sign-in call-to-action — its own visible pill, well clear of the cards above */
+
+.register-signin-cta {display: flex;align-items: center;justify-content: center;gap: 8px;width: fit-content;margin: 64px auto 0;padding: 16px 30px;border-radius: 999px;background: rgba(255, 255, 255, 0.06);backdrop-filter: blur(16px);border: 1px solid rgba(255, 255, 255, 0.14);box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);}
+.register-signin-cta--compact {margin: 28px auto 0;padding: 12px 24px;}
+.register-signin-text {color: rgba(255, 255, 255, 0.68) !important;font-size: 14px;letter-spacing: 0.3px;white-space: nowrap;}
+.register-signin-link {position: relative;display: inline-flex;align-items: center;gap: 4px;background: none;border: none;padding: 2px 4px;margin-left: 8px;cursor: pointer;color: #5eead4;font-weight: 700;font-size: 14px;letter-spacing: 0.3px;}
+.register-signin-link-arrow {font-size: 11px;transition: transform 0.25s ease;}
+.register-signin-link::after {content: "";position: absolute;left: 4px;right: 4px;bottom: -3px;height: 1px;background: #5eead4;box-shadow: 0 0 10px rgba(94, 234, 212, 0.7);transform: scaleX(0);transform-origin: left;transition: transform 0.25s ease;}
+.register-signin-link:hover::after {transform: scaleX(1);}
+.register-signin-link:hover .register-signin-link-arrow {transform: translateX(3px);}
+
+.register-signin-link:hover .register-signin-link-label {text-shadow: 0 0 12px rgba(94, 234, 212, 0.6);}
+
+@media (max-width: 768px) {
+  .register-topbar {padding: 18px 20px;}
+  .register-card {padding: 28px 20px;}
+  .role-header {margin-bottom: 24px;}
+  .register-signin-cta {margin-top: 44px;padding: 14px 20px;flex-wrap: wrap;text-align: center;}
+}

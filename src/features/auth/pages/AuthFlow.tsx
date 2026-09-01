@@ -3,10 +3,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
 import { message } from "antd";
 import LoginPage from "./LoginPage";
+import RegisterPage, { RegisterRole } from "./RegisterPage";
 import OnboardingModal from "../../../components/Onboarding/OnboardingModal";
+import StudioAdminRegisterPage, {
+  StudioAdminFormData,
+} from "./register/studio-admin/StudioAdminRegisterPage";
 import { signupRequest, resetOtpState } from "../../../redux/actions/authActions";
 
-type AuthStep = "login" | "onboarding" | "camera";
+type AuthStep = "login" | "register" | "studio-admin-register" | "onboarding" | "camera";
 
 interface AuthFlowProps {
   onComplete: (data: any) => void;
@@ -23,39 +27,70 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   const [step, setStep] = useState<AuthStep>("login");
   const [authData, setAuthData] = useState<any>(null);
   const [signupSubmitted, setSignupSubmitted] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
+
   const handleLoginPageDone = (data: any) => {
     setAuthData(data);
     setStep("camera");
   };
 
-  const handleSignUp = () => {
-    setStep("onboarding");
+  const handleGoToRegister = () => {
+    setStep("register");
   };
 
   const handleBackToLogin = () => {
     setSignupSubmitted(false);
+    setSelectedRole(null);
     dispatch(resetOtpState());
     setStep("login");
+  };
+
+  const handleRoleVerified = (role: RegisterRole) => {
+    setSelectedRole(role);
+
+    if (role === "studio_admin") {
+      // Studio Admin has its own dedicated multi-step wizard (Basic Info ->
+      // KYC -> Studio Details -> Documents -> Review) and skips the OTP
+      // verify stage inside RegisterPage entirely, so there's no
+      // signupToken yet at this point — that's fine, the wizard collects
+      // everything itself before final submission.
+      setStep("studio-admin-register");
+      return;
+    }
+
+    // Freelance Photographer still goes through RegisterPage's OTP verify
+    // stage first, so signupToken/signupEmail are already set by the time
+    // we get here.
+    setStep("onboarding");
+  };
+
+  // Placeholder until the studio admin backend submission flow is wired up:
+  // for now this just logs the collected data and hands off to the same
+  // camera splash / dashboard entry the rest of the app uses.
+  const handleStudioAdminSubmitted = (data: StudioAdminFormData) => {
+    console.log("Studio admin registration submitted:", data);
+    msgApi.info("Studio registration captured — backend submission isn't wired up yet.");
   };
 
   const handleOnboardingComplete = (formData: any) => {
     if (!signupToken) {
       msgApi.error("Your signup session expired — please verify your email again.");
+      setSelectedRole(null);
       setStep("login");
       return;
     }
 
-  
     try {
       localStorage.setItem(`axsOnboardingData_${signupEmail}`, JSON.stringify(formData));
     } catch {
-      /* ignore storage errors */
+    
     }
 
     setSignupSubmitted(true);
     dispatch(
       signupRequest({
         signupToken,
+        role: selectedRole,
         name: formData?.basic?.name,
         phone: formData?.basic?.phone,
       })
@@ -85,11 +120,23 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
     <>
       {contextHolder}
 
-      {step === "login" && <LoginPage onLogin={handleLoginPageDone} onSignUp={handleSignUp} />}
+      {step === "login" && <LoginPage onLogin={handleLoginPageDone} onRegister={handleGoToRegister} />}
+
+      {step === "register" && (
+        <RegisterPage onBack={handleBackToLogin} onComplete={handleRoleVerified} />
+      )}
+
+      {step === "studio-admin-register" && (
+        <StudioAdminRegisterPage
+          onBackToLogin={handleBackToLogin}
+          onSubmitted={handleStudioAdminSubmitted}
+        />
+      )}
 
       {step === "onboarding" && (
         <OnboardingModal
           prefill={{ email: signupEmail || "" }}
+          role={selectedRole}
           onComplete={handleOnboardingComplete}
           onBack={handleBackToLogin}
         />

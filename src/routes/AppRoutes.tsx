@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import LoginPage            from "../features/auth/pages/LoginPage";
+import RegisterPage         from "../features/auth/pages/RegisterPage";
 import DashboardPage        from "../features/dashboard/pages/DashboardPage";
 import ReviewPage           from "../features/review/pages/ReviewPage";
 import UsersPage            from "../features/users/pages/UsersPage";
@@ -32,6 +33,7 @@ import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequests
 import { signupRequest } from "../redux/actions/authActions";
 
 const LoginPageAny: any = LoginPage;
+const RegisterPageAny: any = RegisterPage;
 const DashboardPageAny: any = DashboardPage;
 const ReviewPageAny: any = ReviewPage;
 const UsersPageAny: any = UsersPage;
@@ -81,6 +83,30 @@ function SuperAdminOnly({ user, children }: any) {
   return children;
 }
 
+// New entry point for signup: role selection + email OTP verification.
+// On success (needsSignup becomes true in RegisterPage), we hand off to
+// the onboarding flow at /signup, carrying the chosen role along so it's
+// available if the onboarding step ever needs it.
+function RegisterEntryPage() {
+  const navigate = useNavigate();
+
+  const handleComplete = (role: string) => {
+    try {
+      localStorage.setItem("axsSelectedRole", role);
+    } catch {
+      // best-effort only
+    }
+    navigate("/signup", { state: { role } });
+  };
+
+  return (
+    <RegisterPageAny
+      onBack={() => navigate("/")}
+      onComplete={handleComplete}
+    />
+  );
+}
+
 
 function SignUpPage({ onLogin }: any) {
   const navigate = useNavigate();
@@ -89,12 +115,13 @@ function SignUpPage({ onLogin }: any) {
     (state: any) => state.auth
   );
 
-  // signupToken comes from LoginPage's verify-otp call (email confirmed,
-  // no account exists yet). Without it, this route was reached directly
-  // rather than through the OTP flow, so send them back to log in first.
+  // signupToken comes from RegisterPage's (or LoginPage's) verify-otp call
+  // (email confirmed, no account exists yet). Without it, this route was
+  // reached directly rather than through the OTP flow, so send them back
+  // to register first.
   useEffect(() => {
     if (!signupToken) {
-      navigate("/", { replace: true });
+      navigate("/register", { replace: true });
     }
   }, [signupToken, navigate]);
 
@@ -137,7 +164,7 @@ function SignUpPage({ onLogin }: any) {
     );
   };
 
-  return <OnboardingModal onComplete={handleComplete} />;
+  return <OnboardingModal onComplete={handleComplete} onBack={() => navigate("/register")} />;
 }
 
 
@@ -160,8 +187,19 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           !isAuthenticated ? (
             <LoginPageAny
               onLogin={onLogin}
-              onSignUp={() => navigate("/signup")}
+              onSignUp={() => navigate("/register")}
             />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          !isAuthenticated ? (
+            <RegisterEntryPage />
           ) : (
             <Navigate to="/dashboard" replace />
           )

@@ -3,8 +3,9 @@ import {
   SIGNUP_REQUEST, SIGNUP_SUCCESS, SIGNUP_FAILURE,
   SEND_OTP_REQUEST, SEND_OTP_SUCCESS, SEND_OTP_FAILURE,
   VERIFY_OTP_REQUEST, VERIFY_OTP_FAILURE, VERIFY_OTP_NEEDS_SIGNUP,
-  RESET_OTP_STATE, LOGOUT,
+  RESET_OTP_STATE, SET_REGISTER_ROLE, LOGOUT,
 } from "../types/authTypes";
+import type { RegisterRole } from "../actions/authActions";
 
 const savedUser = localStorage.getItem("user");
 const savedToken = localStorage.getItem("token");
@@ -23,6 +24,11 @@ const initialState = {
   needsSignup: false,
   signupEmail: null as string | null,
   signupToken: null as string | null,
+
+  // Selected on the Register page (role cards), consumed by the saga when
+  // completing signup. Not tied to otpSent/needsSignup lifecycle because
+  // it's chosen *before* either of those happen.
+  registerRole: null as RegisterRole | null,
 };
 
 const authReducer = (state = initialState, action: any) => {
@@ -42,6 +48,7 @@ const authReducer = (state = initialState, action: any) => {
         needsSignup: false,
         signupEmail: null,
         signupToken: null,
+        registerRole: null,
       };
 
     case LOGIN_FAILURE:
@@ -82,7 +89,13 @@ const authReducer = (state = initialState, action: any) => {
         needsSignup: false,
         signupEmail: null,
         signupToken: null,
+        // registerRole intentionally survives this reset — RegisterPage's
+        // "Change role" back-nav dispatches resetOtpState, and the role
+        // picker re-selecting overwrites registerRole anyway via SET_REGISTER_ROLE.
       };
+
+    case SET_REGISTER_ROLE:
+      return { ...state, registerRole: action.payload };
 
     case LOGOUT:
       return {
@@ -95,6 +108,7 @@ const authReducer = (state = initialState, action: any) => {
         needsSignup: false,
         signupEmail: null,
         signupToken: null,
+        registerRole: null,
       };
 
     default:

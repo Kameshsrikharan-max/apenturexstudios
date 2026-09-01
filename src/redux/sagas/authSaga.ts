@@ -1,4 +1,4 @@
-import { call, put, takeLatest } from "redux-saga/effects";
+import { call, put, select, takeLatest } from "redux-saga/effects";
 import {
   LOGIN_REQUEST, SIGNUP_REQUEST, LOGOUT,
   SEND_OTP_REQUEST, VERIFY_OTP_REQUEST,
@@ -25,8 +25,6 @@ function* handleVerifyOtp(action: any): any {
     const data = yield call(verifyOtpApi, action.payload);
 
     if (data.needsSignup) {
-      // No account exists for this (verified) email — do NOT log in.
-      // Hand off to the signup/onboarding flow instead.
       yield put(verifyOtpNeedsSignup(data.email, data.signupToken));
       return;
     }
@@ -40,10 +38,16 @@ function* handleVerifyOtp(action: any): any {
 }
 
 // Completes signup after onboarding: creates the real account using the
-// signupToken issued by verify-otp, then logs the new user in.
+// signupToken issued by verify-otp, then logs the new user in. Falls back
+// to state.auth.registerRole if the dispatched payload didn't include a
+// role, so whichever screen finally calls signupRequest doesn't need to
+// know about registerRole itself.
 function* handleSignup(action: any): any {
   try {
-    const data = yield call(completeSignupApi, action.payload);
+    const registerRole = yield select((state: any) => state.auth.registerRole);
+    const payload = { ...action.payload, role: action.payload.role ?? registerRole };
+
+    const data = yield call(completeSignupApi, payload);
     localStorage.setItem("user", JSON.stringify(data.user));
     localStorage.setItem("token", data.token);
     yield put(signupSuccess(data));

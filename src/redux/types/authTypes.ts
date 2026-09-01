@@ -16,4 +16,6 @@ export const VERIFY_OTP_NEEDS_SIGNUP = "VERIFY_OTP_NEEDS_SIGNUP";
 
 export const RESET_OTP_STATE = "RESET_OTP_STATE";
 
+export const SET_REGISTER_ROLE = "SET_REGISTER_ROLE";
+
 export const LOGOUT = "LOGOUT";

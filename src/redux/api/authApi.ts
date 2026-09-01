@@ -32,15 +32,17 @@ export async function completeSignupApi({
   signupToken,
   name,
   phone,
+  role,
 }: {
   signupToken: string;
   name?: string;
   phone?: string;
+  role?: string;
 }) {
   const res = await fetch(`${API_BASE}/complete-signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ signupToken, name, phone }),
+    body: JSON.stringify({ signupToken, name, phone, role }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
