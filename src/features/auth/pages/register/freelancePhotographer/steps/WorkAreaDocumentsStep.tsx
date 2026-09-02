@@ -1,37 +1,46 @@
 import { useRef, useState } from "react";
 import {
   EnvironmentOutlined,
-  FileTextOutlined,
+  IdcardOutlined,
   SafetyCertificateOutlined,
-  ShopOutlined,
-  BankOutlined,
+  FileTextOutlined,
+  TrophyOutlined,
   InboxOutlined,
   CheckCircleFilled,
   ExportOutlined,
+  CompassOutlined,
 } from "@ant-design/icons";
-import "./DocumentsStep.css";
+import "./WorkAreaDocumentsStep.css";
 
-export interface DocumentsData {
+export interface WorkAreaDocumentsData {
   mapsLink: string;
+  travelRadius: string;
   documentType: string;
   documentFile: File | null;
 }
 
-interface DocumentsStepProps {
-  initialData: DocumentsData;
+interface WorkAreaDocumentsStepProps {
+  initialData: WorkAreaDocumentsData;
   onBack: () => void;
-  onContinue: (data: DocumentsData) => void;
+  onContinue: (data: WorkAreaDocumentsData) => void;
 }
 
-type FieldErrors = Partial<Record<keyof DocumentsData, string>>;
+type FieldErrors = Partial<Record<keyof WorkAreaDocumentsData, string>>;
 
 const MAPS_LINK_PATTERN = /^https?:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)/i;
 
+const TRAVEL_RADIUS_OPTIONS: { label: string; hint: string; icon: React.ReactNode }[] = [
+  { label: "Within my city", hint: "Local shoots only", icon: <CompassOutlined /> },
+  { label: "Within my state", hint: "Will travel state-wide", icon: <CompassOutlined /> },
+  { label: "Pan-India", hint: "Open to travel anywhere in India", icon: <CompassOutlined /> },
+  { label: "International", hint: "Open to destination shoots abroad", icon: <CompassOutlined /> },
+];
+
 const DOCUMENT_TYPE_OPTIONS: { label: string; icon: React.ReactNode }[] = [
-  { label: "GST registration", icon: <FileTextOutlined /> },
-  { label: "MSME/Udyam certificate", icon: <SafetyCertificateOutlined /> },
-  { label: "Shop & Establishment licence", icon: <ShopOutlined /> },
-  { label: "Certificate of Incorporation", icon: <BankOutlined /> },
+  { label: "PAN Card", icon: <IdcardOutlined /> },
+  { label: "GST Registration (if any)", icon: <FileTextOutlined /> },
+  { label: "Professional Certification", icon: <SafetyCertificateOutlined /> },
+  { label: "Award / Recognition", icon: <TrophyOutlined /> },
 ];
 
 const ACCEPTED_DOCUMENT_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
@@ -43,15 +52,15 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function DocumentsStep({ initialData, onBack, onContinue }: DocumentsStepProps) {
-  const [data, setData] = useState<DocumentsData>(initialData);
+export default function WorkAreaDocumentsStep({ initialData, onBack, onContinue }: WorkAreaDocumentsStepProps) {
+  const [data, setData] = useState<WorkAreaDocumentsData>(initialData);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  const setField = <K extends keyof DocumentsData>(field: K, value: DocumentsData[K]) => {
+  const setField = <K extends keyof WorkAreaDocumentsData>(field: K, value: WorkAreaDocumentsData[K]) => {
     setData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -61,23 +70,16 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
   const selectDocumentType = (option: string) => {
     const isSame = data.documentType === option;
     setField("documentType", isSame ? "" : option);
-    if (isSame) {
-      // Clearing the type also clears any file already attached to it.
-      setField("documentFile", null);
-    }
+    if (isSame) setField("documentFile", null);
   };
 
   const handleFileSelect = (fileList: FileList | null) => {
     const file = fileList?.[0] ?? null;
     setField("documentFile", file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removeFile = () => {
-    setField("documentFile", null);
-  };
+  const removeFile = () => setField("documentFile", null);
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -95,9 +97,7 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -116,6 +116,10 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
       next.mapsLink = "Enter a valid Google Maps link.";
     }
 
+    if (!data.travelRadius) {
+      next.travelRadius = "Please select how far you're willing to travel.";
+    }
+
     return next;
   };
 
@@ -127,19 +131,19 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
     }
   };
 
-  const isValidLooking = data.mapsLink.trim() && MAPS_LINK_PATTERN.test(data.mapsLink.trim());
-  const mapsLinkLooksValid = isValidLooking && !errors.mapsLink;
+  const mapsLinkValid = data.mapsLink.trim() && MAPS_LINK_PATTERN.test(data.mapsLink.trim());
+  const isValidLooking = mapsLinkValid && data.travelRadius;
 
   return (
-    <div className="documents-step">
+    <div className="work-area-step">
       <div className="studio-form-section-header">
-        <h2 className="studio-form-section-title">Document Upload & Location</h2>
-        <p className="studio-form-section-subtitle">Upload required documents for verification</p>
+        <h2 className="studio-form-section-title">Work Area &amp; Documents</h2>
+        <p className="studio-form-section-subtitle">Where you're based and how far you'll travel for a shoot</p>
       </div>
       <div className="studio-form-divider" />
 
       <div className="studio-form-grid">
-        <Field label="Studio Google Maps Link" required error={errors.mapsLink} full>
+        <Field label="Base Location — Google Maps Link" required error={errors.mapsLink} full>
           <div className="studio-field-shell">
             <input
               className={`studio-input ${errors.mapsLink ? "studio-input--invalid" : ""}`}
@@ -147,19 +151,19 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
               value={data.mapsLink}
               onChange={(e) => setField("mapsLink", e.target.value)}
             />
-            {mapsLinkLooksValid ? <CheckCircleFilled className="studio-field-check" /> : null}
+            {mapsLinkValid ? <CheckCircleFilled className="studio-field-check" /> : null}
           </div>
-          <span className="studio-field-hint">Paste the Google Maps link to your studio location</span>
+          <span className="studio-field-hint">Paste the Google Maps link to where you're usually based</span>
 
-          {mapsLinkLooksValid ? (
-            <div className="documents-map-preview">
-              <div className="documents-map-preview-visual">
+          {mapsLinkValid ? (
+            <div className="work-area-map-preview">
+              <div className="work-area-map-preview-visual">
                 <EnvironmentOutlined />
               </div>
-              <div className="documents-map-preview-body">
-                <span className="documents-map-preview-label">Location link saved</span>
+              <div className="work-area-map-preview-body">
+                <span className="work-area-map-preview-label">Base location saved</span>
                 <a
-                  className="documents-map-preview-link"
+                  className="work-area-map-preview-link"
                   href={data.mapsLink}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -171,13 +175,34 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
           ) : null}
         </Field>
 
+        <Field label="Travel Radius" required error={errors.travelRadius} full>
+          <div className="work-area-radius-grid">
+            {TRAVEL_RADIUS_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.label}
+                className={`studio-option-card work-area-radius-card ${
+                  data.travelRadius === option.label ? "studio-option-card--selected" : ""
+                }`}
+                onClick={() => setField("travelRadius", option.label)}
+              >
+                <span className="studio-option-card-icon">{option.icon}</span>
+                <div>
+                  <div className="studio-option-card-title">{option.label}</div>
+                  <div className="studio-option-card-sub">{option.hint}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </Field>
+
         <Field label="Document Type (Optional)" full>
-          <div className="documents-doc-grid">
+          <div className="work-area-doc-grid">
             {DOCUMENT_TYPE_OPTIONS.map((option) => (
               <button
                 type="button"
                 key={option.label}
-                className={`studio-option-card documents-doc-card ${
+                className={`studio-option-card work-area-doc-card ${
                   data.documentType === option.label ? "studio-option-card--selected" : ""
                 }`}
                 onClick={() => selectDocumentType(option.label)}
@@ -200,8 +225,8 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
           />
 
           <div
-            className={`documents-dropzone ${isDraggingFile ? "documents-dropzone--active" : ""} ${
-              !data.documentType ? "documents-dropzone--disabled" : ""
+            className={`work-area-dropzone ${isDraggingFile ? "work-area-dropzone--active" : ""} ${
+              !data.documentType ? "work-area-dropzone--disabled" : ""
             }`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
@@ -211,12 +236,12 @@ export default function DocumentsStep({ initialData, onBack, onContinue }: Docum
             role="button"
             tabIndex={data.documentType ? 0 : -1}
           >
-            <InboxOutlined className="documents-dropzone-icon" />
-            <p className="documents-dropzone-title">
+            <InboxOutlined className="work-area-dropzone-icon" />
+            <p className="work-area-dropzone-title">
               {data.documentType ? "Drag & drop your document here" : "Select a document type first"}
             </p>
             {data.documentType ? (
-              <p className="documents-dropzone-sub">
+              <p className="work-area-dropzone-sub">
                 or click to browse — {ACCEPTED_DOCUMENT_EXTENSIONS.map((e) => e.replace(".", "").toUpperCase()).join(
                   ", "
                 )}

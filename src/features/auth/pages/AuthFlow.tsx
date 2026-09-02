@@ -1,33 +1,37 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
 import { message } from "antd";
 import LoginPage from "./LoginPage";
 import RegisterPage, { RegisterRole } from "./RegisterPage";
-import OnboardingModal from "../../../components/Onboarding/OnboardingModal";
 import StudioAdminRegisterPage, {
   StudioAdminFormData,
 } from "./register/studio-admin/StudioAdminRegisterPage";
-import { signupRequest, resetOtpState } from "../../../redux/actions/authActions";
+import FreelancePhotographerRegisterPage, {
+  FreelancePhotographerFormData,
+} from "./register/freelancePhotographer/FreelancePhotographerRegisterPage";
+import { loginSuccess } from "../../../redux/actions/authActions";
 
-type AuthStep = "login" | "register" | "studio-admin-register" | "onboarding" | "camera";
+type AuthStep =
+  | "login"
+  | "register"
+  | "studio-admin-register"
+  | "freelance-photographer-register"
+  | "camera";
 
 interface AuthFlowProps {
   onComplete: (data: any) => void;
 }
 
-export default function AuthFlow({ onComplete }: AuthFlowProps) {
-  const [msgApi, contextHolder] = message.useMessage();
-  const dispatch = useDispatch();
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
-  const { signupEmail, signupToken, user, loading, error } = useSelector(
-    (state: any) => state.auth
-  );
+export default function AuthFlow({ onComplete }: AuthFlowProps) {
+  const dispatch = useDispatch();
+  const [msgApi, contextHolder] = message.useMessage();
 
   const [step, setStep] = useState<AuthStep>("login");
   const [authData, setAuthData] = useState<any>(null);
-  const [signupSubmitted, setSignupSubmitted] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RegisterRole | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleLoginPageDone = (data: any) => {
     setAuthData(data);
@@ -39,78 +43,69 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   };
 
   const handleBackToLogin = () => {
-    setSignupSubmitted(false);
-    setSelectedRole(null);
-    dispatch(resetOtpState());
     setStep("login");
   };
 
-  const handleRoleVerified = (role: RegisterRole) => {
-    setSelectedRole(role);
-
+  const handleRoleSelected = (role: RegisterRole) => {
+    // Both roles go straight into their own dedicated multi-step wizard
+    // with no OTP verify stage in between — RegisterPage just records
+    // the choice and hands off here.
     if (role === "studio_admin") {
-      // Studio Admin has its own dedicated multi-step wizard (Basic Info ->
-      // KYC -> Studio Details -> Documents -> Review) and skips the OTP
-      // verify stage inside RegisterPage entirely, so there's no
-      // signupToken yet at this point — that's fine, the wizard collects
-      // everything itself before final submission.
       setStep("studio-admin-register");
       return;
     }
-
-    // Freelance Photographer still goes through RegisterPage's OTP verify
-    // stage first, so signupToken/signupEmail are already set by the time
-    // we get here.
-    setStep("onboarding");
+    setStep("freelance-photographer-register");
   };
 
-  // Placeholder until the studio admin backend submission flow is wired up:
-  // for now this just logs the collected data and hands off to the same
-  // camera splash / dashboard entry the rest of the app uses.
-  const handleStudioAdminSubmitted = (data: StudioAdminFormData) => {
-    console.log("Studio admin registration submitted:", data);
-    msgApi.info("Studio registration captured — backend submission isn't wired up yet.");
-  };
+  const submitRegistration = async (endpoint: string, formData: unknown) => {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
 
-  const handleOnboardingComplete = (formData: any) => {
-    if (!signupToken) {
-      msgApi.error("Your signup session expired — please verify your email again.");
-      setSelectedRole(null);
-      setStep("login");
-      return;
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok || !body?.success) {
+      throw new Error(body?.message || "Registration failed. Please try again.");
     }
 
+    return body as { user: any; profile: any; token: string };
+  };
+
+  const finishRegistration = (result: { user: any; token: string }) => {
+    // Match the keys authReducer's initialState reads on page load —
+    // otherwise a refresh right after registering loses the session.
+    localStorage.setItem("token", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
+    dispatch(loginSuccess({ user: result.user, token: result.token }));
+    setAuthData(result.user);
+    setStep("camera");
+  };
+
+  const handleStudioAdminSubmitted = async (data: StudioAdminFormData) => {
+    setSubmitting(true);
     try {
-      localStorage.setItem(`axsOnboardingData_${signupEmail}`, JSON.stringify(formData));
-    } catch {
-    
+      const result = await submitRegistration("/register/studio-admin", data);
+      finishRegistration(result);
+    } catch (err: any) {
+      msgApi.error(err.message || "Studio registration failed.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setSignupSubmitted(true);
-    dispatch(
-      signupRequest({
-        signupToken,
-        role: selectedRole,
-        name: formData?.basic?.name,
-        phone: formData?.basic?.phone,
-      })
-    );
   };
 
-  useEffect(() => {
-    if (signupSubmitted && step === "onboarding" && user && !loading) {
-      setSignupSubmitted(false);
-      setAuthData(user);
-      setStep("camera");
+  const handleFreelancePhotographerSubmitted = async (data: FreelancePhotographerFormData) => {
+    setSubmitting(true);
+    try {
+      const result = await submitRegistration("/register/freelance-photographer", data);
+      finishRegistration(result);
+    } catch (err: any) {
+      msgApi.error(err.message || "Photographer registration failed.");
+    } finally {
+      setSubmitting(false);
     }
-  }, [signupSubmitted, step, user, loading]);
-
-  useEffect(() => {
-    if (signupSubmitted && error) {
-      msgApi.error(error);
-      setSignupSubmitted(false);
-    }
-  }, [error]);
+  };
 
   const handleCameraFinished = () => {
     onComplete(authData);
@@ -123,7 +118,7 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
       {step === "login" && <LoginPage onLogin={handleLoginPageDone} onRegister={handleGoToRegister} />}
 
       {step === "register" && (
-        <RegisterPage onBack={handleBackToLogin} onComplete={handleRoleVerified} />
+        <RegisterPage onBack={handleBackToLogin} onComplete={handleRoleSelected} />
       )}
 
       {step === "studio-admin-register" && (
@@ -133,12 +128,10 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
         />
       )}
 
-      {step === "onboarding" && (
-        <OnboardingModal
-          prefill={{ email: signupEmail || "" }}
-          role={selectedRole}
-          onComplete={handleOnboardingComplete}
-          onBack={handleBackToLogin}
+      {step === "freelance-photographer-register" && (
+        <FreelancePhotographerRegisterPage
+          onBackToLogin={handleBackToLogin}
+          onSubmitted={handleFreelancePhotographerSubmitted}
         />
       )}
 

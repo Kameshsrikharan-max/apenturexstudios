@@ -502,83 +502,252 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-mono);}
-.studio-media-size {color: var(--text-muted);font-family: var(--font-mono);flex-shrink: 0;}
-.studio-media-remove {background: none;border: none;color: var(--text-muted);cursor: pointer;font-size: 16px;line-height: 1;padding: 2px 4px;flex-shrink: 0;}
-.studio-media-remove:hover {color: var(--red);}
+  font-family: var(--font-mono);
+}
+
+.studio-media-size {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.studio-media-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+
+.studio-media-remove:hover {
+  color: var(--red);
+}
 
 /* Actions */
-.studio-form-actions {display: flex;align-items: center;justify-content: space-between;margin-top: 32px;padding-top: 20px;border-top: 1px solid var(--border);}
-.studio-form-actions-right {display: flex;gap: 10px;}
+.studio-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.studio-form-actions-right {
+  display: flex;
+  gap: 10px;
+}
 
 .studio-btn-primary,
+.studio-btn-secondary {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: 11px 22px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease-out);
+  border: 1px solid transparent;
+}
 
-.studio-btn-secondary {font-family: var(--font-body);font-size: 14px;font-weight: 600;border-radius: var(--radius-sm);padding: 11px 22px;cursor: pointer;transition: all 0.18s var(--ease-out);border: 1px solid transparent;}
-.studio-btn-primary {background: var(--cyan);color: var(--ink-950);box-shadow: 0 6px 18px rgba(34, 211, 238, 0.25);}
-.studio-btn-primary:hover:not(:disabled) {filter: brightness(1.08);transform: translateY(-1px);}
-.studio-btn-primary:disabled {opacity: 0.4;cursor: not-allowed;box-shadow: none;}
-.studio-btn-secondary {background: transparent;color: var(--text-secondary);border-color: var(--border);}
+.studio-btn-primary {
+  background: var(--cyan);
+  color: var(--ink-950);
+  box-shadow: 0 6px 18px rgba(34, 211, 238, 0.25);
+}
 
-.studio-btn-secondary:hover:not(:disabled) {border-color: var(--border-soft);color: var(--text-primary);}
+.studio-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.studio-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.studio-btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.studio-btn-secondary:hover:not(:disabled) {
+  border-color: var(--border-soft);
+  color: var(--text-primary);
+}
 
 @media (max-width: 720px) {
-  .studio-form-grid {grid-template-columns: 1fr;}
-  .studio-form-actions {flex-direction: column-reverse;gap: 12px;align-items: stretch;}
-  .studio-form-actions-right {flex-direction: column;}
+  .studio-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .studio-form-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+    align-items: stretch;
+  }
+  .studio-form-actions-right {
+    flex-direction: column;
+  }
 }
 
 
-.studio-register-root {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% -10%, rgba(34, 211, 238, 0.08), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(245, 166, 35, 0.06), transparent 40%),
-    var(--ink-900);
-  padding: 56px 24px 80px;
-  font-family: var(--font-body);}
-.studio-register-header {max-width: 780px;margin: 0 auto 40px;text-align: center;}
-.studio-register-title {font-family: var(--font-display);font-size: 40px;font-weight: 600;color: var(--text-primary);letter-spacing: -0.015em;margin: 0 0 12px;}
-.studio-register-role-pill {display: inline-block;font-family: var(--font-mono);font-size: 12px;letter-spacing: 0.04em;color: var(--amber);background: var(--amber-dim);border: 1px solid rgba(245, 166, 35, 0.3);border-radius: 999px;padding: 5px 14px;margin-bottom: 14px;}
-.studio-register-subtitle {font-size: 15px;color: var(--text-secondary);margin: 0;line-height: 1.6;}
+/* ------------------------------------------------------------------
+   Layout fix: without box-sizing: border-box, each .studio-input's
+   width:100% + its own padding/border added extra pixels on top of
+   that 100%, so it rendered wider than its grid cell and visually
+   overlapped the neighboring field. Scoped to this step's root so it
+   can't leak into anything else on the page.
+   ------------------------------------------------------------------ */
+.basic-info-step,
+.basic-info-step *,
+.basic-info-step *::before,
+.basic-info-step *::after {
+  box-sizing: border-box;
+}
 
-/* Draft restore banner */
-.studio-draft-banner {max-width: 900px;margin: 0 auto 20px;display: flex;align-items: center;justify-content: space-between;gap: 16px;background: var(--panel);border: 1px solid var(--border-soft);border-left: 3px solid var(--cyan);border-radius: var(--radius-md);padding: 14px 18px;font-size: 13px;color: var(--text-secondary);}
-.studio-draft-banner-actions {display: flex;gap: 8px;flex-shrink: 0;}
-.studio-draft-btn {font-family: var(--font-body);font-size: 12px;font-weight: 600;border-radius: var(--radius-sm);padding: 7px 14px;cursor: pointer;border: 1px solid var(--cyan);background: var(--cyan);color: var(--ink-950);}
-.studio-draft-btn--ghost {background: transparent;color: var(--text-muted);border-color: var(--border);}
+.basic-info-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
 
-/* Film-strip stepper */
-.studio-register-stepper {position: relative;max-width: 900px;margin: 0 auto 32px;display: flex;justify-content: space-between;gap: 4px;}
-.studio-stepper-rail {position: absolute;top: 19px;left: 30px;right: 30px;height: 2px;background: var(--border);z-index: 0;}
-.studio-stepper-rail-fill {height: 100%;background: linear-gradient(90deg, var(--cyan), var(--amber));transition: width 0.4s var(--ease-out);}
-.studio-step-wrap {position: relative;z-index: 1;flex: 1;display: flex;justify-content: center;}
-.studio-step-dot-item {background: none;border: none;padding: 0;display: flex;flex-direction: column;align-items: center;gap: 8px;cursor: default;font-family: inherit;}
-.studio-step-dot-item--clickable {cursor: pointer;}
-.studio-step-sprockets {display: flex;gap: 3px;height: 4px;}
-.studio-step-sprockets span {width: 3px;height: 3px;border-radius: 1px;background: var(--border-soft);}
-.studio-step-circle {width: 38px;height: 38px;border-radius: 50%;display: flex;align-items: center;justify-content: center;font-size: 14px;font-weight: 700;font-family: var(--font-mono);background: var(--panel);border: 1px solid var(--border);color: var(--text-muted);transition: all 0.2s var(--ease-out);}
-.studio-step-lock {font-size: 12px;opacity: 0.6;}
-.studio-step-circle--active {border-color: var(--cyan);color: var(--cyan);background: var(--panel-raised);box-shadow: var(--shadow-glow-cyan);}
-.studio-step-circle--done {background: var(--green);border-color: var(--green);color: var(--ink-950);}
-.studio-step-labels {display: flex;flex-direction: column;align-items: center;text-align: center;opacity: 0.6;}
-.studio-step-labels--active {opacity: 1;}
-.studio-step-title {font-size: 12.5px;font-weight: 700;color: var(--text-primary);}
-.studio-step-subtitle {font-size: 11px;color: var(--text-muted);}
+/* Completion ring */
+.basic-info-meter {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
 
-/* Card shell */
-.studio-register-card {position: relative;max-width: 900px;margin: 0 auto;background: var(--panel);border: 1px solid var(--border);border-radius: var(--radius-lg);box-shadow: var(--shadow-card);padding: 40px 44px;}
-.studio-reg-mark {position: absolute;width: 18px;height: 18px;pointer-events: none;opacity: 0.5;}
+.basic-info-meter-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
 
-.studio-reg-mark::before,
-.studio-reg-mark::after {content: "";position: absolute;background: var(--border-soft);}
-.studio-reg-mark::before {left: 50%;top: 0;bottom: 0;width: 1px;transform: translateX(-50%);}
-.studio-reg-mark::after {top: 50%;left: 0;right: 0;height: 1px;transform: translateY(-50%);}
-.studio-reg-mark--tl {top: 18px;left: 18px;}
-.studio-reg-mark--tr {top: 18px;right: 18px;}
+.basic-info-meter-track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+}
+
+.basic-info-meter-progress {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s var(--ease-out);
+}
+
+.basic-info-meter-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------------
+   Room for the live-validation checkmark: every field inside a
+   .studio-field-shell reserves space on the right so typed text (or
+   an autofilled value) never runs underneath the icon.
+   ------------------------------------------------------------------ */
+.studio-field-shell .studio-input,
+.studio-field-shell .studio-textarea,
+.studio-field-shell .studio-select,
+.studio-field-shell .basic-info-phone-input {
+  padding-right: 40px;
+}
+
+/* ------------------------------------------------------------------
+   Autofill fix: Chrome/Edge/Safari force a light background + dark
+   text on autofilled inputs via an internal user-agent style that
+   normal `background`/`color` rules can't override. The fix is to
+   paint over it with a huge inset box-shadow in our own panel color,
+   force the text color, and push the forced-color transition so far
+   out that it never visibly happens.
+   ------------------------------------------------------------------ */
+.studio-input:-webkit-autofill,
+.studio-input:-webkit-autofill:hover,
+.studio-textarea:-webkit-autofill,
+.studio-textarea:-webkit-autofill:hover,
+.basic-info-phone-input:-webkit-autofill,
+.basic-info-phone-input:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
+  box-shadow: 0 0 0 1000px var(--panel) inset;
+  caret-color: var(--text-primary);
+  transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s;
+}
+
+.studio-input:-webkit-autofill:focus,
+.studio-textarea:-webkit-autofill:focus,
+.basic-info-phone-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--panel-raised) inset, 0 0 0 3px var(--cyan-dim);
+  box-shadow: 0 0 0 1000px var(--panel-raised) inset, 0 0 0 3px var(--cyan-dim);
+}
+
+/* Firefox uses a real pseudo-class rather than the WebKit shadow hack,
+   so it can just be styled directly. */
+.studio-input:autofill,
+.studio-textarea:autofill,
+.basic-info-phone-input:autofill {
+  background: var(--panel);
+  color: var(--text-primary);
+}
+
+/* Phone field with a fixed country code */
+.basic-info-phone-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+
+.basic-info-phone-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.basic-info-phone-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Referral choice cards */
+.basic-info-referral-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.basic-info-referral-card {
+  width: 100%;
+}
 
 @media (max-width: 720px) {
-  .studio-register-title {font-size: 30px;}
-  .studio-register-card {padding: 28px 20px;}
-  .studio-step-labels {display: none;}
-  .studio-register-stepper {padding: 0 4px;}
+  .basic-info-referral-row {
+    grid-template-columns: 1fr;
+  }
+  .basic-info-header {
+    flex-direction: column;
+  }
 }

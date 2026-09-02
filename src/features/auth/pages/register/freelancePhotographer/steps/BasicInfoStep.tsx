@@ -41,8 +41,12 @@ const REQUIRED_FIELDS: TextField[] = [
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
 const POSTAL_CODE_PATTERN = /^\d{6}$/;
+// A couple of letters is enough to call a name field "looking valid" —
+// this only drives the live green tick, not the hard required check.
 const MIN_NAME_LENGTH = 2;
 
+// Single source of truth for what makes each field valid, used for both
+// the on-type/on-blur error message and the live green-tick indicator.
 function fieldError(field: TextField, rawValue: string): string | undefined {
   const value = rawValue.trim();
 
@@ -68,6 +72,9 @@ function fieldError(field: TextField, rawValue: string): string | undefined {
 export default function BasicInfoStep({ initialData, onBack, onContinue }: BasicInfoStepProps) {
   const [data, setData] = useState<BasicInfoData>(initialData);
   const [errors, setErrors] = useState<FieldErrors>({});
+  // Only show a field's error state once the person has actually left it —
+  // this is what "proper validation" means here: real-time feedback that
+  // doesn't shout "required" at an empty field before they've typed a key.
   const [touched, setTouched] = useState<Partial<Record<TextField, boolean>>>({});
   const [showTerms, setShowTerms] = useState(false);
 
@@ -77,6 +84,9 @@ export default function BasicInfoStep({ initialData, onBack, onContinue }: Basic
 
   const setTextField = (field: TextField, value: string) => {
     setField(field, value);
+    // If the field is already touched (i.e. already showing an error),
+    // re-validate as they type so the error clears the moment it's fixed
+    // instead of waiting for the next blur.
     if (touched[field]) {
       setErrors((prev) => ({ ...prev, [field]: fieldError(field, value) }));
     }
@@ -123,11 +133,17 @@ export default function BasicInfoStep({ initialData, onBack, onContinue }: Basic
     setShowTerms(false);
   };
 
+  // A field shows its green tick as soon as it looks valid — regardless of
+  // touched state, since a positive signal is safe to show early. Errors,
+  // on the other hand, only appear once the field has been touched (see
+  // handleBlur / handleContinue).
   const isFieldValid = (field: TextField): boolean => !fieldError(field, data[field]);
 
   const isValidLooking =
     REQUIRED_FIELDS.every((f) => isFieldValid(f)) && data.referral !== null && data.agreedToTerms;
 
+  // Lightweight "how far along am I" meter — an honest, calm alternative to
+  // a password-strength-style bar, scoped to what's actually required here.
   const completion = useMemo(() => {
     const filled =
       REQUIRED_FIELDS.filter((f) => isFieldValid(f)).length +
@@ -135,7 +151,7 @@ export default function BasicInfoStep({ initialData, onBack, onContinue }: Basic
       (data.agreedToTerms ? 1 : 0);
     const total = REQUIRED_FIELDS.length + 2;
     return Math.round((filled / total) * 100);
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   return (
@@ -398,6 +414,8 @@ export default function BasicInfoStep({ initialData, onBack, onContinue }: Basic
   );
 }
 
+/** Field wrapper that can show a live validity tick and/or an error,
+ * without every field needing to know about that plumbing itself. */
 function FieldShell({
   label,
   required,

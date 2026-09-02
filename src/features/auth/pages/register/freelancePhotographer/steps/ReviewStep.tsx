@@ -7,19 +7,21 @@ import {
   CheckCircleFilled,
   ExclamationCircleFilled,
   SolutionOutlined,
-  GlobalOutlined,
+  CompassOutlined,
   ExportOutlined,
   FileTextOutlined,
   EditOutlined,
   LoadingOutlined,
+  InstagramOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
-import type { StudioAdminFormData } from "../StudioAdminRegisterPage";
+import type { FreelancePhotographerFormData } from "../FreelancePhotographerRegisterPage";
 import "./ReviewStep.css";
 
-type StepKey = "basic" | "kyc" | "studio" | "documents" | "review";
+type StepKey = "basic" | "kyc" | "profile" | "workarea" | "review";
 
 interface ReviewStepProps {
-  data: StudioAdminFormData;
+  data: FreelancePhotographerFormData;
   onBack: () => void;
   onEditStep: (step: StepKey) => void;
   onSubmit: () => void | Promise<void>;
@@ -46,16 +48,11 @@ function formatAddress(parts: {
 }
 
 export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitting }: ReviewStepProps) {
-  const { basicInfo, kyc, studioDetails, documents } = data;
+  const { basicInfo, kyc, photographerDetails, workArea } = data;
   const [justSubmitted, setJustSubmitted] = useState(false);
 
   const fullName = `${basicInfo.firstName} ${basicInfo.lastName}`.trim();
 
-  // BasicInfoData doesn't currently persist *when* terms were accepted, only
-  // that they were (agreedToTerms: boolean). Falling back to "today" so the
-  // review page has something to show. For an exact date, add a
-  // `termsAcceptedAt` timestamp to BasicInfoData and set it in
-  // BasicInfoStep's handleAcceptTerms.
   const termsAcceptedDate = useMemo(
     () => new Date().toLocaleDateString("en-IN", { year: "numeric", month: "numeric", day: "numeric" }),
     []
@@ -67,7 +64,7 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
   const kycStatusTone = kyc.skipped ? "pending" : kyc.consentGiven ? "verified" : "pending";
 
   const residentialAddress = formatAddress(basicInfo);
-  const studioAddress = formatAddress(studioDetails);
+  const baseAddress = formatAddress(photographerDetails);
 
   const handleSubmit = async () => {
     await onSubmit();
@@ -82,7 +79,7 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
       </div>
       <div className="studio-form-divider" />
 
-      {/* Hero — printed like a contact sheet's title strip */}
+      {/* Hero */}
       <div className="review-hero">
         <span className="review-hero-mark review-hero-mark--tl" aria-hidden="true" />
         <span className="review-hero-mark review-hero-mark--tr" aria-hidden="true" />
@@ -95,8 +92,8 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
             Review Your Information
           </span>
         </div>
-        <h1 className="review-hero-name">{fullName || "—"}</h1>
-        <span className="review-hero-role">STUDIOADMIN</span>
+        <h1 className="review-hero-name">{photographerDetails.displayName || fullName || "—"}</h1>
+        <span className="review-hero-role">FREELANCE PHOTOGRAPHER</span>
 
         <div className="review-hero-meta">
           <span className="review-badge review-badge--verified">
@@ -162,56 +159,68 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
             </div>
           ) : null}
 
-          {documents.documentType && documents.documentFile ? (
+          {workArea.documentType && workArea.documentFile ? (
             <div className="review-doc-chip review-doc-chip--secondary">
-              {documents.documentType}: <strong>{documents.documentFile.name}</strong>
+              {workArea.documentType}: <strong>{workArea.documentFile.name}</strong>
             </div>
           ) : null}
         </div>
       </section>
 
-      {/* Professional Qualifications */}
+      {/* Professional Profile */}
       <section className="review-section">
         <div className="review-section-heading">
           <h3 className="review-section-title">
-            <SolutionOutlined /> Professional Qualifications
+            <SolutionOutlined /> Professional Profile
           </h3>
-          <EditLink onClick={() => onEditStep("studio")} />
+          <EditLink onClick={() => onEditStep("profile")} />
         </div>
         <div className="review-card">
           <div className="review-grid-2">
             <div className="review-field-block">
-              <span className="review-field-label">Studio / Enterprise Name</span>
+              <span className="review-field-label">Display Name</span>
               <span className="review-field-value review-field-value--hero">
-                {studioDetails.studioName || "—"}
+                {photographerDetails.displayName || "—"}
               </span>
             </div>
-
             <div className="review-field-block">
-              <span className="review-field-label">Studio Phone</span>
-              <span className="review-field-value">{studioDetails.phone || "—"}</span>
+              <span className="review-field-label">Phone</span>
+              <span className="review-field-value">{photographerDetails.phone || "—"}</span>
             </div>
+          </div>
+
+          <div className="review-grid-2">
+            <div className="review-field-block">
+              <span className="review-field-label">Years of Experience</span>
+              <span className="review-tag">{photographerDetails.yearsExperience || "—"}</span>
+            </div>
+            {photographerDetails.equipment ? (
+              <div className="review-field-block">
+                <span className="review-field-label">Camera &amp; Gear</span>
+                <span className="review-field-value">{photographerDetails.equipment}</span>
+              </div>
+            ) : null}
           </div>
 
           <div className="review-divider-thin" />
 
           <div className="review-field-block review-field-block--full">
             <span className="review-field-label">Biography &amp; Experience Overview</span>
-            <div className="review-bio-box">{studioDetails.bio || "No bio provided."}</div>
+            <div className="review-bio-box">{photographerDetails.bio || "No bio provided."}</div>
           </div>
 
-          {studioDetails.service ? (
+          {photographerDetails.service ? (
             <div className="review-field-block review-field-block--full">
               <span className="review-field-label">Primary Service</span>
-              <span className="review-tag">{studioDetails.service}</span>
+              <span className="review-tag">{photographerDetails.service}</span>
             </div>
           ) : null}
 
-          {studioDetails.specializations.length > 0 ? (
+          {photographerDetails.specializations.length > 0 ? (
             <div className="review-field-block review-field-block--full">
               <span className="review-field-label">Specializations</span>
               <div className="review-spec-list">
-                {studioDetails.specializations.map((s) => (
+                {photographerDetails.specializations.map((s) => (
                   <span key={s} className="review-spec-item">
                     {s}
                   </span>
@@ -220,22 +229,50 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
             </div>
           ) : null}
 
-          {studioDetails.media.length > 0 ? (
+          {photographerDetails.instagramLink || photographerDetails.portfolioLink ? (
+            <div className="review-field-block review-field-block--full">
+              <span className="review-field-label">Portfolio Links</span>
+              <div className="review-link-list">
+                {photographerDetails.instagramLink ? (
+                  <a
+                    className="review-link-item"
+                    href={photographerDetails.instagramLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <InstagramOutlined /> Instagram <ExportOutlined className="review-link-item-icon" />
+                  </a>
+                ) : null}
+                {photographerDetails.portfolioLink ? (
+                  <a
+                    className="review-link-item"
+                    href={photographerDetails.portfolioLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <LinkOutlined /> Website <ExportOutlined className="review-link-item-icon" />
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {photographerDetails.media.length > 0 ? (
             <div className="review-field-block review-field-block--full">
               <span className="review-field-label">Portfolio Media</span>
-              <span className="review-field-value">{studioDetails.media.length} file(s) attached</span>
+              <span className="review-field-value">{photographerDetails.media.length} file(s) attached</span>
             </div>
           ) : null}
         </div>
       </section>
 
-      {/* Studio Location Map */}
+      {/* Work Area */}
       <section className="review-section">
         <div className="review-section-heading">
           <h3 className="review-section-title">
-            <GlobalOutlined /> Studio Location Map
+            <CompassOutlined /> Work Area
           </h3>
-          <EditLink onClick={() => onEditStep("documents")} />
+          <EditLink onClick={() => onEditStep("workarea")} />
         </div>
         <div className="review-card review-card--map">
           <div className="review-map-visual">
@@ -243,23 +280,29 @@ export default function ReviewStep({ data, onBack, onEditStep, onSubmit, submitt
               <div className="review-map-pin">
                 <EnvironmentOutlined />
               </div>
-              <span className="review-map-label">{studioDetails.studioName || "Studio Location"}</span>
+              <span className="review-map-label">{photographerDetails.displayName || "Base Location"}</span>
             </div>
           </div>
 
           <div className="review-map-footer">
-            <div className="review-map-name">{studioDetails.studioName || "—"}</div>
-            <div className="review-map-address">{studioAddress || "No address provided"}</div>
+            <div className="review-map-name">{photographerDetails.displayName || "—"}</div>
+            <div className="review-map-address">{baseAddress || "No address provided"}</div>
 
-            {documents.mapsLink ? (
+            {workArea.travelRadius ? (
+              <span className="review-tag review-travel-tag">
+                <CompassOutlined /> {workArea.travelRadius}
+              </span>
+            ) : null}
+
+            {workArea.mapsLink ? (
               <a
                 className="review-map-url-row"
-                href={documents.mapsLink}
+                href={workArea.mapsLink}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open in Google Maps"
               >
-                <span className="review-map-url">{documents.mapsLink}</span>
+                <span className="review-map-url">{workArea.mapsLink}</span>
                 <ExportOutlined className="review-map-url-icon" />
               </a>
             ) : (

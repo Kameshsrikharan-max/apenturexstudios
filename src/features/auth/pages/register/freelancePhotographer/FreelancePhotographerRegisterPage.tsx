@@ -3,31 +3,31 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircleFilled, LockFilled } from "@ant-design/icons";
 import BasicInfoStep, { BasicInfoData } from "./steps/BasicInfoStep";
 import KycVerificationStep, { KycData } from "./steps/KycVerificationStep";
-import StudioDetailsStep, { StudioDetailsData } from "./steps/StudioDetailsStep";
-import DocumentsStep, { DocumentsData } from "./steps/DocumentsStep";
+import PhotographerDetailsStep, { PhotographerDetailsData } from "./steps/PhotographerDetailsStep";
+import WorkAreaDocumentsStep, { WorkAreaDocumentsData } from "./steps/WorkAreaDocumentsStep";
 import ReviewStep from "./steps/ReviewStep";
-import "./StudioAdminRegisterPage.css";
+import "./FreelancePhotographerRegisterPage.css";
 
-export interface StudioAdminFormData {
+export interface FreelancePhotographerFormData {
   basicInfo: BasicInfoData;
   kyc: KycData;
-  studioDetails: StudioDetailsData;
-  documents: DocumentsData;
+  photographerDetails: PhotographerDetailsData;
+  workArea: WorkAreaDocumentsData;
 }
 
 const STEPS = [
   { key: "basic", title: "Basic Info", subtitle: "Personal details" },
   { key: "kyc", title: "KYC Verification", subtitle: "Aadhaar" },
-  { key: "studio", title: "Studio Details", subtitle: "Business info" },
-  { key: "documents", title: "Documents", subtitle: "Verification" },
+  { key: "profile", title: "Professional Profile", subtitle: "Your work" },
+  { key: "workarea", title: "Work Area", subtitle: "Coverage & docs" },
   { key: "review", title: "Review", subtitle: "Confirm & submit" },
 ] as const;
 
 type StepKey = (typeof STEPS)[number]["key"];
 
-interface StudioAdminRegisterPageProps {
+interface FreelancePhotographerRegisterPageProps {
   onBackToLogin: () => void;
-  onSubmitted: (data: StudioAdminFormData) => void;
+  onSubmitted: (data: FreelancePhotographerFormData) => void;
 }
 
 const EMPTY_BASIC_INFO: BasicInfoData = {
@@ -50,10 +50,11 @@ const EMPTY_KYC: KycData = {
   skipped: false,
 };
 
-const EMPTY_STUDIO_DETAILS: StudioDetailsData = {
-  studioName: "",
+const EMPTY_PHOTOGRAPHER_DETAILS: PhotographerDetailsData = {
+  displayName: "",
   phone: "",
   bio: "",
+  yearsExperience: "",
   address: "",
   city: "",
   state: "",
@@ -62,24 +63,28 @@ const EMPTY_STUDIO_DETAILS: StudioDetailsData = {
   media: [],
   service: "",
   specializations: [],
+  equipment: "",
+  instagramLink: "",
+  portfolioLink: "",
 };
 
-const EMPTY_DOCUMENTS: DocumentsData = {
+const EMPTY_WORK_AREA: WorkAreaDocumentsData = {
   mapsLink: "",
+  travelRadius: "",
   documentType: "",
   documentFile: null,
 };
 
-const DRAFT_KEY = "axs.studioAdminRegister.draft.v1";
+const DRAFT_KEY = "axs.freelancePhotographerRegister.draft.v1";
 
 // File objects can't survive JSON.stringify, so the autosaved draft only
-// carries the text-shaped fields. Media / document uploads are intentionally
-// left out and simply have to be re-attached if a draft is restored.
+// carries the text-shaped fields — media / document uploads are left out
+// and simply have to be re-attached if a draft is restored.
 type SerializableDraft = {
   basicInfo: BasicInfoData;
   kyc: KycData;
-  studioDetails: Omit<StudioDetailsData, "media">;
-  documents: Omit<DocumentsData, "documentFile">;
+  photographerDetails: Omit<PhotographerDetailsData, "media">;
+  workArea: Omit<WorkAreaDocumentsData, "documentFile">;
   activeStep: StepKey;
   savedAt: string;
 };
@@ -93,13 +98,16 @@ function readDraft(): SerializableDraft | null {
   }
 }
 
-export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: StudioAdminRegisterPageProps) {
+export default function FreelancePhotographerRegisterPage({
+  onBackToLogin,
+  onSubmitted,
+}: FreelancePhotographerRegisterPageProps) {
   const [activeStep, setActiveStep] = useState<StepKey>("basic");
-  const [formData, setFormData] = useState<StudioAdminFormData>({
+  const [formData, setFormData] = useState<FreelancePhotographerFormData>({
     basicInfo: EMPTY_BASIC_INFO,
     kyc: EMPTY_KYC,
-    studioDetails: EMPTY_STUDIO_DETAILS,
-    documents: EMPTY_DOCUMENTS,
+    photographerDetails: EMPTY_PHOTOGRAPHER_DETAILS,
+    workArea: EMPTY_WORK_AREA,
   });
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState<SerializableDraft | null>(null);
@@ -107,20 +115,18 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
 
   const activeIndex = STEPS.findIndex((s) => s.key === activeStep);
 
-  // Offer to restore a draft once, on first mount.
   useEffect(() => {
     setDraft(readDraft());
   }, []);
 
-  // Autosave the text-shaped parts of the form after every change.
   useEffect(() => {
-    const { media: _media, ...studioDetailsRest } = formData.studioDetails;
-    const { documentFile: _file, ...documentsRest } = formData.documents;
+    const { media: _media, ...photographerDetailsRest } = formData.photographerDetails;
+    const { documentFile: _file, ...workAreaRest } = formData.workArea;
     const payload: SerializableDraft = {
       basicInfo: formData.basicInfo,
       kyc: formData.kyc,
-      studioDetails: studioDetailsRest,
-      documents: documentsRest,
+      photographerDetails: photographerDetailsRest,
+      workArea: workAreaRest,
       activeStep,
       savedAt: new Date().toISOString(),
     };
@@ -136,8 +142,8 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
     setFormData((prev) => ({
       basicInfo: draft.basicInfo,
       kyc: draft.kyc,
-      studioDetails: { ...prev.studioDetails, ...draft.studioDetails },
-      documents: { ...prev.documents, ...draft.documents },
+      photographerDetails: { ...prev.photographerDetails, ...draft.photographerDetails },
+      workArea: { ...prev.workArea, ...draft.workArea },
     }));
     setActiveStep(draft.activeStep);
     setDraftDismissed(true);
@@ -154,9 +160,6 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
 
   const goToStep = (key: StepKey) => {
     const targetIndex = STEPS.findIndex((s) => s.key === key);
-    // Only allow jumping backward to an already-completed step via the
-    // stepper — forward navigation happens through each step's own
-    // Continue button once its validation passes.
     if (targetIndex <= activeIndex) {
       setActiveStep(key);
     }
@@ -174,21 +177,21 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
 
   const handleKycContinue = (data: KycData) => {
     setFormData((prev) => ({ ...prev, kyc: data }));
-    setActiveStep("studio");
+    setActiveStep("profile");
   };
 
   const handleKycSkip = (data: KycData) => {
     setFormData((prev) => ({ ...prev, kyc: data }));
-    setActiveStep("studio");
+    setActiveStep("profile");
   };
 
-  const handleStudioDetailsContinue = (data: StudioDetailsData) => {
-    setFormData((prev) => ({ ...prev, studioDetails: data }));
-    setActiveStep("documents");
+  const handleProfileContinue = (data: PhotographerDetailsData) => {
+    setFormData((prev) => ({ ...prev, photographerDetails: data }));
+    setActiveStep("workarea");
   };
 
-  const handleDocumentsContinue = (data: DocumentsData) => {
-    setFormData((prev) => ({ ...prev, documents: data }));
+  const handleWorkAreaContinue = (data: WorkAreaDocumentsData) => {
+    setFormData((prev) => ({ ...prev, workArea: data }));
     setActiveStep("review");
   };
 
@@ -214,10 +217,10 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
   return (
     <div className="studio-register-root">
       <div className="studio-register-header">
-        <h1 className="studio-register-title">Register Your Studio</h1>
-        <span className="studio-register-role-pill">Registering as Studio Admin</span>
+        <h1 className="studio-register-title">Register as a Freelance Photographer</h1>
+        <span className="studio-register-role-pill">Registering as Freelance Photographer</span>
         <p className="studio-register-subtitle">
-          Join the Photography Service Platform and connect with talented photographers
+          Join the Photography Service Platform and get discovered by clients near you
         </p>
       </div>
 
@@ -246,8 +249,6 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
         ) : null}
       </AnimatePresence>
 
-      {/* Film-strip stepper: sprocket holes + a progress rail that develops
-          left to right as the applicant moves through the roll. */}
       <div className="studio-register-stepper" role="list" aria-label="Registration progress">
         <div className="studio-stepper-rail">
           <div className="studio-stepper-rail-fill" style={{ width: `${overallProgress}%` }} />
@@ -288,8 +289,6 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
       </div>
 
       <div className="studio-register-card">
-        {/* Registration marks — a recurring nod to contact-sheet printing,
-            echoed again on the Review step's hero. */}
         <span className="studio-reg-mark studio-reg-mark--tl" aria-hidden="true" />
         <span className="studio-reg-mark studio-reg-mark--tr" aria-hidden="true" />
 
@@ -323,32 +322,32 @@ export default function StudioAdminRegisterPage({ onBackToLogin, onSubmitted }: 
                 onSkip={handleKycSkip}
               />
             </motion.div>
-          ) : activeStep === "studio" ? (
+          ) : activeStep === "profile" ? (
             <motion.div
-              key="studio"
+              key="profile"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.25 }}
             >
-              <StudioDetailsStep
-                initialData={formData.studioDetails}
+              <PhotographerDetailsStep
+                initialData={formData.photographerDetails}
                 onBack={goToPreviousStep}
-                onContinue={handleStudioDetailsContinue}
+                onContinue={handleProfileContinue}
               />
             </motion.div>
-          ) : activeStep === "documents" ? (
+          ) : activeStep === "workarea" ? (
             <motion.div
-              key="documents"
+              key="workarea"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.25 }}
             >
-              <DocumentsStep
-                initialData={formData.documents}
+              <WorkAreaDocumentsStep
+                initialData={formData.workArea}
                 onBack={goToPreviousStep}
-                onContinue={handleDocumentsContinue}
+                onContinue={handleWorkAreaContinue}
               />
             </motion.div>
           ) : (

@@ -4,7 +4,6 @@ import { motion, AnimatePresence, useSpring, useMotionValue, useTransform } from
 import { Button, Input, Space, Typography, Card, message, ConfigProvider, Row, Col } from "antd";
 
 import {CameraOutlined,ScanOutlined,UserOutlined,LoadingOutlined,GoogleOutlined,TwitterOutlined,FacebookOutlined,} from "@ant-design/icons";
-
 import { useDispatch, useSelector } from "react-redux";
 import { sendOtpRequest, verifyOtpRequest, resetOtpState } from "../../../redux/actions/authActions";
 
