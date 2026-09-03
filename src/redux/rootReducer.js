@@ -13,6 +13,7 @@ import transactionReducer from "./reducers/transactionReducer";
 import notificationReducer from "./reducers/notificationReducer";
 import notificationDetailReducer from "./reducers/notificationDetailReducer";
 import deleteRequestReducer from "./reducers/deleteRequestReducer";
+import registrationApprovalReducer from "./reducers/registrationApprovalReducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
   notification: notificationReducer,
   notificationDetail: notificationDetailReducer,
   deleteRequest: deleteRequestReducer,
+  registrationApproval: registrationApprovalReducer,
 });
 
 export default rootReducer;

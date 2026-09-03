@@ -1,12 +1,6 @@
 import { motion } from "framer-motion";
 import { Button, Typography, message, ConfigProvider, Row, Col } from "antd";
-import {
-  ShopOutlined,
-  CameraOutlined,
-  ArrowLeftOutlined,
-  CheckCircleFilled,
-  RightOutlined,
-} from "@ant-design/icons";
+import {ShopOutlined,CameraOutlined,ArrowLeftOutlined,CheckCircleFilled,RightOutlined,} from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import { setRegisterRole } from "../../../redux/actions/authActions";
 import "./RegisterPage.css";
@@ -53,14 +47,10 @@ export default function RegisterPage({ onBack, onComplete }: RegisterPageProps) 
   const dispatch = useDispatch();
 
   const handleSelectRole = (r: RegisterRole) => {
-    // Persist to redux immediately — needed later when the onboarding
-    // step completes signup, well after this component may be gone.
+    
     dispatch(setRegisterRole(r));
 
-    // Both roles now go straight into their own dedicated multi-step
-    // registration wizard (Studio Admin -> StudioAdminRegisterPage,
-    // Freelance Photographer -> FreelancePhotographerRegisterPage).
-    // No OTP verify stage lives in this component anymore.
+  
     onComplete(r);
   };
 

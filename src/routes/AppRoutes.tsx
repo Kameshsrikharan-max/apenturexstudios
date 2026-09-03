@@ -30,6 +30,7 @@ import MainLayout           from "../components/Layout/MainLayout";
 import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
+import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
 import { signupRequest } from "../redux/actions/authActions";
 
 const LoginPageAny: any = LoginPage;
@@ -58,6 +59,7 @@ const TransactionPageAny: any = TransactionPage;
 const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
 const EventPublicViewPageAny: any = EventPublicViewPage;
 const DeleteRequestsPageAny: any = DeleteRequestsPage;
+const RegistrationRequestsPageAny: any = RegistrationRequestsPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -278,6 +280,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           element={
             <SuperAdminOnly user={user}>
               <DeleteRequestsPageAny user={user} />
+            </SuperAdminOnly>
+          }
+        />
+        <Route
+          path="/admin/registrations"
+          element={
+            <SuperAdminOnly user={user}>
+              <RegistrationRequestsPageAny user={user} />
             </SuperAdminOnly>
           }
         />

@@ -86,7 +86,15 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   const handleStudioAdminSubmitted = async (data: StudioAdminFormData) => {
     setSubmitting(true);
     try {
-      const result = await submitRegistration("/register/studio-admin", data);
+      // No file-upload endpoint exists yet, so strip File objects before
+      // sending — a File can't survive JSON.stringify (it serializes to
+      // "{}"), which the backend's media: [String] schema then rejects.
+      const payload = {
+        ...data,
+        studioDetails: { ...data.studioDetails, media: [] },
+        documents: { ...data.documents, documentFile: null },
+      };
+      const result = await submitRegistration("/register/studio-admin", payload);
       finishRegistration(result);
     } catch (err: any) {
       msgApi.error(err.message || "Studio registration failed.");
@@ -98,7 +106,13 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   const handleFreelancePhotographerSubmitted = async (data: FreelancePhotographerFormData) => {
     setSubmitting(true);
     try {
-      const result = await submitRegistration("/register/freelance-photographer", data);
+      // Same file-stripping as Studio Admin — see comment above.
+      const payload = {
+        ...data,
+        photographerDetails: { ...data.photographerDetails, media: [] },
+        workArea: { ...data.workArea, documentFile: null },
+      };
+      const result = await submitRegistration("/register/freelance-photographer", payload);
       finishRegistration(result);
     } catch (err: any) {
       msgApi.error(err.message || "Photographer registration failed.");

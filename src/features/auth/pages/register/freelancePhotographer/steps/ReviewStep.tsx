@@ -1,20 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  UserOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  EnvironmentOutlined,
-  CheckCircleFilled,
-  ExclamationCircleFilled,
-  SolutionOutlined,
-  CompassOutlined,
-  ExportOutlined,
-  FileTextOutlined,
-  EditOutlined,
-  LoadingOutlined,
-  InstagramOutlined,
-  LinkOutlined,
-} from "@ant-design/icons";
+import {UserOutlined,MailOutlined,PhoneOutlined,EnvironmentOutlined,CheckCircleFilled,ExclamationCircleFilled,SolutionOutlined,CompassOutlined,ExportOutlined,FileTextOutlined,EditOutlined,LoadingOutlined,InstagramOutlined,LinkOutlined,} from "@ant-design/icons";
 import type { FreelancePhotographerFormData } from "../FreelancePhotographerRegisterPage";
 import "./ReviewStep.css";
 

@@ -13,6 +13,7 @@ import { transactionSaga } from "./sagas/transactionsaga";
 import { notificationSaga } from "./sagas/notificationSaga";
 import { notificationDetailSaga } from "./sagas/notificationDetailSaga";
 import { deleteRequestSaga } from "./sagas/deleteRequestSaga";
+import { registrationApprovalSaga } from "./sagas/registrationApprovalSaga";
 
 export default function* rootSaga() {
   yield all([
@@ -29,5 +30,6 @@ export default function* rootSaga() {
     notificationSaga(),
     notificationDetailSaga(),
     deleteRequestSaga(),
+    registrationApprovalSaga(),
   ]);
 }

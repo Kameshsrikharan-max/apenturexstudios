@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import "./Navbar.css";
@@ -107,8 +107,9 @@ function Navbar({
   const displayName = displayEmail.split("@")[0];
   const displayRole = user?.role || DEFAULT_ROLE;
 
-  // Role-aware page list: only super admins get the Delete Requests entry,
-  // in the command palette (⌘K) and in voice-search matching.
+  // Role-aware page list: only super admins get the Delete Requests and
+  // Registration Requests entries, in the command palette (⌘K) and in
+  // voice-search matching.
   const PAGES = useMemo(() => {
     if (user?.role === "super_admin") {
       return [
@@ -117,6 +118,12 @@ function Navbar({
           label: "Delete Requests",
           path: "/admin/delete-requests",
           icon: <ExclamationCircleOutlined />,
+          group: "Workspace",
+        },
+        {
+          label: "Registration Requests",
+          path: "/admin/registrations",
+          icon: <UserAddOutlined />,
           group: "Workspace",
         },
       ];

@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  IdcardOutlined,
-  CreditCardOutlined,
-  CarOutlined,
-  BookOutlined,
-  QuestionCircleOutlined,
-  SafetyCertificateFilled,
-} from "@ant-design/icons";
+import {IdcardOutlined,CreditCardOutlined,CarOutlined,BookOutlined,QuestionCircleOutlined,SafetyCertificateFilled,} from "@ant-design/icons";
 import "./KycVerificationStep.css";
 
 export type DocumentType = "aadhaar" | "pan" | "driving_license" | "passport";

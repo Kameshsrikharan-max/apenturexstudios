@@ -1,35 +1,9 @@
 import { call, put, select, takeLatest } from "redux-saga/effects";
-import {
-  REQUEST_ACCOUNT_DELETE_REQUEST,
-  FETCH_PENDING_DELETE_REQUESTS_REQUEST,
-  APPROVE_DELETE_REQUEST_REQUEST,
-  REJECT_DELETE_REQUEST_REQUEST,
-  RequestAccountDeleteRequestAction,
-  ApproveDeleteRequestRequestAction,
-  RejectDeleteRequestRequestAction,
-  PendingDeleteUser,
-} from "../types/deleteRequestTypes";
-import {
-  requestAccountDeleteSuccess,
-  requestAccountDeleteFailure,
-  fetchPendingDeleteRequestsSuccess,
-  fetchPendingDeleteRequestsFailure,
-  approveDeleteRequestSuccess,
-  approveDeleteRequestFailure,
-  rejectDeleteRequestSuccess,
-  rejectDeleteRequestFailure,
-} from "../actions/deleteRequestActions";
-import {
-  requestAccountDeleteApi,
-  fetchPendingDeleteRequestsApi,
-  approveDeleteRequestApi,
-  rejectDeleteRequestApi,
-} from "../api/deleteRequestApi";
-import { pushNotification } from "../../utils/notificationStore"; // adjust path to match your redux folder depth
+import {REQUEST_ACCOUNT_DELETE_REQUEST,FETCH_PENDING_DELETE_REQUESTS_REQUEST,APPROVE_DELETE_REQUEST_REQUEST,REJECT_DELETE_REQUEST_REQUEST,RequestAccountDeleteRequestAction,ApproveDeleteRequestRequestAction,RejectDeleteRequestRequestAction,PendingDeleteUser,} from "../types/deleteRequestTypes";
+import {requestAccountDeleteSuccess,requestAccountDeleteFailure,fetchPendingDeleteRequestsSuccess,fetchPendingDeleteRequestsFailure,approveDeleteRequestSuccess,approveDeleteRequestFailure,rejectDeleteRequestSuccess,rejectDeleteRequestFailure,} from "../actions/deleteRequestActions";
+import {requestAccountDeleteApi,fetchPendingDeleteRequestsApi,approveDeleteRequestApi,rejectDeleteRequestApi,} from "../api/deleteRequestApi";
+import { pushNotification } from "../../utils/notificationStore";
 
-// NOTE: adjust this if your auth slice lives somewhere else or has a
-// different shape — it only needs to resolve to something with
-// email / identifier / name so we can label who asked for the deletion.
 const selectCurrentUser = (state: any): { email?: string; identifier?: string; name?: string } =>
   state?.auth?.user || {};
 

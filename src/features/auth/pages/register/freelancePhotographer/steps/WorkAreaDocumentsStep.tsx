@@ -1,15 +1,5 @@
 import { useRef, useState } from "react";
-import {
-  EnvironmentOutlined,
-  IdcardOutlined,
-  SafetyCertificateOutlined,
-  FileTextOutlined,
-  TrophyOutlined,
-  InboxOutlined,
-  CheckCircleFilled,
-  ExportOutlined,
-  CompassOutlined,
-} from "@ant-design/icons";
+import {EnvironmentOutlined,IdcardOutlined,SafetyCertificateOutlined,FileTextOutlined,TrophyOutlined,InboxOutlined,CheckCircleFilled,ExportOutlined,CompassOutlined,} from "@ant-design/icons";
 import "./WorkAreaDocumentsStep.css";
 
 export interface WorkAreaDocumentsData {

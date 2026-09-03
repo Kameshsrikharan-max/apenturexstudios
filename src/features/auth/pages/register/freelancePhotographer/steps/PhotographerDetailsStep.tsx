@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  VideoCameraOutlined,
-  InboxOutlined,
-  CameraOutlined,
-  ThunderboltOutlined,
-  PlaySquareOutlined,
-  RocketOutlined,
-  InstagramOutlined,
-  LinkOutlined,
-} from "@ant-design/icons";
+import {VideoCameraOutlined,InboxOutlined,CameraOutlined,ThunderboltOutlined,PlaySquareOutlined,RocketOutlined,InstagramOutlined,LinkOutlined,} from "@ant-design/icons";
 import "./PhotographerDetailsStep.css";
 
 export interface PhotographerDetailsData {

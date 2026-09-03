@@ -1,6 +1,6 @@
 import { PendingDeleteUser } from "../types/deleteRequestTypes";
 
-// TODO: move to an env var (e.g. import.meta.env.VITE_API_BASE_URL) once one exists.
+
 const API_BASE_URL = "http://localhost:4000";
 
 const TOKEN_STORAGE_KEY = "token";
