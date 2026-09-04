@@ -1,8 +1,4 @@
-/* ============================================================
-   AXS · Studio Registration — Design Tokens
-   Motif: contact sheet / darkroom registration marks.
-   Cyan = verified & digital. Amber = analog / needs attention.
-   ============================================================ */
+/* AXS · Studio Registration —  */
 :root {
   /* Ink & surfaces */
   --ink-950: #070a12;
@@ -496,198 +492,52 @@
   font-size: 12px;
 }
 
-.studio-media-name {
-  flex: 1;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-}
-
-.studio-media-size {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  flex-shrink: 0;
-}
-
-.studio-media-remove {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 4px;
-  flex-shrink: 0;
-}
-
-.studio-media-remove:hover {
-  color: var(--red);
-}
-
+.studio-media-name {flex: 1;color: var(--text-primary);overflow: hidden;text-overflow: ellipsis;white-space: nowrap;font-family: var(--font-mono);}
+.studio-media-size {color: var(--text-muted);font-family: var(--font-mono);flex-shrink: 0;}
+.studio-media-remove {background: none;border: none;color: var(--text-muted);cursor: pointer;font-size: 16px;line-height: 1;padding: 2px 4px;flex-shrink: 0;}
+.studio-media-remove:hover {color: var(--red);}
 /* Actions */
-.studio-form-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 32px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-
-.studio-form-actions-right {
-  display: flex;
-  gap: 10px;
-}
-
+.studio-form-actions {display: flex;align-items: center;justify-content: space-between;margin-top: 32px;padding-top: 20px;border-top: 1px solid var(--border);}
+.studio-form-actions-right {display: flex;gap: 10px;}
 .studio-btn-primary,
-.studio-btn-secondary {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  padding: 11px 22px;
-  cursor: pointer;
-  transition: all 0.18s var(--ease-out);
-  border: 1px solid transparent;
-}
-
-.studio-btn-primary {
-  background: var(--cyan);
-  color: var(--ink-950);
-  box-shadow: 0 6px 18px rgba(34, 211, 238, 0.25);
-}
-
-.studio-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.studio-btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.studio-btn-secondary {
-  background: transparent;
-  color: var(--text-secondary);
-  border-color: var(--border);
-}
-
+.studio-btn-secondary {font-family: var(--font-body);font-size: 14px;font-weight: 600;border-radius: var(--radius-sm);padding: 11px 22px;cursor: pointer;transition: all 0.18s var(--ease-out);border: 1px solid transparent;}
+.studio-btn-primary {background: var(--cyan);color: var(--ink-950);box-shadow: 0 6px 18px rgba(34, 211, 238, 0.25);}
+.studio-btn-primary:hover:not(:disabled) {filter: brightness(1.08);transform: translateY(-1px);}
+.studio-btn-primary:disabled {opacity: 0.4;cursor: not-allowed;box-shadow: none;}
+.studio-btn-secondary {background: transparent;color: var(--text-secondary);border-color: var(--border);}
 .studio-btn-secondary:hover:not(:disabled) {
-  border-color: var(--border-soft);
-  color: var(--text-primary);
-}
+  border-color: var(--border-soft);color: var(--text-primary);}
 
 @media (max-width: 720px) {
-  .studio-form-grid {
-    grid-template-columns: 1fr;
-  }
-  .studio-form-actions {
-    flex-direction: column-reverse;
-    gap: 12px;
-    align-items: stretch;
-  }
-  .studio-form-actions-right {
-    flex-direction: column;
-  }
+  .studio-form-grid {grid-template-columns: 1fr;}
+  .studio-form-actions {flex-direction: column-reverse;gap: 12px;align-items: stretch;}
+  .studio-form-actions-right {flex-direction: column;}
 }
 
-
-/* ------------------------------------------------------------------
-   Layout fix: without box-sizing: border-box, each .studio-input's
-   width:100% + its own padding/border added extra pixels on top of
-   that 100%, so it rendered wider than its grid cell and visually
-   overlapped the neighboring field. Scoped to this step's root so it
-   can't leak into anything else on the page.
-   ------------------------------------------------------------------ */
 .basic-info-step,
 .basic-info-step *,
 .basic-info-step *::before,
-.basic-info-step *::after {
-  box-sizing: border-box;
-}
-
-.basic-info-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
+.basic-info-step *::after {box-sizing: border-box;}
+.basic-info-header {display: flex;align-items: flex-start;justify-content: space-between;gap: 16px;}
 
 /* Completion ring */
-.basic-info-meter {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-}
+.basic-info-meter {position: relative;width: 44px;height: 44px;flex-shrink: 0;}
+.basic-info-meter-ring {width: 100%;height: 100%;transform: rotate(-90deg);}
+.basic-info-meter-track {fill: none;stroke: var(--border);stroke-width: 3;}
+.basic-info-meter-progress {fill: none;stroke: var(--cyan);stroke-width: 3;stroke-linecap: round;transition: stroke-dasharray 0.3s var(--ease-out);}
+.basic-info-meter-label {position: absolute;inset: 0;display: flex;align-items: center;justify-content: center;font-family: var(--font-mono);font-size: 10px;color: var(--text-secondary);}
 
-.basic-info-meter-ring {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.basic-info-meter-track {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 3;
-}
-
-.basic-info-meter-progress {
-  fill: none;
-  stroke: var(--cyan);
-  stroke-width: 3;
-  stroke-linecap: round;
-  transition: stroke-dasharray 0.3s var(--ease-out);
-}
-
-.basic-info-meter-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-/* ------------------------------------------------------------------
-   Room for the live-validation checkmark: every field inside a
-   .studio-field-shell reserves space on the right so typed text (or
-   an autofilled value) never runs underneath the icon.
-   ------------------------------------------------------------------ */
 .studio-field-shell .studio-input,
 .studio-field-shell .studio-textarea,
 .studio-field-shell .studio-select,
-.studio-field-shell .basic-info-phone-input {
-  padding-right: 40px;
-}
+.studio-field-shell .basic-info-phone-input {padding-right: 40px;}
 
-/* ------------------------------------------------------------------
-   Autofill fix: Chrome/Edge/Safari force a light background + dark
-   text on autofilled inputs via an internal user-agent style that
-   normal `background`/`color` rules can't override. The fix is to
-   paint over it with a huge inset box-shadow in our own panel color,
-   force the text color, and push the forced-color transition so far
-   out that it never visibly happens.
-   ------------------------------------------------------------------ */
 .studio-input:-webkit-autofill,
 .studio-input:-webkit-autofill:hover,
 .studio-textarea:-webkit-autofill,
 .studio-textarea:-webkit-autofill:hover,
 .basic-info-phone-input:-webkit-autofill,
-.basic-info-phone-input:-webkit-autofill:hover {
-  -webkit-text-fill-color: var(--text-primary);
-  -webkit-box-shadow: 0 0 0 1000px var(--panel) inset;
-  box-shadow: 0 0 0 1000px var(--panel) inset;
-  caret-color: var(--text-primary);
-  transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s;
-}
+.basic-info-phone-input:-webkit-autofill:hover {-webkit-text-fill-color: var(--text-primary);-webkit-box-shadow: 0 0 0 1000px var(--panel) inset;box-shadow: 0 0 0 1000px var(--panel) inset;caret-color: var(--text-primary);transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s;}
 
 .studio-input:-webkit-autofill:focus,
 .studio-textarea:-webkit-autofill:focus,
@@ -700,54 +550,18 @@
    so it can just be styled directly. */
 .studio-input:autofill,
 .studio-textarea:autofill,
-.basic-info-phone-input:autofill {
-  background: var(--panel);
-  color: var(--text-primary);
-}
+.basic-info-phone-input:autofill {background: var(--panel);color: var(--text-primary);}
 
 /* Phone field with a fixed country code */
-.basic-info-phone-row {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  width: 100%;
-}
-
-.basic-info-phone-code {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-secondary);
-  background: var(--panel-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
-.basic-info-phone-input {
-  flex: 1;
-  min-width: 0;
-}
+.basic-info-phone-row {display: flex;align-items: stretch;gap: 8px;width: 100%;}
+.basic-info-phone-code {display: flex;align-items: center;justify-content: center;padding: 0 12px;font-family: var(--font-mono);font-size: 13px;color: var(--text-secondary);background: var(--panel-raised);border: 1px solid var(--border);border-radius: var(--radius-sm);flex-shrink: 0;}
+.basic-info-phone-input {flex: 1;min-width: 0;}
 
 /* Referral choice cards */
-.basic-info-referral-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.basic-info-referral-card {
-  width: 100%;
-}
+.basic-info-referral-row {display: grid;grid-template-columns: 1fr 1fr;gap: 12px;}
+.basic-info-referral-card {width: 100%;}
 
 @media (max-width: 720px) {
-  .basic-info-referral-row {
-    grid-template-columns: 1fr;
-  }
-  .basic-info-header {
-    flex-direction: column;
-  }
+  .basic-info-referral-row {grid-template-columns: 1fr;}
+  .basic-info-header {flex-direction: column;}
 }

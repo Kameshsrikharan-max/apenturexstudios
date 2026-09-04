@@ -169,6 +169,10 @@ function NotificationDetailsPage() {
     navigate("/admin/delete-requests");
   };
 
+  const goToRegistrationRequests = () => {
+    navigate("/admin/registrations");
+  };
+
   if (loading) {
     return (
       <div className="notif-detail-page">
@@ -199,6 +203,7 @@ function NotificationDetailsPage() {
 
   const decisionLabels = catConfig.decisionLabels;
   const isDeleteRequest = event.notifCategory === "deleteRequest";
+  const isRegistrationRequest = event.notifCategory === "registrationRequest";
 
   return (
     <div className="notif-detail-page">
@@ -338,6 +343,22 @@ function NotificationDetailsPage() {
                   type="button"
                   className="notif-decision-btn notif-decision-approve"
                   onClick={goToDeleteRequests}
+                >
+                  <CheckOutlined /> Review Request
+                </button>
+              </div>
+            </div>
+          ) : isRegistrationRequest ? (
+            <div className="notif-decision-card">
+              <div className="notif-decision-copy">
+                <strong>Action required</strong>
+                <span>Review and approve this registration in the Registration Requests queue.</span>
+              </div>
+              <div className="notif-decision-actions">
+                <button
+                  type="button"
+                  className="notif-decision-btn notif-decision-approve"
+                  onClick={goToRegistrationRequests}
                 >
                   <CheckOutlined /> Review Request
                 </button>

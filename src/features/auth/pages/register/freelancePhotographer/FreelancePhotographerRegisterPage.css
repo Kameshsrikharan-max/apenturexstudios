@@ -48,278 +48,63 @@
 }
 
 
-/* ============================================================
-   AXS · Studio Registration — Shared Primitives
-   Used by every step. Component-specific files add only what's
-   unique to that step (dropzones, cards, hero, etc).
-   ============================================================ */
+/* AXS · Studio Registration —  */
 
-.studio-form-section-header {
-  margin-bottom: 4px;
-}
-
-.studio-form-section-title {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
-}
-
-.studio-form-section-subtitle {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.studio-form-divider {
-  height: 1px;
-  background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
-  margin: 20px 0 28px;
-}
-
-.studio-form-group-title {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--cyan);
-  margin: 8px 0 14px;
-}
-
-.studio-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px 20px;
-  margin-bottom: 8px;
-}
-
-.studio-form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.studio-form-field--full {
-  grid-column: 1 / -1;
-}
-
-.studio-field-label {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.studio-required-star {
-  color: var(--amber);
-}
-
-.studio-field-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.studio-field-error {
-  font-size: 12px;
-  color: var(--red);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
+.studio-form-section-header {margin-bottom: 4px;}
+.studio-form-section-title {font-family: var(--font-display);font-size: 26px;font-weight: 600;color: var(--text-primary);margin: 0 0 6px;letter-spacing: -0.01em;}
+.studio-form-section-subtitle {font-family: var(--font-body);font-size: 14px;color: var(--text-secondary);margin: 0;}
+.studio-form-divider {height: 1px;background: linear-gradient(90deg, var(--border) 0%, transparent 100%);margin: 20px 0 28px;}
+.studio-form-group-title {font-family: var(--font-body);font-size: 13px;font-weight: 600;text-transform: uppercase;letter-spacing: 0.06em;color: var(--cyan);margin: 8px 0 14px;}
+.studio-form-grid {display: grid;grid-template-columns: 1fr 1fr;gap: 18px 20px;margin-bottom: 8px;}
+.studio-form-field {display: flex;flex-direction: column;gap: 6px;}
+.studio-form-field--full {grid-column: 1 / -1;}
+.studio-field-label {font-family: var(--font-body);font-size: 13px;font-weight: 600;color: var(--text-secondary);display: flex;align-items: center;gap: 4px;}
+.studio-required-star {color: var(--amber);}
+.studio-field-hint {font-size: 12px;color: var(--text-muted);}
+.studio-field-error {font-size: 12px;color: var(--red);display: flex;align-items: center;gap: 4px;}
 .studio-input,
 .studio-textarea,
-.studio-select {
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--text-primary);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 11px 14px;
-  outline: none;
-  transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), background 0.18s var(--ease-out);
-  width: 100%;
-}
-
+.studio-select {font-family: var(--font-body);font-size: 14px;color: var(--text-primary);background: var(--panel);border: 1px solid var(--border);border-radius: var(--radius-sm);padding: 11px 14px;outline: none;transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), background 0.18s var(--ease-out);width: 100%;}
 .studio-input::placeholder,
-.studio-textarea::placeholder {
-  color: var(--text-muted);
-}
-
+.studio-textarea::placeholder {color: var(--text-muted);}
 .studio-input:hover,
 .studio-textarea:hover,
-.studio-select:hover {
-  border-color: var(--border-soft);
-}
-
+.studio-select:hover {border-color: var(--border-soft);}
 .studio-input:focus,
 .studio-textarea:focus,
-.studio-select:focus {
-  border-color: var(--cyan);
-  box-shadow: 0 0 0 3px var(--cyan-dim);
-  background: var(--panel-raised);
-}
-
-.studio-input--valid {
-  border-color: rgba(52, 211, 153, 0.4);
-}
-
-.studio-input--invalid {
-  border-color: rgba(248, 113, 113, 0.45);
-}
-
-.studio-textarea {
-  resize: vertical;
-  min-height: 96px;
-  line-height: 1.6;
-}
-
-.studio-select {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
-    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
-  background-size: 5px 5px, 5px 5px;
-  background-repeat: no-repeat;
-}
-
-.studio-char-count {
-  align-self: flex-end;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
+.studio-select:focus {border-color: var(--cyan);box-shadow: 0 0 0 3px var(--cyan-dim);background: var(--panel-raised);}
+.studio-input--valid {border-color: rgba(52, 211, 153, 0.4);}
+.studio-input--invalid {border-color: rgba(248, 113, 113, 0.45);}
+.studio-textarea {resize: vertical;min-height: 96px;line-height: 1.6;}
+.studio-select {appearance: none;background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);background-position: calc(100% - 18px) center, calc(100% - 13px) center;background-size: 5px 5px, 5px 5px;background-repeat: no-repeat;}
+.studio-char-count {align-self: flex-end;font-family: var(--font-mono);font-size: 11px;color: var(--text-muted);}
 
 /* Field wrapper with a trailing validity glyph */
-.studio-field-shell {
-  position: relative;
-}
-
-.studio-field-check {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--green);
-  font-size: 15px;
-  pointer-events: none;
-}
+.studio-field-shell {position: relative;}
+.studio-field-check {position: absolute;right: 12px;top: 50%;transform: translateY(-50%);color: var(--green);font-size: 15px;pointer-events: none;}
 
 /* Radio / checkbox rows */
-.studio-radio-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+.studio-radio-row {display: flex;gap: 10px;flex-wrap: wrap;}
 
 .studio-radio-option,
-.studio-checkbox-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
+.studio-checkbox-option {display: flex;align-items: center;gap: 8px;font-size: 14px;color: var(--text-primary);cursor: pointer;}
 .studio-radio-option input,
-.studio-checkbox-option input {
-  accent-color: var(--cyan);
-  width: 16px;
-  height: 16px;
-}
-
-.studio-terms-row {
-  margin-top: 4px;
-}
-
-.studio-terms-link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--cyan);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  font-size: inherit;
-  font-family: inherit;
-}
+.studio-checkbox-option input {accent-color: var(--cyan);width: 16px;height: 16px;}
+.studio-terms-row {margin-top: 4px;}
+.studio-terms-link {background: none;border: none;padding: 0;color: var(--cyan);font-weight: 600;cursor: pointer;text-decoration: underline;text-underline-offset: 2px;font-size: inherit;font-family: inherit;}
 
 /* Selectable option cards (referral, service, document type, etc) */
-.studio-option-card {
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), transform 0.12s var(--ease-out);
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.studio-option-card:hover {
-  border-color: var(--border-soft);
-  transform: translateY(-1px);
-}
-
-.studio-option-card--selected {
-  border-color: var(--cyan);
-  box-shadow: var(--shadow-glow-cyan);
-  background: var(--panel-raised);
-}
-
-.studio-option-card-icon {
-  font-size: 18px;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-
-.studio-option-card--selected .studio-option-card-icon {
-  color: var(--cyan);
-}
-
-.studio-option-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.studio-option-card-sub {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
+.studio-option-card {border: 1px solid var(--border);background: var(--panel);border-radius: var(--radius-md);padding: 14px 16px;cursor: pointer;transition: border-color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), transform 0.12s var(--ease-out);display: flex;align-items: flex-start;gap: 12px;}
+.studio-option-card:hover {border-color: var(--border-soft);transform: translateY(-1px);}
+.studio-option-card--selected {border-color: var(--cyan);box-shadow: var(--shadow-glow-cyan);background: var(--panel-raised);}
+.studio-option-card-icon {font-size: 18px;color: var(--text-muted);margin-top: 1px;}
+.studio-option-card--selected .studio-option-card-icon {color: var(--cyan);}
+.studio-option-card-title {font-size: 14px;font-weight: 600;color: var(--text-primary);}
+.studio-option-card-sub {font-size: 12px;color: var(--text-muted);margin-top: 2px;}
 
 /* Multiselect / dropdown */
-.studio-multiselect {
-  position: relative;
-}
-
-.studio-multiselect-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  color: var(--text-primary);
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  cursor: pointer;
-  text-align: left;min-height: 44px;}
+.studio-multiselect {position: relative;}
+.studio-multiselect-trigger {width: 100%;display: flex;align-items: center;justify-content: space-between;gap: 8px;font-family: var(--font-body);font-size: 14px;color: var(--text-primary);background: var(--panel);border: 1px solid var(--border);border-radius: var(--radius-sm);padding: 10px 14px;cursor: pointer;text-align: left;min-height: 44px;}
 .studio-multiselect-trigger:hover {border-color: var(--border-soft);}
 .studio-multiselect-placeholder {color: var(--text-muted);}
 .studio-multiselect-chevron {color: var(--text-muted);transition: transform 0.18s var(--ease-out);flex-shrink: 0;}

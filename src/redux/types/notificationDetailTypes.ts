@@ -6,6 +6,7 @@ export type NotificationCategoryKey =
   | "reviewEndorsement"
   | "changeRequest"
   | "deleteRequest"
+  | "registrationRequest"
   | "eventAssignment"
   | "paymentExpenses"
   | "mediaNotifications"
@@ -47,6 +48,12 @@ export interface DeleteRequestPayload {
   targetName?: string;
   reason?: string;
   requestedBy?: string;
+}
+
+export interface RegistrationRequestPayload {
+  registrationType?: "studio-admin" | "freelance-photographer";
+  applicantName?: string;
+  applicantEmail?: string;
 }
 
 export interface EventAssignmentPayload {
@@ -103,6 +110,7 @@ export type NotificationPayload =
   | ReviewEndorsementPayload
   | ChangeRequestPayload
   | DeleteRequestPayload
+  | RegistrationRequestPayload
   | EventAssignmentPayload
   | PaymentExpensesPayload
   | MediaNotificationPayload

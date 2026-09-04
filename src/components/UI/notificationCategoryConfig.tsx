@@ -1,5 +1,5 @@
-import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,} from "@ant-design/icons";
-import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,} from "../../redux/types/notificationDetailTypes";
+import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,AuditOutlined,} from "@ant-design/icons";
+import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,RegistrationRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,} from "../../redux/types/notificationDetailTypes";
 
 export interface DecisionLabels {
   approve: string;
@@ -33,6 +33,11 @@ const field = (label: string, value: unknown): NotificationDetailItem | null => 
 
 const compact = (items: (NotificationDetailItem | null)[]): NotificationDetailItem[] =>
   items.filter((item): item is NotificationDetailItem => item !== null);
+
+const REGISTRATION_TYPE_LABELS: Record<string, string> = {
+  "studio-admin": "Studio Admin",
+  "freelance-photographer": "Freelance Photographer",
+};
 
 const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
   reviewEndorsement: {
@@ -102,6 +107,31 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
       approvedText: "approved",
       declinedText: "denied",
       actionPrompt: "A deletion request needs your confirmation.",
+    },
+  },
+
+  registrationRequest: {
+    key: "registrationRequest",
+    label: "Registration Request",
+    accent: "#4ade80",
+    icon: <AuditOutlined />,
+    getPayloadFields: (event) => {
+      const payload = (event.payload || {}) as RegistrationRequestPayload;
+      return compact([
+        field(
+          "Registration Type",
+          payload.registrationType ? REGISTRATION_TYPE_LABELS[payload.registrationType] : undefined
+        ),
+        field("Applicant", payload.applicantName),
+        field("Email", payload.applicantEmail),
+      ]);
+    },
+    decisionLabels: {
+      approve: "Approve",
+      decline: "Reject",
+      approvedText: "approved",
+      declinedText: "rejected",
+      actionPrompt: "A new registration is awaiting your review.",
     },
   },
 

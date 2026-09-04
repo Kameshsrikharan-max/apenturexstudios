@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
-import { message } from "antd";
+import { message, Button, Typography } from "antd";
+import { CheckCircleFilled } from "@ant-design/icons";
 import LoginPage from "./LoginPage";
 import RegisterPage, { RegisterRole } from "./RegisterPage";
 import StudioAdminRegisterPage, {
@@ -10,13 +10,16 @@ import StudioAdminRegisterPage, {
 import FreelancePhotographerRegisterPage, {
   FreelancePhotographerFormData,
 } from "./register/freelancePhotographer/FreelancePhotographerRegisterPage";
-import { loginSuccess } from "../../../redux/actions/authActions";
+import { pushNotification } from "../../../utils/notificationStore";
+
+const { Title, Text } = Typography;
 
 type AuthStep =
   | "login"
   | "register"
   | "studio-admin-register"
   | "freelance-photographer-register"
+  | "pending-approval"
   | "camera";
 
 interface AuthFlowProps {
@@ -26,12 +29,12 @@ interface AuthFlowProps {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 export default function AuthFlow({ onComplete }: AuthFlowProps) {
-  const dispatch = useDispatch();
   const [msgApi, contextHolder] = message.useMessage();
 
   const [step, setStep] = useState<AuthStep>("login");
   const [authData, setAuthData] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   const handleLoginPageDone = (data: any) => {
     setAuthData(data);
@@ -47,9 +50,6 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   };
 
   const handleRoleSelected = (role: RegisterRole) => {
-    // Both roles go straight into their own dedicated multi-step wizard
-    // with no OTP verify stage in between — RegisterPage just records
-    // the choice and hands off here.
     if (role === "studio_admin") {
       setStep("studio-admin-register");
       return;
@@ -70,32 +70,41 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
       throw new Error(body?.message || "Registration failed. Please try again.");
     }
 
-    return body as { user: any; profile: any; token: string };
-  };
-
-  const finishRegistration = (result: { user: any; token: string }) => {
-    // Match the keys authReducer's initialState reads on page load —
-    // otherwise a refresh right after registering loses the session.
-    localStorage.setItem("token", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
-    dispatch(loginSuccess({ user: result.user, token: result.token }));
-    setAuthData(result.user);
-    setStep("camera");
+    return body as { user: any; profile: any };
   };
 
   const handleStudioAdminSubmitted = async (data: StudioAdminFormData) => {
     setSubmitting(true);
     try {
-      // No file-upload endpoint exists yet, so strip File objects before
-      // sending — a File can't survive JSON.stringify (it serializes to
-      // "{}"), which the backend's media: [String] schema then rejects.
       const payload = {
         ...data,
         studioDetails: { ...data.studioDetails, media: [] },
         documents: { ...data.documents, documentFile: null },
       };
       const result = await submitRegistration("/register/studio-admin", payload);
-      finishRegistration(result);
+
+      const applicantName = `${data.basicInfo.firstName} ${data.basicInfo.lastName}`.trim();
+      const applicantEmail = result.user?.email || data.basicInfo.email;
+
+      // Notifies whoever's browser has the super admin's session open —
+      // same client-side notification mechanism used for delete requests.
+      pushNotification({
+        title: `New Studio Admin registration: ${applicantName}`,
+        notifCategory: "registrationRequest",
+        category: "Registration",
+        triggeredBy: applicantName,
+        priority: "medium",
+        tags: ["registration", "studio-admin"],
+        isActionable: false,
+        payload: {
+          registrationType: "studio-admin",
+          applicantName,
+          applicantEmail,
+        },
+      });
+
+      setPendingEmail(applicantEmail);
+      setStep("pending-approval");
     } catch (err: any) {
       msgApi.error(err.message || "Studio registration failed.");
     } finally {
@@ -106,14 +115,33 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
   const handleFreelancePhotographerSubmitted = async (data: FreelancePhotographerFormData) => {
     setSubmitting(true);
     try {
-      // Same file-stripping as Studio Admin — see comment above.
       const payload = {
         ...data,
         photographerDetails: { ...data.photographerDetails, media: [] },
         workArea: { ...data.workArea, documentFile: null },
       };
       const result = await submitRegistration("/register/freelance-photographer", payload);
-      finishRegistration(result);
+
+      const applicantName = `${data.basicInfo.firstName} ${data.basicInfo.lastName}`.trim();
+      const applicantEmail = result.user?.email || data.basicInfo.email;
+
+      pushNotification({
+        title: `New Freelance Photographer registration: ${applicantName}`,
+        notifCategory: "registrationRequest",
+        category: "Registration",
+        triggeredBy: applicantName,
+        priority: "medium",
+        tags: ["registration", "freelance-photographer"],
+        isActionable: false,
+        payload: {
+          registrationType: "freelance-photographer",
+          applicantName,
+          applicantEmail,
+        },
+      });
+
+      setPendingEmail(applicantEmail);
+      setStep("pending-approval");
     } catch (err: any) {
       msgApi.error(err.message || "Photographer registration failed.");
     } finally {
@@ -147,6 +175,57 @@ export default function AuthFlow({ onComplete }: AuthFlowProps) {
           onBackToLogin={handleBackToLogin}
           onSubmitted={handleFreelancePhotographerSubmitted}
         />
+      )}
+
+      {step === "pending-approval" && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999999,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            background: "radial-gradient(circle at center, #0f172a 0%, #020617 70%)",
+            padding: 24,
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              maxWidth: 440,
+              width: "100%",
+              background: "rgba(15, 23, 42, 0.9)",
+              border: "1px solid rgba(56, 189, 248, 0.3)",
+              borderRadius: 24,
+              padding: "40px 32px",
+              textAlign: "center",
+              boxShadow: "0 30px 80px rgba(0,0,0,0.5)",
+            }}
+          >
+            <CheckCircleFilled style={{ fontSize: 56, color: "#38BDF8", marginBottom: 20 }} />
+
+            <Title level={3} style={{ color: "#fff", margin: "0 0 12px" }}>
+              Registration Submitted
+            </Title>
+
+            <Text style={{ color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 8 }}>
+              Thanks — your details for <strong style={{ color: "#38BDF8" }}>{pendingEmail}</strong> have
+              been sent to our team.
+            </Text>
+
+            <Text style={{ color: "rgba(255,255,255,0.55)", display: "block", marginBottom: 28, fontSize: 13 }}>
+              A super admin needs to review and approve your account before you can log in. This usually
+              doesn't take long — try logging in again once you've been notified.
+            </Text>
+
+            <Button type="primary" block size="large" onClick={handleBackToLogin}>
+              Back to Login
+            </Button>
+          </motion.div>
+        </div>
       )}
 
       <AnimatePresence>
