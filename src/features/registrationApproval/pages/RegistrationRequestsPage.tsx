@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Checkbox } from "antd";
-import {CheckCircleOutlined,CloseCircleOutlined,ExclamationCircleOutlined,UserOutlined,LoadingOutlined,ArrowLeftOutlined,SearchOutlined,DownOutlined,UpOutlined,ShopOutlined,CameraOutlined,} from "@ant-design/icons";
+import {CheckCircleOutlined,CloseCircleOutlined,ExclamationCircleOutlined,UserOutlined,LoadingOutlined,ArrowLeftOutlined,SearchOutlined,DownOutlined,UpOutlined,ShopOutlined,CameraOutlined,UserSwitchOutlined,} from "@ant-design/icons";
 import "./RegistrationRequestsPage.css";
 import {
   fetchPendingRegistrationsRequest,
@@ -31,7 +31,19 @@ function getRelativeTime(dateStr?: string): string {
 const typeMeta: Record<RegistrationType, { label: string; icon: JSX.Element }> = {
   "studio-admin": { label: "Studio Admin", icon: <ShopOutlined /> },
   "freelance-photographer": { label: "Freelance Photographer", icon: <CameraOutlined /> },
+  "studio-manager": { label: "Studio Manager", icon: <UserSwitchOutlined /> },
+  "studio-photographer": { label: "Studio Photographer", icon: <CameraOutlined /> },
 };
+
+// Fallback used anywhere reg.type doesn't match a known key above — keeps a
+// bad/unexpected type value from crashing the whole page again like it did
+// when studio-manager/studio-photographer were added to the backend but not
+// here.
+const unknownTypeMeta = { label: "Unknown", icon: <UserOutlined /> };
+
+function getTypeMeta(type: RegistrationType) {
+  return typeMeta[type] || unknownTypeMeta;
+}
 
 function getApplicantName(reg: PendingRegistration): string {
   const basic = reg.basicInfo as { firstName?: string; lastName?: string };
@@ -82,8 +94,10 @@ function RegistrationRequestsPage() {
   const stats = useMemo(() => {
     const total = pendingList.length;
     const studioCount = pendingList.filter((r) => r.type === "studio-admin").length;
-    const photographerCount = total - studioCount;
-    return { total, studioCount, photographerCount };
+    const managerCount = pendingList.filter((r) => r.type === "studio-manager").length;
+    const studioPhotographerCount = pendingList.filter((r) => r.type === "studio-photographer").length;
+    const photographerCount = pendingList.filter((r) => r.type === "freelance-photographer").length;
+    return { total, studioCount, managerCount, studioPhotographerCount, photographerCount };
   }, [pendingList]);
 
   const visibleList = useMemo(() => {
@@ -166,18 +180,28 @@ function RegistrationRequestsPage() {
         </div>
         <div>
           <h1>Pending Registrations</h1>
-          <p>Review and approve new Studio Admin and Freelance Photographer sign-ups</p>
+          <p>Review and approve new Studio Admin, Studio Manager, Studio Photographer and Freelance Photographer sign-ups</p>
         </div>
         <div className="rrq-header-stats">
           <span className="rrq-count-pill">{stats.total} pending</span>
           {stats.studioCount > 0 ? (
             <span className="rrq-count-pill rrq-count-pill--studio">
-              <ShopOutlined /> {stats.studioCount} studio
+              <ShopOutlined /> {stats.studioCount} studio admin
+            </span>
+          ) : null}
+          {stats.managerCount > 0 ? (
+            <span className="rrq-count-pill rrq-count-pill--manager">
+              <UserSwitchOutlined /> {stats.managerCount} manager
+            </span>
+          ) : null}
+          {stats.studioPhotographerCount > 0 ? (
+            <span className="rrq-count-pill rrq-count-pill--photographer">
+              <CameraOutlined /> {stats.studioPhotographerCount} studio photographer
             </span>
           ) : null}
           {stats.photographerCount > 0 ? (
             <span className="rrq-count-pill rrq-count-pill--photographer">
-              <CameraOutlined /> {stats.photographerCount} photographer
+              <CameraOutlined /> {stats.photographerCount} freelance photographer
             </span>
           ) : null}
         </div>
@@ -223,6 +247,8 @@ function RegistrationRequestsPage() {
               <option value="all">All types</option>
               <option value="studio-admin">Studio Admin</option>
               <option value="freelance-photographer">Freelance Photographer</option>
+              <option value="studio-manager">Studio Manager</option>
+              <option value="studio-photographer">Studio Photographer</option>
             </select>
             <select
               className="rrq-select"
@@ -256,7 +282,7 @@ function RegistrationRequestsPage() {
                   const isApproving = approvingId === reg.profileId;
                   const isExpanded = expandedId === reg.profileId;
                   const isSelected = selectedIds.has(reg.profileId);
-                  const meta = typeMeta[reg.type];
+                  const meta = getTypeMeta(reg.type);
 
                   return (
                     <motion.div

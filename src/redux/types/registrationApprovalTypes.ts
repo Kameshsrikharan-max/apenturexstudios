@@ -1,4 +1,8 @@
-export type RegistrationType = "studio-admin" | "freelance-photographer";
+export type RegistrationType =
+  | "studio-admin"
+  | "freelance-photographer"
+  | "studio-manager"
+  | "studio-photographer";
 export type RegistrationStatus = "pending_review" | "active" | "rejected";
 
 export interface PendingRegistration {

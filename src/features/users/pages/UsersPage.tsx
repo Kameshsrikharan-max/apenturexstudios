@@ -84,6 +84,19 @@ const emptyAdvancedFilters: AdvancedFilters = {
 
 /*  Constants / helpers                                                       */
 
+// API base for real invite calls — matches the fallback pattern already
+// used elsewhere in the app (AuthFlow.tsx, deleteRequestApi.ts).
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
+// Maps the Invite modal's role labels to the backend's role strings.
+// Only Studio Manager and Studio Photographer go through the email-invite
+// flow right now — Studio Admin and Freelance Photographer self-register.
+const ROLE_TO_BACKEND_ROLE: Record<InviteRole, "studio_manager" | "studio_photographer" | null> = {
+  "Studio Admin": null,
+  "Studio Manager": "studio_manager",
+  "Freelance Photographer": null,
+  "Studio Photographer": "studio_photographer",
+};
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=900&q=80";
@@ -962,50 +975,97 @@ const UsersPage = () => {
   };
 
   // --- Invite modal handlers -------------------------------------------------
+  // Both handlers below hit the real /studio/invite endpoints. Studio Admin
+  // and Freelance Photographer aren't invite-based yet — sendInvite blocks
+  // those roles with a clear message instead of pretending to send anything.
 
-  const handleSendInvite = (values: InviteFormValues) => {
-    const isPhotographerRole = values.role === "Freelance Photographer" || values.role === "Studio Photographer";
-    const fullName = `${values.firstName} ${values.lastName}`.trim();
-    const id = `${isPhotographerRole ? "p" : "u"}${Date.now()}`;
+  const handleSendInvite = async (values: InviteFormValues) => {
+    const backendRole = ROLE_TO_BACKEND_ROLE[values.role];
 
-    const newUser: UserRecord = {
-      id,
-      name: fullName,
-      email: values.email,
-      phone: values.phone,
-      studio: "Wave Studios",
-      role: values.role,
-      status: "Pending",
-      signupType: "Invited",
-      created: "01 Jun 2026",
-      location: "Chennai",
-      image: fallbackImage,
-      notes: "Invited from users page.",
-      ...(isPhotographerRole ? { shoots: 0 } : {}),
-    };
+    if (!backendRole) {
+      message.error(
+        `${values.role} isn't invited this way yet — only Studio Manager and Studio Photographer support email invites right now.`
+      );
+      return;
+    }
 
-    if (isPhotographerRole) setPhotographersData((prev) => [newUser, ...prev]);
-    else setUsersData((prev) => [newUser, ...prev]);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/studio/invite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: values.email, role: backendRole }),
+      });
 
-    notifyUserRegistered({
-      userName: newUser.name,
-      userEmail: newUser.email,
-    });
+      const body = await response.json().catch(() => null);
 
-    const link = `${window.location.origin}/invite/${id}`;
-    setInviteLink(link);
-    setSentInviteUser(newUser);
-    setInviteSent(true);
-    message.success("Invite sent");
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Failed to send invite.");
+      }
+
+      const isPhotographerRole = values.role === "Studio Photographer";
+      const fullName = `${values.firstName} ${values.lastName}`.trim();
+      const id = `${isPhotographerRole ? "p" : "u"}${Date.now()}`;
+
+      const newUser: UserRecord = {
+        id,
+        name: fullName,
+        email: values.email,
+        phone: values.phone,
+        studio: "Wave Studios",
+        role: values.role,
+        status: "Pending",
+        signupType: "Invited",
+        created: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        location: "Chennai",
+        image: fallbackImage,
+        notes: "Invited from users page — awaiting super admin approval.",
+        ...(isPhotographerRole ? { shoots: 0 } : {}),
+      };
+
+      if (isPhotographerRole) setPhotographersData((prev) => [newUser, ...prev]);
+      else setUsersData((prev) => [newUser, ...prev]);
+
+      setInviteLink(body.inviteLink);
+      setSentInviteUser(newUser);
+      setInviteSent(true);
+      message.success(body.message || "Invite sent");
+    } catch (err: any) {
+      message.error(err.message || "Failed to send invite.");
+    }
   };
 
-  const handleResendInvite = () => {
+  const handleResendInvite = async () => {
     if (!sentInviteUser) return;
-    notifyUserRegistered({
-      userName: sentInviteUser.name,
-      userEmail: sentInviteUser.email,
-    });
-    message.success(`Invite resent to ${sentInviteUser.email}`);
+
+    const backendRole = ROLE_TO_BACKEND_ROLE[sentInviteUser.role as InviteRole];
+    if (!backendRole) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/studio/invite/resend`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: sentInviteUser.email }),
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Failed to resend invite.");
+      }
+
+      setInviteLink(body.inviteLink);
+      message.success(body.message || `Invite resent to ${sentInviteUser.email}`);
+    } catch (err: any) {
+      message.error(err.message || "Failed to resend invite.");
+    }
   };
 
   const handleResetInviteForm = () => {

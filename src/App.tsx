@@ -6,8 +6,6 @@ import { logout } from "./redux/actions/authActions";
 
 import AppRoutes from "./routes/AppRoutes";
 import StudioTour from "./components/StudioTour/StudioTour.js";
-import OnboardingGate from "./components/Onboarding/OnboardingGate";
-import AuthFlow from "./features/auth/pages/AuthFlow";
 
 interface RootState {
   auth: {
@@ -21,15 +19,13 @@ function App() {
   const { user } = useSelector((state: RootState) => state.auth);
   const isAuthenticated = !!user;
 
+  // Redux flips `user` to a real object as soon as login/registration
+  // succeeds — but AuthFlow's camera splash still needs to finish playing
+  // before we actually swap into the dashboard. This flag is that gate.
   const [readyForApp, setReadyForApp] = useState<boolean>(isAuthenticated);
 
   const handleAuthComplete = (_data: any) => {
     setReadyForApp(true);
-  };
-
-  const handleSignUp = () => {
-    // ⚠️ Wire to your real sign-up navigation
-    console.log("Navigate to sign up");
   };
 
   const handleLogout = () => {
@@ -37,7 +33,14 @@ function App() {
     setReadyForApp(false);
   };
 
-  const showApp = isAuthenticated && readyForApp;
+  // AppRoutes is now ALWAYS mounted — a single router handles both the
+  // logged-out experience (AuthFlow at "/", plus public routes like
+  // /invite/:token and /events/public) and the logged-in app. Gating on
+  // `showReady` here (rather than raw isAuthenticated) is what preserves
+  // the camera-splash timing: Redux may already be authenticated, but we
+  // don't reveal the dashboard until AuthFlow's own splash finishes and
+  // calls onComplete.
+  const showReady = isAuthenticated && readyForApp;
 
   return (
     <div
@@ -50,34 +53,21 @@ function App() {
         overflow: "hidden",
       }}
     >
-      {/* mode="wait" would fully finish fading auth OUT (revealing the
-          container's #020617 background — i.e. a black-ish beat) before
-          starting to fade Dashboard IN. Default (concurrent) mode overlaps
-          the two, which is what makes this an actual crossfade. */}
-      <AnimatePresence>
-        {showApp ? (
-          <motion.div
-            key="app"
-            initial={{ opacity: 0, scale: 1.02 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.9, ease: "easeInOut" }}
-          >
-            <OnboardingGate>
-              <AppRoutes isAuthenticated={isAuthenticated} onLogout={handleLogout} user={user} />
-            </OnboardingGate>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="auth"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.9, ease: "easeInOut" }}
-          >
-            <AuthFlow onSignUp={handleSignUp} onComplete={handleAuthComplete} />
-          </motion.div>
-        )}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={showReady ? "app" : "auth"}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.9, ease: "easeInOut" }}
+        >
+          <AppRoutes
+            isAuthenticated={showReady}
+            onLogin={handleAuthComplete}
+            onLogout={handleLogout}
+            user={user}
+          />
+        </motion.div>
       </AnimatePresence>
 
       <StudioTour />

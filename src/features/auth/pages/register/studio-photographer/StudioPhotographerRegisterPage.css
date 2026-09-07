@@ -1,0 +1,302 @@
+/* =========================================================================
+   StudioPhotographerRegisterPage.css
+   Darkroom / contact-sheet shell: header, film-strip sprocket stepper,
+   registration-mark card wrapper. Fully self-contained.
+   ========================================================================= */
+
+.studio-register-root,
+.studio-register-root *,
+.studio-register-root *::before,
+.studio-register-root *::after {
+  box-sizing: border-box;
+}
+
+.studio-register-root {
+  --sp-bg: #0b0f10;
+  --sp-panel: rgba(18, 24, 26, 0.72);
+  --sp-panel-border: rgba(255, 255, 255, 0.08);
+  --sp-cyan: #5eead4;
+  --sp-cyan-dim: rgba(94, 234, 212, 0.35);
+  --sp-cyan-glow: rgba(94, 234, 212, 0.18);
+  --sp-amber: #f2b872;
+  --sp-amber-dim: rgba(242, 184, 114, 0.35);
+  --sp-amber-glow: rgba(242, 184, 114, 0.16);
+  --sp-text: #eef2f1;
+  --sp-text-dim: #9fb0ad;
+  --sp-text-faint: #6d7b79;
+  --sp-radius: 10px;
+  --sp-font-display: "Fraunces", "Georgia", serif;
+  --sp-font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+
+  min-height: 100vh;
+  width: 100%;
+  padding: 56px 24px 80px;
+  background:
+    radial-gradient(circle at 12% -10%, var(--sp-cyan-glow), transparent 42%),
+    radial-gradient(circle at 90% 0%, var(--sp-amber-glow), transparent 45%),
+    var(--sp-bg);
+  color: var(--sp-text);
+  font-family: var(--sp-font-mono);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ---------------------------------------------------------------------
+   Header
+   --------------------------------------------------------------------- */
+
+.studio-register-header {
+  width: 100%;
+  max-width: 760px;
+  text-align: left;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.studio-register-title {
+  font-family: var(--sp-font-display);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+  color: var(--sp-text);
+}
+
+.studio-register-role-pill {
+  display: inline-block;
+  font-family: var(--sp-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-cyan-dim);
+  color: var(--sp-cyan);
+  background: rgba(94, 234, 212, 0.06);
+  margin-bottom: 14px;
+}
+
+.studio-register-subtitle {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sp-text-dim);
+  max-width: 60ch;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Stepper — film-strip sprocket rail
+   --------------------------------------------------------------------- */
+
+.studio-register-stepper {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  margin-bottom: 36px;
+  padding-top: 4px;
+}
+
+.studio-stepper-rail {
+  position: absolute;
+  top: 23px;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 0;
+}
+
+.studio-stepper-rail-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sp-cyan), var(--sp-amber));
+  transition: width 0.3s ease;
+}
+
+.studio-step-wrap {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.studio-step-dot-item {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: default;
+  color: inherit;
+  font-family: inherit;
+}
+
+.studio-step-dot-item--clickable {
+  cursor: pointer;
+}
+
+.studio-step-dot-item:disabled {
+  cursor: not-allowed;
+}
+
+.studio-step-sprockets {
+  display: flex;
+  gap: 3px;
+  height: 4px;
+}
+
+.studio-step-sprockets span {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.studio-step-dot-item[aria-current="step"] .studio-step-sprockets span {
+  background: var(--sp-cyan);
+}
+
+.studio-step-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sp-font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  color: var(--sp-text-faint);
+  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.studio-step-circle--active {
+  border-color: var(--sp-cyan);
+  color: var(--sp-cyan);
+  background: rgba(94, 234, 212, 0.08);
+  box-shadow: 0 0 0 4px var(--sp-cyan-glow);
+}
+
+.studio-step-circle--done {
+  border-color: var(--sp-cyan-dim);
+  color: var(--sp-cyan);
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.studio-step-lock {
+  font-size: 13px;
+  color: var(--sp-amber);
+  opacity: 0.75;
+}
+
+.studio-step-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+
+.studio-step-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sp-text-dim);
+  letter-spacing: 0.01em;
+}
+
+.studio-step-labels--active .studio-step-title {
+  color: var(--sp-text);
+}
+
+.studio-step-subtitle {
+  font-size: 10.5px;
+  color: var(--sp-text-faint);
+}
+
+/* ---------------------------------------------------------------------
+   Card shell — contact sheet registration marks
+   --------------------------------------------------------------------- */
+
+.studio-register-card {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  background: var(--sp-panel);
+  border: 1px solid var(--sp-panel-border);
+  border-radius: var(--sp-radius);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 36px 40px 32px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.studio-reg-mark {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--sp-amber-dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.studio-reg-mark--tl {
+  top: 14px;
+  left: 14px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.studio-reg-mark--tr {
+  top: 14px;
+  right: 14px;
+  border-left: none;
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------------
+   Responsive
+   --------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .studio-register-root {
+    padding: 36px 16px 56px;
+  }
+
+  .studio-register-card {
+    padding: 26px 20px 24px;
+  }
+
+  .studio-register-stepper {
+    align-items: flex-start;
+  }
+
+  .studio-step-subtitle {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .studio-register-title {
+    font-size: 26px;
+  }
+
+  .studio-step-title,
+  .studio-step-labels {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-register-root * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,9 +1,8 @@
 import { Routes, Route, useNavigate, Navigate, useLocation, Outlet } from "react-router-dom";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import LoginPage            from "../features/auth/pages/LoginPage";
-import RegisterPage         from "../features/auth/pages/RegisterPage";
+import AuthFlow             from "../features/auth/pages/AuthFlow";
+import AcceptInvitePage     from "../features/auth/pages/AcceptInvitePage";
 import DashboardPage        from "../features/dashboard/pages/DashboardPage";
 import ReviewPage           from "../features/review/pages/ReviewPage";
 import UsersPage            from "../features/users/pages/UsersPage";
@@ -27,14 +26,12 @@ import SubscriptionPage     from "../features/subscription/SubscriptionPage";
 import TransactionPage      from "../features/Transaction/pages/Transactionpage";
 import TodaysAgendaWidget   from "../components/UI/TodaysAgendaWidget";
 import MainLayout           from "../components/Layout/MainLayout";
-import OnboardingModal      from "../components/Onboarding/OnboardingModal";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
 import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
-import { signupRequest } from "../redux/actions/authActions";
 
-const LoginPageAny: any = LoginPage;
-const RegisterPageAny: any = RegisterPage;
+const AuthFlowAny: any = AuthFlow;
+const AcceptInvitePageAny: any = AcceptInvitePage;
 const DashboardPageAny: any = DashboardPage;
 const ReviewPageAny: any = ReviewPage;
 const UsersPageAny: any = UsersPage;
@@ -85,91 +82,6 @@ function SuperAdminOnly({ user, children }: any) {
   return children;
 }
 
-// New entry point for signup: role selection + email OTP verification.
-// On success (needsSignup becomes true in RegisterPage), we hand off to
-// the onboarding flow at /signup, carrying the chosen role along so it's
-// available if the onboarding step ever needs it.
-function RegisterEntryPage() {
-  const navigate = useNavigate();
-
-  const handleComplete = (role: string) => {
-    try {
-      localStorage.setItem("axsSelectedRole", role);
-    } catch {
-      // best-effort only
-    }
-    navigate("/signup", { state: { role } });
-  };
-
-  return (
-    <RegisterPageAny
-      onBack={() => navigate("/")}
-      onComplete={handleComplete}
-    />
-  );
-}
-
-
-function SignUpPage({ onLogin }: any) {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { signupEmail, signupToken, user, error, loading } = useSelector(
-    (state: any) => state.auth
-  );
-
-  // signupToken comes from RegisterPage's (or LoginPage's) verify-otp call
-  // (email confirmed, no account exists yet). Without it, this route was
-  // reached directly rather than through the OTP flow, so send them back
-  // to register first.
-  useEffect(() => {
-    if (!signupToken) {
-      navigate("/register", { replace: true });
-    }
-  }, [signupToken, navigate]);
-
-  // Once completeSignup succeeds, auth.user is populated the same way a
-  // normal login does — finish the handoff into the app.
-  useEffect(() => {
-    if (user) {
-      if (onLogin) {
-        onLogin(user);
-      }
-      navigate("/dashboard", { replace: true });
-    }
-  }, [user]);
-
-  const handleComplete = (formData: any) => {
-    const { basic } = formData;
-
-    try {
-      const key = signupEmail || "guest@apenturexstudios.com";
-      localStorage.setItem(`axsOnboardingComplete_${key}`, JSON.stringify(true));
-      localStorage.setItem(`axsOnboardingData_${key}`, JSON.stringify(formData));
-      localStorage.setItem("axsKycVerified", JSON.stringify(true));
-      localStorage.setItem(
-        "axsKycData",
-        JSON.stringify({ docType: formData.kyc.docType, vals: formData.kyc.vals })
-      );
-    } catch {
-      // localStorage writes are best-effort UI state; the real account
-      // creation below is what actually matters.
-    }
-
-    // This is what actually creates the account — nothing was persisted to
-    // the database before this point.
-    dispatch(
-      signupRequest({
-        signupToken,
-        name: basic.name || "",
-        phone: basic.phone || "",
-      })
-    );
-  };
-
-  return <OnboardingModal onComplete={handleComplete} onBack={() => navigate("/register")} />;
-}
-
-
 export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: any) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -183,41 +95,26 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
   return (
     <Routes>
 
+      {/* AuthFlow owns the entire unauthenticated experience internally —
+          login, role selection, both registration wizards, and the
+          pending-approval screen — all via its own step state, not
+          separate URLs. This replaces the old "/register" -> "/signup" ->
+          OnboardingModal flow entirely. */}
       <Route
         path="/"
         element={
           !isAuthenticated ? (
-            <LoginPageAny
-              onLogin={onLogin}
-              onSignUp={() => navigate("/register")}
-            />
+            <AuthFlowAny onComplete={onLogin} />
           ) : (
             <Navigate to="/dashboard" replace />
           )
         }
       />
 
-      <Route
-        path="/register"
-        element={
-          !isAuthenticated ? (
-            <RegisterEntryPage />
-          ) : (
-            <Navigate to="/dashboard" replace />
-          )
-        }
-      />
-
-      <Route
-        path="/signup"
-        element={
-          !isAuthenticated ? (
-            <SignUpPage onLogin={onLogin} />
-          ) : (
-            <Navigate to="/dashboard" replace />
-          )
-        }
-      />
+      {/* Invited Studio Manager / Studio Photographer land here from their
+          email link. Public — they haven't logged in yet. Validates the
+          token and shows the matching wizard, or an invalid/expired state. */}
+      <Route path="/invite/:token" element={<AcceptInvitePageAny />} />
 
       {/* Public QR scan destination — intentionally OUTSIDE ProtectedLayout so it
           works without login when someone scans an event's QR code */}
