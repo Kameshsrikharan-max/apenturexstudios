@@ -1,0 +1,665 @@
+/* ==========================================================================
+   Studio Manager · "Invitation Required" flow
+   Reskinned onto the AXS contact-sheet / darkroom registration theme —
+   same tokens, type, and motifs as the Studio Admin flow, kept under the
+   smx- namespace so nothing here can collide with other stylesheets.
+   Cyan = verified & digital. Amber = analog / needs attention.
+   ========================================================================== */
+
+.smx-register-page {
+  /* Ink & surfaces */
+  --smx-ink-950: #070a12;
+  --smx-ink-900: #0a0e1a;
+  --smx-panel: #12172a;
+  --smx-panel-raised: #171d35;
+  --smx-border: #232a45;
+  --smx-border-soft: #1a2038;
+
+  /* Text */
+  --smx-text: #e7ecf5;
+  --smx-text-dim: #a9b2c9;
+  --smx-text-faint: #6b7590;
+
+  /* Accents */
+  --smx-cyan: #22d3ee;
+  --smx-cyan-dim: rgba(34, 211, 238, 0.14);
+  --smx-amber: #f5a623;
+  --smx-amber-dim: rgba(245, 166, 35, 0.16);
+  --smx-green: #34d399;
+  --smx-green-dim: rgba(52, 211, 153, 0.14);
+  --smx-error: #f87171;
+  --smx-error-dim: rgba(248, 113, 113, 0.14);
+
+  /* Type */
+  --smx-font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --smx-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --smx-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale */
+  --smx-radius-sm: 8px;
+  --smx-radius-md: 12px;
+  --smx-radius-lg: 20px;
+
+  --smx-shadow-glow-cyan: 0 0 0 1px rgba(34, 211, 238, 0.28), 0 10px 34px rgba(34, 211, 238, 0.14);
+  --smx-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 30px rgba(2, 4, 12, 0.35);
+  --smx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --smx-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  min-height: 100vh;
+  padding: 56px 24px 80px;
+  font-family: var(--smx-font-body);
+  color: var(--smx-text);
+  background:
+    radial-gradient(circle at 12% -10%, rgba(34, 211, 238, 0.08), transparent 45%),
+    radial-gradient(circle at 90% 10%, rgba(245, 166, 35, 0.06), transparent 40%),
+    var(--smx-ink-900);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Hero                                                                    */
+/* ---------------------------------------------------------------------- */
+
+.smx-hero {
+  max-width: 900px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+
+.smx-role-pill {
+  display: inline-block;
+  font-family: var(--smx-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--smx-amber);
+  background: var(--smx-amber-dim);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  border-radius: 999px;
+  padding: 5px 14px;
+  margin-bottom: 14px;
+}
+
+.smx-hero-title {
+  font-family: var(--smx-font-display);
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--smx-text);
+  letter-spacing: -0.015em;
+  margin: 0 0 12px;
+}
+
+.smx-hero-subtitle {
+  font-size: 15px;
+  color: var(--smx-text-dim);
+  line-height: 1.6;
+  margin: 0 0 40px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Film-strip stepper — sprocket holes + a progress rail that develops     */
+/* left to right as the applicant moves through the roll.                 */
+/* ---------------------------------------------------------------------- */
+
+.smx-stepper {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.smx-stepper-rail {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  right: 30px;
+  height: 2px;
+  background: var(--smx-border);
+  z-index: 0;
+}
+
+.smx-stepper-rail-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--smx-cyan), var(--smx-amber));
+  transition: width 0.4s var(--smx-ease-out);
+}
+
+.smx-stepper-item {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.smx-stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 140px;
+}
+
+.smx-stepper-sprockets {
+  display: flex;
+  gap: 3px;
+  height: 4px;
+}
+
+.smx-stepper-sprockets span {
+  width: 3px;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--smx-border-soft);
+}
+
+.smx-stepper-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--smx-font-mono);
+  transition: all 0.2s var(--smx-ease-out);
+}
+
+.smx-stepper-circle--upcoming {
+  background: var(--smx-panel);
+  border: 1px solid var(--smx-border);
+  color: var(--smx-text-faint);
+}
+
+.smx-stepper-circle--active {
+  background: var(--smx-panel-raised);
+  border: 1px solid var(--smx-cyan);
+  color: var(--smx-cyan);
+  box-shadow: var(--smx-shadow-glow-cyan);
+}
+
+.smx-stepper-circle--done {
+  background: var(--smx-green);
+  border: 1px solid var(--smx-green);
+  color: var(--smx-ink-950);
+}
+
+.smx-stepper-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--smx-text);
+  opacity: 0.6;
+  text-align: center;
+}
+
+.smx-stepper-label--active,
+.smx-stepper-label--done {
+  opacity: 1;
+}
+
+.smx-stepper-sublabel {
+  font-size: 11px;
+  color: var(--smx-text-faint);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Content card                                                            */
+/* ---------------------------------------------------------------------- */
+
+.smx-card {
+  position: relative;
+  max-width: 900px;
+  margin: 32px auto 0;
+  background: var(--smx-panel);
+  border: 1px solid var(--smx-border);
+  border-radius: var(--smx-radius-lg);
+  box-shadow: var(--smx-shadow-card);
+  padding: 40px 44px;
+}
+
+/* Registration marks — the recurring contact-sheet cross tick, echoed on
+   the Review step's hero. */
+.smx-card-mark {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.smx-card-mark::before,
+.smx-card-mark::after {
+  content: "";
+  position: absolute;
+  background: var(--smx-border-soft);
+}
+
+.smx-card-mark::before {
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.smx-card-mark::after {
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.smx-card-mark--tl {
+  top: 18px;
+  left: 18px;
+}
+
+.smx-card-mark--tr {
+  top: 18px;
+  right: 18px;
+}
+
+.smx-step-anim {
+  animation: smx-step-in 0.3s var(--smx-ease-out);
+}
+
+@keyframes smx-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Shared form-field system — used by every step (Basic Info, KYC,
+   Portfolio, Review). Loaded once here since this is the top-level
+   component, so step files don't need to import it themselves.
+   ========================================================================== */
+
+.smx-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.smx-section-title {
+  font-family: var(--smx-font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--smx-text);
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+
+.smx-section-subtitle {
+  font-size: 14px;
+  color: var(--smx-text-dim);
+  margin: 0;
+}
+
+.smx-divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--smx-border) 0%, transparent 100%);
+  margin: 20px 0 28px;
+}
+
+.smx-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--smx-cyan);
+  margin: 8px 0 14px;
+}
+
+.smx-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 20px;
+  margin-bottom: 8px;
+}
+
+.smx-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.smx-field--full {
+  grid-column: 1 / -1;
+}
+
+.smx-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--smx-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smx-required {
+  color: var(--smx-amber);
+  margin-right: 2px;
+}
+
+.smx-hint {
+  font-size: 12px;
+  color: var(--smx-text-faint);
+}
+
+.smx-error-text {
+  font-size: 12px;
+  color: var(--smx-error);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smx-shell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.smx-shell > .smx-input,
+.smx-shell > .smx-select {
+  width: 100%;
+}
+
+.smx-check {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--smx-green);
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.smx-input,
+.smx-select,
+.smx-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--smx-font-body);
+  font-size: 14px;
+  color: var(--smx-text);
+  background: var(--smx-panel);
+  border: 1px solid var(--smx-border);
+  border-radius: var(--smx-radius-sm);
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.18s var(--smx-ease-out), box-shadow 0.18s var(--smx-ease-out),
+    background 0.18s var(--smx-ease-out);
+  appearance: none;
+}
+
+.smx-shell .smx-input {
+  padding-right: 40px;
+}
+
+.smx-input::placeholder,
+.smx-textarea::placeholder {
+  color: var(--smx-text-faint);
+}
+
+.smx-input:hover,
+.smx-textarea:hover,
+.smx-select:hover {
+  border-color: var(--smx-border-soft);
+}
+
+.smx-input:focus,
+.smx-select:focus,
+.smx-textarea:focus {
+  border-color: var(--smx-cyan);
+  box-shadow: 0 0 0 3px var(--smx-cyan-dim);
+  background: var(--smx-panel-raised);
+}
+
+.smx-input:disabled,
+.smx-select:disabled {
+  background: var(--smx-ink-900);
+  color: var(--smx-text-faint);
+  cursor: not-allowed;
+}
+
+.smx-input--invalid {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.smx-input--invalid:focus {
+  box-shadow: 0 0 0 3px var(--smx-error-dim);
+}
+
+.smx-select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--smx-text-faint) 50%),
+    linear-gradient(135deg, var(--smx-text-faint) 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.smx-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.smx-char-count {
+  font-family: var(--smx-font-mono);
+  font-size: 11px;
+  color: var(--smx-text-faint);
+}
+
+.smx-file-hidden {
+  display: none;
+}
+
+/* Selectable option cards — referral choice, document type, etc. */
+.smx-option-card {
+  border: 1px solid var(--smx-border);
+  background: var(--smx-panel);
+  border-radius: var(--smx-radius-md);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 0.18s var(--smx-ease-out), box-shadow 0.18s var(--smx-ease-out),
+    transform 0.12s var(--smx-ease-out);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  width: 100%;
+}
+
+.smx-option-card:hover {
+  border-color: var(--smx-border-soft);
+  transform: translateY(-1px);
+}
+
+.smx-option-card--selected {
+  border-color: var(--smx-cyan);
+  box-shadow: var(--smx-shadow-glow-cyan);
+  background: var(--smx-panel-raised);
+}
+
+.smx-option-card-icon {
+  font-size: 18px;
+  color: var(--smx-text-faint);
+  margin-top: 1px;
+}
+
+.smx-option-card--selected .smx-option-card-icon {
+  color: var(--smx-cyan);
+}
+
+.smx-option-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--smx-text);
+}
+
+.smx-option-card-sub {
+  font-size: 12px;
+  color: var(--smx-text-faint);
+  margin-top: 2px;
+}
+
+/* Checkbox / terms */
+.smx-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--smx-text);
+  cursor: pointer;
+}
+
+.smx-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--smx-cyan);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.smx-terms-row {
+  margin: 4px 0;
+}
+
+.smx-terms-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--smx-cyan);
+  font-weight: 600;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Buttons */
+.smx-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--smx-border);
+}
+
+.smx-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.smx-btn-primary,
+.smx-btn-secondary {
+  box-sizing: border-box;
+  font-family: var(--smx-font-body);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--smx-radius-sm);
+  padding: 11px 22px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.18s var(--smx-ease-out);
+}
+
+.smx-btn-primary {
+  background: var(--smx-cyan);
+  color: var(--smx-ink-950);
+  box-shadow: 0 6px 18px rgba(34, 211, 238, 0.25);
+}
+
+.smx-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.smx-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.smx-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.smx-btn-secondary {
+  background: transparent;
+  color: var(--smx-text-dim);
+  border-color: var(--smx-border);
+}
+
+.smx-btn-secondary:hover:not(:disabled) {
+  border-color: var(--smx-border-soft);
+  color: var(--smx-text);
+}
+
+.smx-btn-secondary:disabled {
+  color: var(--smx-text-faint);
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .smx-hero-title {
+    font-size: 30px;
+  }
+
+  .smx-stepper-sublabel {
+    display: none;
+  }
+
+  .smx-card {
+    padding: 28px 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .smx-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .smx-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .smx-actions-right {
+    flex-direction: column;
+  }
+
+  .smx-actions-right .smx-btn-primary,
+  .smx-actions-right .smx-btn-secondary {
+    width: 100%;
+  }
+
+  .smx-stepper-node {
+    width: 70px;
+  }
+}

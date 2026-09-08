@@ -80,7 +80,15 @@ export default function AcceptInvitePage() {
 
   const handleManagerSubmitted = async (data: StudioManagerFormData) => {
     try {
-      await submitRegistration(data);
+      // portfolio.media holds real browser File objects — these can't
+      // survive JSON.stringify (a File serializes to "{}"), and there's no
+      // file-upload endpoint yet, so strip them before sending. Same
+      // pattern used in AuthFlow.tsx for the self-service wizards.
+      const payload = {
+        ...data,
+        portfolio: { ...data.portfolio, media: [] },
+      };
+      await submitRegistration(payload);
       setState("submitted");
     } catch (err: any) {
       setErrorMessage(err.message || "Registration failed. Please try again.");
