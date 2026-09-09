@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircleFilled } from "@ant-design/icons";
+import "./StudioPhotographerBasicInfoStep.css";
 
 export interface StudioPhotographerBasicInfoData {
   firstName: string;
@@ -38,8 +39,6 @@ const PHONE_PATTERN = /^\d{10}$/;
 const POSTAL_CODE_PATTERN = /^\d{6}$/;
 const MIN_NAME_LENGTH = 2;
 
-// Single source of truth for what makes a field valid — used for both the
-// on-type/on-blur error message and the live green-tick indicator.
 function fieldError(field: TextField, rawValue: string): string | undefined {
   const value = rawValue.trim();
 
@@ -275,6 +274,8 @@ function Field({
   required?: boolean;
   error?: string;
   valid?: boolean;
+
+    
   full?: boolean;
   children: React.ReactNode;
 }) {

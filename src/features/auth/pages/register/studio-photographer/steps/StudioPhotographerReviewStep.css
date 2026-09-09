@@ -1,8 +1,4 @@
-/* =========================================================================
-   StudioPhotographerReviewStep.css
-   Read-only confirmation summary before submit.
-   Fully self-contained — tokens duplicated, no shared import.
-   ========================================================================= */
+/* StudioPhotographerReviewStep.css */
 
 .studio-register-root {
   --sp-cyan: #5eead4;
