@@ -1,7 +1,11 @@
 /* =========================================================================
    StudioPhotographerRegisterPage.css
    Darkroom / contact-sheet shell: header, film-strip sprocket stepper,
-   registration-mark card wrapper. Fully self-contained.
+   registration-mark card wrapper, plus the shared form-field system used
+   by every step (Basic Info, KYC, Photography Details, Review). Loaded
+   once here since this is the top-level component, so step files don't
+   need to import it themselves. Fully self-contained under the
+   studio- namespace.
    ========================================================================= */
 
 .studio-register-root,
@@ -14,19 +18,31 @@
 .studio-register-root {
   --sp-bg: #0b0f10;
   --sp-panel: rgba(18, 24, 26, 0.72);
+  --sp-panel-solid: #12181a;
+  --sp-panel-raised: #182120;
   --sp-panel-border: rgba(255, 255, 255, 0.08);
+  --sp-border-soft: rgba(255, 255, 255, 0.14);
   --sp-cyan: #5eead4;
   --sp-cyan-dim: rgba(94, 234, 212, 0.35);
   --sp-cyan-glow: rgba(94, 234, 212, 0.18);
   --sp-amber: #f2b872;
   --sp-amber-dim: rgba(242, 184, 114, 0.35);
   --sp-amber-glow: rgba(242, 184, 114, 0.16);
+  --sp-green: #6ee7b7;
+  --sp-error: #f87171;
+  --sp-error-dim: rgba(248, 113, 113, 0.16);
   --sp-text: #eef2f1;
   --sp-text-dim: #9fb0ad;
   --sp-text-faint: #6d7b79;
   --sp-radius: 10px;
+  --sp-radius-sm: 8px;
+  --sp-radius-md: 12px;
   --sp-font-display: "Fraunces", "Georgia", serif;
+  --sp-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sp-font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+  --sp-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  color-scheme: dark;
 
   min-height: 100vh;
   width: 100%;
@@ -261,9 +277,235 @@
   border-bottom: none;
 }
 
+/* =========================================================================
+   Shared form-field system fallback — kept in case any step ever renders
+   before its own CSS module has loaded. Each step file now imports its
+   own matching stylesheet directly, so these rules mostly serve as safe
+   defaults / dead-code fallback rather than the primary styling path.
+   ========================================================================= */
+
+.studio-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.studio-section-title {
+  font-family: var(--sp-font-display);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--sp-text);
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+
+.studio-section-subtitle {
+  font-family: var(--sp-font-body);
+  font-size: 13.5px;
+  color: var(--sp-text-dim);
+  margin: 0;
+}
+
+.studio-divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--sp-panel-border) 0%, transparent 100%);
+  margin: 20px 0 26px;
+}
+
+.studio-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sp-cyan);
+  margin: 8px 0 14px;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 20px;
+  margin-bottom: 8px;
+}
+
+.studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.studio-field--full {
+  grid-column: 1 / -1;
+}
+
+.studio-label {
+  font-family: var(--sp-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--sp-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.studio-required {
+  color: var(--sp-amber);
+  margin-right: 2px;
+}
+
+.studio-hint {
+  font-family: var(--sp-font-body);
+  font-size: 11.5px;
+  color: var(--sp-text-faint);
+}
+
+.studio-error-text {
+  font-family: var(--sp-font-body);
+  font-size: 11.5px;
+  color: var(--sp-error);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.studio-shell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.studio-shell > .studio-input,
+.studio-shell > .studio-select {
+  width: 100%;
+}
+
+.studio-check {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--sp-green);
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.studio-select,
+.studio-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--sp-font-body);
+  font-size: 14px;
+  color: var(--sp-text);
+  background: var(--sp-panel-solid);
+  border: 1px solid var(--sp-panel-border);
+  border-radius: var(--sp-radius-sm);
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.18s var(--sp-ease-out), box-shadow 0.18s var(--sp-ease-out),
+    background 0.18s var(--sp-ease-out);
+  appearance: none;
+}
+
+.studio-select:hover,
+.studio-textarea:hover {
+  border-color: var(--sp-border-soft);
+}
+
+.studio-select:focus,
+.studio-textarea:focus {
+  border-color: var(--sp-cyan);
+  box-shadow: 0 0 0 3px var(--sp-cyan-glow);
+  background: var(--sp-panel-raised);
+}
+
+.studio-select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--sp-text-faint) 50%),
+    linear-gradient(135deg, var(--sp-text-faint) 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.studio-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.studio-char-count {
+  font-family: var(--sp-font-mono);
+  font-size: 11px;
+  color: var(--sp-text-faint);
+}
+
+.studio-file-hidden {
+  display: none;
+}
+
+.studio-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sp-font-body);
+  font-size: 14px;
+  color: var(--sp-text);
+  cursor: pointer;
+}
+
+.studio-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sp-cyan);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.studio-terms-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--sp-cyan);
+  font-weight: 600;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.studio-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--sp-panel-border);
+}
+
+.studio-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ---------------------------------------------------------------------
    Responsive
    --------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 @media (max-width: 720px) {
   .studio-register-root {
@@ -280,6 +522,16 @@
 
   .studio-step-subtitle {
     display: none;
+  }
+
+  .studio-actions {
+    flex-direction: column-reverse;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .studio-actions-right {
+    flex-direction: column;
   }
 }
 

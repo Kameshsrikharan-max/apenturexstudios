@@ -165,6 +165,24 @@ to {opacity: 1;transform: translateY(0) scale(1);}
 .mini-calendar-full-button {width: 100%;height: 36px;margin-top: 12px;border: 0;border-radius: 9px;color: #082f49;background: linear-gradient(135deg, #7dd3fc, #38bdf8);font-size: 12px;font-weight: 900;cursor: pointer;}
 .mini-calendar-full-button:hover {filter: brightness(1.05);}
 
+/* ===== PENDING APPROVALS ===== */
+.pending-approvals-wrap {position: relative;}
+.pending-approvals-popover {position: absolute;top: calc(100% + 12px);right: 0;z-index: 2000;width: 320px;max-height: 70vh;padding: 14px;border-radius: 14px;color: #f8fafc;background:radial-gradient(circle at top left, rgba(79, 195, 247, 0.2), transparent 34%),linear-gradient(135deg, rgba(8, 10, 18, 0.98), rgba(15, 23, 42, 0.98));border: 1px solid rgba(125, 211, 252, 0.22);box-shadow: 0 22px 54px rgba(0, 0, 0, 0.38);backdrop-filter: blur(18px);overflow-y: auto;animation: miniCalendarIn 0.18s ease both;}
+.pending-approvals-popover::before {content: "";position: absolute;top: -7px;right: 18px;width: 14px;height: 14px;background: rgba(8, 10, 18, 0.98);border-left: 1px solid rgba(125, 211, 252, 0.22);border-top: 1px solid rgba(125, 211, 252, 0.22);transform: rotate(45deg);}
+.pending-approvals-section {padding: 4px 2px;}
+.pending-approvals-section-head {display: flex;align-items: center;justify-content: space-between;margin-bottom: 8px;}
+.pending-approvals-section-head span:first-child {color: #f8fafc;font-size: 12px;font-weight: 900;text-transform: uppercase;letter-spacing: 0.04em;}
+.pending-approvals-count {min-width: 20px;height: 20px;padding: 0 6px;display: grid;place-items: center;border-radius: 999px;color: #082f49;background: #0284c7;font-size: 11px;font-weight: 900;}
+.pending-approvals-list {display: grid;gap: 6px;margin-bottom: 8px;}
+.pending-approval-item {width: 100%;padding: 9px 10px;display: flex;flex-direction: column;gap: 2px;border: 1px solid rgba(255, 255, 255, 0.08);border-radius: 10px;background: rgba(255, 255, 255, 0.05);color: #f8fafc;font-family: inherit;text-align: left;cursor: pointer;transition: 160ms ease;}
+.pending-approval-item:hover {border-color: #0284c7;background: rgba(56, 189, 248, 0.12);}
+.pending-approval-name {font-size: 13px;font-weight: 800;overflow: hidden;text-overflow: ellipsis;white-space: nowrap;}
+.pending-approval-meta {color: #93c5fd;font-size: 11px;font-weight: 700;overflow: hidden;text-overflow: ellipsis;white-space: nowrap;}
+.pending-approvals-empty {padding: 14px 4px;color: #94a3b8;font-size: 12px;font-weight: 700;text-align: center;}
+.pending-approvals-viewall {width: 100%;height: 32px;border: 1px solid #0284c7;border-radius: 9px;color: #0284c7;background: rgba(56, 189, 248, 0.08);font-size: 11px;font-weight: 900;font-family: inherit;cursor: pointer;transition: 160ms ease;}
+.pending-approvals-viewall:hover {color: #082f49;background:#0284c7;}
+.pending-approvals-divider {height: 1px;margin: 10px 0;background: rgba(255, 255, 255, 0.08);}
+
 .settings-rotate svg {animation: settingsSpin 3s linear infinite;transform-origin: center;}
 
 @keyframes settingsSpin {from {transform: rotate(0deg);}to {transform: rotate(360deg);}}
@@ -197,6 +215,7 @@ to {opacity: 1;transform: translateY(0) scale(1);}
   .nav-user {padding-right: 8px;}
   .nav-user-arrow {display: none;}
   .mini-calendar-popover {width: 260px;}
+  .pending-approvals-popover {width: 280px;}
 }
 
 /* ===== MOBILE (481px – 768px) ===== */
@@ -222,6 +241,7 @@ to {opacity: 1;transform: translateY(0) scale(1);}
   }
 
   .mini-calendar-popover {position: fixed;top: 76px;right: 12px;width: min(292px, calc(100vw - 24px));}
+  .pending-approvals-popover {position: fixed;top: 76px;right: 12px;width: min(320px, calc(100vw - 24px));max-height: 60vh;}
   .nav-user-dropdown {position: fixed;top: 76px;right: 12px;width: min(230px, calc(100vw - 24px));}
   .nav-user-dropdown::before {display: none;}
   .profile-card {align-items: flex-start;}
@@ -243,6 +263,7 @@ to {opacity: 1;transform: translateY(0) scale(1);}
   .command-trigger {width: 38px;height: 38px;}
   .mini-calendar-popover {top: 64px;right: 8px;width: min(260px, calc(100vw - 16px));padding: 12px;}
   .mini-calendar-date {height: 30px;}
+  .pending-approvals-popover {top: 64px;right: 8px;width: min(280px, calc(100vw - 16px));padding: 12px;}
   .nav-user-dropdown {top: 64px;right: 8px;width: min(210px, calc(100vw - 16px));}
   .nav-modal {padding: 16px;border-radius: 14px;}
   .profile-avatar {width: 48px;height: 48px;font-size: 20px;}

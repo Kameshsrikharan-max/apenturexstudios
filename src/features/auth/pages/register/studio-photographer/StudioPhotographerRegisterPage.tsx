@@ -11,7 +11,7 @@ import StudioPhotographerDetailsStep, {
   StudioPhotographerDetailsData,
 } from "./steps/StudioPhotographerDetailsStep";
 import StudioPhotographerReviewStep from "./steps/StudioPhotographerReviewStep";
-import "../studio-admin/StudioAdminRegisterPage.css";
+import "./StudioPhotographerRegisterPage.css";
 
 export interface StudioPhotographerFormData {
   basicInfo: StudioPhotographerBasicInfoData;
@@ -83,6 +83,18 @@ export default function StudioPhotographerRegisterPage({
   };
 
   const handleSubmit = async () => {
+    if (typeof onSubmitted !== "function") {
+      // This means the parent rendering StudioPhotographerRegisterPage isn't
+      // passing a valid onSubmitted prop (missing, wrong prop name, or not a function).
+      // Check wherever <StudioPhotographerRegisterPage ... /> is rendered.
+      console.error(
+        "StudioPhotographerRegisterPage: `onSubmitted` prop is missing or not a function. " +
+          "Check the parent component that renders this page.",
+        onSubmitted
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       await onSubmitted(formData);

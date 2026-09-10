@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./StudioPhotographerDetailsStep.css";
 
 export interface StudioPhotographerDetailsData {
   yearsExperience: string;
@@ -67,18 +68,27 @@ export default function StudioPhotographerDetailsStep({
           />
         </div>
         <div className="studio-form-field studio-form-field--full">
-          <label className="studio-field-label">Specializations</label>
-          <div className="studio-radio-row">
-            {SPECIALIZATION_OPTIONS.map((spec) => (
-              <label key={spec} className="studio-checkbox-option">
-                <input
-                  type="checkbox"
-                  checked={data.specializations.includes(spec)}
-                  onChange={() => toggleSpecialization(spec)}
-                />
-                {spec}
-              </label>
-            ))}
+          <label className="studio-field-label">
+            Specializations
+            {data.specializations.length > 0 ? (
+              <span className="studio-spec-count">{data.specializations.length} selected</span>
+            ) : null}
+          </label>
+          <div className="studio-spec-chip-row">
+            {SPECIALIZATION_OPTIONS.map((spec) => {
+              const selected = data.specializations.includes(spec);
+              return (
+                <button
+                  type="button"
+                  key={spec}
+                  className={`studio-spec-chip ${selected ? "studio-spec-chip--selected" : ""}`}
+                  aria-pressed={selected}
+                  onClick={() => toggleSpecialization(spec)}
+                >
+                  {spec}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

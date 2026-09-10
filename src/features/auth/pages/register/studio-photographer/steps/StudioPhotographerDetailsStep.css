@@ -1,4 +1,4 @@
-/* StudioPhotographerDetailsStep.css*/
+/* StudioPhotographerDetailsStep.css */
 
 .studio-register-root {
   --sp-cyan: #5eead4;
@@ -26,7 +26,8 @@
 .studio-form-grid {display: grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap: 20px 24px;margin-bottom: 8px;}
 .studio-form-field {display: flex;flex-direction: column;gap: 6px;min-width: 0;}
 .studio-form-field--full {grid-column: 1 / -1;}
-.studio-field-label {font-size: 11.5px;font-weight: 600;letter-spacing: 0.02em;color: var(--sp-text-dim);}
+.studio-field-label {display: flex;align-items: center;gap: 8px;font-size: 11.5px;font-weight: 600;letter-spacing: 0.02em;color: var(--sp-text-dim);}
+.studio-spec-count {font-family: var(--sp-font-mono);font-size: 10.5px;font-weight: 600;letter-spacing: 0;color: var(--sp-cyan);text-transform: none;}
 .studio-input {width: 100%;font-family: var(--sp-font-mono);font-size: 13.5px;color: var(--sp-text);background: rgba(255, 255, 255, 0.03);border: 1px solid rgba(255, 255, 255, 0.1);border-radius: 8px;padding: 10px 12px;outline: none;transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;}
 .studio-input::placeholder {color: var(--sp-text-faint);}
 .studio-input:focus {border-color: var(--sp-cyan-dim);box-shadow: 0 0 0 3px var(--sp-cyan-glow);background: rgba(94, 234, 212, 0.04);}
@@ -35,11 +36,33 @@
 .studio-input:-webkit-autofill:hover,
 .studio-input:-webkit-autofill:focus {-webkit-text-fill-color: var(--sp-text);transition: background-color 9999s ease-in-out 0s;box-shadow: 0 0 0 1000px rgba(18, 24, 26, 0.95) inset;}
 
-/* Specialization checkbox row */
+/* Specializations — toggle chips instead of bare checkboxes */
 
-.studio-radio-row {display: flex;flex-wrap: wrap;gap: 10px 20px;}
-.studio-checkbox-option {display: inline-flex;align-items: center;gap: 8px;font-size: 13px;color: var(--sp-text-dim);cursor: pointer;user-select: none;}
-.studio-checkbox-option input[type="checkbox"] {width: 15px;height: 15px;accent-color: var(--sp-cyan);cursor: pointer;}
+.studio-spec-chip-row {display: flex;flex-wrap: wrap;gap: 8px;}
+
+.studio-spec-chip {
+  font-family: var(--sp-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sp-text-dim);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.studio-spec-chip:hover {
+  border-color: var(--sp-cyan-dim);
+  transform: translateY(-1px);
+}
+
+.studio-spec-chip--selected {
+  border-color: var(--sp-cyan);
+  background: rgba(94, 234, 212, 0.1);
+  color: var(--sp-cyan);
+}
 
 /* Actions / buttons */
 
@@ -70,6 +93,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .studio-input,
+  .studio-spec-chip,
   .studio-btn-secondary,
   .studio-btn-primary {transition: none !important;}
 }

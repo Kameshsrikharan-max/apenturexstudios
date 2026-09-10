@@ -4,6 +4,8 @@ import {
   MediaEngagementPayload,
   UserAccountPayload,
   PaymentStatusPayload,
+  DeleteRequestPayload,
+  RegistrationRequestPayload,
 } from "../../redux/types/notificationDetailTypes";
 
 
@@ -178,6 +180,58 @@ export function notifyUserActivated(params: {
     notifCategory: "userActivated",
     category: "User",
     triggeredBy: params.actionBy,
+    priority: "medium",
+    payload,
+  });
+}
+
+
+/* Delete Request (self-delete-with-approval flow) */
+
+export function notifyDeleteRequest(params: {
+  targetType: string;
+  targetName: string;
+  reason?: string;
+  requestedBy: string;
+}) {
+  const payload: DeleteRequestPayload = {
+    targetType: params.targetType,
+    targetName: params.targetName,
+    reason: params.reason,
+    requestedBy: params.requestedBy,
+  };
+
+  return pushNotification({
+    title: `Account deletion requested: ${params.targetName}`,
+    notifCategory: "deleteRequest",
+    category: "User",
+    description: params.reason,
+    triggeredBy: params.requestedBy,
+    priority: "high",
+    payload,
+  });
+}
+
+
+/* Registration Request (studio-admin / freelance-photographer approval flow) */
+
+export function notifyRegistrationRequest(params: {
+  registrationType: "studio-admin" | "freelance-photographer";
+  applicantName: string;
+  applicantEmail: string;
+}) {
+  const payload: RegistrationRequestPayload = {
+    registrationType: params.registrationType,
+    applicantName: params.applicantName,
+    applicantEmail: params.applicantEmail,
+  };
+
+  return pushNotification({
+    title: `New registration request: ${params.applicantName}`,
+    notifCategory: "registrationRequest",
+    category: "User",
+    description: `Requested role: ${params.registrationType}`,
+    triggeredBy: params.applicantName,
     priority: "medium",
     payload,
   });

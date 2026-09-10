@@ -3,6 +3,9 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
+// adjust paths to match your project structure
+import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
+import { fetchPendingRegistrationsApi } from "../../redux/api/registrationApprovalApi";
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -22,6 +25,9 @@ type NavbarProps = {
 
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
+
+// How often super_admins re-poll the pending-delete-request count, in ms.
+const PENDING_DELETE_POLL_INTERVAL = 30000;
 
 const BASE_PAGES = [
   { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlined />, group: "Workspace" },
@@ -146,10 +152,22 @@ function Navbar({
   const paletteInputRef = useRef(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const pendingApprovalsRef = useRef<HTMLDivElement | null>(null);
 
   const [isListening, setIsListening] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const recognitionRef = useRef<any>(null);
+
+  // Pending account-deletion / registration lists for super_admins — polled
+  // directly from the backend (not localStorage) since this needs to be
+  // visible across whichever browser/session the super_admin is using, not
+  // just the one that submitted the request. We keep the full arrays (not
+  // just counts) so the popover can list the individual pending items.
+  const [pendingDeleteUsers, setPendingDeleteUsers] = useState<any[]>([]);
+  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
+  const [pendingApprovalsOpen, setPendingApprovalsOpen] = useState(false);
+
+  const pendingApprovalsTotal = pendingDeleteUsers.length + pendingRegistrations.length;
 
   const today = dayjs().format("YYYY-MM-DD");
   const monthKey = miniMonth.format("YYYY-MM");
@@ -209,12 +227,20 @@ function Navbar({
     setUserMenuOpen(false);
     setProfileModalOpen(false);
     setUpcomingEventsOpen(false);
+    setPendingApprovalsOpen(false);
     window.dispatchEvent(new Event("startStudioTour"));
   };
 
   const toggleMiniCalendar = () => {
     refreshEvents();
     setMiniCalendarOpen((current) => !current);
+    setUserMenuOpen(false);
+    setPendingApprovalsOpen(false);
+  };
+
+  const togglePendingApprovals = () => {
+    setPendingApprovalsOpen((current) => !current);
+    setMiniCalendarOpen(false);
     setUserMenuOpen(false);
   };
 
@@ -223,6 +249,7 @@ function Navbar({
     setUpcomingEventsOpen(true);
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
+    setPendingApprovalsOpen(false);
   };
 
   const openFullCalendar = () => {
@@ -233,6 +260,7 @@ function Navbar({
   const openAgenda = () => {
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
+    setPendingApprovalsOpen(false);
     navigate("/agenda");
   };
 
@@ -248,6 +276,20 @@ function Navbar({
   const openNotificationSettings = () => {
     setUserMenuOpen(false);
     navigate("/notification-settings");
+  };
+
+  const openPendingDeleteRequests = () => {
+    setUserMenuOpen(false);
+    setMiniCalendarOpen(false);
+    setPendingApprovalsOpen(false);
+    navigate("/admin/delete-requests");
+  };
+
+  const openPendingRegistrations = () => {
+    setUserMenuOpen(false);
+    setMiniCalendarOpen(false);
+    setPendingApprovalsOpen(false);
+    navigate("/admin/registrations");
   };
 
   const handleLogout = () => {
@@ -267,6 +309,7 @@ function Navbar({
     setPaletteOpen(true);
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
+    setPendingApprovalsOpen(false);
   };
 
   const closePalette = () => {
@@ -364,6 +407,10 @@ function Navbar({
       if (target instanceof Node && !userMenuRef.current?.contains(target)) {
         setUserMenuOpen(false);
       }
+
+      if (target instanceof Node && !pendingApprovalsRef.current?.contains(target)) {
+        setPendingApprovalsOpen(false);
+      }
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -381,6 +428,69 @@ function Navbar({
       window.removeEventListener("storage", handleExternalUpdate);
     };
   }, []);
+
+  // Poll the real pending-delete-request list from the backend for
+  // super_admins only. This is deliberately NOT routed through the
+  // notification localStorage system — that system is per-browser only,
+  // so it can never reliably alert a different logged-in user (the
+  // super_admin) about something another user (the requester) did.
+  useEffect(() => {
+    if (user?.role !== "super_admin") {
+      setPendingDeleteUsers([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPendingDeleteUsers = async () => {
+      try {
+        const users = await fetchPendingDeleteRequestsApi();
+        if (!cancelled) setPendingDeleteUsers(users || []);
+      } catch {
+        // Network/auth hiccup — leave the last known list in place and
+        // just try again on the next poll tick.
+      }
+    };
+
+    loadPendingDeleteUsers();
+    const intervalId = window.setInterval(loadPendingDeleteUsers, PENDING_DELETE_POLL_INTERVAL);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [user?.role]);
+
+  // Same polling approach for pending registration requests — the
+  // registration approval saga has no submit-side worker at all (only
+  // fetch/approve/reject), so there's nowhere upstream that could push a
+  // same-browser notification even if the localStorage system worked
+  // across users. Polling the real backend list sidesteps both problems.
+  useEffect(() => {
+    if (user?.role !== "super_admin") {
+      setPendingRegistrations([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPendingRegistrations = async () => {
+      try {
+        const registrations = await fetchPendingRegistrationsApi();
+        if (!cancelled) setPendingRegistrations(registrations || []);
+      } catch {
+        // Leave the last known list in place; retry on the next tick.
+      }
+    };
+
+    loadPendingRegistrations();
+    const intervalId = window.setInterval(loadPendingRegistrations, PENDING_DELETE_POLL_INTERVAL);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [user?.role]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -587,6 +697,104 @@ function Navbar({
             )}
           </div>
 
+          {user?.role === "super_admin" && (
+            <div className="pending-approvals-wrap" ref={pendingApprovalsRef}>
+              <button
+                type="button"
+                className={`nav-icon-button ${pendingApprovalsOpen ? "active" : ""}`}
+                onClick={togglePendingApprovals}
+                aria-label="Pending approvals"
+                data-tour-id="nav-pending-approvals"
+              >
+                <ExclamationCircleOutlined />
+
+                {pendingApprovalsTotal > 0 && (
+                  <span className="notify-count">
+                    {pendingApprovalsTotal > 99 ? "99+" : pendingApprovalsTotal}
+                  </span>
+                )}
+
+                <span className="nav-tooltip">
+                  {pendingApprovalsTotal > 0
+                    ? `${pendingApprovalsTotal} Pending Approval${pendingApprovalsTotal === 1 ? "" : "s"}`
+                    : "Pending Approvals"}
+                </span>
+              </button>
+
+              {pendingApprovalsOpen && (
+                <div className="pending-approvals-popover">
+                  <div className="pending-approvals-section">
+                    <div className="pending-approvals-section-head">
+                      <span>Account Deletions</span>
+                      <span className="pending-approvals-count">{pendingDeleteUsers.length}</span>
+                    </div>
+
+                    {pendingDeleteUsers.length > 0 ? (
+                      <div className="pending-approvals-list">
+                        {pendingDeleteUsers.slice(0, 5).map((item: any, index: number) => (
+                          <button
+                            type="button"
+                            key={item?.userId || item?.id || index}
+                            className="pending-approval-item"
+                            onClick={openPendingDeleteRequests}
+                          >
+                            <span className="pending-approval-name">
+                              {item?.name || item?.userName || item?.email || "Pending user"}
+                            </span>
+                            <span className="pending-approval-meta">
+                              {item?.email || item?.role || ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="pending-approvals-empty">No pending deletion requests.</div>
+                    )}
+
+                    <button type="button" className="pending-approvals-viewall" onClick={openPendingDeleteRequests}>
+                      View all
+                    </button>
+                  </div>
+
+                  <div className="pending-approvals-divider" />
+
+                  <div className="pending-approvals-section">
+                    <div className="pending-approvals-section-head">
+                      <span>Registrations</span>
+                      <span className="pending-approvals-count">{pendingRegistrations.length}</span>
+                    </div>
+
+                    {pendingRegistrations.length > 0 ? (
+                      <div className="pending-approvals-list">
+                        {pendingRegistrations.slice(0, 5).map((item: any, index: number) => (
+                          <button
+                            type="button"
+                            key={item?.profileId || item?.id || index}
+                            className="pending-approval-item"
+                            onClick={openPendingRegistrations}
+                          >
+                            <span className="pending-approval-name">
+                              {item?.name || item?.applicantName || item?.email || "Pending applicant"}
+                            </span>
+                            <span className="pending-approval-meta">
+                              {item?.email || item?.type || item?.registrationType || ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="pending-approvals-empty">No pending registrations.</div>
+                    )}
+
+                    <button type="button" className="pending-approvals-viewall" onClick={openPendingRegistrations}>
+                      View all
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             type="button"
             className="nav-icon-button notification-button"
@@ -627,6 +835,7 @@ function Navbar({
               onClick={() => {
                 setUserMenuOpen((current) => !current);
                 setMiniCalendarOpen(false);
+                setPendingApprovalsOpen(false);
               }}
               aria-label="Open profile menu"
             >

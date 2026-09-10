@@ -78,6 +78,12 @@ export default function AcceptInvitePage() {
     return body;
   };
 
+  // Notification creation for new registrations now happens server-side,
+  // in register.service.js (registerStudioAdmin / registerFreelancePhotographer),
+  // right after the profile is persisted — so this page just submits and
+  // shows the confirmation screen. The super admin's Navbar picks up the
+  // notification via GET /notifications, not from this browser's storage.
+
   const handleManagerSubmitted = async (data: StudioManagerFormData) => {
     // portfolio.media holds real browser File objects — these can't survive
     // JSON.stringify (a File serializes to "{}"), and there's no
@@ -146,16 +152,20 @@ export default function AcceptInvitePage() {
   if (invite.role === "studio_manager") {
     return (
       <StudioManagerRegisterPage
-        onBackToLogin={() => navigate("/")}
-        onSubmitApplication={handleManagerSubmitted}
+        email={invite.email}
+        studioName={invite.studioName}
+        onBack={() => navigate("/")}
+        onSubmitted={handleManagerSubmitted}
       />
     );
   }
 
   return (
     <StudioPhotographerRegisterPage
-      onBackToLogin={() => navigate("/")}
-      onSubmitApplication={handlePhotographerSubmitted}
+      email={invite.email}
+      studioName={invite.studioName}
+      onBack={() => navigate("/")}
+      onSubmitted={handlePhotographerSubmitted}
     />
   );
 }
