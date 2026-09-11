@@ -28,43 +28,15 @@ const initialEvents = [
     image:
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
   },
-  {
-    id: "ev-1002",
-    name: "Aarav - Reception",
-    type: "Reception",
-    date: "Jun 20, 2026",
-    time: "06:30 PM",
-    address: "Le Meridien Hall",
-    city: "Chennai",
-    customer: "Meera",
-    status: "LIVE",
-    pipeline: "Booked",
-    members: 6,
-    budget: "INR 2.4L",
-    image:
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "ev-1003",
-    name: "Studio Launch Night",
-    type: "Corporate",
-    date: "Jul 02, 2026",
-    time: "05:00 PM",
-    address: "Race Course Road",
-    city: "Coimbatore",
-    customer: "Nova Labs",
-    status: "PLANNED",
-    pipeline: "Proposal",
-    members: 3,
-    budget: "INR 95K",
-    image:
-      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80",
-  },
+  
 ];
 
 const EVENTS_STORAGE_KEY = "ax.events.v1";
 const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 const PAGE_SIZE = 10;
+
+
+const ASSIGNED_ONLY_ROLES = ["studio_manager", "freelance_photographer", "studio_photographer"];
 
 const readStoredEvents = () => {
   if (typeof window === "undefined") return initialEvents;
@@ -131,7 +103,24 @@ const staticMapThumb = (lat: number, lng: number, size = "600x180") =>
 const googleMapsUrl = (lat: number, lng: number) =>
   `https://www.google.com/maps?q=${lat},${lng}`;
 
-export default function EventPage() {
+// Checks whether the logged-in user appears in an event's assigned team.
+// Tolerant of a few different shapes coming out of TeamAssignmentPage
+// (id, userId, or email match) since the exact assigned-member record
+// shape isn't standardized elsewhere in this codebase.
+const isEventAssignedToUser = (event: any, user: any): boolean => {
+  if (!user) return false;
+  const list = event?.assignedMembersList;
+  if (!Array.isArray(list) || list.length === 0) return false;
+
+  return list.some((member: any) => {
+    if (!member) return false;
+    if (user.id && (member.id === user.id || member.userId === user.id)) return true;
+    if (user.email && member.email && member.email === user.email) return true;
+    return false;
+  });
+};
+
+export default function EventPage({ user }: { user?: any } = {}) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -162,6 +151,16 @@ export default function EventPage() {
 
   const [form] = Form.useForm();
 
+  // Only Studio Admin and super_admin can create/build events. Studio
+  // Manager, Freelance Photographer, and Studio Photographer can view the
+  // board but never start the creation wizard.
+  const canCreateEvents = user?.role === "studio_admin" || user?.role === "super_admin";
+
+  // Studio Manager, Freelance Photographer, and Studio Photographer only
+  // see events they're personally assigned to — Studio Admin and
+  // super_admin keep seeing the full board.
+  const isAssignedOnlyRole = Boolean(user?.role) && ASSIGNED_ONLY_ROLES.includes(user.role);
+
   useEffect(() => {
     dispatch(getEvents());
   }, [dispatch]);
@@ -189,9 +188,17 @@ export default function EventPage() {
     setCardPage(1);
   }, [activeStatus, searchTerm, events.length]);
 
+  // Events scoped to what this user is allowed to see, before status/search
+  // filtering. Studio Admin / super_admin get the full board; the three
+  // assigned-only roles get just the events they're on the team for.
+  const scopedEvents = useMemo(() => {
+    if (!isAssignedOnlyRole) return events;
+    return events.filter((e) => isEventAssignedToUser(e, user));
+  }, [events, isAssignedOnlyRole, user]);
+
   const counts = useMemo(
     () =>
-      events.reduce(
+      scopedEvents.reduce(
         (acc, e) => {
           acc.All += 1;
           acc[e.status] = (acc[e.status] || 0) + 1;
@@ -199,13 +206,13 @@ export default function EventPage() {
         },
         { All: 0, DRAFT: 0, PLANNED: 0, LIVE: 0, DONE: 0 } as Record<string, number>
       ),
-    [events]
+    [scopedEvents]
   );
 
   const filteredEvents = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
-    return events.filter((e) => {
+    return scopedEvents.filter((e) => {
       const matchStatus = activeStatus === "All" || e.status === activeStatus;
       const matchSearch =
         !term ||
@@ -213,7 +220,7 @@ export default function EventPage() {
 
       return matchStatus && matchSearch;
     });
-  }, [activeStatus, events, searchTerm]);
+  }, [activeStatus, scopedEvents, searchTerm]);
 
   const pagedCardEvents = useMemo(
     () => filteredEvents.slice((cardPage - 1) * PAGE_SIZE, cardPage * PAGE_SIZE),
@@ -239,6 +246,7 @@ export default function EventPage() {
   };
 
   const openCreate = () => {
+    if (!canCreateEvents) return;
     navigate("/events/create");
   };
 
@@ -562,16 +570,18 @@ export default function EventPage() {
               Plan bookings, customers, city, stage and assigned members in one
               transparent workspace.
             </Text>
-            <div className="event-hero-actions">
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                className="event-hero-create"
-                onClick={openCreate}
-              >
-                Create Event
-              </Button>
-            </div>
+            {canCreateEvents && (
+              <div className="event-hero-actions">
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  className="event-hero-create"
+                  onClick={openCreate}
+                >
+                  Create Event
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="event-hero-art" aria-hidden="true">
@@ -647,14 +657,16 @@ export default function EventPage() {
               </div>
             </Space>
 
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              className="event-create-btn"
-              onClick={openCreate}
-            >
-              Create Event
-            </Button>
+            {canCreateEvents && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                className="event-create-btn"
+                onClick={openCreate}
+              >
+                Create Event
+              </Button>
+            )}
           </div>
 
           <div className="event-chip-row">

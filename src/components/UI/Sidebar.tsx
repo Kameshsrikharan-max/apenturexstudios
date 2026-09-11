@@ -1,8 +1,10 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,ExclamationCircleOutlined,} from "@ant-design/icons";
+import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,ExclamationCircleOutlined,FileImageOutlined,ClockCircleOutlined,} from "@ant-design/icons";
+import { canAccessSection, SectionKey } from "../../config/rolePermissions";
 
 import "./Sidebar.css";
+import { JSX } from "react/jsx-runtime";
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -31,25 +33,30 @@ const Sidebar = ({
 
   const isSuperAdmin = user?.role === "super_admin";
 
+  const ALL_MENU_ITEMS: Array<{
+    key: string;
+    icon: JSX.Element;
+    label: string;
+    path: string;
+    section?: SectionKey;
+  }> = [
+    { key: "dashboard", icon: <DashboardOutlined />, label: "Dashboard", path: "/dashboard", section: "dashboard" },
+    { key: "review", icon: <StarOutlined />, label: "Review", path: "/review", section: "review" },
+    { key: "users", icon: <UserOutlined />, label: "Users", path: "/users", section: "users" },
+    { key: "events", icon: <CalendarOutlined />, label: "Events", path: "/events", section: "events" },
+    { key: "calendar", icon: <ScheduleOutlined />, label: "Calendar", path: "/calendar" },
+    { key: "availability", icon: <ClockCircleOutlined />, label: "Availability", path: "/availability", section: "availability" },
+    { key: "enquiry", icon: <MailOutlined />, label: "Enquiry", path: "/enquiry", section: "enquiry" },
+    { key: "media", icon: <CameraOutlined />, label: "Media Library", path: "/media" },
+    { key: "studio", icon: <ShopOutlined />, label: "My Studio", path: "/studio/view", section: "studio" },
+    { key: "templates", icon: <FileImageOutlined />, label: "Templates", path: "/templates", section: "templates" },
+    { key: "subscription", icon: <CreditCardOutlined />, label: "Subscription", path: "/subscription", section: "subscription" },
+  ];
+
   const menuItems = [
-    {key: "dashboard",icon: <DashboardOutlined />,label: "Dashboard",path: "/dashboard",},
-
-    {key: "review",icon: <StarOutlined />,label: "Review",path: "/review",},
-
-    {key: "users",icon: <UserOutlined />,label: "Users",path: "/users",},
-
-    {key: "events",icon: <CalendarOutlined />,label: "Events",path: "/events",},
-
-    {key: "calendar",icon: <ScheduleOutlined />,label: "Calendar",path: "/calendar",},
-
-    {key: "enquiry",icon: <MailOutlined />,label: "Enquiry",path: "/enquiry",},
-
-    {key: "media",icon: <CameraOutlined />,label: "Media Library",path: "/media",},
-
-    {key: "studio",icon: <ShopOutlined />,label: "My Studio",path: "/studio/view",},
-
-    {key: "subscription",icon: <CreditCardOutlined />,label: "Subscription",path: "/subscription",},
-
+    ...ALL_MENU_ITEMS.filter(
+      (item) => !item.section || canAccessSection(user?.role, item.section)
+    ),
     ...(isSuperAdmin
       ? [
           {

@@ -6,7 +6,6 @@ import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
 import {
-  notifyUserRegistered,
   notifyUserDeactivated,
   notifyUserActivated,
 } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
@@ -38,6 +37,7 @@ interface UserRecord {
   image?: string;
   notes?: string;
   shoots?: number;
+  studioId?: string;
 }
 
 interface GalleryPhoto {
@@ -75,6 +75,18 @@ interface AdvancedFilters {
   period?: DatePeriod;
 }
 
+// Who's currently visible on this page is now decided server-side (GET
+// /studio/users scopes by the requester's role from the auth token), so
+// this prop isn't used for filtering anymore — kept for future use.
+interface UsersPageUser {
+  role?: string;
+  studioId?: string;
+}
+
+interface UsersPageProps {
+  user?: UsersPageUser;
+}
+
 const emptyAdvancedFilters: AdvancedFilters = {
   roles: [],
   status: undefined,
@@ -84,13 +96,8 @@ const emptyAdvancedFilters: AdvancedFilters = {
 
 /*  Constants / helpers                                                       */
 
-// API base for real invite calls — matches the fallback pattern already
-// used elsewhere in the app (AuthFlow.tsx, deleteRequestApi.ts).
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
-// Maps the Invite modal's role labels to the backend's role strings.
-// Only Studio Manager and Studio Photographer go through the email-invite
-// flow right now — Studio Admin and Freelance Photographer self-register.
 const ROLE_TO_BACKEND_ROLE: Record<InviteRole, "studio_manager" | "studio_photographer" | null> = {
   "Studio Admin": null,
   "Studio Manager": "studio_manager",
@@ -133,9 +140,6 @@ const filterIconMap: Record<string, ReactNode> = {
   Invited: <SendOutlined />,
 };
 
-// Role metadata for the Invite modal — reuses colors already established
-// elsewhere in the app (blue / purple / amber / green) rather than
-// introducing a new palette.
 const inviteRoleMeta: Record<InviteRole, { color: string; icon: ReactNode }> = {
   "Studio Admin": { color: "#3b82f6", icon: <TeamOutlined /> },
   "Studio Manager": { color: "#a78bfa", icon: <UserSwitchOutlined /> },
@@ -217,7 +221,7 @@ const galleryPhotos: GalleryPhoto[] = [
 ];
 
 
-/*  CustomModal — replaces antd Modal entirely, uses the neon-glass tokens    */
+/*  CustomModal                                                                */
 
 
 interface CustomModalProps {
@@ -733,7 +737,7 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
 /*  UsersPage                                                                  */
 
 
-const UsersPage = () => {
+const UsersPage = ({ user: _user }: UsersPageProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
@@ -756,7 +760,6 @@ const UsersPage = () => {
   const [inviteForm] = Form.useForm<InviteFormValues>();
   const [advFilterForm] = Form.useForm<AdvancedFilters>();
 
-  // Live-watched invite field values — drive the creative preview card
   const watchFirstName = Form.useWatch("firstName", inviteForm);
   const watchLastName = Form.useWatch("lastName", inviteForm);
   const watchEmail = Form.useWatch("email", inviteForm);
@@ -769,42 +772,52 @@ const UsersPage = () => {
     return Math.round((filled / fields.length) * 100);
   }, [watchFirstName, watchLastName, watchEmail, watchPhone, watchRole]);
 
-  const [usersData, setUsersData] = useState<UserRecord[]>([
-    { id: "1", name: "Kamesh Srikharan.T", email: "kameshsrikharan.t@gmail.com", phone: "8888888888", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=900&q=80", notes: "Manages studio users and booking activity." },
-    { id: "2", name: "Arun Kumar", email: "arun.photography@gmail.com", phone: "9840123456", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Google", created: "05 May 2026", location: "Coimbatore", image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=80", notes: "Strong candid photography profile." },
-    { id: "3", name: "Priya", email: "priya.sharma@outlook.com", phone: "9123456789", studio: "Wave Studios", role: "Editor", status: "Inactive", signupType: "Registered", created: "04 May 2026", location: "Bangalore", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80", notes: "Editing access currently inactive." },
-    { id: "4", name: "John", email: "john.d@wavestudios.com", phone: "8056123987", studio: "Wave Studios", role: "Photographer", status: "Active", signupType: "Registered", created: "03 May 2026", location: "Madurai", image: "https://images.unsplash.com/photo-1504257432389-52343af06ae3?auto=format&fit=crop&w=900&q=80", notes: "Event photographer." },
-    { id: "5", name: "Meera", email: "meera.reddy@gmail.com", phone: "7012345678", studio: "Wave Studios", role: "Studio Admin", status: "Active", signupType: "Google", created: "02 May 2026", location: "Salem", image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=900&q=80", notes: "Handles booking operations." },
-    { id: "6", name: "Vikram", email: "vikram.seth@live.com", phone: "9944556677", studio: "Wave Studios", role: "Photographer", status: "Pending", signupType: "Registered", created: "01 May 2026", location: "Trichy", image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=900&q=80", notes: "Pending approval." },
-  ]);
+  // Live data from GET /studio/users — already scoped to the logged-in
+  // super_admin / studio_admin by the backend.
+  const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
 
-  const [referralsData] = useState<UserRecord[]>([
-    { id: "r1", name: "Referral User", email: "referral@gmail.com", phone: "9999999999", studio: "Wave Studios", role: "Referral", status: "Active", signupType: "Registered", created: "06 May 2026", location: "Chennai", image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80", notes: "Referral contact." },
-  ]);
+  // Referrals aren't backed by the API yet.
+  const referralsData = useMemo<UserRecord[]>(() => [], []);
 
-  const [photographersData, setPhotographersData] = useState<UserRecord[]>([
-    { id: "p1", name: "Srikharan Kamesh", email: "srikharankamesh@gmail.com", phone: "8888888888", role: "Freelance Photographer", status: "Active", signupType: "Registered", created: "06 May 2026", shoots: 18, location: "Chennai", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80", notes: "Reliable for wedding and event shoots." },
-    { id: "p2", name: "photo grapher(user-2)", email: "tolewi9752@pertok.com", phone: "8383838383", role: "Freelance Photographer", status: "Active", signupType: "Invited", created: "05 May 2026", shoots: 4, location: "Bangalore", image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=900&q=80", notes: "Invite opened, profile pending." },
-    { id: "p3", name: "photo grapher(user-1)", email: "velafe9699@mugstock.com", phone: "8569742356", role: "Freelance Photographer", status: "Active", signupType: "Invited", created: "04 May 2026", shoots: 6, location: "Coimbatore", image: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=1400", notes: "Good candid photographer." },
-    { id: "p4", name: "photographer-chandran", email: "tosaf14628@soppat.com", phone: "5457452158", role: "Freelance Photographer", status: "Active", signupType: "Registered", created: "03 May 2026", shoots: 24, location: "Madurai", image: "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1400", notes: "Preferred for outdoor shoots." },
-    { id: "p5", name: "photographer chandran", email: "netimil194@bmoar.com", phone: "3838383678", role: "Freelance Photographer", status: "Inactive", signupType: "Invited", created: "02 May 2026", shoots: 2, location: "Trichy", image: "https://images.unsplash.com/photo-1528892952291-009c663ce843?q=80&w=1400", notes: "Needs follow up." },
-    { id: "p6", name: "ley opo", email: "leyopoj378@spotshops.com", phone: "9840203148", role: "Freelance Photographer", status: "Pending", signupType: "Registered", created: "01 May 2026", shoots: 0, location: "Salem", image: "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=1400", notes: "New profile under review." },
-  ]);
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/studio/users`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Failed to load users.");
+      }
+      setAllUsers(body.users || []);
+    } catch (err: any) {
+      message.error(err.message || "Failed to load users.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
     if (editUser) editForm.setFieldsValue(editUser as unknown as EditFormValues);
   }, [editUser, editForm]);
 
+  // "photographers" tab = Freelance Photographer role specifically
+  // (Studio Manager / Studio Photographer live only in the "all" tab).
   const currentData = useMemo<UserRecord[]>(() => {
     if (activeTab === "referrals") return referralsData;
-    if (activeTab === "photographers") return photographersData;
-    return usersData;
-  }, [activeTab, referralsData, photographersData, usersData]);
+    if (activeTab === "photographers") return allUsers.filter((u) => u.role === "Freelance Photographer");
+    return allUsers;
+  }, [activeTab, allUsers, referralsData]);
 
-  const filterOptions = useMemo<FilterKey[]>(() => {
-    if (activeTab !== "photographers") return ["All", "Active", "Inactive", "Pending", "Registered", "Google"];
-    return ["All", "Active", "Inactive", "Pending", "Registered", "Invited"];
-  }, [activeTab]);
+  const filterOptions = useMemo<FilterKey[]>(
+    () => ["All", "Active", "Inactive", "Pending", "Registered", "Invited"],
+    []
+  );
 
   const filterCounts = useMemo<Record<string, number>>(() => {
     return filterOptions.reduce((acc: Record<string, number>, filter) => {
@@ -819,13 +832,11 @@ const UsersPage = () => {
   // --- Advanced filter panel config, tab-aware ------------------------------
   const roleOptionsByTab = useMemo<string[]>(() => {
     if (activeTab === "referrals") return ["Referral"];
-    if (activeTab === "photographers") return []; 
-    return ["Studio Admin", "Photographer", "Editor"];
+    if (activeTab === "photographers") return [];
+    return ["Studio Admin", "Studio Manager", "Studio Photographer", "Freelance Photographer"];
   }, [activeTab]);
 
-  const inviteStatusOptionsByTab = useMemo<SignupType[]>(() => {
-    return activeTab === "photographers" ? ["Registered", "Invited"] : ["Registered", "Google"];
-  }, [activeTab]);
+  const inviteStatusOptionsByTab = useMemo<SignupType[]>(() => ["Registered", "Invited"], []);
 
   const activeAdvancedFilterCount = useMemo(() => {
     return (
@@ -893,11 +904,7 @@ const UsersPage = () => {
   };
 
   const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      message.success("Refreshed");
-    }, 800);
+    fetchUsers().then(() => message.success("Refreshed"));
   };
 
   const handleEditSave = (values: EditFormValues) => {
@@ -907,14 +914,12 @@ const UsersPage = () => {
       shoots: values.shoots !== undefined ? Number(values.shoots) : (values.shoots as unknown as number),
     };
 
-    // Fire a status-change notification only when the status actually
-    // transitions (avoids firing on unrelated edits like phone/email).
     if (editUser.status !== values.status) {
       if (values.status === "Inactive") {
         notifyUserDeactivated({
           userName: editUser.name,
           userEmail: editUser.email,
-          actionBy: "Studio Admin", // swap for the logged-in admin's name if available
+          actionBy: "Studio Admin",
         });
       } else if (values.status === "Active" && editUser.status !== "Active") {
         notifyUserActivated({
@@ -925,37 +930,28 @@ const UsersPage = () => {
       }
     }
 
-    if (editUser.id.startsWith("p")) {
-      setPhotographersData((prev) => prev.map((item) => (item.id === editUser.id ? { ...item, ...upd } : item)));
-    } else {
-      setUsersData((prev) => prev.map((item) => (item.id === editUser.id ? { ...item, ...upd } : item)));
-    }
+    setAllUsers((prev) => prev.map((item) => (item.id === editUser.id ? { ...item, ...upd } : item)));
     setEditUser(null);
     message.success("Saved");
   };
 
   const handleDeleteUser = (record: UserRecord) => {
-    if (record.id.startsWith("p")) {
-      setPhotographersData((prev) => prev.filter((item) => item.id !== record.id));
-    } else {
-      setUsersData((prev) => prev.filter((item) => item.id !== record.id));
-    }
+    setAllUsers((prev) => prev.filter((item) => item.id !== record.id));
     setSelectedRowKeys((prev) => prev.filter((key) => key !== record.id));
   };
 
   const handleBulkDelete = () => {
-    setPhotographersData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)));
+    setAllUsers((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)));
     setSelectedRowKeys([]);
   };
 
   const handleBulkStatus = (status: UserStatus) => {
-    const affected = photographersData.filter((item) => selectedRowKeys.includes(item.id));
+    const affected = allUsers.filter((item) => selectedRowKeys.includes(item.id));
 
-    setPhotographersData((prev) =>
+    setAllUsers((prev) =>
       prev.map((item) => (selectedRowKeys.includes(item.id) ? { ...item, status } : item))
     );
 
-    // Fire one notification per affected user, based on the new status.
     affected.forEach((u) => {
       if (status === "Inactive") {
         notifyUserDeactivated({ userName: u.name, userEmail: u.email, actionBy: "Studio Admin" });
@@ -968,16 +964,11 @@ const UsersPage = () => {
   };
 
   const handleBulkSignup = () => {
-    setPhotographersData((prev) =>
+    setAllUsers((prev) =>
       prev.map((item) => (selectedRowKeys.includes(item.id) ? { ...item, signupType: "Invited" as SignupType } : item))
     );
     message.success("Invited");
   };
-
-  // --- Invite modal handlers -------------------------------------------------
-  // Both handlers below hit the real /studio/invite endpoints. Studio Admin
-  // and Freelance Photographer aren't invite-based yet — sendInvite blocks
-  // those roles with a clear message instead of pretending to send anything.
 
   const handleSendInvite = async (values: InviteFormValues) => {
     const backendRole = ROLE_TO_BACKEND_ROLE[values.role];
@@ -1006,9 +997,8 @@ const UsersPage = () => {
         throw new Error(body?.message || "Failed to send invite.");
       }
 
-      const isPhotographerRole = values.role === "Studio Photographer";
       const fullName = `${values.firstName} ${values.lastName}`.trim();
-      const id = `${isPhotographerRole ? "p" : "u"}${Date.now()}`;
+      const id = `pending-${Date.now()}`;
 
       const newUser: UserRecord = {
         id,
@@ -1023,11 +1013,10 @@ const UsersPage = () => {
         location: "Chennai",
         image: fallbackImage,
         notes: "Invited from users page — awaiting super admin approval.",
-        ...(isPhotographerRole ? { shoots: 0 } : {}),
+        studioId: "wave-studios",
       };
 
-      if (isPhotographerRole) setPhotographersData((prev) => [newUser, ...prev]);
-      else setUsersData((prev) => [newUser, ...prev]);
+      setAllUsers((prev) => [newUser, ...prev]);
 
       setInviteLink(body.inviteLink);
       setSentInviteUser(newUser);
@@ -1080,7 +1069,6 @@ const UsersPage = () => {
     handleResetInviteForm();
   };
 
-  // Status / Signup tags — icon-only, full word shown via Tooltip on hover
   const renderStatusTag = (status: UserStatus) => (
     <Tooltip title={`Status: ${status}`}>
       <Tag className={`status-dot status-${status.toLowerCase()} icon-only`}>{filterIconMap[status]}</Tag>
@@ -1441,6 +1429,7 @@ const UsersPage = () => {
                     className="user-table-custom"
                     rowKey="id"
                     tableLayout="fixed"
+                    loading={isLoading}
                     rowClassName={(record) => (activeRowId === record.id ? "user-row-active" : "")}
                     onRow={(record) => ({
                       onMouseEnter: () => setActiveRowId(record.id),
@@ -1462,8 +1451,6 @@ const UsersPage = () => {
                     }}
                   />
                 </div>
-
-               
               </div>
             </Content>
           </Layout>
@@ -1497,9 +1484,8 @@ const UsersPage = () => {
                       options={[
                         { value: "Studio Admin", label: "Studio Admin" },
                         { value: "Freelance Photographer", label: "Freelance Photographer" },
-                        { value: "Photographer", label: "Photographer" },
-                        { value: "Editor", label: "Editor" },
-                        { value: "Lead Photographer", label: "Lead Photographer" },
+                        { value: "Studio Manager", label: "Studio Manager" },
+                        { value: "Studio Photographer", label: "Studio Photographer" },
                       ]}
                     />
                   </Form.Item>

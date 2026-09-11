@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
-// adjust paths to match your project structure
 import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
 import { fetchPendingRegistrationsApi } from "../../redux/api/registrationApprovalApi";
+import { canAccessSection, SectionKey } from "../../config/rolePermissions"; // adjust path to match where you saved rolePermissions.ts
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -26,18 +26,26 @@ type NavbarProps = {
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
 
-// How often super_admins re-poll the pending-delete-request count, in ms.
+
 const PENDING_DELETE_POLL_INTERVAL = 30000;
 
-const BASE_PAGES = [
-  { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlined />, group: "Workspace" },
-  { label: "Review", path: "/review", icon: <FileSearchOutlined />, group: "Workspace" },
-  { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace" },
-  { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace" },
-  { label: "Transactions", path: "/transactions", icon: <WalletOutlined />, group: "Workspace" },
-  { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace" },
+const BASE_PAGES: Array<{
+  label: string;
+  path: string;
+  icon: JSX.Element;
+  group: string;
+  section?: SectionKey;
+}> = [
+  { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlined />, group: "Workspace", section: "dashboard" },
+  { label: "Review", path: "/review", icon: <FileSearchOutlined />, group: "Workspace", section: "review" },
+  { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace", section: "users" },
+  { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace", section: "events" },
+  { label: "Transactions", path: "/transactions", icon: <WalletOutlined />, group: "Workspace", section: "transactions" },
+  { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace", section: "enquiry" },
   { label: "Today's Agenda", path: "/agenda", icon: <ClockCircleOutlined />, group: "Workspace" },
-  { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio" },
+  { label: "Availability", path: "/availability", icon: <ScheduleOutlined />, group: "Workspace", section: "availability" },
+  { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio", section: "studio" },
+  { label: "Templates", path: "/templates", icon: <FileImageOutlined />, group: "Studio", section: "templates" },
   { label: "Media Library", path: "/media", icon: <PictureOutlined />, group: "Studio" },
 ];
 
@@ -70,10 +78,6 @@ const normalizeEvent = (event: any, date: string, index: number) => {
   };
 };
 
-// Finds the best matching page for a spoken phrase. Tries an exact label
-// match first, then a "phrase contains label" / "label contains phrase"
-// match, so saying "open users" or "go to transactions page" both resolve.
-// Takes the current page list as an argument since it now varies by role.
 const findBestPageMatch = (spoken: string, pages: typeof BASE_PAGES) => {
   const query = spoken.trim().toLowerCase();
   if (!query) return null;
@@ -113,13 +117,14 @@ function Navbar({
   const displayName = displayEmail.split("@")[0];
   const displayRole = user?.role || DEFAULT_ROLE;
 
-  // Role-aware page list: only super admins get the Delete Requests and
-  // Registration Requests entries, in the command palette (⌘K) and in
-  // voice-search matching.
   const PAGES = useMemo(() => {
+    const visible = BASE_PAGES.filter(
+      (page) => !page.section || canAccessSection(user?.role, page.section)
+    );
+
     if (user?.role === "super_admin") {
       return [
-        ...BASE_PAGES,
+        ...visible,
         {
           label: "Delete Requests",
           path: "/admin/delete-requests",
@@ -134,7 +139,7 @@ function Navbar({
         },
       ];
     }
-    return BASE_PAGES;
+    return visible;
   }, [user?.role]);
 
   const [miniCalendarOpen, setMiniCalendarOpen] = useState(false);
@@ -158,11 +163,6 @@ function Navbar({
   const [voiceStatus, setVoiceStatus] = useState("");
   const recognitionRef = useRef<any>(null);
 
-  // Pending account-deletion / registration lists for super_admins — polled
-  // directly from the backend (not localStorage) since this needs to be
-  // visible across whichever browser/session the super_admin is using, not
-  // just the one that submitted the request. We keep the full arrays (not
-  // just counts) so the popover can list the individual pending items.
   const [pendingDeleteUsers, setPendingDeleteUsers] = useState<any[]>([]);
   const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
   const [pendingApprovalsOpen, setPendingApprovalsOpen] = useState(false);
@@ -330,9 +330,6 @@ function Navbar({
     navigate(`/notification/${eventId}`);
   };
 
-  // Voice search: speak a page name and it navigates there directly.
-  // If nothing matches, the spoken text is left in the search box so the
-  // normal text results still show what came close.
   const startVoiceSearch = () => {
     const SpeechRecognitionCtor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -429,11 +426,6 @@ function Navbar({
     };
   }, []);
 
-  // Poll the real pending-delete-request list from the backend for
-  // super_admins only. This is deliberately NOT routed through the
-  // notification localStorage system — that system is per-browser only,
-  // so it can never reliably alert a different logged-in user (the
-  // super_admin) about something another user (the requester) did.
   useEffect(() => {
     if (user?.role !== "super_admin") {
       setPendingDeleteUsers([]);
@@ -447,8 +439,7 @@ function Navbar({
         const users = await fetchPendingDeleteRequestsApi();
         if (!cancelled) setPendingDeleteUsers(users || []);
       } catch {
-        // Network/auth hiccup — leave the last known list in place and
-        // just try again on the next poll tick.
+
       }
     };
 
@@ -461,11 +452,7 @@ function Navbar({
     };
   }, [user?.role]);
 
-  // Same polling approach for pending registration requests — the
-  // registration approval saga has no submit-side worker at all (only
-  // fetch/approve/reject), so there's nowhere upstream that could push a
-  // same-browser notification even if the localStorage system worked
-  // across users. Polling the real backend list sidesteps both problems.
+  
   useEffect(() => {
     if (user?.role !== "super_admin") {
       setPendingRegistrations([]);
@@ -479,7 +466,7 @@ function Navbar({
         const registrations = await fetchPendingRegistrationsApi();
         if (!cancelled) setPendingRegistrations(registrations || []);
       } catch {
-        // Leave the last known list in place; retry on the next tick.
+    
       }
     };
 
@@ -527,7 +514,7 @@ function Navbar({
     setActiveIndex(0);
   }, [paletteQuery]);
 
-  // Stop any live voice recognition session on unmount.
+  
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop?.();

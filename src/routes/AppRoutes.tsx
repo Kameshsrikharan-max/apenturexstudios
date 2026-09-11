@@ -29,6 +29,9 @@ import MainLayout           from "../components/Layout/MainLayout";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
 import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
+import TemplatesPage        from "../features/templates/pages/TemplatesPage";
+import AvailabilityPage     from "../features/availability/pages/AvailabilityPage";
+import { hasRouteAccess } from "../config/rolePermissions"; // adjust path to match where you saved rolePermissions.ts
 
 const AuthFlowAny: any = AuthFlow;
 const AcceptInvitePageAny: any = AcceptInvitePage;
@@ -57,6 +60,8 @@ const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
 const EventPublicViewPageAny: any = EventPublicViewPage;
 const DeleteRequestsPageAny: any = DeleteRequestsPage;
 const RegistrationRequestsPageAny: any = RegistrationRequestsPage;
+const TemplatesPageAny: any = TemplatesPage;
+const AvailabilityPageAny: any = AvailabilityPage;
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -77,6 +82,17 @@ function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
 // of seeing an empty/erroring page.
 function SuperAdminOnly({ user, children }: any) {
   if (user?.role !== "super_admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
+// Gate a route by the shared role-permission matrix (rolePermissions.ts).
+// Redirects to /dashboard if the logged-in user's role isn't allowed to
+// reach this path. Sits alongside SuperAdminOnly (which stays separate —
+// /admin/* routes aren't part of the studio-role matrix).
+function SectionGuard({ user, path, children }: any) {
+  if (!hasRouteAccess(user?.role, path)) {
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -129,49 +145,177 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           />
         }
       >
+        {/* Dashboard: everyone with a role in the matrix (all four studio roles) */}
         <Route path="/dashboard" element={<DashboardPageAny user={user} />} />
-        <Route path="/review" element={<ReviewPageAny user={user} />} />
-        <Route path="/users" element={<UsersPageAny user={user} />} />
-        <Route path="/events"        element={<EventPageAny user={user} />} />
-        <Route path="/events/create" element={<CreateEventPageAny user={user} />} />
+
+        {/* Review: all four studio roles */}
+        <Route
+          path="/review"
+          element={
+            <SectionGuard user={user} path="/review">
+              <ReviewPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Users: all four studio roles (Freelance/Studio Photographer should see
+            only their own row — that's a data filter inside UsersPage itself,
+            not a route concern; not implemented yet, see rolePermissions.ts notes) */}
+        <Route
+          path="/users"
+          element={
+            <SectionGuard user={user} path="/users">
+              <UsersPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Events + full creation wizard: all four studio roles */}
+        <Route
+          path="/events"
+          element={
+            <SectionGuard user={user} path="/events">
+              <EventPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+        <Route
+          path="/events/create"
+          element={
+            <SectionGuard user={user} path="/events/create">
+              <CreateEventPageAny user={user} />
+            </SectionGuard>
+          }
+        />
         <Route
           path="/events/create/team-assignment"
-          element={<TeamAssignmentPageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/team-assignment">
+              <TeamAssignmentPageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/payment"
-          element={<PaymentPageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/payment">
+              <PaymentPageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/attendance"
-          element={<AttendancePageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/attendance">
+              <AttendancePageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/media"
-          element={<MediaManagementPageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/media">
+              <MediaManagementPageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/album"
-          element={<AlbumSelectionPageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/album">
+              <AlbumSelectionPageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/album/template-editor"
-          element={<TemplateEditorPageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/album/template-editor">
+              <TemplateEditorPageAny user={user} />
+            </SectionGuard>
+          }
         />
         <Route
           path="/events/create/closure"
-          element={<EventClosurePageAny user={user} />}
+          element={
+            <SectionGuard user={user} path="/events/create/closure">
+              <EventClosurePageAny user={user} />
+            </SectionGuard>
+          }
         />
-        <Route path="/enquiry" element={<EnquiryPageAny user={user} />} />
-        <Route path="/transactions" element={<TransactionPageAny user={user} />} />
+
+        {/* Enquiry: Studio Admin + Studio Manager only */}
+        <Route
+          path="/enquiry"
+          element={
+            <SectionGuard user={user} path="/enquiry">
+              <EnquiryPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Studio (My Studio): Studio Admin + Studio Manager only */}
+        <Route
+          path="/studio/view"
+          element={
+            <SectionGuard user={user} path="/studio/view">
+              <ViewStudioPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Subscription Centre: Studio Admin + both Photographer roles (NOT Studio Manager) */}
+        <Route
+          path="/subscription"
+          element={
+            <SectionGuard user={user} path="/subscription">
+              <SubscriptionPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Template Library: Studio Admin + Studio Manager only. Standalone
+            page for managing reusable album templates — separate from
+            TemplateEditorPage, which stays wizard-only. */}
+        <Route
+          path="/templates"
+          element={
+            <SectionGuard user={user} path="/templates">
+              <TemplatesPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Availability: Freelance Photographer + Studio Photographer only.
+            Lets a photographer manage which dates they're available for. */}
+        <Route
+          path="/availability"
+          element={
+            <SectionGuard user={user} path="/availability">
+              <AvailabilityPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Transactions: Studio Admin only now (Studio Manager, Freelance
+            Photographer, and Studio Photographer no longer see this). */}
+        <Route
+          path="/transactions"
+          element={
+            <SectionGuard user={user} path="/transactions">
+              <TransactionPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
+        {/* Shared utility routes — not part of the role matrix, open to any authenticated user */}
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
         <Route path="/profile"     element={<ProfilePageAny user={user} />} />
-        <Route path="/studio/view" element={<ViewStudioPageAny user={user} />} />
         <Route path="/calendar" element={<CalendarPageAny />} />
         <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />
         <Route path="/notification/:id" element={<NotificationDetailsPageAny />} />
-        <Route path="/subscription" element={<SubscriptionPageAny user={user} />} />
         <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
+
         <Route
           path="/admin/delete-requests"
           element={
