@@ -153,6 +153,97 @@
 .sub-contact__btn::after {content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);transform: skewX(-20deg); transition: left 0.6s ease;}
 .sub-contact__btn:hover::after { left: 130%; }
 
+/* ── Payment overlay & modal ── */
+.pay-overlay {position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;padding: 24px; overflow-y: auto;background: rgba(4, 10, 20, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);}
+.pay-modal {position: relative; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto;border: 1px solid var(--sky-border); border-radius: var(--radius-lg);background: linear-gradient(180deg, rgba(15, 27, 46, 0.98), rgba(7, 16, 30, 0.98));box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(56, 189, 248, 0.06);padding: 30px 28px 28px; box-sizing: border-box;}
+.pay-modal__close {position: absolute; top: 16px; right: 16px; z-index: 2;width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(15, 27, 46, 0.6); color: var(--muted);cursor: pointer; font-size: 13px; transition: color 0.18s, border-color 0.18s, background 0.18s;}
+.pay-modal__close:hover { color: var(--text); border-color: var(--sky-border); background: rgba(20, 63, 94, 0.6); }
+.pay-modal__head { text-align: center; margin-bottom: 22px; }
+.pay-modal__eyebrow { display: block; font: 700 10.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--sky); margin-bottom: 8px; }
+.pay-modal__plan-name { margin: 0 0 10px; font-size: 20px; font-weight: 800; color: #f8fbff; }
+.pay-amount { display: flex; align-items: baseline; justify-content: center; gap: 4px; }
+.pay-amount__symbol { font-size: 20px; font-weight: 700; color: var(--muted); }
+.pay-amount__value { font-size: 34px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.pay-amount__cycle { font-size: 13px; font-weight: 700; color: var(--muted); margin-left: 4px; }
+
+.pay-stage { display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 260px; justify-content: center; }
+
+/* QR block */
+.pay-qr {position: relative; width: 200px; height: 200px; border-radius: var(--radius-md); cursor: pointer;display: grid; place-items: center; overflow: hidden;border: 1px solid rgba(56, 189, 248, 0.28); background: rgba(56, 189, 248, 0.04);transition: border-color 0.2s ease, box-shadow 0.2s ease; outline: none;}
+.pay-qr:hover, .pay-qr:focus-visible { border-color: var(--sky); box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12); }
+.pay-qr.is-scanning { cursor: default; border-color: var(--green); }
+.pay-qr__frame {width: 168px; height: 168px; border-radius: 10px; background: #ffffff;display: grid; place-items: center; padding: 8px; box-sizing: border-box;}
+.pay-qr__corner { position: absolute; width: 18px; height: 18px; border-color: var(--sky); pointer-events: none; z-index: 2; }
+.pay-qr__corner--tl { top: 8px; left: 8px; border-top: 2px solid; border-left: 2px solid; border-top-left-radius: 6px; }
+.pay-qr__corner--tr { top: 8px; right: 8px; border-top: 2px solid; border-right: 2px solid; border-top-right-radius: 6px; }
+.pay-qr__corner--bl { bottom: 8px; left: 8px; border-bottom: 2px solid; border-left: 2px solid; border-bottom-left-radius: 6px; }
+.pay-qr__corner--br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; border-bottom-right-radius: 6px; }
+.pay-qr__laser {position: absolute; left: 6px; right: 6px; top: 8px; height: 3px; z-index: 3; pointer-events: none;border-radius: 2px;background: linear-gradient(90deg, transparent, var(--green), transparent);box-shadow: 0 0 12px 2px rgba(74, 222, 128, 0.7);animation: laser-sweep 1.5s ease-in-out infinite;}
+@keyframes laser-sweep {
+  0%   { top: 8px; opacity: 0.2; }
+  50%  { top: 176px; opacity: 1; }
+  100% { top: 8px; opacity: 0.2; }
+}
+.pay-qr__hint { margin: 18px 0 4px; font-size: 13px; color: var(--label); }
+.pay-qr__txn { margin: 0; font: 600 11px/1 var(--mono); color: var(--muted); }
+.pay-qr__txn span { color: var(--sky); }
+
+/* Verifying ring */
+.pay-verify { position: relative; width: 120px; height: 120px; display: grid; place-items: center; }
+.pay-verify__ring { width: 120px; height: 120px; }
+.pay-verify__track { fill: none; stroke: rgba(148, 163, 184, 0.16); stroke-width: 7; }
+.pay-verify__arc {fill: none; stroke: var(--sky); stroke-width: 7; stroke-linecap: round;transform: rotate(-90deg); transform-origin: 60px 60px;transition: stroke-dashoffset 0.15s linear;filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));}
+.pay-verify__pct {position: absolute; font: 800 22px/1 var(--mono); color: var(--text); font-variant-numeric: tabular-nums;}
+.pay-verify__label { margin: 20px 0 0; font-size: 13.5px; color: var(--label); display: flex; align-items: center; gap: 8px; }
+
+/* Success burst */
+.pay-success { position: relative; width: 140px; height: 140px; display: grid; place-items: center; margin-bottom: 6px; }
+.pay-success__ring {position: absolute; border-radius: 50%; border: 1.5px solid var(--green);opacity: 0; animation: burst-ring 1.4s ease-out forwards;}
+.pay-success__ring--1 { width: 80px; height: 80px; animation-delay: 0.05s; }
+.pay-success__ring--2 { width: 80px; height: 80px; animation-delay: 0.2s; }
+.pay-success__ring--3 { width: 80px; height: 80px; animation-delay: 0.35s; }
+@keyframes burst-ring {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+.pay-success__check { width: 80px; height: 80px; position: relative; z-index: 1; }
+.pay-success__circle {fill: rgba(74, 222, 128, 0.08); stroke: var(--green); stroke-width: 2.5;transform-origin: center; transform: scale(0);animation: check-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;}
+@keyframes check-pop { to { transform: scale(1); } }
+.pay-success__tick {fill: none; stroke: var(--green); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round;stroke-dasharray: 1; stroke-dashoffset: 1;animation: tick-draw 0.4s ease-out 0.35s forwards;}
+@keyframes tick-draw { to { stroke-dashoffset: 0; } }
+.pay-success__title { margin: 4px 0 6px; font-size: 19px; font-weight: 800; color: #f8fbff; }
+.pay-success__sub { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* ── Receipt page (post-payment) ── */
+.receipt-page { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; width: 100%; }
+.receipt-page__intro { text-align: center; margin-bottom: 28px; }
+.receipt-page__badge {display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 999px;border: 1px solid rgba(74, 222, 128, 0.35); background: rgba(74, 222, 128, 0.12); color: var(--green);font-size: 12px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 14px;}
+.receipt-page__title { margin: 0 0 8px; font-size: 26px; font-weight: 800; color: #f8fbff; }
+.receipt-page__sub { margin: 0; color: var(--muted); font-size: 14px; }
+
+.receipt-card {position: relative; border: 1px solid rgba(56, 189, 248, 0.22); border-radius: var(--radius-lg);background: var(--surface-1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 40px rgba(0, 0, 0, 0.2);padding: 30px 30px 28px; overflow: hidden; box-sizing: border-box;}
+.receipt-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.receipt-card__eyebrow { margin: 0 0 4px; font: 700 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.receipt-card__txn { margin: 0; font: 700 14px/1 var(--mono); color: var(--sky); word-break: break-all; }
+.receipt-card__status {flex-shrink: 0; padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.05em;color: var(--green); background: rgba(74, 222, 128, 0.14); border: 1px solid rgba(74, 222, 128, 0.32);}
+.receipt-card__amount-row { display: flex; align-items: baseline; gap: 8px; }
+.receipt-card__amount { font-size: 38px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.receipt-card__cycle { font-size: 13px; font-weight: 700; color: var(--muted); }
+.receipt-card__date { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+.receipt-card__divider { height: 1px; background: rgba(56, 189, 248, 0.12); margin: 22px 0 18px; }
+.receipt-card__included-label { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+.receipt-card__features { list-style: none; margin: 0 0 22px; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+.receipt-card__features li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--label); }
+.receipt-card__features li svg { color: var(--green); flex-shrink: 0; }
+
+.receipt-card__email-status {display: flex; flex-wrap: wrap; align-items: center; gap: 10px;padding: 12px 14px; border-radius: var(--radius-sm);border: 1px solid rgba(56, 189, 248, 0.18); background: rgba(56, 189, 248, 0.05);font-size: 12.5px; color: var(--label); margin-bottom: 22px;}
+.receipt-card__email-status svg { color: var(--sky); flex-shrink: 0; }
+.receipt-card__resend {margin-left: auto; display: inline-flex; align-items: center; gap: 6px;border: none; background: transparent; color: var(--sky); font-size: 12px; font-weight: 700;cursor: pointer; padding: 4px 6px;}
+.receipt-card__resend:hover { text-decoration: underline; }
+
+.receipt-card__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.receipt-card__actions .sub-btn-primary, .receipt-card__actions .sub-btn-outline { flex: 1 1 160px; }
+
 /*RESPONSIVE — mobile / tablet / laptop / desktop */
 
 /* ── Large desktop / wide monitors (≥ 1600px) ── */
@@ -177,6 +268,7 @@
   .sub-detail__panel { padding: 26px 24px 28px; }
   .tier-gauge { width: 96px; height: 96px; }
   .sub-contact { padding: 40px 28px; }
+  .receipt-card__features { grid-template-columns: 1fr; }
 }
 
 /* ── Tablet portrait (≤ 840px) ── */
@@ -208,6 +300,9 @@
   .sub-contact { padding: 32px 22px; }
   .sub-contact__title { font-size: 21px; }
   .sub-contact__subtitle { font-size: 13.5px; }
+  .pay-modal { padding: 26px 20px 22px; }
+  .receipt-card { padding: 24px 20px; }
+  .receipt-card__amount { font-size: 32px; }
 }
 
 /* ── Mobile landscape / large phones (≤ 600px) ── */
@@ -218,6 +313,8 @@
   .sub-rail__item { min-width: 132px; }
   .sub-detail__included-label { margin-bottom: 12px; }
   .sub-detail__features { gap: 10px 14px; }
+  .receipt-card__actions .sub-btn-primary, .receipt-card__actions .sub-btn-outline { flex: 1 1 100%; }
+  .receipt-card__resend { margin-left: 0; }
 }
 
 /* ── Mobile portrait (≤ 480px) ── */
@@ -255,6 +352,18 @@
   .sub-contact__title { font-size: 18px; }
   .sub-contact__subtitle { font-size: 12.5px; }
   .sub-contact__btn { width: 100%; padding: 12px 20px; }
+
+  .pay-overlay { padding: 14px; }
+  .pay-modal { padding: 24px 16px 20px; border-radius: var(--radius-md); }
+  .pay-modal__plan-name { font-size: 17px; }
+  .pay-amount__value { font-size: 28px; }
+  .pay-qr { width: 168px; height: 168px; }
+  .pay-qr__frame { width: 140px; height: 140px; }
+
+  .receipt-page__title { font-size: 21px; }
+  .receipt-card { padding: 20px 16px; border-radius: var(--radius-md); }
+  .receipt-card__amount { font-size: 28px; }
+  .receipt-card__top { flex-wrap: wrap; }
 }
 
 /* ── Very small phones (≤ 360px) ── */
@@ -264,16 +373,19 @@
   .sub-rail__item { min-width: 104px; }
   .tier-gauge { width: 64px; height: 64px; }
   .tier-gauge__value { font-size: 18px; }
+  .pay-qr { width: 148px; height: 148px; }
+  .pay-qr__frame { width: 124px; height: 124px; }
 }
 
 /* ── Motion accessibility ── */
 @media (prefers-reduced-motion: reduce) {
   .orbit-mark__satellite-group, .orbit-mark__core, .sub-scanline,
   .sub-contact__radar, .sub-badge--recommended::before,
-  .tier-gauge__marker, .sub-detail__feature {
+  .tier-gauge__marker, .sub-detail__feature,
+  .pay-qr__laser, .pay-success__ring, .pay-success__circle, .pay-success__tick {
     animation: none !important; opacity: 1 !important; transform: none !important;
   }
-  .tier-gauge__arc, .tier-gauge__marker-group {
+  .tier-gauge__arc, .tier-gauge__marker-group, .pay-verify__arc {
     transition: none !important;
   }
   .sub-rail__item, .sub-back, .sub-btn-primary, .sub-btn-outline {

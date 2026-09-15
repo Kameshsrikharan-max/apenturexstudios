@@ -31,7 +31,10 @@ import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequests
 import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
 import TemplatesPage        from "../features/templates/pages/TemplatesPage";
 import AvailabilityPage     from "../features/availability/pages/AvailabilityPage";
+import AutoInvoicePage      from "../features/invoice/pages/AutoInvoicePage";
+import TrainingHubPage      from "../features/training/pages/TrainingHubPage";
 import { hasRouteAccess } from "../config/rolePermissions"; // adjust path to match where you saved rolePermissions.ts
+import type { PaidReceipt } from "../features/subscription/SubscriptionPage";
 
 const AuthFlowAny: any = AuthFlow;
 const AcceptInvitePageAny: any = AcceptInvitePage;
@@ -62,6 +65,12 @@ const DeleteRequestsPageAny: any = DeleteRequestsPage;
 const RegistrationRequestsPageAny: any = RegistrationRequestsPage;
 const TemplatesPageAny: any = TemplatesPage;
 const AvailabilityPageAny: any = AvailabilityPage;
+const AutoInvoicePageAny: any = AutoInvoicePage;
+const TrainingHubPageAny: any = TrainingHubPage;
+
+// axs-api-node backend endpoint that sends the receipt email via mailer.js.
+// Adjust if that backend runs somewhere other than localhost:4000.
+const RECEIPT_EMAIL_ENDPOINT = "http://localhost:4000/send-receipt-email";
 
 
 function ProtectedLayout({ isAuthenticated, user, onLogout }: any) {
@@ -107,6 +116,26 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
       navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, location.pathname, navigate]);
+
+  const handleSubscriptionPaymentSuccess = (receipt: PaidReceipt) => {
+    // Wire this into utils/transactionStore.ts if you want paid
+    // subscriptions to show up alongside axs_transactions entries.
+    console.log("Subscription payment completed:", receipt);
+  };
+
+  const handleSendReceiptEmail = async (receipt: PaidReceipt) => {
+    if (!receipt.userEmail) {
+      throw new Error("No email on file for this user");
+    }
+    const res = await fetch(RECEIPT_EMAIL_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: receipt.userEmail, receipt }),
+    });
+    if (!res.ok) {
+      throw new Error("Receipt email request failed");
+    }
+  };
 
   return (
     <Routes>
@@ -269,7 +298,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           path="/subscription"
           element={
             <SectionGuard user={user} path="/subscription">
-              <SubscriptionPageAny user={user} />
+              <SubscriptionPageAny
+                user={user}
+                merchantVpa="axsstudio@okhdfcbank"
+                merchantName="AXS Studio"
+                onBack={() => navigate(-1)}
+                onPaymentSuccess={handleSubscriptionPaymentSuccess}
+                onSendReceiptEmail={handleSendReceiptEmail}
+              />
             </SectionGuard>
           }
         />
@@ -308,6 +344,17 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           }
         />
 
+        {/* Auto Invoice: mirrors /transactions gating (Studio Admin only) since
+            it's billing data derived from the same transaction store. */}
+        <Route
+          path="/invoices"
+          element={
+            <SectionGuard user={user} path="/invoices">
+              <AutoInvoicePageAny user={user} />
+            </SectionGuard>
+          }
+        />
+
         {/* Shared utility routes — not part of the role matrix, open to any authenticated user */}
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
         <Route path="/profile"     element={<ProfilePageAny user={user} />} />
@@ -315,6 +362,7 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />
         <Route path="/notification/:id" element={<NotificationDetailsPageAny />} />
         <Route path="/agenda" element={<TodaysAgendaWidgetAny />} />
+        <Route path="/training" element={<TrainingHubPageAny user={user} />} />
 
         <Route
           path="/admin/delete-requests"

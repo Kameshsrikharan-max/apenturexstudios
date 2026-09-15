@@ -1,11 +1,11 @@
 import { JSX, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,FileTextOutlined,BookOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
 import { fetchPendingRegistrationsApi } from "../../redux/api/registrationApprovalApi";
-import { canAccessSection, SectionKey } from "../../config/rolePermissions"; // adjust path to match where you saved rolePermissions.ts
+import { canAccessSection, SectionKey } from "../../config/rolePermissions"; 
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -41,12 +41,14 @@ const BASE_PAGES: Array<{
   { label: "Users", path: "/users", icon: <TeamOutlined />, group: "Workspace", section: "users" },
   { label: "Events", path: "/events", icon: <CalendarOutlined />, group: "Workspace", section: "events" },
   { label: "Transactions", path: "/transactions", icon: <WalletOutlined />, group: "Workspace", section: "transactions" },
+  { label: "Auto Invoice", path: "/invoices", icon: <FileTextOutlined />, group: "Workspace", section: "invoices" },
   { label: "Enquiry", path: "/enquiry", icon: <MailOutlined />, group: "Workspace", section: "enquiry" },
   { label: "Today's Agenda", path: "/agenda", icon: <ClockCircleOutlined />, group: "Workspace" },
   { label: "Availability", path: "/availability", icon: <ScheduleOutlined />, group: "Workspace", section: "availability" },
   { label: "Studio", path: "/studio/view", icon: <ShopOutlined />, group: "Studio", section: "studio" },
   { label: "Templates", path: "/templates", icon: <FileImageOutlined />, group: "Studio", section: "templates" },
   { label: "Media Library", path: "/media", icon: <PictureOutlined />, group: "Studio" },
+  { label: "Training Hub", path: "/training", icon: <BookOutlined />, group: "Studio" },
 ];
 
 const getSavedEvents = () => {

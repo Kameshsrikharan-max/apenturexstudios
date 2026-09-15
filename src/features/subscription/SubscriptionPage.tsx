@@ -1,6 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, Variants } from "framer-motion";
-import { CheckOutlined, LeftOutlined, PhoneOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  LeftOutlined,
+  PhoneOutlined,
+  CloseOutlined,
+  DownloadOutlined,
+  MailOutlined,
+  LoadingOutlined,
+  RedoOutlined,
+} from "@ant-design/icons";
+import { QRCodeSVG } from "qrcode.react";
+import jsPDF from "jspdf";
 import "./SubscriptionPage.css";
 
 // ---------- Types ----------
@@ -17,13 +28,38 @@ export interface SubscriptionPlan {
   status?: "not-started" | "current" | "recommended";
 }
 
+export interface PaidReceipt {
+  transactionId: string;
+  plan: SubscriptionPlan;
+  amount: number;
+  currencySymbol: string;
+  paidAt: string; // ISO timestamp
+  userName?: string;
+  userEmail?: string;
+}
+
+type CheckoutStage = "review" | "scanning" | "verifying" | "success";
+type EmailStatus = "idle" | "sending" | "sent" | "error";
+
 interface SubscriptionPageProps {
-  user?: any;
+  user?: { name?: string; email?: string } & Record<string, any>;
   plans?: SubscriptionPlan[];
   plansPerPage?: number;
   onBack?: () => void;
+  /** Fired the moment a user opens checkout for a plan (before payment). */
   onSubscribe?: (plan: SubscriptionPlan) => void;
   onContactSales?: () => void;
+  /** Fired once the simulated/real payment completes successfully. Wire this to
+   *  your transactionStore / axs_transactions localStorage writer or backend call. */
+  onPaymentSuccess?: (receipt: PaidReceipt) => void;
+  /** Wire this to a POST against your axs-api-node backend (reusing mailer.js)
+   *  to actually deliver the receipt email. If omitted, the flow simulates
+   *  a send so the UI still completes end-to-end during development. */
+  onSendReceiptEmail?: (receipt: PaidReceipt) => Promise<void>;
+  /** Studio's UPI VPA the QR should encode. Replace with your real collect ID
+   *  or your gateway's dynamic QR string in production. */
+  merchantVpa?: string;
+  merchantName?: string;
 }
 
 const DEFAULT_PLANS: SubscriptionPlan[] = [
@@ -123,9 +159,37 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
   },
 ];
 
+// ---------- Small utils ----------
+
+const generateTransactionId = () => {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `AXS-${stamp}-${rand}`;
+};
+
+const buildUpiString = (
+  vpa: string,
+  merchant: string,
+  amount: number,
+  note: string,
+  txnId: string
+) =>
+  `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${encodeURIComponent(
+    merchant
+  )}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}&tr=${txnId}`;
+
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 // ---------- Header mark: orbiting satellite ring ----------
-// A quiet ambient piece for the header — a ring with a dot in continuous
-// orbit, in the spirit of a viewfinder/radar readout rather than a static icon.
 
 const OrbitMark: React.FC<{ size?: number }> = ({ size = 30 }) => (
   <svg viewBox="0 0 100 100" width={size} height={size} className="orbit-mark" aria-hidden="true">
@@ -139,9 +203,6 @@ const OrbitMark: React.FC<{ size?: number }> = ({ size = 30 }) => (
 );
 
 // ---------- Signature element: tier light-meter gauge ----------
-// A real camera-adjacent instrument — the arc sweeps further round as you
-// move up the plan lineup, easing to its new reading whenever the
-// selection changes, like a meter needle settling on a value.
 
 const GAUGE_RADIUS = 56;
 const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS;
@@ -217,11 +278,12 @@ const TierGauge: React.FC<{
 
 // ---------- Count-up hook ----------
 
-const useCountUp = (target: number, duration = 750) => {
+const useCountUp = (target: number, duration = 750, active = true) => {
   const [value, setValue] = useState(0);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (!active) return;
     if (reduceMotion) {
       setValue(target);
       return;
@@ -237,7 +299,7 @@ const useCountUp = (target: number, duration = 750) => {
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration, reduceMotion]);
+  }, [target, duration, reduceMotion, active]);
 
   return value;
 };
@@ -302,7 +364,9 @@ const PlanRail: React.FC<{
         return (
           <button
             key={plan.id}
-            ref={(el) => (itemRefs.current[i] = el)}
+            ref={(el) => {
+              itemRefs.current[i] = el;
+            }}
             type="button"
             role="option"
             aria-selected={active}
@@ -357,8 +421,8 @@ const PlanDetail: React.FC<{
   plan: SubscriptionPlan;
   index: number;
   total: number;
-  onSubscribe?: (plan: SubscriptionPlan) => void;
-}> = ({ plan, index, total, onSubscribe }) => {
+  onCheckout: (plan: SubscriptionPlan) => void;
+}> = ({ plan, index, total, onCheckout }) => {
   const symbol = plan.currencySymbol ?? "₹";
   const animatedPrice = useCountUp(plan.price);
   const reduceMotion = useReducedMotion();
@@ -428,7 +492,7 @@ const PlanDetail: React.FC<{
             className={
               plan.status === "current" ? "sub-btn-outline sub-btn-full" : "sub-btn-primary sub-btn-full"
             }
-            onClick={() => onSubscribe?.(plan)}
+            onClick={() => onCheckout(plan)}
             disabled={plan.status === "current"}
           >
             {plan.status === "current" ? "Current Plan" : "Subscribe Now"}
@@ -439,13 +503,370 @@ const PlanDetail: React.FC<{
   );
 };
 
+// ---------- Payment modal: QR review -> scanning -> verifying -> success ----------
+
+const PaymentModal: React.FC<{
+  plan: SubscriptionPlan;
+  transactionId: string;
+  merchantVpa: string;
+  merchantName: string;
+  userName?: string;
+  userEmail?: string;
+  onClose: () => void;
+  onComplete: (receipt: PaidReceipt) => void;
+}> = ({ plan, transactionId, merchantVpa, merchantName, userName, userEmail, onClose, onComplete }) => {
+  const [stage, setStage] = useState<CheckoutStage>("review");
+  const reduceMotion = useReducedMotion();
+  const symbol = plan.currencySymbol ?? "₹";
+  const upiString = buildUpiString(
+    merchantVpa,
+    merchantName,
+    plan.price,
+    `${plan.name} Subscription`,
+    transactionId
+  );
+
+  const verifyProgress = useCountUp(100, 1100, stage === "verifying");
+
+  // Escape key closes only while it's safe to abandon the payment.
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && (stage === "review" || stage === "success")) onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [stage, onClose]);
+
+  const handleQrActivate = useCallback(() => {
+    if (stage !== "review") return;
+    setStage("scanning");
+  }, [stage]);
+
+  // Scanning -> verifying -> success timed sequence.
+  useEffect(() => {
+    if (stage === "scanning") {
+      const t = setTimeout(() => setStage("verifying"), 1500);
+      return () => clearTimeout(t);
+    }
+    if (stage === "verifying") {
+      const t = setTimeout(() => setStage("success"), 1300);
+      return () => clearTimeout(t);
+    }
+    if (stage === "success") {
+      const t = setTimeout(() => {
+        onComplete({
+          transactionId,
+          plan,
+          amount: plan.price,
+          currencySymbol: symbol,
+          paidAt: new Date().toISOString(),
+          userName,
+          userEmail,
+        });
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [stage, onComplete, transactionId, plan, symbol, userName, userEmail]);
+
+  const canClose = stage === "review" || stage === "success";
+
+  return (
+    <motion.div
+      className="pay-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && canClose) onClose();
+      }}
+    >
+      <motion.div
+        className="pay-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Pay for ${plan.name}`}
+        initial={reduceMotion ? undefined : { opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={reduceMotion ? undefined : { opacity: 0, y: 16, scale: 0.97 }}
+        transition={{ type: "spring", stiffness: 340, damping: 30 }}
+      >
+        {canClose && (
+          <button type="button" className="pay-modal__close" onClick={onClose} aria-label="Close payment dialog">
+            <CloseOutlined />
+          </button>
+        )}
+
+        <div className="pay-modal__head">
+          <span className="pay-modal__eyebrow">Secure Checkout</span>
+          <h3 className="pay-modal__plan-name">{plan.name}</h3>
+          <div className="pay-amount">
+            <span className="pay-amount__symbol">{symbol}</span>
+            <span className="pay-amount__value">{plan.price.toLocaleString("en-IN")}</span>
+            <span className="pay-amount__cycle">/ {plan.billingCycle}</span>
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {(stage === "review" || stage === "scanning") && (
+            <motion.div
+              key="qr-stage"
+              className="pay-stage"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div
+                className={`pay-qr${stage === "scanning" ? " is-scanning" : ""}`}
+                role="button"
+                tabIndex={0}
+                aria-label="Tap the QR code once you have completed the payment in your UPI app"
+                onClick={handleQrActivate}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleQrActivate();
+                  }
+                }}
+              >
+                <span className="pay-qr__corner pay-qr__corner--tl" />
+                <span className="pay-qr__corner pay-qr__corner--tr" />
+                <span className="pay-qr__corner pay-qr__corner--bl" />
+                <span className="pay-qr__corner pay-qr__corner--br" />
+                <div className="pay-qr__frame">
+                  <QRCodeSVG value={upiString} size={168} level="M" includeMargin={false} />
+                </div>
+                {stage === "scanning" && <span className="pay-qr__laser" aria-hidden="true" />}
+              </div>
+
+              <p className="pay-qr__hint">
+                {stage === "review"
+                  ? "Scan with any UPI app, then tap this QR to confirm"
+                  : "Confirming your scan…"}
+              </p>
+              <p className="pay-qr__txn">
+                Ref ID <span>{transactionId}</span>
+              </p>
+            </motion.div>
+          )}
+
+          {stage === "verifying" && (
+            <motion.div
+              key="verify-stage"
+              className="pay-stage"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="pay-verify">
+                <svg viewBox="0 0 120 120" className="pay-verify__ring" aria-hidden="true">
+                  <circle cx="60" cy="60" r="52" className="pay-verify__track" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    className="pay-verify__arc"
+                    style={{
+                      strokeDasharray: 2 * Math.PI * 52,
+                      strokeDashoffset: 2 * Math.PI * 52 * (1 - verifyProgress / 100),
+                    }}
+                  />
+                </svg>
+                <span className="pay-verify__pct">{verifyProgress}%</span>
+              </div>
+              <p className="pay-verify__label">
+                <LoadingOutlined spin /> Verifying payment securely…
+              </p>
+            </motion.div>
+          )}
+
+          {stage === "success" && (
+            <motion.div
+              key="success-stage"
+              className="pay-stage"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="pay-success">
+                <span className="pay-success__ring pay-success__ring--1" aria-hidden="true" />
+                <span className="pay-success__ring pay-success__ring--2" aria-hidden="true" />
+                <span className="pay-success__ring pay-success__ring--3" aria-hidden="true" />
+                <svg viewBox="0 0 80 80" className="pay-success__check" aria-hidden="true">
+                  <circle cx="40" cy="40" r="36" className="pay-success__circle" />
+                  <path
+                    d="M24 41 L35 52 L57 28"
+                    className="pay-success__tick"
+                    pathLength={1}
+                  />
+                </svg>
+              </div>
+              <p className="pay-success__title">Payment Successful</p>
+              <p className="pay-success__sub">
+                {symbol}
+                {plan.price.toLocaleString("en-IN")} paid for {plan.name}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// ---------- Receipt view (post-payment, plan-only) ----------
+
+const ReceiptView: React.FC<{
+  receipt: PaidReceipt;
+  emailStatus: EmailStatus;
+  onResendEmail: () => void;
+  onBack: () => void;
+}> = ({ receipt, emailStatus, onResendEmail, onBack }) => {
+  const { plan, transactionId, amount, currencySymbol, paidAt, userEmail } = receipt;
+
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(9, 20, 37);
+    doc.rect(0, 0, pageWidth, 96, "F");
+    doc.setTextColor(56, 213, 255);
+    doc.setFontSize(11);
+    doc.text("AXS STUDIO", 48, 40);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.text("Payment Receipt", 48, 66);
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    let y = 130;
+    const line = (label: string, value: string) => {
+      doc.setTextColor(100, 116, 139);
+      doc.text(label, 48, y);
+      doc.setTextColor(15, 23, 42);
+      doc.text(value, 220, y);
+      y += 24;
+    };
+
+    line("Transaction ID", transactionId);
+    line("Plan", plan.name);
+    line("Billing Cycle", plan.billingCycle);
+    line("Amount Paid", `${currencySymbol}${amount.toLocaleString("en-IN")}`);
+    line("Paid On", formatDateTime(paidAt));
+    line("Status", "PAID");
+    if (userEmail) line("Billed To", userEmail);
+
+    y += 10;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(48, y, pageWidth - 48, y);
+    y += 28;
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.text("Plan Includes", 48, y);
+    y += 20;
+    doc.setFontSize(10.5);
+    plan.features.forEach((feature) => {
+      doc.setTextColor(71, 85, 105);
+      doc.text(`•  ${feature}`, 56, y);
+      y += 18;
+    });
+
+    y += 20;
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(9);
+    doc.text("This is a system-generated receipt from AXS Studio.", 48, y);
+
+    doc.save(`AXS-Studio-Receipt-${transactionId}.pdf`);
+  };
+
+  return (
+    <motion.div
+      className="receipt-page"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="receipt-page__intro">
+        <span className="receipt-page__badge">
+          <CheckOutlined /> Payment Confirmed
+        </span>
+        <h2 className="receipt-page__title">You&apos;re on {plan.name}</h2>
+        <p className="receipt-page__sub">
+          Your subscription is active. A copy of this receipt has been emailed to you.
+        </p>
+      </div>
+
+      <div className="receipt-card">
+        <div className="receipt-card__top">
+          <div>
+            <p className="receipt-card__eyebrow">Transaction</p>
+            <p className="receipt-card__txn">{transactionId}</p>
+          </div>
+          <span className="receipt-card__status">PAID</span>
+        </div>
+
+        <div className="receipt-card__amount-row">
+          <span className="receipt-card__amount">
+            {currencySymbol}
+            {amount.toLocaleString("en-IN")}
+          </span>
+          <span className="receipt-card__cycle">/ {plan.billingCycle}</span>
+        </div>
+        <p className="receipt-card__date">Paid on {formatDateTime(paidAt)}</p>
+
+        <div className="receipt-card__divider" />
+
+        <p className="receipt-card__included-label">What&apos;s included</p>
+        <ul className="receipt-card__features">
+          {plan.features.map((feature) => (
+            <li key={feature}>
+              <CheckOutlined /> <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="receipt-card__email-status">
+          <MailOutlined />
+          {emailStatus === "sending" && <span>Sending receipt{userEmail ? ` to ${userEmail}` : ""}…</span>}
+          {emailStatus === "sent" && <span>Receipt sent{userEmail ? ` to ${userEmail}` : ""}</span>}
+          {emailStatus === "error" && <span>Couldn&apos;t send the email automatically.</span>}
+          {emailStatus === "idle" && <span>Preparing your receipt email…</span>}
+          {(emailStatus === "sent" || emailStatus === "error") && (
+            <button type="button" className="receipt-card__resend" onClick={onResendEmail}>
+              <RedoOutlined /> Resend
+            </button>
+          )}
+        </div>
+
+        <div className="receipt-card__actions">
+          <button type="button" className="sub-btn-primary" onClick={handleDownloadPdf}>
+            <DownloadOutlined /> Download PDF
+          </button>
+          <button type="button" className="sub-btn-outline" onClick={onBack}>
+            Back to Plans
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // ---------- Main component ----------
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
+  user,
   plans = DEFAULT_PLANS,
   onBack,
   onSubscribe,
   onContactSales,
+  onPaymentSuccess,
+  onSendReceiptEmail,
+  merchantVpa = "axsstudio@okhdfcbank",
+  merchantName = "AXS Studio",
 }) => {
   const initialIndex = Math.max(
     0,
@@ -453,6 +874,74 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
   );
   const [selectedIndex, setSelectedIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
   const selectedPlan = plans[selectedIndex] ?? plans[0];
+
+  const [checkoutPlan, setCheckoutPlan] = useState<SubscriptionPlan | null>(null);
+  const [checkoutTxnId, setCheckoutTxnId] = useState<string>("");
+  const [flowStage, setFlowStage] = useState<"browsing" | "paid">("browsing");
+  const [receipt, setReceipt] = useState<PaidReceipt | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+
+  // Lock background scroll while the payment modal is open.
+  useEffect(() => {
+    if (!checkoutPlan) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [checkoutPlan]);
+
+  const openCheckout = useCallback(
+    (plan: SubscriptionPlan) => {
+      onSubscribe?.(plan);
+      setCheckoutTxnId(generateTransactionId());
+      setCheckoutPlan(plan);
+    },
+    [onSubscribe]
+  );
+
+  const closeCheckout = useCallback(() => {
+    setCheckoutPlan(null);
+  }, []);
+
+  const dispatchReceiptEmail = useCallback(
+    async (paidReceipt: PaidReceipt) => {
+      setEmailStatus("sending");
+      try {
+        if (onSendReceiptEmail) {
+          await onSendReceiptEmail(paidReceipt);
+        } else {
+          // Demo fallback so the flow completes during development.
+          // Replace by wiring onSendReceiptEmail to a POST on your
+          // axs-api-node backend that reuses mailer.js, e.g.:
+          //   POST http://localhost:4000/send-receipt-email
+          //   body: { to: paidReceipt.userEmail, receipt: paidReceipt }
+          await new Promise((resolve) => setTimeout(resolve, 1300));
+        }
+        setEmailStatus("sent");
+      } catch (err) {
+        setEmailStatus("error");
+      }
+    },
+    [onSendReceiptEmail]
+  );
+
+  const handlePaymentComplete = useCallback(
+    (paidReceipt: PaidReceipt) => {
+      setReceipt(paidReceipt);
+      setCheckoutPlan(null);
+      setFlowStage("paid");
+      onPaymentSuccess?.(paidReceipt);
+      dispatchReceiptEmail(paidReceipt);
+    },
+    [onPaymentSuccess, dispatchReceiptEmail]
+  );
+
+  const handleBackToPlans = useCallback(() => {
+    setFlowStage("browsing");
+    setReceipt(null);
+    setEmailStatus("idle");
+  }, []);
 
   return (
     <div className="sub-page">
@@ -462,9 +951,14 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
 
         {/* Header */}
         <div className="sub-header">
-          {onBack && (
+          {onBack && flowStage === "browsing" && (
             <button type="button" className="sub-back" onClick={onBack}>
               <LeftOutlined /> Back
+            </button>
+          )}
+          {flowStage === "paid" && (
+            <button type="button" className="sub-back" onClick={handleBackToPlans}>
+              <LeftOutlined /> Plans
             </button>
           )}
 
@@ -473,53 +967,86 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
               <OrbitMark size={30} />
             </div>
             <div>
-              <p className="sub-subtitle">Premium Access</p>
-              <h1 className="sub-heading">Choose the perfect plan for your studio</h1>
-              <p className="sub-readout">
-                {plans.length} tiers available · viewing{" "}
-                <span className="sub-readout__accent">{selectedPlan.name}</span>
-              </p>
+              <p className="sub-subtitle">{flowStage === "paid" ? "Order Confirmed" : "Premium Access"}</p>
+              <h1 className="sub-heading">
+                {flowStage === "paid"
+                  ? "Your subscription receipt"
+                  : "Choose the perfect plan for your studio"}
+              </h1>
+              {flowStage === "browsing" && (
+                <p className="sub-readout">
+                  {plans.length} tiers available · viewing{" "}
+                  <span className="sub-readout__accent">{selectedPlan.name}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Console: rail + detail */}
+        {/* Body */}
         <div className="sub-body">
-          <div className="sub-console">
-            <PlanRail plans={plans} selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
-            <div className="sub-detail">
-              <PlanDetail
-                plan={selectedPlan}
-                index={selectedIndex}
-                total={plans.length}
-                onSubscribe={onSubscribe}
+          {flowStage === "browsing" ? (
+            <>
+              <div className="sub-console">
+                <PlanRail plans={plans} selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
+                <div className="sub-detail">
+                  <PlanDetail
+                    plan={selectedPlan}
+                    index={selectedIndex}
+                    total={plans.length}
+                    onCheckout={openCheckout}
+                  />
+                </div>
+              </div>
+
+              <section className="sub-contact">
+                <div className="sub-contact__radar" aria-hidden="true" />
+                <div className="sub-contact__glow" />
+                <h2 className="sub-contact__title">
+                  Need a tailored solution for your photography enterprise?
+                </h2>
+                <p className="sub-contact__subtitle">
+                  Get in touch with our studio team for custom storage capacity exceeding
+                  10 TB, multi-brand dashboard support, custom routing, and unified
+                  billing.
+                </p>
+
+                <button
+                  type="button"
+                  className="sub-btn-primary sub-contact__btn"
+                  onClick={onContactSales}
+                >
+                  <PhoneOutlined /> Contact Sales
+                </button>
+              </section>
+            </>
+          ) : (
+            receipt && (
+              <ReceiptView
+                receipt={receipt}
+                emailStatus={emailStatus}
+                onResendEmail={() => dispatchReceiptEmail(receipt)}
+                onBack={handleBackToPlans}
               />
-            </div>
-          </div>
-
-          {/* Contact sales */}
-          <section className="sub-contact">
-            <div className="sub-contact__radar" aria-hidden="true" />
-            <div className="sub-contact__glow" />
-            <h2 className="sub-contact__title">
-              Need a tailored solution for your photography enterprise?
-            </h2>
-            <p className="sub-contact__subtitle">
-              Get in touch with our studio team for custom storage capacity exceeding
-              10 TB, multi-brand dashboard support, custom routing, and unified
-              billing.
-            </p>
-
-            <button
-              type="button"
-              className="sub-btn-primary sub-contact__btn"
-              onClick={onContactSales}
-            >
-              <PhoneOutlined /> Contact Sales
-            </button>
-          </section>
+            )
+          )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {checkoutPlan && (
+          <PaymentModal
+            plan={checkoutPlan}
+            transactionId={checkoutTxnId}
+            merchantVpa={merchantVpa}
+            merchantName={merchantName}
+            userName={user?.name}
+            userEmail={user?.email}
+            onClose={closeCheckout}
+            onComplete={handlePaymentComplete}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

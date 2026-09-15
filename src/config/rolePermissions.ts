@@ -16,7 +16,8 @@ export type SectionKey =
   | "subscription"
   | "availability"
   | "templates"
-  | "transactions";
+  | "transactions"
+  | "invoices";
 
 const SECTION_ROLES: Record<SectionKey, Role[]> = {
   dashboard: ["studio_admin", "studio_manager", "freelance_photographer", "studio_photographer"],
@@ -29,6 +30,7 @@ const SECTION_ROLES: Record<SectionKey, Role[]> = {
   templates: ["studio_admin", "studio_manager"],
   availability: ["freelance_photographer", "studio_photographer"],
   transactions: ["studio_admin"],
+  invoices: ["studio_admin"],
 };
 
 
@@ -43,6 +45,7 @@ const SECTION_ROUTES: Record<SectionKey, string[]> = {
   templates: ["/templates"],
   availability: ["/availability"],
   transactions: ["/transactions"],
+  invoices: ["/invoices"],
 };
 
 export function canAccessSection(role: string | undefined, section: SectionKey): boolean {

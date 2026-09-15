@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge, Popover, Empty, Button, Tooltip, Spin } from "antd";
 import { BellOutlined, CalendarOutlined, CheckOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useAssignmentNotifications, AssignmentNotification } from "./useAssignmentNotifications";
+import { useAssignmentNotifications, AssignmentNotification } from "././useAssignmentNotifications";
 
 type Props = {
   user?: { email?: string } | null;
