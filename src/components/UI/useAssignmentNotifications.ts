@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export type AssignmentNotificationPayload = {
+  eventName?: string;
+  role?: string;
+  venue?: string;
+  assignedBy?: string;
+};
+
 export type AssignmentNotification = {
   id: string;
   notifCategory: string;
@@ -15,6 +22,7 @@ export type AssignmentNotification = {
   extraDetails: any[];
   eventId?: string;
   read: boolean;
+  payload?: AssignmentNotificationPayload;
 };
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
@@ -26,7 +34,9 @@ const authHeaders = () => {
 };
 
 // Maps a Mongo notification doc (_id, camelCase fields) onto the shape the
-// UI already expects (id).
+// UI already expects (id). Previously dropped `payload` entirely, which is
+// why eventName/role/venue/assignedBy never showed up anywhere this hook's
+// data was displayed.
 const mapNotification = (raw: any): AssignmentNotification => ({
   id: raw._id || raw.id,
   notifCategory: raw.notifCategory,
@@ -42,6 +52,7 @@ const mapNotification = (raw: any): AssignmentNotification => ({
   extraDetails: raw.extraDetails || [],
   eventId: raw.eventId || undefined,
   read: Boolean(raw.read),
+  payload: raw.payload || undefined,
 });
 
 export function useAssignmentNotifications(enabled: boolean = true) {

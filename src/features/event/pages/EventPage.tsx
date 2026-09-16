@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
-import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,PlusOutlined,QrcodeOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
+import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,MessageOutlined,PlusOutlined,QrcodeOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
 import { getEvents } from "../../../redux/actions/eventActions";
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 import EventQRModal from "../../../components/UI/EventQRModal";
+import EventThreadPanel from "../../../components/UI/EventThreadPanel";
 
 const { Title, Text } = Typography;
 
@@ -149,16 +150,13 @@ export default function EventPage({ user }: { user?: any } = {}) {
   // --- QR code state ---
   const [qrEvent, setQrEvent] = useState<any>(null);
 
+  // --- Event thread (team chat) state ---
+  const [chatEvent, setChatEvent] = useState<any>(null);
+
   const [form] = Form.useForm();
 
-  // Only Studio Admin and super_admin can create/build events. Studio
-  // Manager, Freelance Photographer, and Studio Photographer can view the
-  // board but never start the creation wizard.
   const canCreateEvents = user?.role === "studio_admin" || user?.role === "super_admin";
 
-  // Studio Manager, Freelance Photographer, and Studio Photographer only
-  // see events they're personally assigned to — Studio Admin and
-  // super_admin keep seeing the full board.
   const isAssignedOnlyRole = Boolean(user?.role) && ASSIGNED_ONLY_ROLES.includes(user.role);
 
   useEffect(() => {
@@ -188,9 +186,6 @@ export default function EventPage({ user }: { user?: any } = {}) {
     setCardPage(1);
   }, [activeStatus, searchTerm, events.length]);
 
-  // Events scoped to what this user is allowed to see, before status/search
-  // filtering. Studio Admin / super_admin get the full board; the three
-  // assigned-only roles get just the events they're on the team for.
   const scopedEvents = useMemo(() => {
     if (!isAssignedOnlyRole) return events;
     return events.filter((e) => isEventAssignedToUser(e, user));
@@ -319,7 +314,6 @@ export default function EventPage({ user }: { user?: any } = {}) {
     setAssignEvent(null);
   };
 
-  // --- Venue location pin handlers ---
   const openLocationPicker = (eventId: string) => {
     setLocationEventId(eventId);
     setShowLocationPicker(true);
@@ -352,7 +346,6 @@ export default function EventPage({ user }: { user?: any } = {}) {
     );
   };
 
-  
   const handleLocationAction = (record: any) => {
     if (record.location) {
       window.open(
@@ -422,6 +415,17 @@ export default function EventPage({ user }: { user?: any } = {}) {
           onClick={(e) => {
             e.stopPropagation();
             setAssignEvent(record);
+          }}
+        />
+      </Tooltip>
+      <Tooltip title="Team chat">
+        <Button
+          type="text"
+          icon={<MessageOutlined />}
+          className="event-action-btn chat"
+          onClick={(e) => {
+            e.stopPropagation();
+            setChatEvent(record);
           }}
         />
       </Tooltip>
@@ -757,6 +761,13 @@ export default function EventPage({ user }: { user?: any } = {}) {
                               onClick={() => setAssignEvent(event)}
                             />
                           </Tooltip>
+                          <Tooltip title="Team chat">
+                            <Button
+                              type="text"
+                              icon={<MessageOutlined />}
+                              onClick={() => setChatEvent(event)}
+                            />
+                          </Tooltip>
                           <Tooltip title="Show QR code">
                             <Button
                               type="text"
@@ -904,6 +915,9 @@ export default function EventPage({ user }: { user?: any } = {}) {
 
               <div className="event-modal-actions">
                 <Button onClick={() => setViewEvent(null)}>Close</Button>
+                <Button icon={<MessageOutlined />} onClick={() => setChatEvent(viewEvent)}>
+                  Team Chat
+                </Button>
                 <Button icon={<QrcodeOutlined />} onClick={() => setQrEvent(viewEvent)}>
                   Show QR
                 </Button>
@@ -1115,6 +1129,8 @@ export default function EventPage({ user }: { user?: any } = {}) {
         ) : null}
 
         <EventQRModal event={qrEvent} onClose={() => setQrEvent(null)} />
+
+        <EventThreadPanel event={chatEvent} onClose={() => setChatEvent(null)} user={user} />
       </main>
     </ConfigProvider>
   );

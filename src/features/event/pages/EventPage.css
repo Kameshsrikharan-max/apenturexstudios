@@ -97,6 +97,8 @@
 .event-action-btn:hover {color: #ffffff !important;background: rgba(255, 255, 255, 0.08) !important;}
 .event-action-btn.assign {color: rgba(134, 239, 172, 0.8) !important;}
 .event-action-btn.assign:hover {color: #86efac !important;background: rgba(34, 197, 94, 0.14) !important;}
+.event-action-btn.chat {color: rgba(250, 199, 117, 0.8) !important;}
+.event-action-btn.chat:hover {color: #fac775 !important;background: rgba(250, 199, 117, 0.14) !important;}
 .event-action-btn.copy {color: rgba(125, 211, 252, 0.8) !important;}
 .event-action-btn.copy:hover {color: #7dd3fc !important;background: rgba(56, 189, 248, 0.14) !important;}
 .event-action-btn.location {color: rgba(125, 211, 252, 0.8) !important;}

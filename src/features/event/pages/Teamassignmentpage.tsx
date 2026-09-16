@@ -9,63 +9,6 @@ import {
 } from "@ant-design/icons";
 import "./TeamAssignmentPage.css";
 
-/* Pushes an "Event Assignment" notification straight to the real backend
-   (POST /studio/notifications) so it lands in the existing notificationStore
-   / Navbar bell / NotificationDetailsPage system — not a separate one.
-   notificationStore.ts explicitly expects assignment notifications to
-   arrive this way rather than through its local-only pushNotification(). */
-async function pushEventAssignmentNotification(payload: {
-  recipientEmail: string;
-  eventId?: string;
-  eventName?: string;
-  eventDateKey: string;
-  eventTime?: string;
-  assignRole: string;
-  service?: string;
-  venue?: string;
-}): Promise<boolean> {
-  try {
-    const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE}/studio/notifications`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        recipientEmail: payload.recipientEmail,
-        notifCategory: "eventAssignment",
-        category: "Event Assignment",
-        title: payload.eventName
-          ? `You've been assigned to "${payload.eventName}"`
-          : "You've been assigned to a new event",
-        date: payload.eventDateKey,
-        time: payload.eventTime || "",
-        priority: "high",
-        description: `You've been assigned as ${payload.assignRole}${
-          payload.service ? ` for ${payload.service}` : ""
-        } on ${dayjs(payload.eventDateKey).format("DD MMM YYYY")}.`,
-        tags: [payload.assignRole, payload.service].filter(Boolean),
-        isActionable: false,
-        eventId: payload.eventId,
-        // Matches the payload shape NotificationDetailsPage/categoryConfig
-        // already reads for other categories (see normalizeEvent in
-        // notificationDetailApi.ts: eventName/role/venue/assignedBy).
-        payload: {
-          eventName: payload.eventName,
-          role: payload.assignRole,
-          venue: payload.venue,
-          assignedBy: "Studio Admin",
-        },
-      }),
-    });
-    const body = await response.json().catch(() => null);
-    return response.ok && !!body?.success;
-  } catch {
-    return false;
-  }
-}
-
 const STEPS = [
   { label: "Event Details",   icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
@@ -169,10 +112,52 @@ const formatReason = (entry: AvailabilityEntry | undefined): string => {
   return entry.note ? `${label} — ${entry.note}` : label;
 };
 
-/* Notification delivery to the assigned photographer now goes through the
-   backend (POST /studio/notifications) via pushAssignmentNotification, so it
-   reaches them on any device the next time NotificationBell polls/fetches —
-   see components/UI/useAssignmentNotifications.ts. */
+/* ---------- Backend sync ----------
+   Persists the assigned team to the actual event document via
+   PATCH /studio/events/:id/assign-team. That endpoint (event.controller.js
+   assignTeam) both writes assignedMembersList and creates an
+   "Event Assignment" notification for anyone newly added — so calling it
+   is what makes the photographer's event list AND their notifications
+   pick this up. There is no separate /studio/notifications POST route;
+   notification creation only happens as a side effect of this call. */
+async function syncAssignedTeam(
+  eventId: string | undefined,
+  team: AssignedMember[]
+): Promise<{ ok: boolean; notifiedCount: number; message?: string }> {
+  if (!eventId) {
+    return { ok: false, notifiedCount: 0, message: "Event hasn't been saved yet." };
+  }
+  try {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_BASE}/studio/events/${eventId}/assign-team`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        assignedMembersList: team.map(m => ({
+          userId: m.id,
+          name: m.name,
+          email: m.email,
+          mobile: m.mobile,
+          city: m.city,
+          role: m.role,
+          assignRole: m.assignRole,
+          service: m.service,
+          status: m.status,
+        })),
+      }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.success) {
+      return { ok: false, notifiedCount: 0, message: body?.message || "Server update failed." };
+    }
+    return { ok: true, notifiedCount: body.notifiedCount ?? 0 };
+  } catch {
+    return { ok: false, notifiedCount: 0, message: "Network error." };
+  }
+}
 
 type TeamAssignmentPageProps = {
   user?: any;
@@ -199,6 +184,10 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       if (raw) setEvent(JSON.parse(raw));
     } catch {}
   }, [eventProp]);
+
+  // event.id / event._id — support either shape depending on where `event`
+  // came from (fresh API response uses both; sessionStorage mirrors API).
+  const eventId: string | undefined = event?.id || event?._id;
 
   const eventServices = event?.selectedServices || [];
   const serviceOptions = eventServices.length > 0
@@ -230,6 +219,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
   const [assignedTeam,  setAssignedTeam]  = useState<AssignedMember[]>(restoreTeam);
   const [serviceOpen,   setServiceOpen]   = useState(false);
   const [roleMap,       setRoleMap]       = useState<Record<string, string>>({});
+  const [isSyncing,     setIsSyncing]     = useState(false);
 
   // --- Live photographers, sourced from the same endpoint UsersPage uses ---
   const [photographers, setPhotographers] = useState<Member[]>([]);
@@ -297,35 +287,60 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       return;
     }
 
+    if (!eventId) {
+      showToast("Save the event first, then assign team members.", "error");
+      return;
+    }
+
     const assignRole = roleMap[member.id] || "Photographer";
-    setAssignedTeam(prev => [
-      ...prev,
+    const updatedTeam: AssignedMember[] = [
+      ...assignedTeam,
       { ...member, assignRole, service: serviceFilter || "General", status: "Confirmed" },
-    ]);
+    ];
+    setAssignedTeam(updatedTeam);
+    setIsSyncing(true);
 
-    pushEventAssignmentNotification({
-      recipientEmail: member.email,
-      eventId: event?.id,
-      eventName: event?.eventName || event?.name,
-      eventDateKey,
-      eventTime: event?.eventTime || event?.time,
-      assignRole,
-      service: serviceFilter || undefined,
-      venue: event?.address && event?.city
-        ? `${event.address}, ${event.city}`
-        : (event?.city || event?.address || undefined),
-    }).then(delivered => {
-      if (!delivered) {
-        showToast(`${member.name} assigned, but the notification couldn't be delivered — check your connection.`, "error");
+    syncAssignedTeam(eventId, updatedTeam).then(({ ok, notifiedCount, message }) => {
+      setIsSyncing(false);
+      if (!ok) {
+        showToast(`${member.name} assigned locally, but saving failed: ${message || "unknown error"}. They won't see this event until you retry.`, "error");
+        return;
       }
+      showToast(
+        notifiedCount > 0
+          ? `${member.name} assigned and notified.`
+          : `${member.name} assigned.`,
+        "success"
+      );
     });
-
-    showToast(`${member.name} assigned and notified.`, "success");
   };
 
-  const removeMember  = (id: string) => setAssignedTeam(prev => prev.filter(m => m.id !== id));
-  const updateRole    = (id: string, assignRole: string) => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, assignRole } : m));
-  const updateService = (id: string, service: string)    => setAssignedTeam(prev => prev.map(m => m.id === id ? { ...m, service }    : m));
+  const removeMember = (id: string) => {
+    const target = assignedTeam.find(m => m.id === id);
+    const updatedTeam = assignedTeam.filter(m => m.id !== id);
+    setAssignedTeam(updatedTeam);
+
+    if (!eventId) return;
+    setIsSyncing(true);
+    syncAssignedTeam(eventId, updatedTeam).then(({ ok, message }) => {
+      setIsSyncing(false);
+      if (!ok && target) {
+        showToast(`Removed ${target.name} locally, but the server update failed: ${message || "unknown error"}.`, "error");
+      }
+    });
+  };
+
+  const updateRole = (id: string, assignRole: string) => {
+    const updatedTeam = assignedTeam.map(m => m.id === id ? { ...m, assignRole } : m);
+    setAssignedTeam(updatedTeam);
+    if (eventId) syncAssignedTeam(eventId, updatedTeam);
+  };
+
+  const updateService = (id: string, service: string) => {
+    const updatedTeam = assignedTeam.map(m => m.id === id ? { ...m, service } : m);
+    setAssignedTeam(updatedTeam);
+    if (eventId) syncAssignedTeam(eventId, updatedTeam);
+  };
 
   const handleSaveAndContinue = () => {
     try {
@@ -425,6 +440,9 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
                   <p>
                     Assign only active, logged-in photographers to this event.{" "}
                     Checking availability for <strong>{dayjs(eventDateKey).format("DD MMM YYYY")}</strong>.
+                    {!eventId ? (
+                      <span style={{ color: "#f87171" }}> Save the event first — assignments can't be sent until it has an ID.</span>
+                    ) : null}
                   </p>
                 </div>
               </div>
@@ -438,6 +456,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
                 <h3>
                   <UserOutlined /> Assigned Team
                   <span className="tap-count-badge">{assignedTeam.length}</span>
+                  {isSyncing ? <LoadingOutlined spin style={{ marginLeft: 8 }} /> : null}
                 </h3>
               </div>
               <div className="tap-table-wrap">

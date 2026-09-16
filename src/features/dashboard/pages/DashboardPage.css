@@ -5,9 +5,9 @@
 }
 
 .dashboard-page-content {color: #f8fafc;font-family: "Times New Roman", Times, serif !important;}
-.dashboard-page-top {margin-bottom: 28px;display: flex;align-items: center;justify-content: space-between;gap: 24px;flex-wrap: wrap;font-family: "Times New Roman", Times, serif !important;}
+.dashboard-page-top {margin-bottom: 28px;display: flex;align-items: center;justify-content: space-between;gap: 24px;flex-wrap: wrap;font-family: "Times New Roman", Times, serif !important;position: relative;}
 .dashboard-page-top h2 {margin: 0 !important;color: #f8fafc !important;font-weight: 900 !important;font-family: "Times New Roman", Times, serif !important;}
-.dashboard-local-search {width: min(420px, 100%);font-family: "Times New Roman", Times, serif !important;}
+.dashboard-local-search {width: 100%;font-family: "Times New Roman", Times, serif !important;}
 .dashboard-local-search .ant-input-group,
 .dashboard-local-search .ant-input,
 .dashboard-local-search .ant-input-affix-wrapper,
@@ -19,11 +19,12 @@
 .dashboard-panel,
 .metric-card,
 .feature-card {position: relative;overflow: hidden;background: rgba(15, 23, 42, 0.72) !important;border: 1px solid rgba(125, 211, 252, 0.16) !important;border-radius: 18px !important;box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26) !important;backdrop-filter: blur(18px);font-family: "Times New Roman", Times, serif !important;}
-.hero-card {min-height: 330px;margin-bottom: 20px;padding: 34px;display: flex;align-items: flex-end;background: linear-gradient(90deg, rgba(2, 6, 23, 0.88), rgba(2, 6, 23, 0.32)),url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80")center / cover !important;}
+.hero-card {min-height: 330px;margin-bottom: 20px;padding: 34px;display: flex;align-items: flex-end;background: linear-gradient(90deg, rgba(2, 6, 23, 0.88), rgba(2, 6, 23, 0.32)),url("https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80")center / cover !important;transform-style: preserve-3d;will-change: transform;}
+.hero-cursor-glow {position: absolute;width: 420px;height: 420px;border-radius: 50%;background: radial-gradient(circle, rgba(56,189,248,0.28), transparent 65%);transform: translate(-50%, -50%);pointer-events: none;z-index: 0;}
 .hero-overlay {position: absolute;inset: 0;background: radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.24), transparent 34%),linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.52));}
 .hero-content {position: relative;z-index: 1;width: 100%;font-family: "Times New Roman", Times, serif !important;}
 .hero-content h1 {margin: 12px 0 26px !important;color: #f8fafc !important;font-size: clamp(34px, 6vw, 72px) !important;line-height: 1 !important;font-weight: 950 !important;font-family: "Times New Roman", Times, serif !important;}
-.hero-mini-stats {display: flex;gap: 14px;flex-wrap: wrap;}
+.hero-mini-stats {display: flex;gap: 14px;flex-wrap: wrap;margin-bottom: 18px;}
 .hero-mini-stats div {min-width: 132px;padding: 14px 16px;display: grid;gap: 4px;border-radius: 14px;background: rgba(8, 13, 24, 0.72);border: 1px solid rgba(125, 211, 252, 0.18);font-family: "Times New Roman", Times, serif !important;}
 .hero-mini-stats svg {color: #38bdf8;font-size: 20px;}
 .hero-mini-stats strong {color: #ffffff;font-size: 24px;line-height: 1;font-family: "Times New Roman", Times, serif !important;}
@@ -150,6 +151,40 @@
 .countdown-empty {display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 10px;min-height: 160px;text-align: center;}
 
 
+/*  AI DAILY BRIEFING  */
+.ai-briefing-panel .ant-card-body {min-height: 160px;}
+.ai-briefing-list {display: flex;flex-direction: column;gap: 12px;}
+.ai-briefing-row {display: flex;align-items: flex-start;gap: 10px;}
+.ai-briefing-dot {flex: 0 0 auto;width: 8px;height: 8px;margin-top: 6px;border-radius: 50%;background: linear-gradient(135deg, #38bdf8, #a78bfa);box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);}
+.ai-briefing-row .ant-typography {color: #e2e8f0 !important;font-size: 13.5px;line-height: 1.5;}
+
+
+/*  MOMENTUM BAR (inside hero)  */
+.momentum-bar {display: flex;align-items: center;gap: 12px;margin-top: 4px;flex-wrap: wrap;}
+.momentum-badge {display: flex;align-items: center;gap: 6px;padding: 6px 14px;border-radius: 999px;background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.18));border: 1px solid rgba(245, 158, 11, 0.4);color: #fde68a;font-weight: 800;font-size: 12px;white-space: nowrap;}
+.momentum-track {position: relative;flex: 1;min-width: 140px;height: 8px;border-radius: 999px;background: rgba(8, 13, 24, 0.6);overflow: hidden;border: 1px solid rgba(125, 211, 252, 0.16);}
+.momentum-fill {height: 100%;border-radius: 999px;background: linear-gradient(90deg, #38bdf8, #a78bfa);transition: width 0.6s ease;}
+
+
+/*  PIPELINE KANBAN BOARD  */
+.kanban-board {display: grid;grid-template-columns: repeat(4, minmax(0, 1fr));gap: 16px;}
+.kanban-column {display: flex;flex-direction: column;gap: 10px;padding: 12px;border-radius: 14px;background: rgba(8, 13, 24, 0.5);border: 1px dashed rgba(125, 211, 252, 0.2);min-height: 220px;transition: border-color 0.2s, background 0.2s;}
+.kanban-column-over {border-color: var(--dash-accent-cyan);background: rgba(56, 189, 248, 0.08);}
+.kanban-column-head {display: flex;align-items: center;justify-content: space-between;padding: 0 2px;}
+.kanban-column-body {display: flex;flex-direction: column;gap: 10px;}
+.kanban-card {padding: 10px 12px;border-radius: 12px;background: rgba(15, 23, 42, 0.85);border: 1px solid rgba(125, 211, 252, 0.18);cursor: grab;transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;}
+.kanban-card:active {cursor: grabbing;}
+.kanban-card:hover {transform: translateY(-2px);border-color: rgba(56, 189, 248, 0.5);box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);}
+.kanban-card-title {display: block;margin-bottom: 4px;font-size: 13px;color: #f8fafc !important;}
+.kanban-card-meta {display: flex;align-items: center;gap: 6px;color: #94a3b8;font-size: 11px;margin-bottom: 2px;}
+.kanban-card-budget {margin-top: 6px;}
+.kanban-empty {padding: 18px 4px;text-align: center;color: #64748b;font-size: 12px;border: 1px dashed rgba(125, 211, 252, 0.14);border-radius: 10px;}
+
+
+/*  REVENUE CHART  */
+.revenue-chart-canvas {width: 100%;display: block;}
+
+
 /*  EVENTS PANEL — "view all" link when more than 5 match  */
 .events-view-more {display: flex;justify-content: flex-end;padding: 10px 4px 2px;}
 .events-view-more .ant-btn-link {color: #38bdf8;font-weight: 700;padding: 0;}
@@ -164,6 +199,25 @@
 .speed-dial-item:hover {background: rgba(56, 189, 248, 0.2);border-color: var(--dash-accent-cyan);}
 .speed-dial-item-icon {display: grid;place-items: center;width: 26px;height: 26px;border-radius: 50%;background: rgba(56, 189, 248, 0.16);color: #38bdf8;font-size: 13px;}
 .speed-dial-main {width: 56px;height: 56px;border-radius: 50%;border: none;display: grid;place-items: center;font-size: 20px;color: #082f49;background: linear-gradient(135deg, #38bdf8, #0284c7);box-shadow: 0 0 34px rgba(56, 189, 248, 0.44);cursor: pointer;flex: 0 0 auto;}
+
+
+/*  FOCUS TIMER — floating pomodoro widget, mirrors the speed dial pattern  */
+.focus-timer-root {position: fixed;left: 28px;bottom: 28px;z-index: 1500;display: flex;flex-direction: column;align-items: flex-start;gap: 12px;}
+.focus-timer-panel {display: flex;flex-direction: column;align-items: center;gap: 14px;padding: 20px;border-radius: 20px;background: rgba(8, 13, 24, 0.94);border: 1px solid rgba(125, 211, 252, 0.3);box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);width: 220px;}
+.focus-timer-head {display: flex;align-items: center;justify-content: space-between;width: 100%;}
+.focus-timer-ring-label strong {font-size: 20px;color: #f8fafc;font-variant-numeric: tabular-nums;}
+.focus-timer-segmented {width: 100%;}
+.focus-timer-fab {width: 52px;height: 52px;border-radius: 50%;border: none;display: grid;place-items: center;font-size: 18px;color: #082f49;background: linear-gradient(135deg, #a78bfa, #38bdf8);box-shadow: 0 0 30px rgba(167, 139, 250, 0.42);cursor: pointer;flex: 0 0 auto;}
+
+
+/*  SEARCH SPOTLIGHT — portal dropdown, escapes panel backdrop-filter  */
+.search-spotlight-portal {position: fixed;z-index: 3000;border-radius: 14px;background: rgba(8, 13, 24, 0.97);border: 1px solid rgba(125, 211, 252, 0.28);box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);backdrop-filter: blur(20px);overflow: hidden;font-family: "Times New Roman", Times, serif !important;}
+.search-spotlight-row {display: flex;align-items: center;gap: 10px;padding: 10px 14px;cursor: pointer;border-bottom: 1px solid rgba(125, 211, 252, 0.1);transition: background 0.15s ease;}
+.search-spotlight-row:last-child {border-bottom: none;}
+.search-spotlight-row:hover {background: rgba(56, 189, 248, 0.12);}
+.search-spotlight-icon {display: grid;place-items: center;width: 30px;height: 30px;border-radius: 9px;background: rgba(56, 189, 248, 0.16);color: #38bdf8;flex: 0 0 auto;}
+.search-spotlight-text {display: flex;flex-direction: column;flex: 1;min-width: 0;}
+.search-spotlight-kind {margin: 0;text-transform: capitalize;}
 
 
 /*  SHORTCUTS MODAL  */
@@ -277,6 +331,7 @@
   .horizontal-card-item {min-width: 240px;flex-basis: 240px;}
   .metric-card {width: 240px;}
   .feature-value {font-size: 56px !important;}
+  .kanban-board {grid-template-columns: repeat(2, minmax(0, 1fr));}
 }
 
 /* TABLET (576px – 991px) */
@@ -305,6 +360,8 @@
   .cm-panel {padding: 24px 20px 26px;border-radius: 20px;}
 
   .speed-dial-root {right: 22px;bottom: 22px;}
+  .focus-timer-root {left: 22px;bottom: 22px;}
+  .kanban-board {grid-template-columns: 1fr;}
 }
 
 
@@ -347,6 +404,8 @@
   .speed-dial-root {right: 16px;bottom: 16px;}
   .speed-dial-item {padding: 8px 14px 8px 10px;font-size: 12px;}
   .speed-dial-item-icon {width: 22px;height: 22px;font-size: 11px;}
+  .focus-timer-root {left: 16px;bottom: 16px;}
+  .focus-timer-panel {width: 190px;padding: 16px;}
 
 
   .cm-backdrop {padding: 10px;align-items: flex-end;}

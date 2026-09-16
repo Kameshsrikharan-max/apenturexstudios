@@ -5,7 +5,8 @@ import dayjs from "dayjs";
 import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
 import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
 import { fetchPendingRegistrationsApi } from "../../redux/api/registrationApprovalApi";
-import { canAccessSection, SectionKey } from "../../config/rolePermissions"; 
+import { canAccessSection, SectionKey } from "../../config/rolePermissions";
+import { useAssignmentNotifications } from "../UI/useAssignmentNotifications";
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -149,6 +150,15 @@ function Navbar({
   const [events, setEvents] = useState(getSavedEvents);
   const [genericNotifications, setGenericNotifications] = useState(getStoredNotifications);
 
+  // --- Backend-driven assignment notifications (the ones TeamAssignmentPage
+  // actually POSTs to /studio/notifications). Previously nothing in the app
+  // ever read these back — this hook is the fix for that gap. ---
+  const {
+    notifications: backendNotifications,
+    refresh: refreshBackendNotifications,
+    markRead: markBackendNotificationRead,
+  } = useAssignmentNotifications(true);
+
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [upcomingEventsOpen, setUpcomingEventsOpen] = useState(false);
@@ -186,6 +196,20 @@ function Navbar({
   }, [miniMonth]);
 
   const upcomingEvents = useMemo(() => {
+    // Backend assignment notifications first — these are the ones a
+    // photographer needs to see (event assignments). Not date-filtered:
+    // filtering these the same way as calendar/generic entries was part of
+    // why assignments silently disappeared (timezone/date-key mismatches).
+    const fromBackend = backendNotifications.map((n) => ({
+      id: n.id,
+      date: n.date,
+      title: n.title,
+      time: n.time || "",
+      description: n.description,
+      _source: "backend" as const,
+      _read: n.read,
+    }));
+
     const fromCalendar = Object.entries(events)
       .filter(([date]) => {
         const eventDate = dayjs(date);
@@ -194,7 +218,10 @@ function Navbar({
       .sort(([firstDate], [secondDate]) => dayjs(firstDate).valueOf() - dayjs(secondDate).valueOf())
       .flatMap(([date, dayEvents]) => {
         if (!Array.isArray(dayEvents)) return [];
-        return dayEvents.map((event, index) => normalizeEvent(event, date, index));
+        return dayEvents.map((event, index) => ({
+          ...normalizeEvent(event, date, index),
+          _source: "calendar" as const,
+        }));
       });
 
     const fromGeneric = genericNotifications
@@ -208,10 +235,11 @@ function Navbar({
         title: item.title,
         time: item.time,
         description: item.description,
+        _source: "generic" as const,
       }));
 
-    return [...fromGeneric, ...fromCalendar];
-  }, [events, genericNotifications]);
+    return [...fromBackend, ...fromGeneric, ...fromCalendar];
+  }, [events, genericNotifications, backendNotifications]);
 
   const filteredPages = useMemo(() => {
     const query = paletteQuery.trim().toLowerCase();
@@ -222,6 +250,7 @@ function Navbar({
   const refreshEvents = () => {
     setEvents(getSavedEvents());
     setGenericNotifications(getStoredNotifications());
+    refreshBackendNotifications();
   };
 
   const startTour = () => {
@@ -327,8 +356,11 @@ function Navbar({
     navigate(path);
   };
 
-  const openNotificationDetail = (eventId: string) => {
+  const openNotificationDetail = (eventId: string, source?: "backend" | "generic" | "calendar") => {
     setUpcomingEventsOpen(false);
+    if (source === "backend") {
+      markBackendNotificationRead(eventId);
+    }
     navigate(`/notification/${eventId}`);
   };
 
@@ -1002,17 +1034,17 @@ function Navbar({
 
             {upcomingEvents.length > 0 ? (
               <div className="upcoming-events-list">
-                {upcomingEvents.map((event) => (
+                {upcomingEvents.map((event: any) => (
                   <div
-                    className="upcoming-event-card"
+                    className={`upcoming-event-card ${event._source === "backend" && event._read === false ? "is-unread" : ""}`}
                     key={event.id}
                     role="button"
                     tabIndex={0}
-                    onClick={() => openNotificationDetail(event.id)}
+                    onClick={() => openNotificationDetail(event.id, event._source)}
                     onKeyDown={(keyEvent) => {
                       if (keyEvent.key === "Enter" || keyEvent.key === " ") {
                         keyEvent.preventDefault();
-                        openNotificationDetail(event.id);
+                        openNotificationDetail(event.id, event._source);
                       }
                     }}
                   >

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {Avatar,Badge,Button,Card,Col,ConfigProvider,DatePicker,Drawer,Empty,Form,Input,InputNumber,message,Progress,Row,Segmented,Select,Space,Statistic,Table,Tag,Tooltip,Typography,} from "antd";
-import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,EnvironmentOutlined,EyeOutlined,FireOutlined,HistoryOutlined,HourglassOutlined,PictureOutlined,PlusOutlined,QuestionCircleOutlined,RiseOutlined,RocketOutlined,SafetyCertificateOutlined,SearchOutlined,SunOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,VideoCameraOutlined,} from "@ant-design/icons";
-import { AnimatePresence, motion } from "framer-motion";
+import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,CloseOutlined,ClockCircleOutlined,CopyOutlined,DollarOutlined,EnvironmentOutlined,EyeOutlined,FireOutlined,FlagOutlined,HistoryOutlined,HourglassOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,QuestionCircleOutlined,RiseOutlined,RocketOutlined,SafetyCertificateOutlined,SearchOutlined,SunOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,UserOutlined,VideoCameraOutlined,BulbOutlined,} from "@ant-design/icons";
+import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "./DashboardPage.css";
@@ -109,6 +110,14 @@ const readStoredEvents = (): StudioEvent[] => {
   }
 };
 
+const persistEvents = (updated: StudioEvent[]) => {
+  try {
+    window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
+  } catch {
+    // ignore storage failures
+  }
+};
 
 const parseEventDateTime = (dateStr: string, timeStr?: string) => {
   if (timeStr) {
@@ -120,6 +129,28 @@ const parseEventDateTime = (dateStr: string, timeStr?: string) => {
   if (dateOnly.isValid()) return dateOnly;
 
   return dayjs(dateStr);
+};
+
+// Converts free-form budget strings ("INR 1.8L", "INR 95K", "INR 18,000") to a plain number.
+const parseBudgetToNumber = (budget?: string): number => {
+  if (!budget) return 0;
+  const cleaned = budget.replace(/INR/i, "").trim();
+  const match = cleaned.match(/([\d,.]+)\s*([LlKk]?)/);
+  if (!match) return 0;
+
+  const numeric = parseFloat(match[1].replace(/,/g, ""));
+  if (Number.isNaN(numeric)) return 0;
+
+  const suffix = match[2].toUpperCase();
+  if (suffix === "L") return numeric * 100000;
+  if (suffix === "K") return numeric * 1000;
+  return numeric;
+};
+
+const formatCompactINR = (value: number): string => {
+  if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+  if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
+  return `₹${value}`;
 };
 
 const statusTagColor: Record<string, string> = {
@@ -137,8 +168,6 @@ const getGreeting = (date: Date) => {
   if (hour < 21) return "Good evening";
   return "Burning the midnight oil";
 };
-
-
 
 const triggerConfetti = () => {
   const canvas = document.createElement("canvas");
@@ -198,7 +227,9 @@ const triggerConfetti = () => {
   requestAnimationFrame(animate);
 };
 
-
+// ---------------------------------------------------------------------------
+// Shared weather hook — used by both the Golden Hour panel and the AI Briefing
+// ---------------------------------------------------------------------------
 
 interface WeatherState {
   temperature: number;
@@ -209,15 +240,17 @@ interface WeatherState {
   error: boolean;
 }
 
-const GoldenHourWeather = () => {
-  const [weather, setWeather] = useState<WeatherState>({
-    temperature: 0,
-    windSpeed: 0,
-    sunset: "",
-    goldenHourStart: "",
-    loading: true,
-    error: false,
-  });
+const INITIAL_WEATHER: WeatherState = {
+  temperature: 0,
+  windSpeed: 0,
+  sunset: "",
+  goldenHourStart: "",
+  loading: true,
+  error: false,
+};
+
+const useGoldenHourWeather = () => {
+  const [weather, setWeather] = useState<WeatherState>(INITIAL_WEATHER);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,6 +288,10 @@ const GoldenHourWeather = () => {
     };
   }, []);
 
+  return weather;
+};
+
+const GoldenHourWeather = ({ weather }: { weather: WeatherState }) => {
   return (
     <div className="weather-wrap">
       <div className="weather-location">
@@ -291,7 +328,9 @@ const GoldenHourWeather = () => {
   );
 };
 
-
+// ---------------------------------------------------------------------------
+// Next shoot countdown
+// ---------------------------------------------------------------------------
 
 interface CountdownEvent {
   name: string;
@@ -363,7 +402,162 @@ const NextShootCountdown = ({ events, now }: NextShootCountdownProps) => {
   );
 };
 
+// ---------------------------------------------------------------------------
+// AI Daily Briefing — rule-based synthesis of today's shoots + conditions
+// ---------------------------------------------------------------------------
 
+interface AiBriefingProps {
+  todaysEvents: ParsedStudioEvent[];
+  tomorrowsEvents: ParsedStudioEvent[];
+  weather: WeatherState;
+  busiestUpcoming: ParsedStudioEvent | null;
+}
+
+const AiBriefingPanel = ({ todaysEvents, tomorrowsEvents, weather, busiestUpcoming }: AiBriefingProps) => {
+  const insights = useMemo(() => {
+    const lines: string[] = [];
+
+    if (todaysEvents.length > 0) {
+      const first = [...todaysEvents].sort((a, b) => a.dateObj.valueOf() - b.dateObj.valueOf())[0];
+      lines.push(`${todaysEvents.length} shoot${todaysEvents.length > 1 ? "s" : ""} on today — first is "${first.name}" at ${first.time}.`);
+    } else {
+      lines.push("No shoots scheduled today — a good window to clear the editing backlog.");
+    }
+
+    if (!weather.loading && !weather.error) {
+      lines.push(`Golden hour begins around ${weather.goldenHourStart} — line up outdoor portraits before then.`);
+
+      if (weather.windSpeed > 20) {
+        lines.push(`Wind is running high at ${Math.round(weather.windSpeed)} km/h — secure reflectors and lightweight backdrops.`);
+      }
+    }
+
+    if (tomorrowsEvents.length > 0) {
+      lines.push(`${tomorrowsEvents.length} shoot${tomorrowsEvents.length > 1 ? "s" : ""} lined up tomorrow — worth confirming gear and team assignments tonight.`);
+    }
+
+    if (busiestUpcoming) {
+      lines.push(`Highest-value shoot coming up is "${busiestUpcoming.name}" (${busiestUpcoming.budget}) on ${busiestUpcoming.date} — prioritize prep there.`);
+    }
+
+    return lines.slice(0, 4);
+  }, [todaysEvents, tomorrowsEvents, weather, busiestUpcoming]);
+
+  return (
+    <Card
+      title={
+        <Space>
+          <BulbOutlined className="inline-blue" />
+          AI Daily Briefing
+        </Space>
+      }
+      className="dashboard-panel ai-briefing-panel"
+    >
+      <div className="ai-briefing-list">
+        {insights.map((line, index) => (
+          <motion.div
+            key={line}
+            className="ai-briefing-row"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.08 }}
+          >
+            <span className="ai-briefing-dot" />
+            <Text>{line}</Text>
+          </motion.div>
+        ))}
+      </div>
+    </Card>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Pipeline Kanban — drag events between stages
+// ---------------------------------------------------------------------------
+
+const PIPELINE_STAGES = ["Proposal", "Booked", "Live", "Done"] as const;
+type PipelineStage = (typeof PIPELINE_STAGES)[number];
+
+const normalizeStage = (pipeline: string): PipelineStage => {
+  if (pipeline === "Converted") return "Booked";
+  return (PIPELINE_STAGES as readonly string[]).includes(pipeline) ? (pipeline as PipelineStage) : "Proposal";
+};
+
+interface PipelineBoardProps {
+  events: ParsedStudioEvent[];
+  onMove: (eventId: string, stage: PipelineStage) => void;
+  onSelect: (event: ParsedStudioEvent) => void;
+}
+
+const PipelineBoard = ({ events, onMove, onSelect }: PipelineBoardProps) => {
+  const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
+
+  const grouped = useMemo(() => {
+    const map: Record<PipelineStage, ParsedStudioEvent[]> = { Proposal: [], Booked: [], Live: [], Done: [] };
+    events.forEach((event) => {
+      map[normalizeStage(event.pipeline)].push(event);
+    });
+    return map;
+  }, [events]);
+
+  const handleDrop = (stage: PipelineStage) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const eventId = e.dataTransfer.getData("text/plain");
+    setDragOverStage(null);
+    if (eventId) onMove(eventId, stage);
+  };
+
+  return (
+    <div className="kanban-board">
+      {PIPELINE_STAGES.map((stage) => (
+        <div
+          key={stage}
+          className={dragOverStage === stage ? "kanban-column kanban-column-over" : "kanban-column"}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOverStage(stage);
+          }}
+          onDragLeave={() => setDragOverStage((current) => (current === stage ? null : current))}
+          onDrop={handleDrop(stage)}
+        >
+          <div className="kanban-column-head">
+            <Text strong>{stage}</Text>
+            <Tag>{grouped[stage].length}</Tag>
+          </div>
+
+          <div className="kanban-column-body">
+            {grouped[stage].length ? (
+              grouped[stage].map((event) => (
+                <div
+                  key={event.id}
+                  className="kanban-card"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData("text/plain", event.id)}
+                  onClick={() => onSelect(event)}
+                >
+                  <Text strong className="kanban-card-title">{event.name}</Text>
+                  <div className="kanban-card-meta">
+                    <CalendarOutlined /> <span>{event.date}</span>
+                  </div>
+                  <div className="kanban-card-meta">
+                    <EnvironmentOutlined /> <span>{event.city}</span>
+                  </div>
+                  <Tag className="kanban-card-budget">{event.budget}</Tag>
+                </div>
+              ))
+            ) : (
+              <div className="kanban-empty">Drop a shoot here</div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Speed dial
+// ---------------------------------------------------------------------------
 
 interface SpeedDialAction {
   key: string;
@@ -431,7 +625,9 @@ const SpeedDialFab = ({ actions }: SpeedDialFabProps) => {
   );
 };
 
-
+// ---------------------------------------------------------------------------
+// Custom modal
+// ---------------------------------------------------------------------------
 
 interface CustomModalProps {
   open: boolean;
@@ -477,6 +673,251 @@ interface CreateEventFormValues {
   budget: number;
 }
 
+// ---------------------------------------------------------------------------
+// Portal-based live search spotlight — escapes the panel backdrop-filter
+// stacking context the same way dropdowns/modals do elsewhere in this app.
+// ---------------------------------------------------------------------------
+
+interface SearchHit {
+  key: string;
+  kind: "event" | "user";
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  onSelect: () => void;
+}
+
+interface SearchSpotlightProps {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+  visible: boolean;
+  hits: SearchHit[];
+}
+
+const SearchSpotlight = ({ anchorRef, visible, hits }: SearchSpotlightProps) => {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const updateRect = () => {
+      if (anchorRef.current) setRect(anchorRef.current.getBoundingClientRect());
+    };
+
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [visible, anchorRef]);
+
+  if (!visible || !rect || !hits.length) return null;
+
+  return createPortal(
+    <div
+      className="search-spotlight-portal"
+      style={{ top: rect.bottom + 8, left: rect.left, width: rect.width }}
+    >
+      {hits.map((hit) => (
+        <div key={hit.key} className="search-spotlight-row" onMouseDown={(e) => e.preventDefault()} onClick={hit.onSelect}>
+          <span className="search-spotlight-icon">{hit.icon}</span>
+          <div className="search-spotlight-text">
+            <Text strong style={{ color: "#f8fafc" }}>{hit.title}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>{hit.subtitle}</Text>
+          </div>
+          <Tag className="search-spotlight-kind">{hit.kind}</Tag>
+        </div>
+      ))}
+    </div>,
+    document.body
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Event sidebar — the redesigned Drawer: cover hero, live stage stepper,
+// budget-share ring, and quick actions (view / copy / advance stage).
+// ---------------------------------------------------------------------------
+
+interface EventSidebarProps {
+  event: ParsedStudioEvent | null;
+  totalBudget: number;
+  onClose: () => void;
+  onViewFull: (id: string) => void;
+  onAdvanceStage: (eventId: string, stage: PipelineStage) => void;
+}
+
+const EventSidebar = ({ event, totalBudget, onClose, onViewFull, onAdvanceStage }: EventSidebarProps) => {
+  const budgetValue = event ? parseBudgetToNumber(event.budget) : 0;
+  const budgetShare = event && totalBudget > 0 ? Math.round((budgetValue / totalBudget) * 100) : 0;
+  const currentStage = event ? normalizeStage(event.pipeline) : "Proposal";
+  const currentStageIndex = PIPELINE_STAGES.indexOf(currentStage);
+
+  const handleCopySummary = async () => {
+    if (!event) return;
+    const summary = `${event.name}\n${event.type} · ${event.date} at ${event.time}\n${event.city}\nCustomer: ${event.customer}\nBudget: ${event.budget}\nStage: ${currentStage}`;
+
+    try {
+      await navigator.clipboard.writeText(summary);
+      message.success("Event summary copied to clipboard");
+    } catch {
+      message.error("Couldn't copy — clipboard access is blocked");
+    }
+  };
+
+  return (
+    <Drawer
+      title={null}
+      open={Boolean(event)}
+      onClose={onClose}
+      size="default"
+      closable={false}
+      className="event-sidebar-drawer"
+      styles={{ body: { padding: 0 } }}
+    >
+      {event ? (
+        <div className="sidebar-shell">
+          <button className="sidebar-close" onClick={onClose} aria-label="Close">
+            <CloseOutlined />
+          </button>
+
+          <div
+            className="sidebar-cover"
+            style={event.image ? { backgroundImage: `url(${event.image})` } : undefined}
+          >
+            <div className="sidebar-cover-overlay" />
+
+            <div className="sidebar-cover-content">
+              <Tag color={statusTagColor[event.status] || "default"} className="sidebar-status-tag">
+                {event.status}
+              </Tag>
+
+              <Title level={3} className="sidebar-title">{event.name}</Title>
+              <Text className="sidebar-subtitle">{event.type} · {event.customer}</Text>
+            </div>
+          </div>
+
+          <div className="sidebar-body">
+            <div className="sidebar-meta-grid">
+              <div className="sidebar-meta-chip">
+                <CalendarOutlined />
+                <div>
+                  <span>Date</span>
+                  <strong>{event.date}</strong>
+                </div>
+              </div>
+              <div className="sidebar-meta-chip">
+                <ClockCircleOutlined />
+                <div>
+                  <span>Time</span>
+                  <strong>{event.time}</strong>
+                </div>
+              </div>
+              <div className="sidebar-meta-chip">
+                <EnvironmentOutlined />
+                <div>
+                  <span>City</span>
+                  <strong>{event.city}</strong>
+                </div>
+              </div>
+              <div className="sidebar-meta-chip">
+                <TeamOutlined />
+                <div>
+                  <span>Team</span>
+                  <strong>{event.members}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-section">
+              <Text strong className="sidebar-section-title">Pipeline stage</Text>
+
+              <div className="sidebar-stepper">
+                {PIPELINE_STAGES.map((stage, index) => (
+                  <button
+                    key={stage}
+                    className={
+                      index === currentStageIndex
+                        ? "sidebar-step sidebar-step-current"
+                        : index < currentStageIndex
+                        ? "sidebar-step sidebar-step-done"
+                        : "sidebar-step"
+                    }
+                    onClick={() => onAdvanceStage(event.id, stage)}
+                  >
+                    <span className="sidebar-step-dot" />
+                    <span className="sidebar-step-label">{stage}</span>
+                  </button>
+                ))}
+                <div className="sidebar-stepper-track">
+                  <div
+                    className="sidebar-stepper-fill"
+                    style={{ width: `${(currentStageIndex / (PIPELINE_STAGES.length - 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-section sidebar-budget-row">
+              <Progress
+                type="circle"
+                percent={budgetShare}
+                size={92}
+                strokeColor={{ "0%": "#38bdf8", "100%": "#a78bfa" }}
+                railColor="rgba(255,255,255,0.08)"
+                format={() => (
+                  <div className="sidebar-budget-ring-label">
+                    <strong>{budgetShare}%</strong>
+                    <span>of pipeline</span>
+                  </div>
+                )}
+              />
+
+              <div className="sidebar-budget-details">
+                <Text type="secondary" style={{ fontSize: 12 }}>Shoot budget</Text>
+                <Title level={3} className="sidebar-budget-value">{formatCompactINR(budgetValue)}</Title>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Share of total booked pipeline value across all shoots
+                </Text>
+              </div>
+            </div>
+
+            <div className="sidebar-actions">
+              <Button type="primary" block icon={<ArrowRightOutlined />} onClick={() => onViewFull(event.id)}>
+                View Full Details
+              </Button>
+
+              <Space.Compact block>
+                <Tooltip title="Copy a text summary">
+                  <Button icon={<CopyOutlined />} onClick={handleCopySummary} block>
+                    Copy Summary
+                  </Button>
+                </Tooltip>
+              </Space.Compact>
+
+              <div className="sidebar-contact-row">
+                <Avatar icon={<UserOutlined />} className="sidebar-contact-avatar" />
+                <div>
+                  <Text strong style={{ color: "#f8fafc" }}>{event.customer}</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>Client contact</Text>
+                </div>
+                <Tooltip title="No phone on file">
+                  <Button shape="circle" icon={<PhoneOutlined />} disabled />
+                </Tooltip>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </Drawer>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
+
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: any) => state.auth);
@@ -485,6 +926,7 @@ const DashboardPage = () => {
 
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState<ParsedStudioEvent | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -495,6 +937,28 @@ const DashboardPage = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<CreateEventFormValues>();
   const [submitting, setSubmitting] = useState(false);
+
+  const searchAnchorRef = useRef<HTMLDivElement | null>(null);
+  const weather = useGoldenHourWeather();
+
+  // Cursor-reactive tilt for the hero card
+  const heroMouseX = useMotionValue(0.5);
+  const heroMouseY = useMotionValue(0.5);
+  const heroRotateX = useSpring(useTransform(heroMouseY, [0, 1], [6, -6]), { stiffness: 150, damping: 18 });
+  const heroRotateY = useSpring(useTransform(heroMouseX, [0, 1], [-6, 6]), { stiffness: 150, damping: 18 });
+  const heroGlowX = useTransform(heroMouseX, (v) => `${v * 100}%`);
+  const heroGlowY = useTransform(heroMouseY, (v) => `${v * 100}%`);
+
+  const handleHeroMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const bounds = e.currentTarget.getBoundingClientRect();
+    heroMouseX.set((e.clientX - bounds.left) / bounds.width);
+    heroMouseY.set((e.clientY - bounds.top) / bounds.height);
+  };
+
+  const resetHeroTilt = () => {
+    heroMouseX.set(0.5);
+    heroMouseY.set(0.5);
+  };
 
   const userData = useMemo(
     () => [
@@ -509,7 +973,6 @@ const DashboardPage = () => {
     ],
     [displayName, displayEmail, user]
   );
-
 
   useEffect(() => {
     const syncEvents = () => setEvents(readStoredEvents());
@@ -539,6 +1002,26 @@ const DashboardPage = () => {
     () => eventsWithDate.filter((event) => event.dateObj.isSame(dayjs(currentTime).add(1, "day"), "day")),
     [eventsWithDate, currentTime]
   );
+
+  const busiestUpcoming = useMemo(() => {
+    const upcoming = eventsWithDate.filter((event) => event.dateObj.isAfter(dayjs(currentTime)));
+    if (!upcoming.length) return null;
+    return [...upcoming].sort((a, b) => parseBudgetToNumber(b.budget) - parseBudgetToNumber(a.budget))[0];
+  }, [eventsWithDate, currentTime]);
+
+  const totalBudget = useMemo(
+    () => events.reduce((sum, event) => sum + parseBudgetToNumber(event.budget), 0),
+    [events]
+  );
+
+  // Keep the currently open sidebar event in sync when its pipeline stage changes
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const refreshed = eventsWithDate.find((event) => event.id === selectedEvent.id);
+    if (refreshed && refreshed.pipeline !== selectedEvent.pipeline) {
+      setSelectedEvent(refreshed);
+    }
+  }, [eventsWithDate, selectedEvent]);
 
   const pulseItems = useMemo(() => {
     const todayItems = todaysEvents.map(
@@ -666,6 +1149,37 @@ const DashboardPage = () => {
     }
   };
 
+  // ---- Search spotlight hits ----
+  const searchHits: SearchHit[] = useMemo(() => {
+    if (!searchText.trim()) return [];
+
+    const eventHits: SearchHit[] = filteredEvents.slice(0, 4).map((event) => ({
+      key: `event-${event.id}`,
+      kind: "event",
+      title: event.name,
+      subtitle: `${event.date} · ${event.city}`,
+      icon: <CameraOutlined />,
+      onSelect: () => {
+        setSelectedEvent(event);
+        setSearchFocused(false);
+      },
+    }));
+
+    const userHits: SearchHit[] = filteredUsers.slice(0, 2).map((u) => ({
+      key: `user-${u.key}`,
+      kind: "user",
+      title: u.name,
+      subtitle: u.email,
+      icon: <UsergroupAddOutlined />,
+      onSelect: () => {
+        goToUsersPage();
+        setSearchFocused(false);
+      },
+    }));
+
+    return [...eventHits, ...userHits];
+  }, [searchText, filteredEvents, filteredUsers]);
+
   // ---- Create Event modal handlers ----
   const openCreateModal = () => {
     createForm.resetFields();
@@ -698,14 +1212,7 @@ const DashboardPage = () => {
 
       setEvents((prev) => {
         const updated = [newEvent, ...prev];
-
-        try {
-          window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updated));
-          window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
-        } catch {
-
-        }
-
+        persistEvents(updated);
         return updated;
       });
 
@@ -716,6 +1223,15 @@ const DashboardPage = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleMovePipeline = (eventId: string, stage: PipelineStage) => {
+    setEvents((prev) => {
+      const updated = prev.map((event) => (event.id === eventId ? { ...event, pipeline: stage } : event));
+      persistEvents(updated);
+      return updated;
+    });
+    message.success(`Moved to ${stage}`);
   };
 
   const userColumns = [
@@ -849,14 +1365,20 @@ const DashboardPage = () => {
         <div className="dashboard-page-top">
           <Title level={2}>Dashboard</Title>
 
-          <Search
-            placeholder="Search..."
-            allowClear
-            enterButton={<SearchOutlined />}
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            className="dashboard-local-search"
-          />
+          <div ref={searchAnchorRef} style={{ width: "min(420px, 100%)" }}>
+            <Search
+              placeholder="Search events, users…"
+              allowClear
+              enterButton={<SearchOutlined />}
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="dashboard-local-search"
+            />
+          </div>
+
+          <SearchSpotlight anchorRef={searchAnchorRef} visible={searchFocused && Boolean(searchText.trim())} hits={searchHits} />
         </div>
 
         <motion.div
@@ -864,7 +1386,18 @@ const DashboardPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
           className="hero-card"
+          onMouseMove={handleHeroMouseMove}
+          onMouseLeave={resetHeroTilt}
+          style={{
+            rotateX: heroRotateX,
+            rotateY: heroRotateY,
+            transformPerspective: 1000,
+          }}
         >
+          <motion.div
+            className="hero-cursor-glow"
+            style={{ left: heroGlowX, top: heroGlowY }}
+          />
           <div className="hero-overlay" />
 
           <div className="hero-content">
@@ -1001,7 +1534,7 @@ const DashboardPage = () => {
         </Row>
 
         <Row gutter={[24, 24]} className="insight-row">
-          <Col xs={24} md={12}>
+          <Col xs={24} md={8}>
             <Card
               title={
                 <Space>
@@ -1011,11 +1544,11 @@ const DashboardPage = () => {
               }
               className="dashboard-panel"
             >
-              <GoldenHourWeather />
+              <GoldenHourWeather weather={weather} />
             </Card>
           </Col>
 
-          <Col xs={24} md={12}>
+          <Col xs={24} md={8}>
             <Card
               title={
                 <Space>
@@ -1035,7 +1568,28 @@ const DashboardPage = () => {
               />
             </Card>
           </Col>
+
+          <Col xs={24} md={8}>
+            <AiBriefingPanel
+              todaysEvents={todaysEvents}
+              tomorrowsEvents={tomorrowsEvents}
+              weather={weather}
+              busiestUpcoming={busiestUpcoming}
+            />
+          </Col>
         </Row>
+
+        <Card
+          title={
+            <Space>
+              <FlagOutlined className="inline-blue" />
+              Pipeline Board
+            </Space>
+          }
+          className="dashboard-panel"
+        >
+          <PipelineBoard events={eventsWithDate} onMove={handleMovePipeline} onSelect={setSelectedEvent} />
+        </Card>
 
         <Card
           title={
@@ -1148,55 +1702,14 @@ const DashboardPage = () => {
           />
         </Card>
 
-        {/* Event details drawer */}
-        <Drawer
-          title="Event"
-          open={Boolean(selectedEvent)}
+        {/* Redesigned event details sidebar */}
+        <EventSidebar
+          event={selectedEvent}
+          totalBudget={totalBudget}
           onClose={() => setSelectedEvent(null)}
-          size="default"
-          extra={
-            <Button
-              type="primary"
-              onClick={() => selectedEvent && goToEventPage(selectedEvent.id)}
-            >
-              View Full Details
-            </Button>
-          }
-        >
-          {selectedEvent ? (
-            <Space direction="vertical" size={16} style={{ width: "100%" }}>
-              <Title level={4}>{selectedEvent.name}</Title>
-
-              <Text>
-                <strong>ID:</strong> {selectedEvent.id}
-              </Text>
-
-              <Text>
-                <strong>Type:</strong> {selectedEvent.type}
-              </Text>
-
-              <Text>
-                <strong>Date:</strong> {selectedEvent.date} at {selectedEvent.time}
-              </Text>
-
-              <Text>
-                <strong>City:</strong> {selectedEvent.city}
-              </Text>
-
-              <Text>
-                <strong>Customer:</strong> {selectedEvent.customer}
-              </Text>
-
-              <Text>
-                <strong>Budget:</strong> {selectedEvent.budget}
-              </Text>
-
-              <Tag color={statusTagColor[selectedEvent.status] || "default"}>
-                {selectedEvent.status}
-              </Tag>
-            </Space>
-          ) : null}
-        </Drawer>
+          onViewFull={(id) => goToEventPage(id)}
+          onAdvanceStage={handleMovePipeline}
+        />
 
         {/* Create Event modal — CustomModal, matches UsersPage edit modal styling */}
         <CustomModal open={createModalOpen} onClose={closeCreateModal} width={660}>

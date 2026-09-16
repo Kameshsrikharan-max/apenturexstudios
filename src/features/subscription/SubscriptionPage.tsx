@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, Variants } from "framer-motion";
-import {
-  CheckOutlined,
-  LeftOutlined,
-  PhoneOutlined,
-  CloseOutlined,
-  DownloadOutlined,
-  MailOutlined,
-  LoadingOutlined,
-  RedoOutlined,
+import {CheckOutlined,LeftOutlined,PhoneOutlined,CloseOutlined,DownloadOutlined,MailOutlined,LoadingOutlined,RedoOutlined,
 } from "@ant-design/icons";
 import { QRCodeSVG } from "qrcode.react";
 import jsPDF from "jspdf";
@@ -49,15 +41,8 @@ interface SubscriptionPageProps {
   /** Fired the moment a user opens checkout for a plan (before payment). */
   onSubscribe?: (plan: SubscriptionPlan) => void;
   onContactSales?: () => void;
-  /** Fired once the simulated/real payment completes successfully. Wire this to
-   *  your transactionStore / axs_transactions localStorage writer or backend call. */
   onPaymentSuccess?: (receipt: PaidReceipt) => void;
-  /** Wire this to a POST against your axs-api-node backend (reusing mailer.js)
-   *  to actually deliver the receipt email. If omitted, the flow simulates
-   *  a send so the UI still completes end-to-end during development. */
   onSendReceiptEmail?: (receipt: PaidReceipt) => Promise<void>;
-  /** Studio's UPI VPA the QR should encode. Replace with your real collect ID
-   *  or your gateway's dynamic QR string in production. */
   merchantVpa?: string;
   merchantName?: string;
 }
