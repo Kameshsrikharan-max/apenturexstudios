@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {LeftOutlined,RightOutlined,CloseOutlined,ClockCircleOutlined,CompassOutlined,HomeOutlined,CameraOutlined,CoffeeOutlined,TagOutlined,ThunderboltOutlined,DownloadOutlined,UndoOutlined,FireOutlined,CalendarOutlined,AppstoreOutlined,DragOutlined,SearchOutlined,RedoOutlined,} from "@ant-design/icons";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {LeftOutlined,RightOutlined,CloseOutlined,ClockCircleOutlined,CompassOutlined,HomeOutlined,CameraOutlined,CoffeeOutlined,TagOutlined,ThunderboltOutlined,DownloadOutlined,UndoOutlined,FireOutlined,CalendarOutlined,AppstoreOutlined,DragOutlined,SearchOutlined,RedoOutlined,LoadingOutlined,} from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import "./AvailabilityPage.css";
 
-export const AVAILABILITY_UPDATED_EVENT = "availabilityUpdated";
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
 type DayStatus = "available" | "unavailable";
 type ReasonCategory = "travel" | "personal" | "booked" | "rest" | "other";
@@ -46,26 +46,6 @@ const CATEGORY_META: Record<ReasonCategory, CategoryMeta> = {
 const CATEGORY_ORDER: ReasonCategory[] = ["travel", "personal", "booked", "rest", "other"];
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const RECURRING_WEEK_OPTIONS = [4, 8, 12];
-
-const getStorageKey = (user?: AvailabilityPageProps["user"]) => {
-  const identity = user?.email || user?.identifier || "guest";
-  return `axs_availability_${identity}`;
-};
-
-const readAvailability = (storageKey: string): AvailabilityMap => {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeAvailability = (storageKey: string, data: AvailabilityMap) => {
-  localStorage.setItem(storageKey, JSON.stringify(data));
-  window.dispatchEvent(new CustomEvent(AVAILABILITY_UPDATED_EVENT, { detail: data }));
-};
 
 const datesBetween = (a: string, b: string) => {
   const [start, end] = dayjs(a).isBefore(dayjs(b)) ? [a, b] : [b, a];
@@ -112,15 +92,71 @@ const downloadTextFile = (filename: string, content: string, mime: string) => {
   URL.revokeObjectURL(url);
 };
 
-function AvailabilityPage({ user }: AvailabilityPageProps) {
-  const storageKey = useMemo(() => getStorageKey(user), [user]);
+/* ---------- Backend sync: availability now lives server-side so studio
+   admins on a different machine/browser can see it (this replaces the old
+   localStorage-per-browser approach, which admins could never actually read). ---------- */
 
+function authHeaders(): HeadersInit {
+  const token = localStorage.getItem("token");
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+async function fetchMyAvailability(): Promise<AvailabilityMap> {
+  try {
+    const res = await fetch(`${API_BASE}/studio/availability/me`, { headers: authHeaders() });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) return {};
+    const map: AvailabilityMap = {};
+    (body.entries || []).forEach((e: any) => {
+      map[e.date] = { status: e.status, note: e.note || "", category: e.category };
+    });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+// changedKeys tells us exactly which dates to sync: present in `map` -> upsert, absent -> delete
+async function syncAvailabilityChanges(
+  map: AvailabilityMap,
+  changedKeys: string[]
+): Promise<{ ok: boolean; message?: string }> {
+  const upserts = changedKeys
+    .filter((k) => map[k])
+    .map((k) => ({ date: k, status: map[k].status, category: map[k].category || "other", note: map[k].note || "" }));
+  const deletes = changedKeys.filter((k) => !map[k]);
+
+  try {
+    if (upserts.length > 0) {
+      const res = await fetch(`${API_BASE}/studio/availability/me/bulk`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ entries: upserts }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.success) return { ok: false, message: body?.message || "Failed to save availability." };
+    }
+    for (const date of deletes) {
+      const res = await fetch(`${API_BASE}/studio/availability/me/${date}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.success) return { ok: false, message: body?.message || "Failed to clear date." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Network error — check your connection." };
+  }
+}
+
+function AvailabilityPage({ user }: AvailabilityPageProps) {
   const [month, setMonth] = useState<Dayjs>(dayjs());
-  const [availability, setAvailability] = useState<AvailabilityMap>(() => readAvailability(storageKey));
+  const [availability, setAvailability] = useState<AvailabilityMap>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [viewMode, setViewMode] = useState<"month" | "year">("month");
 
-  // Legacy single-day quick flow: clicking an "available" day opens this
-  // lightweight panel to capture a reason before marking it unavailable.
   const [noteTarget, setNoteTarget] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteCategory, setNoteCategory] = useState<ReasonCategory>("other");
@@ -143,26 +179,23 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
   const quickActionsRef = useRef<HTMLDivElement | null>(null);
 
   const [undoStack, setUndoStack] = useState<UndoEntry[]>([]);
-  const [toast, setToast] = useState<{ label: string } | null>(null);
+  const [toast, setToast] = useState<{ label: string; error?: boolean } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [categoryFilter, setCategoryFilter] = useState<ReasonCategory[]>([]);
   const [jumpDate, setJumpDate] = useState("");
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    setAvailability(readAvailability(storageKey));
-  }, [storageKey]);
+  const loadFromServer = useCallback(async () => {
+    setIsLoading(true);
+    const map = await fetchMyAvailability();
+    setAvailability(map);
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
-    const syncFromStorage = () => setAvailability(readAvailability(storageKey));
-    window.addEventListener(AVAILABILITY_UPDATED_EVENT, syncFromStorage);
-    window.addEventListener("storage", syncFromStorage);
-    return () => {
-      window.removeEventListener(AVAILABILITY_UPDATED_EVENT, syncFromStorage);
-      window.removeEventListener("storage", syncFromStorage);
-    };
-  }, [storageKey]);
+    loadFromServer();
+  }, [loadFromServer, user?.email]);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -176,31 +209,54 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
 
   const today = dayjs().format("YYYY-MM-DD");
 
-  const showToast = (label: string) => {
+  const showToast = (label: string, error = false) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ label });
+    setToast({ label, error });
     toastTimer.current = setTimeout(() => setToast(null), 5000);
   };
 
-  const commit = (next: AvailabilityMap, label: string, baseline: AvailabilityMap) => {
+  /* Optimistically applies `next`, then syncs only `changedKeys` to the
+     backend. On failure, rolls back to `baseline` so the UI never lies
+     about what's actually saved server-side. */
+  const commit = (next: AvailabilityMap, label: string, baseline: AvailabilityMap, changedKeys: string[]) => {
     setUndoStack((stack) => [...stack.slice(-9), { map: baseline, label }]);
     setAvailability(next);
-    writeAvailability(storageKey, next);
-    showToast(label);
+    setIsSyncing(true);
+    syncAvailabilityChanges(next, changedKeys).then(({ ok, message }) => {
+      setIsSyncing(false);
+      if (!ok) {
+        setAvailability(baseline);
+        setUndoStack((stack) => stack.slice(0, -1));
+        showToast(message || "Couldn't save that change.", true);
+        return;
+      }
+      showToast(label);
+    });
   };
 
   const handleUndo = () => {
     setUndoStack((stack) => {
       if (stack.length === 0) return stack;
       const last = stack[stack.length - 1];
+      const current = availability;
+      const changedKeys = Array.from(new Set([...Object.keys(current), ...Object.keys(last.map)])).filter(
+        (k) => JSON.stringify(current[k]) !== JSON.stringify(last.map[k])
+      );
       setAvailability(last.map);
-      writeAvailability(storageKey, last.map);
-      showToast(`Undid: ${last.label}`);
+      setIsSyncing(true);
+      syncAvailabilityChanges(last.map, changedKeys).then(({ ok, message }) => {
+        setIsSyncing(false);
+        if (!ok) {
+          setAvailability(current);
+          showToast(message || "Undo failed to save.", true);
+          return;
+        }
+        showToast(`Undid: ${last.label}`);
+      });
       return stack.slice(0, -1);
     });
   };
 
-  // End a drag-range selection anywhere on the page, then open the bulk modal.
   useEffect(() => {
     const endDrag = () => {
       if (!isDraggingRef.current) return;
@@ -259,8 +315,6 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
 
   const getDateKey = (day: number) => month.date(day).format("YYYY-MM-DD");
 
-  // Tapping a day (outside range-select mode) cycles it:
-  // (nothing) -> available -> unavailable (with a reason) -> nothing.
   const handleDayClick = (day: number) => {
     if (rangeMode) return;
     const dateKey = getDateKey(day);
@@ -268,7 +322,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
 
     if (!current) {
       const next = { ...availability, [dateKey]: { status: "available" as DayStatus, note: "" } };
-      commit(next, `Marked ${dayjs(dateKey).format("D MMM")} available`, availability);
+      commit(next, `Marked ${dayjs(dateKey).format("D MMM")} available`, availability, [dateKey]);
       return;
     }
 
@@ -281,7 +335,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
 
     const next = { ...availability };
     delete next[dateKey];
-    commit(next, `Cleared ${dayjs(dateKey).format("D MMM")}`, availability);
+    commit(next, `Cleared ${dayjs(dateKey).format("D MMM")}`, availability, [dateKey]);
   };
 
   const handleDayMouseDown = (day: number) => {
@@ -308,7 +362,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
       ...availability,
       [noteTarget]: { status: "unavailable", note: noteDraft.trim(), category: noteCategory },
     };
-    commit(next, `Marked ${dayjs(noteTarget).format("D MMM")} unavailable`, availability);
+    commit(next, `Marked ${dayjs(noteTarget).format("D MMM")} unavailable`, availability, [noteTarget]);
     setNoteTarget(null);
     setNoteDraft("");
     setNoteCategory("other");
@@ -317,7 +371,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
   const clearDay = (dateKey: string) => {
     const next = { ...availability };
     delete next[dateKey];
-    commit(next, `Cleared ${dayjs(dateKey).format("D MMM")}`, availability);
+    commit(next, `Cleared ${dayjs(dateKey).format("D MMM")}`, availability, [dateKey]);
   };
 
   const reasonModalTargets = useMemo(() => {
@@ -344,52 +398,51 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
       targets.length === 1
         ? `Marked ${dayjs(targets[0]).format("D MMM")} ${reasonModal.status}`
         : `Marked ${targets.length} days ${reasonModal.status}`;
-    commit(next, label, availability);
+    commit(next, label, availability, targets);
     setReasonModal(null);
   };
 
-  // ---- Quick actions ----
   const markWeekendsUnavailable = () => {
     const next = { ...availability };
-    let count = 0;
+    const changed: string[] = [];
     calendarDates.forEach((day) => {
       if (!day) return;
       const dateKey = getDateKey(day);
       if ([0, 6].includes(month.date(day).day())) {
         next[dateKey] = { status: "unavailable", note: "Weekend", category: "rest" };
-        count += 1;
+        changed.push(dateKey);
       }
     });
-    commit(next, `Marked ${count} weekends unavailable`, availability);
+    commit(next, `Marked ${changed.length} weekends unavailable`, availability, changed);
     setQuickActionsOpen(false);
   };
 
   const markWeekdaysAvailable = () => {
     const next = { ...availability };
-    let count = 0;
+    const changed: string[] = [];
     calendarDates.forEach((day) => {
       if (!day) return;
       const dateKey = getDateKey(day);
       if (![0, 6].includes(month.date(day).day())) {
         next[dateKey] = { status: "available", note: "" };
-        count += 1;
+        changed.push(dateKey);
       }
     });
-    commit(next, `Marked ${count} weekdays available`, availability);
+    commit(next, `Marked ${changed.length} weekdays available`, availability, changed);
     setQuickActionsOpen(false);
   };
 
   const clearMonth = () => {
     const prefix = month.format("YYYY-MM");
     const next = { ...availability };
-    let count = 0;
+    const changed: string[] = [];
     Object.keys(next).forEach((dateKey) => {
       if (dateKey.startsWith(prefix)) {
         delete next[dateKey];
-        count += 1;
+        changed.push(dateKey);
       }
     });
-    commit(next, `Cleared ${count} days this month`, availability);
+    commit(next, `Cleared ${changed.length} days this month`, availability, changed);
     setQuickActionsOpen(false);
   };
 
@@ -397,16 +450,16 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
     const prevMonth = month.subtract(1, "month");
     const prevPrefix = prevMonth.format("YYYY-MM");
     const next = { ...availability };
-    let count = 0;
+    const changed: string[] = [];
     Object.entries(availability).forEach(([dateKey, entry]) => {
       if (!dateKey.startsWith(prevPrefix)) return;
       const dayOfMonth = dayjs(dateKey).date();
       if (dayOfMonth > month.daysInMonth()) return;
       const mappedKey = month.date(dayOfMonth).format("YYYY-MM-DD");
       next[mappedKey] = { ...entry };
-      count += 1;
+      changed.push(mappedKey);
     });
-    commit(next, `Copied ${count} days from ${prevMonth.format("MMMM")}`, availability);
+    commit(next, `Copied ${changed.length} days from ${prevMonth.format("MMMM")}`, availability, changed);
     setQuickActionsOpen(false);
   };
 
@@ -431,7 +484,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
   const applyRecurringRule = () => {
     if (recurringWeekdays.length === 0) return;
     const next = { ...availability };
-    let count = 0;
+    const changed: string[] = [];
     let cursor = dayjs();
     const end = dayjs().add(recurringWeeks, "week");
     while (cursor.isBefore(end)) {
@@ -441,11 +494,11 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
           recurringStatus === "available"
             ? { status: "available", note: "" }
             : { status: "unavailable", note: recurringNote.trim(), category: recurringCategory };
-        count += 1;
+        changed.push(dateKey);
       }
       cursor = cursor.add(1, "day");
     }
-    commit(next, `Applied recurring rule to ${count} days`, availability);
+    commit(next, `Applied recurring rule to ${changed.length} days`, availability, changed);
     setRecurringOpen(false);
     setRecurringWeekdays([]);
     setRecurringNote("");
@@ -545,7 +598,7 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
       <div className="availability-header">
         <div className="availability-header-text">
           <span className="availability-eyebrow">Your Schedule</span>
-          <h1>Availability</h1>
+          <h1>Availability {isSyncing ? <LoadingOutlined spin style={{ fontSize: 14, marginLeft: 8 }} /> : null}</h1>
           <p>Mark the days you're open for bookings so studio admins can plan around you.</p>
         </div>
 
@@ -653,7 +706,11 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
       </div>
 
       <div className="availability-layout">
-        {viewMode === "month" ? (
+        {isLoading ? (
+          <div className="availability-calendar-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 320 }}>
+            <LoadingOutlined spin style={{ fontSize: 24 }} />
+          </div>
+        ) : viewMode === "month" ? (
           <div className="availability-calendar-card">
             <div className="availability-calendar-head">
               <button type="button" onClick={() => setMonth((current) => current.subtract(1, "month"))}>
@@ -1129,11 +1186,13 @@ function AvailabilityPage({ user }: AvailabilityPageProps) {
       )}
 
       {toast && (
-        <div className="availability-toast">
+        <div className={`availability-toast ${toast.error ? "is-error" : ""}`}>
           <span>{toast.label}</span>
-          <button type="button" onClick={handleUndo}>
-            <RedoOutlined style={{ transform: "scaleX(-1)" }} /> Undo
-          </button>
+          {!toast.error ? (
+            <button type="button" onClick={handleUndo}>
+              <RedoOutlined style={{ transform: "scaleX(-1)" }} /> Undo
+            </button>
+          ) : null}
         </div>
       )}
     </div>

@@ -5,6 +5,8 @@ import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,
 import "./CreateEventPage.css";
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
+
 interface StepDef {
   label: string;
   icon: React.ReactNode;
@@ -55,10 +57,6 @@ const MONTHS = [
 
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
-
-
-const EVENTS_STORAGE_KEY = "ax.events.v1";
-const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 
 interface TimeParts {
   h: string;
@@ -141,6 +139,14 @@ function addOneHour(time24: string): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+function formatBoardDate(date: Date): string {
+  return `${MONTHS[date.getMonth()].slice(0, 3)} ${String(date.getDate()).padStart(2, "0")}, ${date.getFullYear()}`;
+}
+
+function formatBoardTime(time: TimeParts | null): string {
+  return time ? `${time.h}:${time.m} ${time.ap}` : "";
+}
+
 interface EventFormState {
   eventName: string;
   eventDate: Date | null;
@@ -157,7 +163,7 @@ interface EventFormState {
   albumData: Record<string, any>;
 }
 
-function syncEventToCalendar(form: EventFormState, createdAt: string): void {
+function syncEventToCalendar(form: EventFormState, eventId: string): void {
   if (!form.eventDate) return;
 
   try {
@@ -175,7 +181,7 @@ function syncEventToCalendar(form: EventFormState, createdAt: string): void {
       color: "blue",
       category: "Booked Event",
       isHoliday: false,
-      eventId: createdAt,
+      eventId,
     };
 
     const existingRaw = localStorage.getItem("calendarEvents");
@@ -184,65 +190,6 @@ function syncEventToCalendar(form: EventFormState, createdAt: string): void {
     localStorage.setItem("calendarEvents", JSON.stringify(existing));
 
     window.dispatchEvent(new Event("calendarEventsUpdated"));
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-interface BoardEvent {
-  id: string;
-  name: string;
-  type: string;
-  date: string;
-  time: string;
-  address: string;
-  city: string;
-  customer: string;
-  status: string;
-  pipeline: string;
-  members: number;
-  budget: string;
-  image: string;
-  location?: LocationData | null;
-}
-
-function formatBoardDate(date: Date): string {
-  return `${MONTHS[date.getMonth()].slice(0, 3)} ${String(date.getDate()).padStart(2, "0")}, ${date.getFullYear()}`;
-}
-
-function formatBoardTime(time: TimeParts | null): string {
-  return time ? `${time.h}:${time.m} ${time.ap}` : "";
-}
-
-
-function syncEventToBoard(form: EventFormState, createdAt: string): void {
-  if (!form.eventDate) return;
-
-  try {
-    const newEvent: BoardEvent = {
-      id: `ev-${createdAt}`,
-      name: form.eventName.trim(),
-      type: form.selectedServices[0] || "Event",
-      date: formatBoardDate(form.eventDate),
-      time: formatBoardTime(form.startTime),
-      address: form.address.trim(),
-      city: form.city.trim(),
-      customer: form.customerName.trim(),
-      status: "DRAFT",
-      pipeline: "Proposal",
-      members: 0,
-      budget: form.eventAmount,
-      image:
-        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
-      location: form.location,
-    };
-
-    const existingRaw = localStorage.getItem(EVENTS_STORAGE_KEY);
-    const existing = existingRaw ? JSON.parse(existingRaw) : [];
-    const nextEvents = [newEvent, ...(Array.isArray(existing) ? existing : [])];
-    localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(nextEvents));
-
-    window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
   } catch (error) {
     console.error(error);
   }
@@ -772,7 +719,6 @@ interface FormErrors {
   albums?: string;
 }
 
-
 const FIELD_ORDER: (keyof FormErrors)[] = [
   "eventName",
   "eventDate",
@@ -814,6 +760,8 @@ export default function CreateEventPage() {
   const [showCal, setShowCal] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const calRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
 
@@ -853,7 +801,6 @@ export default function CreateEventPage() {
   }, []);
 
   const glowClass = (key: keyof FormErrors) => (glowField === key ? " cep-glow" : "");
-  
 
   const commandWrapRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
@@ -1026,8 +973,9 @@ export default function CreateEventPage() {
     return nextErrors;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setAttemptedSubmit(true);
+    setSubmitError(null);
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -1035,26 +983,88 @@ export default function CreateEventPage() {
       return;
     }
 
-    const numericAmount = parseInt(stripAmount(form.eventAmount), 10) || 0;
-    const createdAt = new Date().toISOString();
-
+    // Field names below match the backend's EVENT_FIELDS list exactly
+    // (event.controller.js) — not the frontend's own EventFormState names.
     const eventPayload = {
-      ...form,
-      eventDate: form.eventDate ? form.eventDate.toISOString() : null,
-      eventAmountDisplay: form.eventAmount,
-      eventAmountNumeric: numericAmount,
-      _createdAt: createdAt,
-      _step: "event-details",
+      name: form.eventName.trim(),
+      type: form.selectedServices[0] || "Event",
+      date: form.eventDate ? formatBoardDate(form.eventDate) : "",
+      time: formatBoardTime(form.startTime),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      customer: form.customerName.trim(),
+      customerPhone: form.phone,
+      customerEmail: form.email.trim(),
+      status: "DRAFT",
+      pipeline: "Proposal",
+      members: 0,
+      budget: form.eventAmount,
+      image:
+        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+      location: form.location,
+      selectedServices: form.selectedServices,
+      albumData: form.albumData,
     };
 
-    sessionStorage.setItem("currentEvent", JSON.stringify(eventPayload));
-    clearAllEventPayments();
-    sessionStorage.removeItem("eventDraft");
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE}/studio/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(eventPayload),
+      });
 
-    syncEventToCalendar(form, createdAt);
-    syncEventToBoard(form, createdAt);
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || `Failed to create event (${response.status})`);
+      }
 
-    navigate("/events/create/team-assignment");
+      const createdEvent = body?.event || body?.data || body;
+      const eventId: string | undefined = createdEvent?.id || createdEvent?._id;
+
+      if (!eventId) {
+        throw new Error("Server did not return a created event id");
+      }
+
+      const numericAmount = parseInt(stripAmount(form.eventAmount), 10) || 0;
+      const createdAt = new Date().toISOString();
+
+      // sessionStorage keeps both the backend-shaped fields (id/_id) and the
+      // frontend-facing fields TeamAssignmentPage/PaymentPage actually read
+      // (eventName, eventDate, eventAmountNumeric, clientName, _createdAt).
+      sessionStorage.setItem(
+        "currentEvent",
+        JSON.stringify({
+          ...eventPayload,
+          _id: eventId,
+          id: eventId,
+          eventName: form.eventName.trim(),
+          eventDate: form.eventDate ? form.eventDate.toISOString() : null,
+          startTime: form.startTime,
+          eventAmountNumeric: numericAmount,
+          eventAmountDisplay: form.eventAmount,
+          clientName: form.customerName.trim(),
+          _createdAt: createdAt,
+          _step: "event-details",
+        })
+      );
+      clearAllEventPayments();
+      sessionStorage.removeItem("eventDraft");
+
+      syncEventToCalendar(form, eventId);
+
+      navigate("/events/create/team-assignment", { state: { eventId } });
+    } catch (error: any) {
+      console.error(error);
+      setSubmitError(error?.message || "Failed to create the event. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const goBack = () => navigate("/events");
@@ -1511,12 +1521,18 @@ export default function CreateEventPage() {
               )}
             </div>
 
+            {submitError && (
+              <div className="cep-error cep-submit-error" role="alert">
+                {submitError}
+              </div>
+            )}
+
             <footer className="cep-actions">
-              <button className="cep-secondary" type="button" onClick={goBack}>
+              <button className="cep-secondary" type="button" onClick={goBack} disabled={isSubmitting}>
                 <CloseOutlined /> Cancel
               </button>
-              <button className="cep-primary" type="button" onClick={handleSubmit}>
-                <PlusOutlined /> Create New Event
+              <button className="cep-primary" type="button" onClick={handleSubmit} disabled={isSubmitting}>
+                <PlusOutlined /> {isSubmitting ? "Creating Event..." : "Create New Event"}
               </button>
             </footer>
           </form>

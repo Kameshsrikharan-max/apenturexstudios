@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, ReactNode, RefObject } from "react";
+import React, { useEffect, useRef, useState, RefObject } from "react";
 import { createPortal } from "react-dom";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowLeftOutlined,StarOutlined,StarFilled,FileTextOutlined,DollarCircleOutlined,FileOutlined,
 } from "@ant-design/icons";
 import "./EventClosurePage.css";
@@ -8,65 +8,7 @@ import "./EventClosurePage.css";
 /* ── Types ── */
 interface Step {
   label: string;
-  icon: ReactNode;
-}
-
-interface EventShape {
-  id?: string;
-  name?: string;
-  eventName?: string;
-  type?: string;
-  eventType?: string;
-  date?: string;
-  eventDate?: string;
-  time?: string;
-  eventTime?: string;
-  address?: string;
-  venue?: string;
-  location?: string;
-  city?: string;
-  customer?: string;
-  clientName?: string;
-  members?: number | string;
-  assignedMembers?: number | string;
-  budget?: string;
-  image?: string;
-  imageUrl?: string;
-}
-
-interface ClosedEvent {
-  id: string;
-  name: string;
-  type: string;
-  date: string;
-  time: string;
-  address: string;
-  city: string;
-  customer: string;
-  status: "DONE";
-  pipeline: "Delivered";
-  members: number;
-  budget: string;
-  image: string;
-  paymentStatus: string;
-  deliverableStatus: string;
-  rating: number;
-  closureNotes: string;
-  closedAt: string;
-}
-
-interface BuildClosedEventArgs {
-  event?: EventShape;
-  eventId?: string;
-  paymentStatus: string;
-  deliverableStatus: string;
-  rating: number;
-  closureNotes: string;
-}
-
-interface LocationState {
-  eventId?: string;
-  event?: EventShape;
+  icon: React.ReactNode;
 }
 
 const STEPS: Step[] = [
@@ -94,93 +36,48 @@ const DELIVERABLE_OPTIONS: string[] = [
   "Not Applicable",
 ];
 
-const EVENTS_STORAGE_KEY = "ax.events.v1";
-const LAST_CLOSED_EVENT_KEY = "ax.lastClosedEvent.v1";
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
-const fallbackImage =
-  "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80";
-
-const readStoredEvents = (): ClosedEvent[] => {
-  if (typeof window === "undefined") return [];
-
+// Same source every other step in the wizard reads (CreateEventPage writes
+// it, TeamAssignmentPage/PaymentPage/AttendancePage/MediaManagement/
+// AlbumSelectionPage all read it). Closure was the one page not wired to
+// this — it was reading React Router navigation state that nothing ever
+// passed, so it always saw a blank event.
+function loadEvent(): any {
   try {
-    const saved = window.localStorage.getItem(EVENTS_STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const raw = sessionStorage.getItem("currentEvent");
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return [];
+    return null;
   }
-};
+}
 
-const saveStoredEvents = (events: ClosedEvent[]): void => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
-};
-
-const firstValue = <T,>(...values: (T | undefined | null | "")[]): T | undefined =>
-  values.find((value) => value !== undefined && value !== null && value !== "") as
-    | T
-    | undefined;
-
-const buildClosedEvent = ({
-  event,
-  eventId,
-  paymentStatus,
-  deliverableStatus,
-  rating,
-  closureNotes,
-}: BuildClosedEventArgs): ClosedEvent => {
-  const now = new Date();
-  const id =
-    firstValue<string>(event?.id, eventId, `ev-${now.getTime()}`) ||
-    `ev-${now.getTime()}`;
-
-  return {
-    id,
-    name: firstValue<string>(event?.name, event?.eventName, "Closed Event") as string,
-    type: firstValue<string>(event?.type, event?.eventType, "Event") as string,
-    date: firstValue<string>(
-      event?.date,
-      event?.eventDate,
-      now.toLocaleDateString("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-      })
-    ) as string,
-    time: firstValue<string>(event?.time, event?.eventTime, "") as string,
-    address: firstValue<string>(event?.address, event?.venue, event?.location, "") as string,
-    city: firstValue<string>(event?.city, "") as string,
-    customer: firstValue<string>(event?.customer, event?.clientName, "") as string,
-    status: "DONE",
-    pipeline: "Delivered",
-    members: Number(firstValue<number | string>(event?.members, event?.assignedMembers, 0)),
-    budget: firstValue<string>(event?.budget, "") as string,
-    image: firstValue<string>(event?.image, event?.imageUrl, fallbackImage) as string,
-    paymentStatus,
-    deliverableStatus,
-    rating,
-    closureNotes,
-    closedAt: now.toISOString(),
-  };
-};
-
-const upsertClosedEvent = (closedEvent: ClosedEvent): ClosedEvent[] => {
-  const events = readStoredEvents();
-  const existingIndex = events.findIndex((event) => event.id === closedEvent.id);
-
-  const nextEvents =
-    existingIndex >= 0
-      ? events.map((event, index) =>
-          index === existingIndex ? { ...event, ...closedEvent } : event
-        )
-      : [closedEvent, ...events];
-
-  saveStoredEvents(nextEvents);
-  window.localStorage.setItem(LAST_CLOSED_EVENT_KEY, JSON.stringify(closedEvent));
-
-  return nextEvents;
-};
+// Same pattern as EventPage.tsx's patchEventOnServer — PATCH the real
+// backend event record instead of writing to the old, no-longer-read
+// "ax.events.v1" localStorage key.
+async function patchEventOnServer(
+  id: string,
+  payload: Record<string, any>
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      return { ok: false, message: body?.message || "Server update failed." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Network error." };
+  }
+}
 
 /* ── Portal Dropdown ── */
 interface PortalDropdownProps {
@@ -343,43 +240,60 @@ function StarRating({ value, onChange }: StarRatingProps) {
 /* ── Page ── */
 export default function EventClosurePage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const params = useParams<{ eventId?: string; id?: string }>();
   const [activeStep, setActiveStep] = useState<number>(1);
+
+  const [event] = useState(() => loadEvent());
+  const eventId: string | undefined = event?.id || event?._id;
+  const eventName: string = event?.eventName || event?.name || "";
 
   const [paymentStatus, setPaymentStatus] = useState<string>("");
   const [deliverableStatus, setDeliverableStatus] = useState<string>("");
   const [rating, setRating] = useState<number>(0);
   const [closureNotes, setClosureNotes] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const MAX_NOTES = 1000;
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (!paymentStatus || !deliverableStatus) return;
-    const searchParams = new URLSearchParams(location.search);
-    const state = location.state as LocationState | null;
-    const eventId = firstValue<string>(
-      params.eventId,
-      params.id,
-      searchParams.get("eventId") ?? undefined,
-      searchParams.get("id") ?? undefined,
-      state?.eventId,
-      state?.event?.id
-    );
-    const closedEvent = buildClosedEvent({
-      event: state?.event,
-      eventId,
+    setSubmitError(null);
+
+    if (!eventId) {
+      setSubmitError("No event found to close — go back to Event Details and start again.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { ok, message } = await patchEventOnServer(eventId, {
+      status: "DONE",
+      pipeline: "Delivered",
+      // The backend's event fields don't currently include these closure
+      // details (paymentStatus/deliverableStatus/rating/closureNotes) —
+      // they're sent here so the backend can pick them up once it has a
+      // place to store them, but today only status/pipeline will persist.
       paymentStatus,
       deliverableStatus,
       rating,
       closureNotes,
     });
+    setIsSubmitting(false);
 
-    upsertClosedEvent(closedEvent);
+    if (!ok) {
+      setSubmitError(message || "Failed to close the event. Please try again.");
+      return;
+    }
+
+    // Clear this event's wizard-scoped sessionStorage now that it's closed.
+    try {
+      sessionStorage.removeItem("currentEvent");
+      sessionStorage.removeItem("mediaManagement__state");
+    } catch {}
+
     navigate("/events");
   };
 
-  const canClose = Boolean(paymentStatus && deliverableStatus);
+  const canClose = Boolean(paymentStatus && deliverableStatus) && !isSubmitting;
 
   return (
     <main className="ec-page">
@@ -396,7 +310,10 @@ export default function EventClosurePage() {
             </span>
             <div>
               <p className="ec-subtitle">Step 7 of 7 · Closure</p>
-              <h1 className="ec-heading">Event Closure</h1>
+              <h1 className="ec-heading">
+                Event Closure
+                {eventName && <span className="ec-heading-sub"> — {eventName}</span>}
+              </h1>
             </div>
           </div>
         </header>
@@ -442,6 +359,13 @@ export default function EventClosurePage() {
                 <ReloadOutlined /> Refresh
               </button>
             </div>
+
+            {!eventId && (
+              <div className="ec-error-banner" role="alert">
+                No event is currently loaded. Go back to Event Details and create or reopen an
+                event before closing it.
+              </div>
+            )}
 
             <div className="ec-form-grid">
               <div className="ec-form-col">
@@ -522,6 +446,12 @@ export default function EventClosurePage() {
               </div>
             </div>
 
+            {submitError && (
+              <div className="ec-error-banner" role="alert">
+                {submitError}
+              </div>
+            )}
+
             <footer className="ec-actions">
               <button
                 className="ec-btn-secondary"
@@ -537,7 +467,7 @@ export default function EventClosurePage() {
                 disabled={!canClose}
                 onClick={handleClose}
               >
-                <CheckCircleOutlined /> Close Event
+                <CheckCircleOutlined /> {isSubmitting ? "Closing…" : "Close Event"}
               </button>
             </footer>
           </div>

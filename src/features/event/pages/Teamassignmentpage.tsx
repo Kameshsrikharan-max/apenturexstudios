@@ -23,21 +23,10 @@ const ROLES = ["Photographer", "Videographer", "Drone Operator", "Assistant"];
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
-/* ---- Only these two account roles count as "photographers" who can log in
-   and be assigned. Studio Admin / Studio Manager never show up here. ---- */
+
 const PHOTOGRAPHER_ROLES = ["Studio Photographer", "Freelance Photographer"] as const;
 
 type ReasonCategory = "travel" | "personal" | "booked" | "rest" | "other";
-
-/* Mirrors AvailabilityPage's AvailabilityEntry/AvailabilityMap shape and
-   localStorage key convention (axs_availability_<email>) so we read exactly
-   what each photographer set on their own Availability page. */
-type AvailabilityEntry = {
-  status: "available" | "unavailable";
-  note: string;
-  category?: ReasonCategory;
-};
-type AvailabilityMap = Record<string, AvailabilityEntry>;
 
 const CATEGORY_LABELS: Record<ReasonCategory, string> = {
   travel: "Travel",
@@ -87,29 +76,48 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   );
 }
 
-/* ---------- Availability helpers (read-only mirror of AvailabilityPage) ---------- */
+/* ---------- Availability: fetched from the backend (studio/availability),
+   which is the same collection AvailabilityPage writes to. This is what
+   makes "only available photographers can be assigned" actually correct
+   across different admin/photographer browsers. ---------- */
 
-const getAvailabilityKey = (email: string) => `axs_availability_${email}`;
+type AvailabilityResult = {
+  email: string;
+  available: boolean;
+  reason: { category: ReasonCategory; note: string } | null;
+};
 
-const readAvailabilityFor = (email: string): AvailabilityMap => {
+async function checkAvailabilityBulk(
+  emails: string[],
+  date: string
+): Promise<Record<string, AvailabilityResult>> {
+  if (emails.length === 0) return {};
   try {
-    const raw = localStorage.getItem(getAvailabilityKey(email));
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_BASE}/studio/availability/check`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ emails, date }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.success) return {};
+    const map: Record<string, AvailabilityResult> = {};
+    (body.results || []).forEach((r: AvailabilityResult) => {
+      map[r.email.toLowerCase()] = r;
+    });
+    return map;
   } catch {
     return {};
   }
-};
+}
 
-const getEntryForDate = (email: string, dateKey: string): AvailabilityEntry | undefined => {
-  const map = readAvailabilityFor(email);
-  return map[dateKey];
-};
-
-const formatReason = (entry: AvailabilityEntry | undefined): string => {
-  if (!entry) return "";
-  const label = CATEGORY_LABELS[entry.category || "other"];
-  return entry.note ? `${label} — ${entry.note}` : label;
+const formatReason = (reason: AvailabilityResult["reason"]): string => {
+  if (!reason) return "";
+  const label = CATEGORY_LABELS[reason.category || "other"];
+  return reason.note ? `${label} — ${reason.note}` : label;
 };
 
 /* ---------- Backend sync ----------
@@ -118,8 +126,7 @@ const formatReason = (entry: AvailabilityEntry | undefined): string => {
    assignTeam) both writes assignedMembersList and creates an
    "Event Assignment" notification for anyone newly added — so calling it
    is what makes the photographer's event list AND their notifications
-   pick this up. There is no separate /studio/notifications POST route;
-   notification creation only happens as a side effect of this call. */
+   pick this up. */
 async function syncAssignedTeam(
   eventId: string | undefined,
   team: AssignedMember[]
@@ -185,8 +192,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     } catch {}
   }, [eventProp]);
 
-  // event.id / event._id — support either shape depending on where `event`
-  // came from (fresh API response uses both; sessionStorage mirrors API).
   const eventId: string | undefined = event?.id || event?._id;
 
   const eventServices = event?.selectedServices || [];
@@ -194,8 +199,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     ? eventServices
     : ["Traditional Photography","Candid Photography","Candid Videography","Drone"];
 
-  // Resolve the event's shoot date so we know WHICH day to check availability
-  // against. Falls back to today if the event object doesn't carry a date yet.
   const eventDateKey = useMemo(() => {
     const raw = event?.eventDate || event?.date || event?.selectedDate || event?.shootDate;
     const parsed = raw ? dayjs(raw) : dayjs();
@@ -221,10 +224,12 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
   const [roleMap,       setRoleMap]       = useState<Record<string, string>>({});
   const [isSyncing,     setIsSyncing]     = useState(false);
 
-  // --- Live photographers, sourced from the same endpoint UsersPage uses ---
   const [photographers, setPhotographers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, AvailabilityResult>>({});
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -270,18 +275,31 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     fetchPhotographers();
   }, [fetchPhotographers]);
 
-  const isAvailableOn = (email: string) => {
-    const entry = getEntryForDate(email, eventDateKey);
-    return !entry || entry.status !== "unavailable";
-  };
+  const roleFiltered = useMemo(
+    () => photographers.filter(m => m.role === (tab === "internal" ? "Studio Photographer" : "Freelance Photographer")),
+    [photographers, tab]
+  );
+
+  useEffect(() => {
+    if (roleFiltered.length === 0) {
+      setAvailabilityMap({});
+      return;
+    }
+    setAvailabilityLoading(true);
+    checkAvailabilityBulk(roleFiltered.map(m => m.email), eventDateKey)
+      .then(setAvailabilityMap)
+      .finally(() => setAvailabilityLoading(false));
+  }, [roleFiltered, eventDateKey]);
+
+  const isAvailableOn = (email: string) => availabilityMap[email.toLowerCase()]?.available ?? true;
+  const reasonFor = (email: string) => formatReason(availabilityMap[email.toLowerCase()]?.reason ?? null);
 
   const assignMember = (member: Member) => {
     if (assignedTeam.find(m => m.id === member.id)) return;
 
-    const entry = getEntryForDate(member.email, eventDateKey);
-    if (entry && entry.status === "unavailable") {
+    if (!isAvailableOn(member.email)) {
       showToast(
-        `${member.name} is unavailable on ${dayjs(eventDateKey).format("DD MMM YYYY")} — ${formatReason(entry)}`,
+        `${member.name} is unavailable on ${dayjs(eventDateKey).format("DD MMM YYYY")} — ${reasonFor(member.email)}`,
         "error"
       );
       return;
@@ -365,11 +383,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     navigate("/events/create");
   };
 
-  const roleFiltered = useMemo(
-    () => photographers.filter(m => m.role === (tab === "internal" ? "Studio Photographer" : "Freelance Photographer")),
-    [photographers, tab]
-  );
-
   const filteredList: Member[] = useMemo(() => {
     const q = search.toLowerCase();
     return roleFiltered.filter(m => {
@@ -380,7 +393,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       return matchesSearch && matchesCity && matchesAvail;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleFiltered, search, cityFilter, showAvailOnly, eventDateKey]);
+  }, [roleFiltered, search, cityFilter, showAvailOnly, availabilityMap]);
 
   const isAssigned = (id: string) => !!assignedTeam.find(a => a.id === id);
 
@@ -608,7 +621,10 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
                           <th>Name</th>
                           <th>Mobile</th>
                           <th>City</th>
-                          <th>Availability ({dayjs(eventDateKey).format("DD MMM")})</th>
+                          <th>
+                            Availability ({dayjs(eventDateKey).format("DD MMM")})
+                            {availabilityLoading ? <LoadingOutlined spin style={{ marginLeft: 6 }} /> : null}
+                          </th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -627,9 +643,8 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
                           </tr>
                         ) : (
                           filteredList.map(m => {
-                            const entry = getEntryForDate(m.email, eventDateKey);
-                            const available = !entry || entry.status !== "unavailable";
-                            const reasonText = !available ? formatReason(entry) : "";
+                            const available = isAvailableOn(m.email);
+                            const reasonText = !available ? reasonFor(m.email) : "";
                             const assigned = isAssigned(m.id);
 
                             return (

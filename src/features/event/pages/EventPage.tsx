@@ -1,60 +1,66 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {Avatar,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,} from "antd";
-import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,MessageOutlined,PlusOutlined,QrcodeOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,UnorderedListOutlined,} from "@ant-design/icons";
+import {
+  Avatar,
+  Badge,
+  Button,
+  ConfigProvider,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Pagination,
+  Popover,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+  notification,
+} from "antd";
+import {
+  AppstoreOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CopyOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  FilterOutlined,
+  MessageOutlined,
+  PlusOutlined,
+  QrcodeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TableOutlined,
+  TeamOutlined,
+  ThunderboltOutlined,
+  UnorderedListOutlined,
+} from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
 import { getEvents } from "../../../redux/actions/eventActions";
+import { fetchEventMessagesRequest } from "../../../redux/actions/messageActions";
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 import EventQRModal from "../../../components/UI/EventQRModal";
 import EventThreadPanel from "../../../components/UI/EventThreadPanel";
 
 const { Title, Text } = Typography;
 
-const initialEvents = [
-  {
-    id: "ev-1001",
-    name: "John - Wedding",
-    type: "Wedding",
-    date: "Jun 16, 2026",
-    time: "12:00 AM",
-    address: "mettupalayam",
-    city: "coimbatore",
-    customer: "Apsi",
-    status: "DRAFT",
-    pipeline: "Converted",
-    members: 0,
-    budget: "INR 1.8L",
-    image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
-  },
-  
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
+
+// Purely decorative sample photos for the hero banner art — unrelated to
+// real event data, which now comes entirely from Redux/the backend.
+const heroArtPhotos = [
+  "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
 ];
 
-const EVENTS_STORAGE_KEY = "ax.events.v1";
-const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 const PAGE_SIZE = 10;
 
-
 const ASSIGNED_ONLY_ROLES = ["studio_manager", "freelance_photographer", "studio_photographer"];
-
-const readStoredEvents = () => {
-  if (typeof window === "undefined") return initialEvents;
-
-  try {
-    const saved = window.localStorage.getItem(EVENTS_STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : null;
-    return Array.isArray(parsed) && parsed.length ? parsed : initialEvents;
-  } catch {
-    return initialEvents;
-  }
-};
-
-const saveStoredEvents = (events: any[]) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
-};
 
 const statuses = ["DRAFT", "PLANNED", "LIVE", "DONE"];
 const eventTypes = [
@@ -104,10 +110,83 @@ const staticMapThumb = (lat: number, lng: number, size = "600x180") =>
 const googleMapsUrl = (lat: number, lng: number) =>
   `https://www.google.com/maps?q=${lat},${lng}`;
 
+/* ---------- Unread message tracking (client-side) ----------
+   There's no read-receipt field from the backend yet, so "unread" is
+   derived by diffing the polled message list against a per-event,
+   per-user "last read" timestamp kept in localStorage. This is enough to
+   drive badges + toasts without a schema change; if the backend later
+   adds a real read-receipt/unread-count endpoint, swap this out for
+   that. */
+const LAST_READ_KEY_PREFIX = "ax.chat.lastRead.";
+
+const lastReadKey = (eventId: string, user: any) =>
+  `${LAST_READ_KEY_PREFIX}${eventId}.${user?.email || user?.id || "anon"}`;
+
+const getLastReadTs = (eventId: string, user: any): number => {
+  try {
+    const raw = localStorage.getItem(lastReadKey(eventId, user));
+    return raw ? Number(raw) : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const setLastReadTs = (eventId: string, user: any, ts: number) => {
+  try {
+    localStorage.setItem(lastReadKey(eventId, user), String(ts));
+  } catch {
+    // localStorage unavailable (private mode etc.) — badges just won't persist across reloads.
+  }
+};
+
+const countUnread = (eventId: string, user: any, messagesByEvent: any): number => {
+  const msgs: any[] = messagesByEvent?.[eventId] || [];
+  if (!msgs.length) return 0;
+  const lastReadTs = getLastReadTs(eventId, user);
+  return msgs.filter((m) => {
+    const isOwn = user?.email && m.senderEmail === user.email;
+    if (isOwn) return false;
+    return new Date(m.createdAt).getTime() > lastReadTs;
+  }).length;
+};
+
+const MESSAGE_POLL_INTERVAL_MS = 20000;
+
+/* ---------- Backend sync for edit / venue-pin ----------
+   assignTeam already has its own redux action + saga (fired directly by
+   TeamAssignmentPage via fetch, which also creates notifications). Editing
+   an event's fields or pinning a venue has no redux action yet, so those
+   go straight to the existing PATCH /studio/events/:id endpoint
+   (event.controller.js's `update`), then we dispatch(getEvents()) to
+   refresh Redux from the server — same pattern TeamAssignmentPage uses. */
+async function patchEventOnServer(
+  id: string,
+  payload: Record<string, any>
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      return { ok: false, message: body?.message || "Server update failed." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Network error." };
+  }
+}
+
 // Checks whether the logged-in user appears in an event's assigned team.
-// Tolerant of a few different shapes coming out of TeamAssignmentPage
-// (id, userId, or email match) since the exact assigned-member record
-// shape isn't standardized elsewhere in this codebase.
+// The backend already filters photographer-role users' event lists
+// server-side, so this is a client-side safety net (also covers
+// studio_manager, which the backend doesn't restrict).
 const isEventAssignedToUser = (event: any, user: any): boolean => {
   if (!user) return false;
   const list = event?.assignedMembersList;
@@ -128,8 +207,13 @@ export default function EventPage({ user }: { user?: any } = {}) {
   const { events: reduxEvents, loading: reduxLoading } = useSelector(
     (state: any) => state.event
   );
+  const { messagesByEvent } = useSelector((state: any) => state.message);
 
-  const [events, setEvents] = useState<any[]>(() => readStoredEvents());
+  // Single source of truth now: Redux, populated from GET /studio/events.
+  // No more localStorage ("ax.events.v1") — that copy never updated on a
+  // photographer's own browser when an admin assigned them elsewhere.
+const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
+
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
   const [viewMode, setViewMode] = useState("table");
@@ -152,6 +236,10 @@ export default function EventPage({ user }: { user?: any } = {}) {
 
   // --- Event thread (team chat) state ---
   const [chatEvent, setChatEvent] = useState<any>(null);
+  // Bumped whenever a thread is marked read, to force unreadCounts to
+  // recompute (the underlying "last read" value lives in localStorage,
+  // outside Redux, so it needs an explicit nudge).
+  const [readVersion, setReadVersion] = useState(0);
 
   const [form] = Form.useForm();
 
@@ -164,24 +252,6 @@ export default function EventPage({ user }: { user?: any } = {}) {
   }, [dispatch]);
 
   useEffect(() => {
-    saveStoredEvents(events);
-  }, [events]);
-
-  useEffect(() => {
-    const syncEvents = () => setEvents(readStoredEvents());
-
-    window.addEventListener("focus", syncEvents);
-    window.addEventListener("storage", syncEvents);
-    window.addEventListener(EVENTS_UPDATED_EVENT, syncEvents);
-
-    return () => {
-      window.removeEventListener("focus", syncEvents);
-      window.removeEventListener("storage", syncEvents);
-      window.removeEventListener(EVENTS_UPDATED_EVENT, syncEvents);
-    };
-  }, []);
-
-  useEffect(() => {
     setTablePage(1);
     setCardPage(1);
   }, [activeStatus, searchTerm, events.length]);
@@ -190,6 +260,97 @@ export default function EventPage({ user }: { user?: any } = {}) {
     if (!isAssignedOnlyRole) return events;
     return events.filter((e) => isEventAssignedToUser(e, user));
   }, [events, isAssignedOnlyRole, user]);
+
+  // Keep every visible event's message list warm so unread badges and
+  // toasts stay accurate even while the thread panel is closed. This
+  // mirrors EventThreadPanel's own polling pattern, just fanned out
+  // across every event this user can see.
+  useEffect(() => {
+    if (!scopedEvents.length) return;
+
+    const pollMessages = () => {
+      scopedEvents.forEach((e) => dispatch(fetchEventMessagesRequest(e.id)));
+    };
+
+    pollMessages();
+    const interval = setInterval(pollMessages, MESSAGE_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [scopedEvents, dispatch]);
+
+  const markEventRead = (eventId: string) => {
+    const msgs: any[] = messagesByEvent?.[eventId] || [];
+    const latestTs = msgs.length
+      ? new Date(msgs[msgs.length - 1].createdAt).getTime()
+      : Date.now();
+    setLastReadTs(eventId, user, latestTs);
+    setReadVersion((v) => v + 1);
+  };
+
+  const unreadCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    scopedEvents.forEach((e) => {
+      map[e.id] = countUnread(e.id, user, messagesByEvent);
+    });
+    return map;
+    // readVersion is a deliberate extra dependency: it has no value of its
+    // own, it just forces a recompute after markEventRead touches localStorage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedEvents, messagesByEvent, user, readVersion]);
+
+  // Fire a toast the moment any event's message count goes up, as long as
+  // that event's thread isn't the one currently open (someone looking at
+  // a thread doesn't need a toast about the message they can already see).
+  const prevMessageCountsRef = useRef<Record<string, number>>({});
+  const messagesInitializedRef = useRef(false);
+
+  useEffect(() => {
+    const prevCounts = prevMessageCountsRef.current;
+    const nextCounts: Record<string, number> = {};
+
+    Object.keys(messagesByEvent || {}).forEach((eventId) => {
+      nextCounts[eventId] = (messagesByEvent[eventId] || []).length;
+    });
+
+    if (messagesInitializedRef.current) {
+      Object.keys(nextCounts).forEach((eventId) => {
+        const prevCount = prevCounts[eventId] || 0;
+        const nextCount = nextCounts[eventId];
+        if (nextCount <= prevCount) return;
+
+        const msgs: any[] = messagesByEvent[eventId] || [];
+        const latest = msgs[msgs.length - 1];
+        const isOwnLatest = Boolean(user?.email && latest?.senderEmail === user.email);
+        if (isOwnLatest) return;
+
+        const isPanelOpen = chatEvent?.id === eventId;
+        if (isPanelOpen) return;
+
+        const addedCount = nextCount - prevCount;
+        const ev = events.find((e) => e.id === eventId);
+        const evLabel = ev?.name || ev?.eventName || "Event";
+        const titleLabel =
+          addedCount > 1 ? `${addedCount} new messages` : "New message";
+
+        notification.open({
+          key: `event-msg-${eventId}`,
+          message: `${titleLabel} - ${evLabel}`,
+          description: latest?.text
+            ? `${latest.senderName || "Someone"}: ${latest.text}`
+            : undefined,
+          icon: <MessageOutlined style={{ color: "#fac775" }} />,
+          placement: "topRight",
+          duration: 5,
+          onClick: () => {
+            if (ev) setChatEvent(ev);
+          },
+        });
+      });
+    }
+
+    prevMessageCountsRef.current = nextCounts;
+    messagesInitializedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesByEvent, chatEvent, events, user]);
 
   const counts = useMemo(
     () =>
@@ -251,16 +412,18 @@ export default function EventPage({ user }: { user?: any } = {}) {
     setCreateOpen(true);
   };
 
-  const handleSave = (values: any) => {
+  const handleSave = async (values: any) => {
+    if (!editEvent) return;
     const clean = { ...values, members: Number(values.members || 0) };
 
-    if (editEvent) {
-      setEvents((prev) =>
-        prev.map((e) => (e.id === editEvent.id ? { ...e, ...clean } : e))
-      );
-      message.success("Event updated");
+    const { ok, message: errMsg } = await patchEventOnServer(editEvent.id, clean);
+    if (!ok) {
+      message.error(errMsg || "Failed to update event.");
+      return;
     }
 
+    message.success("Event updated");
+    dispatch(getEvents());
     setCreateOpen(false);
     setEditEvent(null);
     form.resetFields();
@@ -269,7 +432,6 @@ export default function EventPage({ user }: { user?: any } = {}) {
   const handleRefresh = () => {
     setIsLoading(true);
     dispatch(getEvents());
-    setEvents(readStoredEvents());
     setTimeout(() => {
       setIsLoading(false);
       message.success("Events refreshed");
@@ -299,18 +461,12 @@ export default function EventPage({ user }: { user?: any } = {}) {
     }
   };
 
-  const handleAssignSave = (assignedList: any[]) => {
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === assignEvent?.id
-          ? {
-              ...e,
-              members: assignedList.length,
-              assignedMembersList: assignedList,
-            }
-          : e
-      )
-    );
+  // TeamAssignmentPage already PATCHed /assign-team itself (via its own
+  // fetch call) and that endpoint already created the notification — this
+  // just refreshes this admin's Redux state from the server so the list
+  // reflects the new assignment immediately.
+  const handleAssignSave = (_assignedList: any[]) => {
+    dispatch(getEvents());
     setAssignEvent(null);
   };
 
@@ -319,10 +475,16 @@ export default function EventPage({ user }: { user?: any } = {}) {
     setShowLocationPicker(true);
   };
 
-  const handleLocationSave = (location: LocationData) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === locationEventId ? { ...e, location } : e))
-    );
+  const handleLocationSave = async (location: LocationData) => {
+    if (!locationEventId) return;
+
+    const { ok, message: errMsg } = await patchEventOnServer(locationEventId, { location });
+    if (!ok) {
+      message.error(errMsg || "Failed to save venue location.");
+      return;
+    }
+
+    dispatch(getEvents());
     setViewEvent((current: any) =>
       current && current.id === locationEventId ? { ...current, location } : current
     );
@@ -334,10 +496,14 @@ export default function EventPage({ user }: { user?: any } = {}) {
     message.success("Venue location pinned");
   };
 
-  const removeLocation = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === eventId ? { ...e, location: null } : e))
-    );
+  const removeLocation = async (eventId: string) => {
+    const { ok, message: errMsg } = await patchEventOnServer(eventId, { location: null });
+    if (!ok) {
+      message.error(errMsg || "Failed to remove location.");
+      return;
+    }
+
+    dispatch(getEvents());
     setViewEvent((current: any) =>
       current && current.id === eventId ? { ...current, location: null } : current
     );
@@ -419,15 +585,23 @@ export default function EventPage({ user }: { user?: any } = {}) {
         />
       </Tooltip>
       <Tooltip title="Team chat">
-        <Button
-          type="text"
-          icon={<MessageOutlined />}
-          className="event-action-btn chat"
-          onClick={(e) => {
-            e.stopPropagation();
-            setChatEvent(record);
-          }}
-        />
+        <Badge
+          size="small"
+          count={unreadCounts[record.id] || 0}
+          overflowCount={99}
+          offset={[-2, 2]}
+          className="event-chat-badge"
+        >
+          <Button
+            type="text"
+            icon={<MessageOutlined />}
+            className="event-action-btn chat"
+            onClick={(e) => {
+              e.stopPropagation();
+              setChatEvent(record);
+            }}
+          />
+        </Badge>
       </Tooltip>
       <Tooltip title="Show QR code">
         <Button
@@ -549,7 +723,7 @@ export default function EventPage({ user }: { user?: any } = {}) {
         theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 8 } }}
       >
         <TeamAssignmentPage
-          user={undefined}
+          user={user}
           event={assignEvent}
           onPrevious={() => setAssignEvent(null)}
           onNext={handleAssignSave}
@@ -589,10 +763,10 @@ export default function EventPage({ user }: { user?: any } = {}) {
           </div>
 
           <div className="event-hero-art" aria-hidden="true">
-            {initialEvents.slice(0, 3).map((e, i) => (
+            {heroArtPhotos.map((src, i) => (
               <img
-                key={e.id}
-                src={e.image}
+                key={src}
+                src={src}
                 alt=""
                 className={`event-hero-photo photo-${i + 1}`}
               />
@@ -762,11 +936,19 @@ export default function EventPage({ user }: { user?: any } = {}) {
                             />
                           </Tooltip>
                           <Tooltip title="Team chat">
-                            <Button
-                              type="text"
-                              icon={<MessageOutlined />}
-                              onClick={() => setChatEvent(event)}
-                            />
+                            <Badge
+                              size="small"
+                              count={unreadCounts[event.id] || 0}
+                              overflowCount={99}
+                              offset={[-2, 2]}
+                              className="event-chat-badge"
+                            >
+                              <Button
+                                type="text"
+                                icon={<MessageOutlined />}
+                                onClick={() => setChatEvent(event)}
+                              />
+                            </Badge>
                           </Tooltip>
                           <Tooltip title="Show QR code">
                             <Button
@@ -916,7 +1098,9 @@ export default function EventPage({ user }: { user?: any } = {}) {
               <div className="event-modal-actions">
                 <Button onClick={() => setViewEvent(null)}>Close</Button>
                 <Button icon={<MessageOutlined />} onClick={() => setChatEvent(viewEvent)}>
-                  Team Chat
+                  {unreadCounts[viewEvent.id]
+                    ? `Team Chat (${unreadCounts[viewEvent.id]})`
+                    : "Team Chat"}
                 </Button>
                 <Button icon={<QrcodeOutlined />} onClick={() => setQrEvent(viewEvent)}>
                   Show QR
@@ -1130,7 +1314,13 @@ export default function EventPage({ user }: { user?: any } = {}) {
 
         <EventQRModal event={qrEvent} onClose={() => setQrEvent(null)} />
 
-        <EventThreadPanel event={chatEvent} onClose={() => setChatEvent(null)} user={user} />
+        <EventThreadPanel
+          event={chatEvent}
+          onClose={() => setChatEvent(null)}
+          user={user}
+          onMessagesSeen={markEventRead}
+          unreadAtOpen={chatEvent ? unreadCounts[chatEvent.id] || 0 : 0}
+        />
       </main>
     </ConfigProvider>
   );
