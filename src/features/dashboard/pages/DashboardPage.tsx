@@ -1,13 +1,29 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import {Avatar,Badge,Button,Card,Col,ConfigProvider,DatePicker,Drawer,Empty,Form,Input,InputNumber,message,Progress,Row,Segmented,Select,Space,Statistic,Table,Tag,Tooltip,Typography,} from "antd";
-import {ArrowRightOutlined,CalendarOutlined,CameraOutlined,CheckCircleOutlined,CloseOutlined,ClockCircleOutlined,CopyOutlined,DollarOutlined,EnvironmentOutlined,EyeOutlined,FireOutlined,FlagOutlined,HistoryOutlined,HourglassOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,QuestionCircleOutlined,RiseOutlined,RocketOutlined,SafetyCertificateOutlined,SearchOutlined,SunOutlined,TeamOutlined,ThunderboltFilled,UsergroupAddOutlined,UserOutlined,VideoCameraOutlined,BulbOutlined,} from "@ant-design/icons";
+import {
+  Avatar, Badge, Button, Card, Col, ConfigProvider, Drawer, Empty, Input,
+  message, Modal, Progress, Row, Segmented, Space, Statistic, Table, Tag,
+  Tooltip, Typography,
+} from "antd";
+import {
+  ArrowRightOutlined, CalendarOutlined, CameraOutlined, CheckCircleOutlined,
+  CloseOutlined, ClockCircleOutlined, CopyOutlined, DeleteOutlined,
+  DollarOutlined, EnvironmentOutlined, EyeOutlined, FireOutlined,
+  FlagOutlined, HistoryOutlined, HourglassOutlined, PhoneOutlined,
+  PictureOutlined, PlusOutlined, QuestionCircleOutlined, RiseOutlined,
+  RocketOutlined, SafetyCertificateOutlined, SearchOutlined, SunOutlined,
+  TeamOutlined, ThunderboltFilled, UsergroupAddOutlined, UserOutlined,
+  VideoCameraOutlined, BulbOutlined,
+} from "@ant-design/icons";
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "./DashboardPage.css";
+// Adjust this path if DashboardPage sits at a different depth than EventPage
+import { getEvents } from "../../../redux/actions/eventActions";
+import PipelineEventPanel from "./PipelineEventPanel";
 
 dayjs.extend(customParseFormat);
 
@@ -20,11 +36,9 @@ const STUDIO_LAT = 13.0827;
 const STUDIO_LON = 80.2707;
 const STUDIO_LABEL = "Chennai";
 
-const EVENTS_STORAGE_KEY = "ax.events.v1";
-const EVENTS_UPDATED_EVENT = "eventsBoardUpdated";
 const EVENTS_LIST_LIMIT = 5;
 
-const eventTypes = ["Wedding", "Reception", "Corporate", "Family", "Birthday", "Engagement"];
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
 interface StudioEvent {
   id: string;
@@ -47,77 +61,51 @@ interface ParsedStudioEvent extends StudioEvent {
   dateObj: dayjs.Dayjs;
 }
 
-const DEFAULT_EVENTS: StudioEvent[] = [
-  {
-    id: "ev-1001",
-    name: "John - Wedding",
-    type: "Wedding",
-    date: "Jun 16, 2026",
-    time: "12:00 AM",
-    address: "mettupalayam",
-    city: "coimbatore",
-    customer: "Apsi",
-    status: "DRAFT",
-    pipeline: "Converted",
-    members: 0,
-    budget: "INR 1.8L",
-    image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "ev-1002",
-    name: "Aarav - Reception",
-    type: "Reception",
-    date: "Jun 20, 2026",
-    time: "06:30 PM",
-    address: "Le Meridien Hall",
-    city: "Chennai",
-    customer: "Meera",
-    status: "LIVE",
-    pipeline: "Booked",
-    members: 6,
-    budget: "INR 2.4L",
-    image:
-      "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "ev-1003",
-    name: "Studio Launch Night",
-    type: "Corporate",
-    date: "Jul 02, 2026",
-    time: "05:00 PM",
-    address: "Race Course Road",
-    city: "Coimbatore",
-    customer: "Nova Labs",
-    status: "PLANNED",
-    pipeline: "Proposal",
-    members: 3,
-    budget: "INR 95K",
-    image:
-      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=1200&q=80",
-  },
-];
+/* ---------- Backend sync (same pattern as EventPage.tsx) ---------- */
 
-const readStoredEvents = (): StudioEvent[] => {
-  if (typeof window === "undefined") return DEFAULT_EVENTS;
-
+async function patchEventOnServer(
+  id: string,
+  payload: Record<string, any>
+): Promise<{ ok: boolean; message?: string }> {
   try {
-    const saved = window.localStorage.getItem(EVENTS_STORAGE_KEY);
-    const parsed = saved ? JSON.parse(saved) : null;
-    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_EVENTS;
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      return { ok: false, message: body?.message || "Server update failed." };
+    }
+    return { ok: true };
   } catch {
-    return DEFAULT_EVENTS;
+    return { ok: false, message: "Network error." };
   }
-};
+}
 
-const persistEvents = (updated: StudioEvent[]) => {
+// NOTE: guessed endpoint — confirm this route exists on the backend.
+async function deleteEventOnServer(id: string): Promise<{ ok: boolean; message?: string }> {
   try {
-    window.localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event(EVENTS_UPDATED_EVENT));
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${id}`, {
+      method: "DELETE",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || (body && body.success === false)) {
+      return { ok: false, message: body?.message || "Server delete failed." };
+    }
+    return { ok: true };
   } catch {
-    // ignore storage failures
+    return { ok: false, message: "Network error." };
   }
-};
+}
 
 const parseEventDateTime = (dateStr: string, timeStr?: string) => {
   if (timeStr) {
@@ -167,64 +155,6 @@ const getGreeting = (date: Date) => {
   if (hour < 17) return "Good afternoon";
   if (hour < 21) return "Good evening";
   return "Burning the midnight oil";
-};
-
-const triggerConfetti = () => {
-  const canvas = document.createElement("canvas");
-  canvas.className = "confetti-canvas";
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  document.body.appendChild(canvas);
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    document.body.removeChild(canvas);
-    return;
-  }
-
-  const colors = ["#38bdf8", "#22c55e", "#f59e0b", "#f472b6", "#a78bfa"];
-  const particles = Array.from({ length: 120 }, () => ({
-    x: canvas.width / 2 + (Math.random() - 0.5) * 120,
-    y: canvas.height * 0.32,
-    vx: (Math.random() - 0.5) * 9,
-    vy: Math.random() * -9 - 3,
-    size: Math.random() * 6 + 4,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    rotation: Math.random() * 360,
-    spin: (Math.random() - 0.5) * 14,
-    gravity: 0.24 + Math.random() * 0.1,
-  }));
-
-  let frame = 0;
-  const maxFrames = 110;
-
-  const animate = () => {
-    frame += 1;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    particles.forEach((particle) => {
-      particle.vy += particle.gravity;
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.rotation += particle.spin;
-
-      ctx.save();
-      ctx.translate(particle.x, particle.y);
-      ctx.rotate((particle.rotation * Math.PI) / 180);
-      ctx.fillStyle = particle.color;
-      ctx.globalAlpha = Math.max(0, 1 - frame / maxFrames);
-      ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size * 0.6);
-      ctx.restore();
-    });
-
-    if (frame < maxFrames) {
-      requestAnimationFrame(animate);
-    } else {
-      document.body.removeChild(canvas);
-    }
-  };
-
-  requestAnimationFrame(animate);
 };
 
 // ---------------------------------------------------------------------------
@@ -472,7 +402,7 @@ const AiBriefingPanel = ({ todaysEvents, tomorrowsEvents, weather, busiestUpcomi
 };
 
 // ---------------------------------------------------------------------------
-// Pipeline Kanban — drag events between stages
+// Pipeline Kanban — drag events between stages, quick-add, delete
 // ---------------------------------------------------------------------------
 
 const PIPELINE_STAGES = ["Proposal", "Booked", "Live", "Done"] as const;
@@ -487,9 +417,11 @@ interface PipelineBoardProps {
   events: ParsedStudioEvent[];
   onMove: (eventId: string, stage: PipelineStage) => void;
   onSelect: (event: ParsedStudioEvent) => void;
+  onDelete: (eventId: string, eventName: string) => void;
+  onAddNew: () => void;
 }
 
-const PipelineBoard = ({ events, onMove, onSelect }: PipelineBoardProps) => {
+const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: PipelineBoardProps) => {
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
 
   const grouped = useMemo(() => {
@@ -522,7 +454,14 @@ const PipelineBoard = ({ events, onMove, onSelect }: PipelineBoardProps) => {
         >
           <div className="kanban-column-head">
             <Text strong>{stage}</Text>
-            <Tag>{grouped[stage].length}</Tag>
+            <Space size={6}>
+              <Tag>{grouped[stage].length}</Tag>
+              <Tooltip title="Add new shoot">
+                <button type="button" className="kanban-add-btn" onClick={onAddNew}>
+                  <PlusOutlined />
+                </button>
+              </Tooltip>
+            </Space>
           </div>
 
           <div className="kanban-column-body">
@@ -535,6 +474,20 @@ const PipelineBoard = ({ events, onMove, onSelect }: PipelineBoardProps) => {
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", event.id)}
                   onClick={() => onSelect(event)}
                 >
+                  <Tooltip title="Delete shoot">
+                    <button
+                      type="button"
+                      className="kanban-card-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(event.id, event.name);
+                      }}
+                      aria-label="Delete shoot"
+                    >
+                      <DeleteOutlined />
+                    </button>
+                  </Tooltip>
+
                   <Text strong className="kanban-card-title">{event.name}</Text>
                   <div className="kanban-card-meta">
                     <CalendarOutlined /> <span>{event.date}</span>
@@ -626,7 +579,7 @@ const SpeedDialFab = ({ actions }: SpeedDialFabProps) => {
 };
 
 // ---------------------------------------------------------------------------
-// Custom modal
+// Custom modal (used for the shortcuts overlay)
 // ---------------------------------------------------------------------------
 
 interface CustomModalProps {
@@ -663,15 +616,6 @@ const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps)
     </div>
   );
 };
-
-interface CreateEventFormValues {
-  name: string;
-  type: string;
-  customer: string;
-  city: string;
-  schedule: dayjs.Dayjs;
-  budget: number;
-}
 
 // ---------------------------------------------------------------------------
 // Portal-based live search spotlight — escapes the panel backdrop-filter
@@ -735,8 +679,9 @@ const SearchSpotlight = ({ anchorRef, visible, hits }: SearchSpotlightProps) => 
 };
 
 // ---------------------------------------------------------------------------
-// Event sidebar — the redesigned Drawer: cover hero, live stage stepper,
-// budget-share ring, and quick actions (view / copy / advance stage).
+// Event sidebar — cover hero, live stage stepper, budget-share ring, and
+// quick actions (view / copy / advance stage). Used by the Users/Events/
+// Schedule tables — Pipeline Board cards open PipelineEventPanel instead.
 // ---------------------------------------------------------------------------
 
 interface EventSidebarProps {
@@ -920,23 +865,25 @@ const EventSidebar = ({ event, totalBudget, onClose, onViewFull, onAdvanceStage 
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user } = useSelector((state: any) => state.auth);
   const displayEmail = user?.email || "guest@apenturexstudios.com";
   const displayName = displayEmail.split("@")[0];
+
+  // Single source of truth: Redux, populated from GET /studio/events —
+  // same store EventPage.tsx uses. No more localStorage ("ax.events.v1"),
+  // which is why events created on the Events page weren't showing up here.
+  const { events: reduxEvents } = useSelector((state: any) => state.event);
+  const events: StudioEvent[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
   const [featureIndex, setFeatureIndex] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [dateFilter, setDateFilter] = useState("All");
   const [selectedEvent, setSelectedEvent] = useState<ParsedStudioEvent | null>(null);
+  const [pipelineEvent, setPipelineEvent] = useState<ParsedStudioEvent | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-
-  const [events, setEvents] = useState<StudioEvent[]>(() => readStoredEvents());
-
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm] = Form.useForm<CreateEventFormValues>();
-  const [submitting, setSubmitting] = useState(false);
 
   const searchAnchorRef = useRef<HTMLDivElement | null>(null);
   const weather = useGoldenHourWeather();
@@ -974,19 +921,17 @@ const DashboardPage = () => {
     [displayName, displayEmail, user]
   );
 
+  // Fetch from the backend on mount, and again whenever the tab regains
+  // focus, so events created elsewhere (Events page, another tab) show up.
   useEffect(() => {
-    const syncEvents = () => setEvents(readStoredEvents());
+    dispatch(getEvents());
+  }, [dispatch]);
 
+  useEffect(() => {
+    const syncEvents = () => dispatch(getEvents());
     window.addEventListener("focus", syncEvents);
-    window.addEventListener("storage", syncEvents);
-    window.addEventListener(EVENTS_UPDATED_EVENT, syncEvents);
-
-    return () => {
-      window.removeEventListener("focus", syncEvents);
-      window.removeEventListener("storage", syncEvents);
-      window.removeEventListener(EVENTS_UPDATED_EVENT, syncEvents);
-    };
-  }, []);
+    return () => window.removeEventListener("focus", syncEvents);
+  }, [dispatch]);
 
   const eventsWithDate = useMemo<ParsedStudioEvent[]>(
     () => events.map((event) => ({ ...event, dateObj: parseEventDateTime(event.date, event.time) })),
@@ -1022,6 +967,15 @@ const DashboardPage = () => {
       setSelectedEvent(refreshed);
     }
   }, [eventsWithDate, selectedEvent]);
+
+  // Keep the Pipeline Board's own side panel in sync the same way
+  useEffect(() => {
+    if (!pipelineEvent) return;
+    const refreshed = eventsWithDate.find((event) => event.id === pipelineEvent.id);
+    if (refreshed && refreshed.pipeline !== pipelineEvent.pipeline) {
+      setPipelineEvent(refreshed);
+    }
+  }, [eventsWithDate, pipelineEvent]);
 
   const pulseItems = useMemo(() => {
     const todayItems = todaysEvents.map(
@@ -1072,6 +1026,8 @@ const DashboardPage = () => {
     return () => clearInterval(clockTimer);
   }, []);
 
+  const goToCreateEvent = () => navigate("/events/create");
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -1085,14 +1041,14 @@ const DashboardPage = () => {
 
       if (e.key.toLowerCase() === "n") {
         e.preventDefault();
-        createForm.resetFields();
-        setCreateModalOpen(true);
+        goToCreateEvent();
       }
     };
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [createForm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredUsers = useMemo(() => {
     const value = searchText.toLowerCase();
@@ -1180,58 +1136,37 @@ const DashboardPage = () => {
     return [...eventHits, ...userHits];
   }, [searchText, filteredEvents, filteredUsers]);
 
-  // ---- Create Event modal handlers ----
-  const openCreateModal = () => {
-    createForm.resetFields();
-    setCreateModalOpen(true);
-  };
-
-  const closeCreateModal = () => {
-    if (submitting) return;
-    setCreateModalOpen(false);
-  };
-
-  const handleCreateEvent = async (values: CreateEventFormValues) => {
-    setSubmitting(true);
-    try {
-      const schedule = values.schedule;
-      const newEvent: StudioEvent = {
-        id: `ev-${Date.now()}`,
-        name: values.name,
-        type: values.type,
-        date: schedule.format("MMM D, YYYY"),
-        time: schedule.format("hh:mm A"),
-        address: values.city,
-        city: values.city,
-        customer: values.customer,
-        status: "DRAFT",
-        pipeline: "Proposal",
-        members: 0,
-        budget: `INR ${Number(values.budget).toLocaleString("en-IN")}`,
-      };
-
-      setEvents((prev) => {
-        const updated = [newEvent, ...prev];
-        persistEvents(updated);
-        return updated;
-      });
-
-      message.success("Event created successfully");
-      triggerConfetti();
-      setCreateModalOpen(false);
-      createForm.resetFields();
-    } finally {
-      setSubmitting(false);
+  // ---- Pipeline stage move (drag & drop / sidebar stepper / panel rail) ----
+  const handleMovePipeline = async (eventId: string, stage: PipelineStage) => {
+    const { ok, message: errMsg } = await patchEventOnServer(eventId, { pipeline: stage });
+    if (!ok) {
+      message.error(errMsg || "Failed to update stage.");
+      return;
     }
+    dispatch(getEvents());
+    message.success(`Moved to ${stage}`);
   };
 
-  const handleMovePipeline = (eventId: string, stage: PipelineStage) => {
-    setEvents((prev) => {
-      const updated = prev.map((event) => (event.id === eventId ? { ...event, pipeline: stage } : event));
-      persistEvents(updated);
-      return updated;
+  // ---- Pipeline delete ----
+  const handleDeleteEvent = (eventId: string, eventName: string) => {
+    Modal.confirm({
+      title: "Delete this shoot?",
+      content: `"${eventName}" will be permanently removed.`,
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      cancelText: "Cancel",
+      onOk: async () => {
+        const { ok, message: errMsg } = await deleteEventOnServer(eventId);
+        if (!ok) {
+          message.error(errMsg || "Failed to delete event.");
+          return;
+        }
+        if (selectedEvent?.id === eventId) setSelectedEvent(null);
+        if (pipelineEvent?.id === eventId) setPipelineEvent(null);
+        dispatch(getEvents());
+        message.success("Event deleted");
+      },
     });
-    message.success(`Moved to ${stage}`);
   };
 
   const userColumns = [
@@ -1334,7 +1269,7 @@ const DashboardPage = () => {
   ];
 
   const speedDialActions: SpeedDialAction[] = [
-    { key: "create", label: "New Event", icon: <PlusOutlined />, run: openCreateModal },
+    { key: "create", label: "New Event", icon: <PlusOutlined />, run: goToCreateEvent },
     { key: "users", label: "Users", icon: <UsergroupAddOutlined />, run: goToUsersPage },
     { key: "events", label: "Events", icon: <VideoCameraOutlined />, run: () => goToEventPage() },
     { key: "shortcuts", label: "Shortcuts", icon: <QuestionCircleOutlined />, run: () => setShortcutsOpen(true) },
@@ -1588,7 +1523,13 @@ const DashboardPage = () => {
           }
           className="dashboard-panel"
         >
-          <PipelineBoard events={eventsWithDate} onMove={handleMovePipeline} onSelect={setSelectedEvent} />
+          <PipelineBoard
+            events={eventsWithDate}
+            onMove={handleMovePipeline}
+            onSelect={setPipelineEvent}
+            onDelete={handleDeleteEvent}
+            onAddNew={goToCreateEvent}
+          />
         </Card>
 
         <Card
@@ -1669,7 +1610,7 @@ const DashboardPage = () => {
               type="primary"
               shape="circle"
               icon={<PlusOutlined />}
-              onClick={openCreateModal}
+              onClick={goToCreateEvent}
             />
           }
           className="dashboard-panel schedule-panel"
@@ -1694,7 +1635,7 @@ const DashboardPage = () => {
                     type="primary"
                     shape="circle"
                     icon={<PlusOutlined />}
-                    onClick={openCreateModal}
+                    onClick={goToCreateEvent}
                   />
                 </div>
               ),
@@ -1702,7 +1643,6 @@ const DashboardPage = () => {
           />
         </Card>
 
-        {/* Redesigned event details sidebar */}
         <EventSidebar
           event={selectedEvent}
           totalBudget={totalBudget}
@@ -1711,110 +1651,14 @@ const DashboardPage = () => {
           onAdvanceStage={handleMovePipeline}
         />
 
-        {/* Create Event modal — CustomModal, matches UsersPage edit modal styling */}
-        <CustomModal open={createModalOpen} onClose={closeCreateModal} width={660}>
-          <div className="modal-shell">
-            <div className="modal-title-row">
-              <Avatar className="modal-small-avatar">
-                <CalendarOutlined />
-              </Avatar>
-              <Title level={3}>Create Event</Title>
-            </div>
-
-            <Form<CreateEventFormValues>
-              form={createForm}
-              layout="vertical"
-              requiredMark={false}
-              onFinish={handleCreateEvent}
-            >
-              <div className="edit-form-grid">
-                <Form.Item
-                  name="name"
-                  label="Shoot Name"
-                  rules={[{ required: true, message: "Please enter a shoot name" }]}
-                >
-                  <Input placeholder="e.g. John - Wedding" />
-                </Form.Item>
-
-                <Form.Item
-                  name="type"
-                  label="Event Type"
-                  rules={[{ required: true, message: "Please select an event type" }]}
-                  initialValue="Wedding"
-                >
-                  <Select
-                    classNames={{ popup: { root: "dark-select-dropdown" } }}
-                    options={eventTypes.map((type) => ({ value: type, label: type }))}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  name="customer"
-                  label="Customer"
-                  rules={[{ required: true, message: "Please enter a customer name" }]}
-                >
-                  <Input placeholder="e.g. Apsi" />
-                </Form.Item>
-
-                <Form.Item
-                  name="city"
-                  label="City"
-                  rules={[{ required: true, message: "Please enter a city" }]}
-                >
-                  <Input placeholder="e.g. Chennai" />
-                </Form.Item>
-
-                <Form.Item
-                  name="schedule"
-                  label="Date & Time"
-                  rules={[{ required: true, message: "Please select a date and time" }]}
-                  initialValue={dayjs()}
-                >
-                  <DatePicker
-                    showTime={{ format: "hh:mm A", use12Hours: true }}
-                    format="MMM D, YYYY hh:mm A"
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  name="budget"
-                  label="Budget (Rs.)"
-                  rules={[
-                    { required: true, message: "Please enter a budget" },
-                    {
-                      validator: (_, value) =>
-                        value === undefined || value === null || value >= 0
-                          ? Promise.resolve()
-                          : Promise.reject(new Error("Budget cannot be negative")),
-                    },
-                  ]}
-                >
-                  <InputNumber style={{ width: "100%" }} min={0} placeholder="e.g. 18000" />
-                </Form.Item>
-              </div>
-
-              <div className="modal-action-row">
-                <Tooltip title="Discard event">
-                  <Button className="modal-cancel-btn" onClick={closeCreateModal} disabled={submitting}>
-                    Cancel
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Create event">
-                  <Button
-                    htmlType="submit"
-                    type="primary"
-                    icon={<CheckCircleOutlined />}
-                    className="invite-btn-styled"
-                    loading={submitting}
-                  >
-                    Create
-                  </Button>
-                </Tooltip>
-              </div>
-            </Form>
-          </div>
-        </CustomModal>
+        <PipelineEventPanel
+          event={pipelineEvent}
+          totalBudget={totalBudget}
+          onClose={() => setPipelineEvent(null)}
+          onAdvanceStage={handleMovePipeline}
+          onDelete={handleDeleteEvent}
+          onViewFull={(id) => goToEventPage(id)}
+        />
 
         {/* Keyboard shortcuts overlay */}
         <CustomModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} width={420}>
