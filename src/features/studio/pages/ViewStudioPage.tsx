@@ -1,5 +1,13 @@
-import { useMemo, useState } from "react";
-import {CameraOutlined,EditOutlined,PictureOutlined,ReloadOutlined,SaveOutlined,StopOutlined,} from "@ant-design/icons";
+import { useMemo, useRef, useState } from "react";
+import {
+  CameraOutlined,
+  EditOutlined,
+  PictureOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+  StopOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { Button, Form, Input, Select, Tooltip } from "antd";
 import "./ViewStudioPage.css";
 
@@ -19,6 +27,11 @@ const DEFAULT_STUDIO_DATA = {
   specializations: ["Portrait Photography"],
 };
 
+const DEFAULT_PHOTOS = [
+  "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=900&q=80",
+  "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80",
+  "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
+];
 
 const REQUIRED_FIELDS = [
   "studioName",
@@ -42,7 +55,7 @@ const saveLS = (k, v) => {
   try {
     localStorage.setItem(k, JSON.stringify(v));
   } catch {
-    
+    // storage unavailable — silently skip persistence
   }
 };
 
@@ -67,7 +80,6 @@ const specializationOptions = [
   { value: "Food Photography", label: "Food Photography" },
 ];
 
-
 const rules = {
   studioName: [
     { required: true, message: "Studio name is required" },
@@ -77,10 +89,7 @@ const rules = {
   ],
   phoneNumber: [
     { required: true, message: "Phone number is required" },
-    {
-      pattern: /^[0-9]{10}$/,
-      message: "Enter a valid 10-digit phone number",
-    },
+    { pattern: /^[0-9]{10}$/, message: "Enter a valid 10-digit phone number" },
   ],
   address: [
     { required: true, message: "Address is required" },
@@ -89,31 +98,19 @@ const rules = {
   ],
   city: [
     { required: true, message: "City is required" },
-    {
-      pattern: /^[A-Za-z\s.'-]+$/,
-      message: "City can only contain letters",
-    },
+    { pattern: /^[A-Za-z\s.'-]+$/, message: "City can only contain letters" },
   ],
   state: [
     { required: true, message: "State is required" },
-    {
-      pattern: /^[A-Za-z\s.'-]+$/,
-      message: "State can only contain letters",
-    },
+    { pattern: /^[A-Za-z\s.'-]+$/, message: "State can only contain letters" },
   ],
   country: [
     { required: true, message: "Country is required" },
-    {
-      pattern: /^[A-Za-z\s.'-]+$/,
-      message: "Country can only contain letters",
-    },
+    { pattern: /^[A-Za-z\s.'-]+$/, message: "Country can only contain letters" },
   ],
   postalCode: [
     { required: true, message: "Postal code is required" },
-    {
-      pattern: /^[0-9]{6}$/,
-      message: "Enter a valid 6-digit postal code",
-    },
+    { pattern: /^[0-9]{6}$/, message: "Enter a valid 6-digit postal code" },
   ],
   about: [{ max: 1000, message: "About must be under 1000 characters" }],
   services: [
@@ -132,16 +129,13 @@ const rules = {
       validator: (_rule, value) => {
         if (!value || value.length === 0) return Promise.resolve();
         if (value.length > 10) {
-          return Promise.reject(
-            new Error("You can select up to 10 specializations")
-          );
+          return Promise.reject(new Error("You can select up to 10 specializations"));
         }
         return Promise.resolve();
       },
     },
   ],
 };
-
 
 function areRequiredFieldsFilled(values) {
   return REQUIRED_FIELDS.every((key) => {
@@ -160,7 +154,6 @@ function Field({ name, label, required, children }: { name: any; label: any; req
         </span>
       }
       rules={rules[name] || []}
-    
       required={false}
       validateTrigger={["onChange", "onBlur"]}
     >
@@ -188,46 +181,63 @@ function ApertureIcon({ open }: { open: boolean }) {
   );
 }
 
+/** Camera-style exposure meter: reframes form validity as an exposure reading
+ *  instead of a plain disabled-button state, so editors get a legible signal
+ *  of how close the profile is to "correctly exposed" (ready to save). */
+function ExposureMeter({ percent, state }: { percent: number; state: "empty" | "under" | "balanced" | "error" }) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  const labels = {
+    empty: "No changes yet",
+    under: "Underexposed — required fields missing",
+    balanced: "Balanced — ready to save",
+    error: "Overexposed — fix the highlighted fields",
+  };
+  return (
+    <div className={`studio-exposure studio-exposure-${state}`} role="status">
+      <div className="studio-exposure-scale">
+        {["-2", "-1", "0", "+1", "+2"].map((tick) => (
+          <span key={tick} className="studio-exposure-tick">{tick}</span>
+        ))}
+      </div>
+      <div className="studio-exposure-track">
+        <div className="studio-exposure-fill" style={{ width: `${clamped}%` }} />
+        <div className="studio-exposure-needle" style={{ left: `${clamped}%` }} />
+      </div>
+      <span className="studio-exposure-label">{labels[state]}</span>
+    </div>
+  );
+}
+
 type FanAction = {
   key: string;
   tooltip: string;
   icon: React.ReactNode;
   className: string;
-  angle: number; 
   onClick?: () => void;
   disabled?: boolean;
   htmlType?: "submit" | "button";
   form?: string;
 };
 
-function FanSlot({ action, open, radius, index }: { action: FanAction; open: boolean; radius: number; index: number }) {
-  const rad = (action.angle * Math.PI) / 180;
-  const x = open ? radius * Math.cos(rad) : 0;
-  const y = open ? radius * Math.sin(rad) : 0;
-  const scale = open ? 1 : 0.5;
-
+function FanSlot({ action, open, index }: { action: FanAction; open: boolean; index: number }) {
   return (
     <div
       className={`studio-fan-slot ${open ? "studio-fan-slot-open" : ""}`}
-      style={{
-        transform: `translate(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px)) scale(${scale})`,
-        transitionDelay: open ? `${index * 55}ms` : "0ms",
-      }}
+      style={{ transitionDelay: open ? `${index * 55}ms` : `${(3 - index) * 35}ms` }}
     >
-      <Tooltip title={action.tooltip} placement="left" mouseEnterDelay={0.08}>
-        <Button
-          className={`studio-rail-btn ${action.className}`}
-          aria-label={action.tooltip}
-          type="primary"
-          htmlType={action.htmlType}
-          form={action.form}
-          disabled={action.disabled}
-          onClick={action.onClick}
-          tabIndex={open ? 0 : -1}
-        >
-          {action.icon}
-        </Button>
-      </Tooltip>
+      <span className="studio-fan-label">{action.tooltip}</span>
+      <Button
+        className={`studio-rail-btn ${action.className}`}
+        aria-label={action.tooltip}
+        type="primary"
+        htmlType={action.htmlType}
+        form={action.form}
+        disabled={action.disabled}
+        onClick={action.onClick}
+        tabIndex={open ? 0 : -1}
+      >
+        {action.icon}
+      </Button>
     </div>
   );
 }
@@ -239,17 +249,34 @@ export default function ViewStudioPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isFormValid, setIsFormValid] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
+  const [exposure, setExposure] = useState({ percent: 0, state: "empty" as "empty" | "under" | "balanced" | "error" });
+  const [photos, setPhotos] = useState<string[]>(() => loadLS("axsStudioPhotos", DEFAULT_PHOTOS));
+  const fileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
 
-  
-  const handleFieldsChange = () => {
-    const hasErrors = form
-      .getFieldsError()
-      .some(({ errors }) => errors.length > 0);
+  const computeExposure = () => {
     const values = form.getFieldsValue();
-    const filled = areRequiredFieldsFilled(values);
-    setIsFormValid(!hasErrors && filled);
+    const hasErrors = form.getFieldsError().some(({ errors }) => errors.length > 0);
+    const filledCount = REQUIRED_FIELDS.filter((key) => {
+      const v = values?.[key];
+      return v !== undefined && v !== null && String(v).trim() !== "";
+    }).length;
+    const percent = Math.round((filledCount / REQUIRED_FIELDS.length) * 100);
+
+    let state: "empty" | "under" | "balanced" | "error" = "empty";
+    if (hasErrors) state = "error";
+    else if (filledCount === 0) state = "empty";
+    else if (filledCount < REQUIRED_FIELDS.length) state = "under";
+    else state = "balanced";
+
+    setExposure({ percent, state });
+    return { hasErrors, filledCount, percent };
+  };
+
+  const handleFieldsChange = () => {
+    const { hasErrors, filledCount } = computeExposure();
+    setIsFormValid(!hasErrors && filledCount === REQUIRED_FIELDS.length);
   };
 
   const handleValuesChange = () => {
@@ -271,7 +298,7 @@ export default function ViewStudioPage() {
 
   const handleCancel = () => {
     form.setFieldsValue(initialValues);
-    form.resetFields(); 
+    form.resetFields();
     form.setFieldsValue(initialValues);
     setIsEditing(false);
     setHasChanges(false);
@@ -296,24 +323,39 @@ export default function ViewStudioPage() {
     window.location.href = "/profile";
   };
 
+  const handlePhotoPick = (slot: number) => {
+    fileInputRefs[slot].current?.click();
+  };
+
+  const handlePhotoChange = (slot: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotos((prev) => {
+        const next = [...prev];
+        next[slot] = String(reader.result);
+        saveLS("axsStudioPhotos", next);
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
   const actions: FanAction[] = [
     {
       key: "edit",
       tooltip: "Edit",
       icon: <EditOutlined />,
       className: "studio-rail-btn-edit",
-      angle: 250,
       onClick: handleEdit,
     },
     {
       key: "save",
-      tooltip:
-        isEditing && !isFormValid
-          ? "Fill all required fields correctly to save"
-          : "Submit",
+      tooltip: isEditing && !isFormValid ? "Fill all required fields correctly" : "Submit",
       icon: <SaveOutlined />,
       className: "studio-rail-btn-save",
-      angle: 210,
       htmlType: "submit",
       form: "studio-form",
       disabled: !isEditing || !hasChanges || !isFormValid,
@@ -323,7 +365,6 @@ export default function ViewStudioPage() {
       tooltip: "Reset",
       icon: <ReloadOutlined />,
       className: "studio-rail-btn-reset",
-      angle: 170,
       onClick: handleReset,
       disabled: !isEditing || !hasChanges,
     },
@@ -332,7 +373,6 @@ export default function ViewStudioPage() {
       tooltip: "Cancel",
       icon: <StopOutlined />,
       className: "studio-rail-btn-cancel",
-      angle: 130,
       onClick: handleCancel,
       disabled: !isEditing,
     },
@@ -340,20 +380,18 @@ export default function ViewStudioPage() {
 
   return (
     <main className="studio-page">
-      <div
-        className={`studio-shutter-flash ${justSaved ? "studio-shutter-flash-active" : ""}`}
-        aria-hidden="true"
-      />
+      <div className="studio-grain" aria-hidden="true" />
+      <div className={`studio-shutter-flash ${justSaved ? "studio-shutter-flash-active" : ""}`} aria-hidden="true" />
 
       <div className="studio-light-beam studio-light-beam-one" />
       <div className="studio-light-beam studio-light-beam-two" />
 
+      {/* Vertical lens-dock: fixed to the viewport edge, fully on-screen at every breakpoint */}
       <div className="studio-fan-layer" aria-label="Studio actions">
-        <Tooltip
-          title={isRailOpen ? "Close actions" : "Open actions"}
-          placement="left"
-          mouseEnterDelay={0.08}
-        >
+        {actions.map((action, index) => (
+          <FanSlot key={action.key} action={action} open={isRailOpen} index={index} />
+        ))}
+        <Tooltip title={isRailOpen ? "Close actions" : "Open actions"} placement="left" mouseEnterDelay={0.08}>
           <button
             type="button"
             className="studio-dock-toggle"
@@ -364,10 +402,6 @@ export default function ViewStudioPage() {
             <ApertureIcon open={isRailOpen} />
           </button>
         </Tooltip>
-
-       {actions.map((action, index) => (
-  <FanSlot key={action.key} action={action} open={isRailOpen} radius={90} index={index} />
-))}
       </div>
 
       <div className="studio-shell">
@@ -383,19 +417,31 @@ export default function ViewStudioPage() {
               <span> Studio Profile</span>
             </div>
             <h1 className="studio-title">My Studio</h1>
+            <p className="studio-subtitle">Tap a frame to swap in your own shots.</p>
           </div>
 
           <div className="studio-photo-stage">
             <div className="studio-focus-reticle" aria-hidden="true" />
-            <div className="studio-photo-card studio-photo-card-one" />
-            <div className="studio-photo-card studio-photo-card-two" />
-            <div className="studio-photo-card studio-photo-card-three" />
-            <button
-              className="studio-lens-mark"
-              type="button"
-              aria-label="Go to profile gallery"
-              onClick={goToProfile}
-            >
+            {photos.map((src, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`studio-photo-card studio-photo-card-${["one", "two", "three"][i]}`}
+                style={{ backgroundImage: `url(${src})` }}
+                onClick={() => handlePhotoPick(i)}
+                aria-label={`Replace studio photo ${i + 1}`}
+              >
+                <span className="studio-photo-swap"><UploadOutlined /></span>
+                <input
+                  ref={fileInputRefs[i]}
+                  type="file"
+                  accept="image/*"
+                  className="studio-photo-input"
+                  onChange={(e) => handlePhotoChange(i, e)}
+                />
+              </button>
+            ))}
+            <button className="studio-lens-mark" type="button" aria-label="Go to profile gallery" onClick={goToProfile}>
               <PictureOutlined />
             </button>
           </div>
@@ -417,6 +463,7 @@ export default function ViewStudioPage() {
           <section className="studio-glass-card">
             <header className="studio-card-header">
               <h2>Studio Details</h2>
+              {isEditing && <ExposureMeter percent={exposure.percent} state={exposure.state} />}
             </header>
 
             <div className="studio-grid">
@@ -440,7 +487,7 @@ export default function ViewStudioPage() {
                 <Input placeholder="State" />
               </Field>
 
-              <Field name="country" label="County" required>
+              <Field name="country" label="Country" required>
                 <Input placeholder="Country" />
               </Field>
 
@@ -457,7 +504,7 @@ export default function ViewStudioPage() {
 
             <div className="studio-grid studio-grid-portfolio">
               <Field name="about" label="About">
-                <TextArea rows={3} placeholder="About studio" />
+                <TextArea rows={3} placeholder="About studio" maxLength={1000} showCount />
               </Field>
 
               <Field name="services" label="Services">

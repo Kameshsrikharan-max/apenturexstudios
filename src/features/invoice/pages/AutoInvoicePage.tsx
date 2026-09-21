@@ -17,6 +17,8 @@ import {
   ThunderboltOutlined,
   CopyOutlined,
   CameraOutlined,
+  RiseOutlined,
+  WalletOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import Sidebar from "../../../components/UI/Sidebar";
@@ -63,6 +65,13 @@ const DEFAULT_NOTE =
 const NOTES_STORAGE_KEY = "axs_invoice_notes_v1";
 
 const formatINR = (v: number) => `₹ ${v.toLocaleString("en-IN")}`;
+
+const formatINRCompact = (v: number) => {
+  if (v >= 10000000) return `₹ ${(v / 10000000).toFixed(1)}Cr`;
+  if (v >= 100000) return `₹ ${(v / 100000).toFixed(1)}L`;
+  if (v >= 1000) return `₹ ${(v / 1000).toFixed(1)}K`;
+  return `₹ ${v}`;
+};
 
 const STATUS_META: Record<InvoiceStatus, { icon: React.ReactNode; color: string }> = {
   Draft: { icon: <FileTextOutlined />, color: "var(--inv-slate)" },
@@ -168,7 +177,8 @@ export default function AutoInvoicePage() {
       if (r.status === "Paid") collected += total;
     });
     const pct = invoiced > 0 ? Math.round((collected / invoiced) * 100) : 0;
-    return { invoiced, collected, pct };
+    const avg = rows.length > 0 ? Math.round(invoiced / rows.length) : 0;
+    return { invoiced, collected, pct, avg };
   }, [rows]);
 
   const overdueRows = useMemo(
@@ -176,7 +186,12 @@ export default function AutoInvoicePage() {
       rows
         .filter((r) => r.status === "Overdue")
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-        .slice(0, 8),
+        .slice(0, 6),
+    [rows]
+  );
+
+  const overdueTotal = useMemo(
+    () => rows.filter((r) => r.status === "Overdue").reduce((sum, r) => sum + computeAmounts(r).total, 0),
     [rows]
   );
 
@@ -253,7 +268,7 @@ export default function AutoInvoicePage() {
       title: "Invoice #",
       dataIndex: "invoiceNumber",
       key: "invoiceNumber",
-      width: 140,
+      width: 160,
       render: (text, row) => (
         <button type="button" className="inv-name-cell" onClick={() => setPreviewRow(row)}>
           <FileTextOutlined />
@@ -264,7 +279,7 @@ export default function AutoInvoicePage() {
     {
       title: "Event / Client",
       key: "event",
-      width: 200,
+      width: 260,
       render: (_, row) => (
         <span className="inv-soft-cell">
           <strong>{row.txn.eventName}</strong>
@@ -275,7 +290,7 @@ export default function AutoInvoicePage() {
     {
       title: "Amount",
       key: "amount",
-      width: 120,
+      width: 140,
       align: "right",
       sorter: (a, b) => computeAmounts(a).total - computeAmounts(b).total,
       render: (_, row) => <span>{formatINR(computeAmounts(row).total)}</span>,
@@ -284,7 +299,7 @@ export default function AutoInvoicePage() {
       title: "Due Date",
       dataIndex: "dueDate",
       key: "dueDate",
-      width: 150,
+      width: 170,
       sorter: (a, b) => a.dueDate.localeCompare(b.dueDate),
       render: (text, row) =>
         editingDueDate === row.transactionId ? (
@@ -314,7 +329,7 @@ export default function AutoInvoicePage() {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      width: 110,
+      width: 130,
       align: "center",
       filters: STATUS_ORDER.map((s) => ({ text: s, value: s })),
       onFilter: (value, row) => row.status === value,
@@ -330,7 +345,7 @@ export default function AutoInvoicePage() {
     {
       title: "Actions",
       key: "actions",
-      width: 140,
+      width: 160,
       align: "center",
       render: (_, row) => (
         <div className="inv-row-actions">
@@ -573,6 +588,118 @@ export default function AutoInvoicePage() {
                   </div>
                 </div>
 
+                {/* ---- Command Deck: Collections + Status mix + Needs attention,
+                    now leading the page so the money story reads before the
+                    invoice table does. ---- */}
+                <div className="inv-command-deck">
+                  <div className="inv-deck-card inv-collection-card">
+                    <span className="inv-deck-glow" aria-hidden="true" />
+                    <h3>
+                      <WalletOutlined /> Collections
+                    </h3>
+                    <div className="inv-stats-row">
+                      <div className="inv-ring" style={collectionRingStyle}>
+                        <div className="inv-ring-inner">
+                          <strong>{collectionStats.pct}%</strong>
+                          <span>collected</span>
+                        </div>
+                      </div>
+                      <div className="inv-progress-text">
+                        <div className="inv-summary-row">
+                          <span>Invoiced</span>
+                          <strong>{formatINR(collectionStats.invoiced)}</strong>
+                        </div>
+                        <div className="inv-summary-row">
+                          <span>Collected</span>
+                          <strong className="inv-value-green">{formatINR(collectionStats.collected)}</strong>
+                        </div>
+                        <div className="inv-summary-row">
+                          <span>Avg. invoice</span>
+                          <strong>{formatINR(collectionStats.avg)}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="inv-deck-card inv-breakdown-card">
+                    <span className="inv-deck-glow" aria-hidden="true" />
+                    <h3>
+                      <RiseOutlined /> Status mix
+                    </h3>
+                    <div className="inv-breakdown-list">
+                      {STATUS_ORDER.map((s) => {
+                        const count = statusCounts[s] || 0;
+                        const pct = rows.length > 0 ? Math.round((count / rows.length) * 100) : 0;
+                        return (
+                          <div className="inv-breakdown-row" key={s}>
+                            <span
+                              className="inv-breakdown-label"
+                              style={{ ["--inv-chip-color" as string]: STATUS_META[s].color }}
+                            >
+                              {STATUS_META[s].icon} {s}
+                            </span>
+                            <div className="inv-breakdown-bar-track">
+                              <div
+                                className="inv-breakdown-bar-fill"
+                                style={{
+                                  width: `${pct}%`,
+                                  ["--inv-chip-color" as string]: STATUS_META[s].color,
+                                }}
+                              />
+                            </div>
+                            <span className="inv-breakdown-count">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="inv-deck-card inv-watchlist-card">
+                    <span className="inv-deck-glow inv-deck-glow--danger" aria-hidden="true" />
+                    <h3>
+                      <ExclamationCircleOutlined /> Needs attention
+                      {overdueRows.length > 0 && (
+                        <em className="inv-watchlist-total">{formatINRCompact(overdueTotal)} pending</em>
+                      )}
+                    </h3>
+                    {overdueRows.length > 0 ? (
+                      <div className="inv-watchlist">
+                        {overdueRows.map((row) => {
+                          const daysOverdue = Math.max(0, dayjs().diff(dayjs(row.dueDate), "day"));
+                          return (
+                            <div className="inv-watchlist-item" key={row.transactionId}>
+                              <div>
+                                <div className="inv-watchlist-heading">
+                                  <strong>{row.invoiceNumber}</strong>
+                                  <span>{row.txn.clientName}</span>
+                                  {daysOverdue > 0 && (
+                                    <em className="inv-days-overdue">{daysOverdue}d late</em>
+                                  )}
+                                </div>
+                                <p>
+                                  Due {row.dueDate} · {formatINR(computeAmounts(row).total)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewRow(row)}
+                                aria-label="Preview invoice"
+                              >
+                                <FileTextOutlined />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="inv-watchlist-empty-state">
+                        <CheckCircleOutlined />
+                        <p>All clear — no overdue invoices right now.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="inv-toolbar">
                   <div className="inv-search">
                     <SearchOutlined />
@@ -637,92 +764,36 @@ export default function AutoInvoicePage() {
                   </div>
                 ) : null}
 
-                <div className="inv-layout">
-                  <div className="inv-table-card">
-                    <div className="inv-table-wrap">
-                      <Table
-                        columns={columns}
-                        dataSource={filteredRows}
-                        rowKey="transactionId"
-                        loading={loading}
-                        scroll={{ x: 900 }}
-                        rowSelection={{
-                          selectedRowKeys: selectedKeys,
-                          onChange: (keys) => setSelectedKeys(keys as string[]),
-                        }}
-                        onRow={(row) => ({
-                          style: {
-                            ["--inv-row-accent" as string]: STATUS_META[row.status].color,
-                          } as React.CSSProperties,
-                        })}
-                        locale={{
-                          emptyText: (
-                            <div className="inv-empty">
-                              {uninvoicedCount > 0
-                                ? "No invoices generated yet — click Generate All to create them"
-                                : "No invoices match this filter"}
-                            </div>
-                          ),
-                        }}
-                        pagination={{ pageSize: 10, showSizeChanger: false }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="inv-side">
-                    <div className="inv-collection-card">
-                      <h3>Collections</h3>
-                      <div className="inv-stats-row">
-                        <div className="inv-ring" style={collectionRingStyle}>
-                          <div className="inv-ring-inner">
-                            <strong>{collectionStats.pct}%</strong>
-                            <span>collected</span>
+                {/* Table takes the full page width — no grid squeeze against
+                    the sidebar cards, which was clipping columns. */}
+                <div className="inv-table-card">
+                  <div className="inv-table-wrap">
+                    <Table
+                      columns={columns}
+                      dataSource={filteredRows}
+                      rowKey="transactionId"
+                      loading={loading}
+                      scroll={{ x: 900 }}
+                      rowSelection={{
+                        selectedRowKeys: selectedKeys,
+                        onChange: (keys) => setSelectedKeys(keys as string[]),
+                      }}
+                      onRow={(row) => ({
+                        style: {
+                          ["--inv-row-accent" as string]: STATUS_META[row.status].color,
+                        } as React.CSSProperties,
+                      })}
+                      locale={{
+                        emptyText: (
+                          <div className="inv-empty">
+                            {uninvoicedCount > 0
+                              ? "No invoices generated yet — click Generate All to create them"
+                              : "No invoices match this filter"}
                           </div>
-                        </div>
-                        <div className="inv-progress-text">
-                          <div className="inv-summary-row">
-                            <span>Invoiced</span>
-                            <strong>{formatINR(collectionStats.invoiced)}</strong>
-                          </div>
-                          <div className="inv-summary-row">
-                            <span>Collected</span>
-                            <strong>{formatINR(collectionStats.collected)}</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="inv-watchlist-card">
-                      <h3>
-                        <ExclamationCircleOutlined /> Needs attention
-                      </h3>
-                      {overdueRows.length > 0 ? (
-                        <div className="inv-watchlist">
-                          {overdueRows.map((row) => (
-                            <div className="inv-watchlist-item" key={row.transactionId}>
-                              <div>
-                                <div className="inv-watchlist-heading">
-                                  <strong>{row.invoiceNumber}</strong>
-                                  <span>{row.txn.clientName}</span>
-                                </div>
-                                <p>
-                                  Due {row.dueDate} · {formatINR(computeAmounts(row).total)}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setPreviewRow(row)}
-                                aria-label="Preview invoice"
-                              >
-                                <FileTextOutlined />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="inv-watchlist-empty">No overdue invoices right now.</p>
-                      )}
-                    </div>
+                        ),
+                      }}
+                      pagination={{ pageSize: 10, showSizeChanger: false }}
+                    />
                   </div>
                 </div>
               </div>

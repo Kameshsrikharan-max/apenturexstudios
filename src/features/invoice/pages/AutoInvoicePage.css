@@ -85,6 +85,225 @@
   cursor: pointer;
 }
 
+/* ---------- Command Deck: Collections + Status mix + Needs attention ---------- */
+/* Leads the page, right under the header, so the money story reads before
+   the invoice table does. Three glass panels with a subtle radial glow and
+   a soft staggered entrance to feel alive rather than static. */
+
+.inv-command-deck {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr 1.2fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.inv-deck-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--inv-glass);
+  border: 1px solid var(--inv-glass-border);
+  backdrop-filter: blur(16px);
+  padding: 20px;
+  animation: inv-deck-in 0.4s ease both;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.inv-deck-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 197, 255, 0.28);
+  box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.55);
+}
+.inv-command-deck .inv-deck-card:nth-child(1) { animation-delay: 0s; }
+.inv-command-deck .inv-deck-card:nth-child(2) { animation-delay: 0.06s; }
+.inv-command-deck .inv-deck-card:nth-child(3) { animation-delay: 0.12s; }
+
+@keyframes inv-deck-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.inv-deck-glow {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 213, 255, 0.18), transparent 70%);
+  pointer-events: none;
+}
+.inv-deck-glow--danger {
+  background: radial-gradient(circle, rgba(251, 113, 133, 0.16), transparent 70%);
+}
+
+.inv-deck-card h3 {
+  position: relative;
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--inv-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inv-watchlist-total {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--inv-danger);
+  background: rgba(251, 113, 133, 0.12);
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+/* ---------- Collections card ---------- */
+
+.inv-stats-row { position: relative; display: flex; align-items: center; gap: 20px; }
+
+.inv-ring {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.6s ease;
+}
+.inv-ring-inner {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #0d1526;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.inv-ring-inner strong { font-size: 14px; color: var(--inv-text); }
+.inv-ring-inner span { font-size: 9px; color: var(--inv-text-dim); }
+
+.inv-progress-text { flex: 1; min-width: 0; }
+.inv-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--inv-glass-border);
+  font-size: 12px;
+  color: var(--inv-text-dim);
+}
+.inv-summary-row:last-child { border-bottom: none; }
+.inv-summary-row strong { color: var(--inv-text); font-size: 13px; }
+.inv-value-green { color: var(--inv-green) !important; }
+
+/* ---------- Status mix (breakdown bars) card ---------- */
+
+.inv-breakdown-list { position: relative; display: flex; flex-direction: column; gap: 12px; }
+.inv-breakdown-row {
+  display: grid;
+  grid-template-columns: 86px 1fr 22px;
+  align-items: center;
+  gap: 10px;
+}
+.inv-breakdown-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--inv-chip-color, var(--inv-text-dim));
+  white-space: nowrap;
+}
+.inv-breakdown-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.inv-breakdown-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--inv-chip-color, var(--inv-cyan));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--inv-chip-color, var(--inv-cyan)) 60%, transparent);
+  transition: width 0.5s ease;
+}
+.inv-breakdown-count {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--inv-text);
+}
+
+/* ---------- Needs attention (watchlist) card ---------- */
+
+.inv-watchlist { position: relative; display: flex; flex-direction: column; gap: 10px; }
+.inv-watchlist-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(251, 113, 133, 0.08);
+  border: 1px solid rgba(251, 113, 133, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.inv-watchlist-item:hover {
+  background: rgba(251, 113, 133, 0.14);
+  border-color: rgba(251, 113, 133, 0.4);
+}
+.inv-watchlist-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.inv-watchlist-heading strong { font-size: 13px; color: var(--inv-text); }
+.inv-watchlist-heading span { font-size: 11px; color: var(--inv-text-dim); }
+.inv-days-overdue {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--inv-danger);
+  background: rgba(251, 113, 133, 0.16);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.inv-watchlist-item p { margin: 4px 0 0; font-size: 12px; color: var(--inv-text-dim); }
+.inv-watchlist-item button {
+  border: none;
+  background: transparent;
+  color: var(--inv-text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.inv-watchlist-item button:hover { color: var(--inv-danger); }
+
+.inv-watchlist-empty-state {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 10px;
+  text-align: center;
+  color: var(--inv-green);
+  font-size: 22px;
+}
+.inv-watchlist-empty-state p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--inv-text-dim);
+}
+
 /* ---------- Toolbar ---------- */
 
 .inv-toolbar {
@@ -190,34 +409,25 @@
 .inv-icon-btn:hover:not(:disabled) { color: var(--inv-cyan); border-color: rgba(56, 213, 255, 0.4); }
 .inv-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* ---------- Layout ---------- */
-/* NOTE: grid items default to min-width: auto, which let the wide table
-   force this column past its 1.5fr share and squeeze/overlap the sidebar.
-   min-width: 0 on both columns is the actual fix for the "crashing" table. */
+/* ---------- Main table: full page width ---------- */
+/* Previously this lived in a 1.6fr column of a two-column grid next to the
+   sidebar cards, and grid items default to min-width: auto — which let the
+   wide table force itself past its share of the grid and visually overlap
+   the sidebar. Giving the table its own full-width block removes that
+   contest entirely. */
 
-.inv-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.inv-table-card,
-.inv-side {
-  min-width: 0;
-}
-
-.inv-table-card,
-.inv-collection-card,
-.inv-watchlist-card {
+.inv-table-card {
+  width: 100%;
   border-radius: 18px;
   background: var(--inv-glass);
   border: 1px solid var(--inv-glass-border);
   backdrop-filter: blur(16px);
   padding: 18px;
+  margin-bottom: 20px;
 }
 
 .inv-table-wrap {
+  width: 100%;
   overflow-x: auto;
 }
 
@@ -309,180 +519,32 @@
   color: var(--inv-text);
   padding-top: 14px;
   padding-bottom: 14px;
-  transition: background 0.15s ease;
-}
-.inv-table-wrap .ant-table-tbody > tr > td:first-child {
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px 0 0 12px;
-  padding-left: 22px;
-}
-.inv-table-wrap .ant-table-tbody > tr > td:first-child::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--inv-row-accent, var(--inv-slate));
-}
-.inv-table-wrap .ant-table-tbody > tr > td:last-child {
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 0 12px 12px 0;
-}
-.inv-table-wrap .ant-table-tbody > tr:hover > td {
-  background: rgba(56, 213, 255, 0.07) !important;
-}
+  transition: background 0.15s ease;}
+.inv-table-wrap .ant-table-tbody > tr > td:first-child {border-left: 1px solid rgba(255, 255, 255, 0.05);border-radius: 12px 0 0 12px;padding-left: 22px;}
+.inv-table-wrap .ant-table-tbody > tr > td:first-child::before {content: "";position: absolute;left: 8px;top: 8px;bottom: 8px;width: 3px;border-radius: 3px;background: var(--inv-row-accent, var(--inv-slate));}
+.inv-table-wrap .ant-table-tbody > tr > td:last-child {border-right: 1px solid rgba(255, 255, 255, 0.05);border-radius: 0 12px 12px 0;}
+.inv-table-wrap .ant-table-tbody > tr:hover > td {background: rgba(56, 213, 255, 0.07) !important;}
 .inv-table-wrap .ant-table-placeholder > td { background: transparent !important; }
 .inv-table-wrap .ant-table-placeholder:hover > td { background: transparent !important; }
 
 .inv-table-wrap .ant-table-selection-column { padding-left: 16px !important; }
-.inv-table-wrap .ant-checkbox-inner {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--inv-glass-border);
-}
-.inv-table-wrap .ant-checkbox-checked .ant-checkbox-inner {
-  background: var(--inv-cyan);
-  border-color: var(--inv-cyan);
-}
-
+.inv-table-wrap .ant-checkbox-inner {background: rgba(255, 255, 255, 0.04);border-color: var(--inv-glass-border);}
+.inv-table-wrap .ant-checkbox-checked .ant-checkbox-inner {background: var(--inv-cyan);border-color: var(--inv-cyan);}
 .inv-table-wrap .ant-pagination { margin-top: 6px; }
 .inv-table-wrap .ant-pagination .ant-pagination-item,
 .inv-table-wrap .ant-pagination .ant-pagination-prev .ant-pagination-item-link,
-.inv-table-wrap .ant-pagination .ant-pagination-next .ant-pagination-item-link {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: var(--inv-glass-border);
-  color: var(--inv-text-dim);
-}
+.inv-table-wrap .ant-pagination .ant-pagination-next .ant-pagination-item-link {background: rgba(255, 255, 255, 0.03);border-color: var(--inv-glass-border);color: var(--inv-text-dim);}
 .inv-table-wrap .ant-pagination .ant-pagination-item a { color: var(--inv-text-dim); }
-.inv-table-wrap .ant-pagination .ant-pagination-item-active {
-  border-color: var(--inv-cyan);
-  background: rgba(56, 213, 255, 0.14);
-}
+.inv-table-wrap .ant-pagination .ant-pagination-item-active {border-color: var(--inv-cyan);background: rgba(56, 213, 255, 0.14);}
 .inv-table-wrap .ant-pagination .ant-pagination-item-active a { color: var(--inv-cyan); }
-
-/* ---------- Side: collections ---------- */
-
-.inv-side { display: flex; flex-direction: column; gap: 18px; }
-
-.inv-collection-card h3,
-.inv-watchlist-card h3 {
-  margin: 0 0 14px;
-  font-size: 14px;
-  color: var(--inv-text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.inv-stats-row { display: flex; align-items: center; gap: 18px; }
-
-.inv-ring {
-  position: relative;
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.6s ease;
-}
-.inv-ring-inner {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: #0d1526;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.1;
-}
-.inv-ring-inner strong { font-size: 14px; color: var(--inv-text); }
-.inv-ring-inner span { font-size: 9px; color: var(--inv-text-dim); }
-
-.inv-progress-text { flex: 1; min-width: 0; }
-.inv-summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--inv-glass-border);
-  font-size: 12px;
-  color: var(--inv-text-dim);
-}
-.inv-summary-row:last-child { border-bottom: none; }
-.inv-summary-row strong { color: var(--inv-text); font-size: 13px; }
-
-/* ---------- Side: watchlist ---------- */
-
-.inv-watchlist { display: flex; flex-direction: column; gap: 10px; }
-.inv-watchlist-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(251, 113, 133, 0.08);
-  border: 1px solid rgba(251, 113, 133, 0.22);
-}
-.inv-watchlist-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.inv-watchlist-heading strong { font-size: 13px; color: var(--inv-text); }
-.inv-watchlist-heading span { font-size: 11px; color: var(--inv-text-dim); }
-.inv-watchlist-item p { margin: 4px 0 0; font-size: 12px; color: var(--inv-text-dim); }
-.inv-watchlist-item button {
-  border: none;
-  background: transparent;
-  color: var(--inv-text-dim);
-  cursor: pointer;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-.inv-watchlist-item button:hover { color: var(--inv-danger); }
-.inv-watchlist-empty { margin: 0; font-size: 13px; color: var(--inv-text-dim); }
 
 /* ---------- Printable invoice sheet ---------- */
 
-.inv-panel-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  background: rgba(4, 8, 16, 0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  animation: inv-fade-in 0.15s ease;
-}
+.inv-panel-overlay {position: fixed;inset: 0;z-index: 5000;background: rgba(4, 8, 16, 0.7);backdrop-filter: blur(4px);display: flex;align-items: center;justify-content: center;padding: 24px;animation: inv-fade-in 0.15s ease;}
 @keyframes inv-fade-in {
   from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.inv-invoice-sheet {
-  width: 100%;
-  max-width: 640px;
-  max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: linear-gradient(180deg, rgba(20, 30, 52, 0.98), rgba(10, 17, 32, 0.98));
-  color: #e2e8f0;
-  font-family: "Times New Roman", serif;
-  border-radius: 18px;
-  border: 1px solid var(--inv-glass-border, rgba(148, 197, 255, 0.14));
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);
-  padding: 32px;
-  position: relative;
-  animation: inv-sheet-in 0.2s ease;
-}
+  to { opacity: 1; }}
+.inv-invoice-sheet {width: 100%;max-width: 640px;max-height: 90vh;overflow-y: auto;overflow-x: hidden;background: linear-gradient(180deg, rgba(20, 30, 52, 0.98), rgba(10, 17, 32, 0.98));color: #e2e8f0;font-family: "Times New Roman", serif;border-radius: 18px;border: 1px solid var(--inv-glass-border, rgba(148, 197, 255, 0.14));box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);padding: 32px;position: relative;animation: inv-sheet-in 0.2s ease;}
 @keyframes inv-sheet-in {
   from { opacity: 0; transform: translateY(8px) scale(0.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -563,11 +625,13 @@
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 900px) {
-  .inv-layout { grid-template-columns: 1fr; }
+@media (max-width: 1080px) {
+  .inv-command-deck { grid-template-columns: 1fr 1fr; }
+  .inv-watchlist-card { grid-column: 1 / -1; }
 }
 
 @media (max-width: 640px) {
+  .inv-command-deck { grid-template-columns: 1fr; }
   .inv-invoice-lower { grid-template-columns: 1fr; }
   .inv-invoice-payment { align-items: flex-start; text-align: left; }
 }

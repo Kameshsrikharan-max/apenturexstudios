@@ -173,6 +173,24 @@ type TeamAssignmentPageProps = {
   onNext?: (assignedList: AssignedMember[]) => void;
 };
 
+// Normalizes whatever shape a member arrives in (either the backend's saved
+// assignedMembersList — {userId, name, email, ...} — or a plain Member
+// picked from the photographer list) into a full AssignedMember.
+function toAssignedMember(raw: any): AssignedMember {
+  return {
+    id: String(raw.id ?? raw.userId ?? ""),
+    name: raw.name ?? "",
+    email: raw.email ?? "",
+    mobile: raw.mobile ?? raw.phone ?? "",
+    city: raw.city ?? raw.location ?? "—",
+    role: raw.role ?? "Studio Photographer",
+    photoAccountStatus: raw.photoAccountStatus ?? "Active",
+    assignRole: raw.assignRole ?? "Photographer",
+    service: raw.service ?? "General",
+    status: raw.status ?? "Confirmed",
+  };
+}
+
 export default function TeamAssignmentPage({ user, event: eventProp, onPrevious, onNext }: TeamAssignmentPageProps) {
   const navigate = useNavigate();
 
@@ -205,11 +223,31 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     return (parsed.isValid() ? parsed : dayjs()).format("YYYY-MM-DD");
   }, [event]);
 
+  // Restore whatever team has already been put together for this event.
+  //
+  // Two very different situations land here:
+  //  1) Mid-wizard (CreateEventPage -> here -> Payment...): the only record
+  //     of the team so far is the wizard's own sessionStorage draft
+  //     (`currentEvent._assignedTeam`).
+  //  2) Reopening an *already created* event from the Events list
+  //     (EventPage's "Assign members" action, which renders this component
+  //     with a real `event` prop): the source of truth is what the backend
+  //     already has saved on the event itself — `assignedMembersList`. The
+  //     old code only ever checked the sessionStorage draft, so reopening
+  //     an existing event's assignment always looked empty even though
+  //     people were already assigned.
+  //
+  // Prefer the backend-saved list whenever it exists; otherwise fall back
+  // to the wizard draft.
   const restoreTeam = (): AssignedMember[] => {
+    const savedOnEvent = eventProp?.assignedMembersList || event?.assignedMembersList;
+    if (Array.isArray(savedOnEvent) && savedOnEvent.length > 0) {
+      return savedOnEvent.map(toAssignedMember);
+    }
     try {
       const raw = sessionStorage.getItem("currentEvent");
       if (!raw) return [];
-      return JSON.parse(raw)._assignedTeam || [];
+      return (JSON.parse(raw)._assignedTeam || []).map(toAssignedMember);
     } catch { return []; }
   };
 
@@ -223,6 +261,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
   const [serviceOpen,   setServiceOpen]   = useState(false);
   const [roleMap,       setRoleMap]       = useState<Record<string, string>>({});
   const [isSyncing,     setIsSyncing]     = useState(false);
+  const [teamRestored,  setTeamRestored]  = useState(false);
 
   const [photographers, setPhotographers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -238,6 +277,24 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     setToast({ message, type });
     toastTimer.current = setTimeout(() => setToast(null), 4500);
   };
+
+  // If the event prop / sessionStorage event arrives (or changes) after
+  // first paint — e.g. EventPage sets `assignEvent` a tick after mount, or
+  // the standalone route resolves sessionStorage asynchronously via the
+  // effect above — re-run the restore once so we don't get stuck showing
+  // an empty table for an event that already has assignments.
+  useEffect(() => {
+    if (teamRestored) return;
+    const savedOnEvent = eventProp?.assignedMembersList || event?.assignedMembersList;
+    if (Array.isArray(savedOnEvent) && savedOnEvent.length > 0) {
+      setAssignedTeam(savedOnEvent.map(toAssignedMember));
+      setTeamRestored(true);
+    } else if (event) {
+      // We have an event but it has no saved team — nothing more to
+      // restore, stop re-checking.
+      setTeamRestored(true);
+    }
+  }, [event, eventProp, teamRestored]);
 
   const fetchPhotographers = useCallback(async () => {
     setIsLoading(true);

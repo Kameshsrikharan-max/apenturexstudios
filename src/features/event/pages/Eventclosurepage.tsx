@@ -38,6 +38,9 @@ const DELIVERABLE_OPTIONS: string[] = [
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
+// Must match AlbumSelectionPage.tsx's ALBUM_STORAGE_PREFIX + albumStorageKey.
+const ALBUM_STORAGE_PREFIX = "eventAlbums__";
+
 // Same source every other step in the wizard reads (CreateEventPage writes
 // it, TeamAssignmentPage/PaymentPage/AttendancePage/MediaManagement/
 // AlbumSelectionPage all read it). Closure was the one page not wired to
@@ -46,6 +49,20 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 function loadEvent(): any {
   try {
     const raw = sessionStorage.getItem("currentEvent");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Reads back whatever AlbumSelectionPage last persisted for this event —
+// including every finalized template's curated photos — so the final
+// album that goes out to the customer is built from exactly what the
+// studio approved, not from whatever happens to still be in memory.
+function loadAlbumSelections(eventId: string | undefined): any[] | null {
+  if (!eventId) return null;
+  try {
+    const raw = sessionStorage.getItem(`${ALBUM_STORAGE_PREFIX}${eventId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -76,6 +93,44 @@ async function patchEventOnServer(
     return { ok: true };
   } catch {
     return { ok: false, message: "Network error." };
+  }
+}
+
+// Emails the final, closed-out album to the customer. This calls a
+// backend endpoint that does NOT exist in the code you shared — you'll
+// need to add it. Expected contract:
+//
+//   POST /studio/events/:eventId/send-final-album
+//   body: { albumSelections: ServiceAlbumGroup[] }
+//     (only templates with status "Finalized" or "In Review" matter —
+//      filter server-side, or trust the filtered payload sent below)
+//   -> on success: { success: true }
+//
+// The backend should compile the curated photos from every
+// finalized/approved template into a deliverable (zip, gallery link,
+// PDF proof — whatever your product does today) and email it to
+// event.customerEmail.
+async function sendFinalAlbumToCustomer(
+  eventId: string,
+  albumSelections: any[]
+): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${eventId}/send-final-album`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ albumSelections }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      return { ok: false, message: body?.message || "Could not email the final album to the customer." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "Network error while sending the final album." };
   }
 }
 
@@ -252,6 +307,7 @@ export default function EventClosurePage() {
   const [closureNotes, setClosureNotes] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [albumSent, setAlbumSent] = useState(false);
 
   const MAX_NOTES = 1000;
 
@@ -265,6 +321,9 @@ export default function EventClosurePage() {
     }
 
     setIsSubmitting(true);
+
+    // Step 1: close the event itself. This is idempotent, so it's safe to
+    // press "Close Event" again if a later step (the album email) fails.
     const { ok, message } = await patchEventOnServer(eventId, {
       status: "DONE",
       pipeline: "Delivered",
@@ -277,17 +336,49 @@ export default function EventClosurePage() {
       rating,
       closureNotes,
     });
-    setIsSubmitting(false);
 
     if (!ok) {
+      setIsSubmitting(false);
       setSubmitError(message || "Failed to close the event. Please try again.");
       return;
     }
+
+    // Step 2: send the final album to the customer's email, built from
+    // whatever was finalized / approved in Album Selection. Only bother
+    // calling out if there's actually something curated — an event with
+    // no template-based services (e.g. Drone only) has nothing to send.
+    if (!albumSent) {
+      const albumSelections = loadAlbumSelections(eventId);
+      const hasCuratedContent = Array.isArray(albumSelections)
+        ? albumSelections.some((group: any) =>
+            (group.templates || []).some((t: any) => t.curatedPhotos?.length > 0)
+          )
+        : false;
+
+      if (hasCuratedContent) {
+        const { ok: albumOk, message: albumMsg } = await sendFinalAlbumToCustomer(
+          eventId,
+          albumSelections as any[]
+        );
+        if (!albumOk) {
+          setIsSubmitting(false);
+          setSubmitError(
+            albumMsg ||
+              "The event was closed, but the final album could not be emailed to the customer. Press Close Event again to retry sending it."
+          );
+          return;
+        }
+        setAlbumSent(true);
+      }
+    }
+
+    setIsSubmitting(false);
 
     // Clear this event's wizard-scoped sessionStorage now that it's closed.
     try {
       sessionStorage.removeItem("currentEvent");
       sessionStorage.removeItem("mediaManagement__state");
+      sessionStorage.removeItem(`${ALBUM_STORAGE_PREFIX}${eventId}`);
     } catch {}
 
     navigate("/events");

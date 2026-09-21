@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,DeleteOutlined,LeftOutlined,RightOutlined,InboxOutlined,} from "@ant-design/icons";
+import {CheckCircleOutlined,ClockCircleOutlined,DollarOutlined,DoubleLeftOutlined,CameraOutlined,PictureOutlined,PlusOutlined,TeamOutlined,ReloadOutlined,ArrowRightOutlined,ArrowLeftOutlined,UploadOutlined,CloseOutlined,FileImageOutlined,FolderOpenOutlined,SendOutlined,FlagOutlined,InfoCircleOutlined,CalendarOutlined,DeleteOutlined,LeftOutlined,RightOutlined,InboxOutlined,LoadingOutlined,} from "@ant-design/icons";
 import "./AlbumSelectionPage.css";
 import { notifyAlbumCreated } from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
 
@@ -20,6 +20,14 @@ const TOTAL_VERSION_SLOTS = 5;
 
 const STATUS_STAGES = ["Draft", "In Progress", "In Review", "Finalized"];
 
+const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
+
+// sessionStorage key prefix for this page's own persisted progress, keyed
+// per-event so switching events (or the wizard re-running) never mixes
+// album progress across events. Mirrors the pattern MediaManagement.tsx
+// already uses for its own STORAGE_KEY.
+const ALBUM_STORAGE_PREFIX = "eventAlbums__";
+
 interface SavedAlbumTemplate {
   name: string;
   sheets: number;
@@ -38,7 +46,12 @@ interface SavedAlbumServiceData {
 }
 
 interface SavedEventForm {
+  id?: string;
+  eventId?: string;
+  _id?: string;
   eventName?: string;
+  customerEmail?: string;
+  customerName?: string;
   selectedServices?: string[];
   albumData?: Record<string, SavedAlbumServiceData>;
 }
@@ -51,7 +64,13 @@ interface CuratedPhoto {
 
 interface AlbumVersion {
   version: number;
-  status: string; 
+  status: string;
+}
+
+interface ReviewRecord {
+  accessCode: string;
+  sentAt: string;
+  reviewUrl?: string;
 }
 
 interface TemplateCardData {
@@ -65,7 +84,8 @@ interface TemplateCardData {
   note: string;
   deadline: string;
   currentVersion: number;
-  versionHistory: AlbumVersion[]; 
+  versionHistory: AlbumVersion[];
+  review?: ReviewRecord | null;
 }
 
 interface ServiceAlbumGroup {
@@ -75,15 +95,127 @@ interface ServiceAlbumGroup {
   templates: TemplateCardData[];
 }
 
-function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
-  let saved: SavedEventForm | null = null;
+/* ---------- event + persistence helpers ---------- */
+
+function loadCurrentEvent(): SavedEventForm | null {
   try {
     const raw = sessionStorage.getItem("currentEvent");
-    saved = raw ? JSON.parse(raw) : null;
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    saved = null;
+    return null;
   }
+}
 
+function resolveEventId(evt: SavedEventForm | null): string | null {
+  if (!evt) return null;
+  const candidate = evt.id ?? evt.eventId ?? evt._id ?? null;
+  return candidate != null ? String(candidate) : null;
+}
+
+function albumStorageKey(eventId: string | null): string {
+  return `${ALBUM_STORAGE_PREFIX}${eventId ?? "default"}`;
+}
+
+function loadPersistedAlbums(eventId: string | null): ServiceAlbumGroup[] | null {
+  try {
+    const raw = sessionStorage.getItem(albumStorageKey(eventId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePersistedAlbums(eventId: string | null, albums: ServiceAlbumGroup[]) {
+  try {
+    sessionStorage.setItem(albumStorageKey(eventId), JSON.stringify(albums));
+  } catch (e) {
+    console.warn("AlbumSelectionPage: could not persist album state", e);
+  }
+}
+
+// Best-effort backend sync, same fetch/token pattern used everywhere else
+// in this app (EventPage.patchEventOnServer, EventClosurePage, etc). This
+// is what lets album progress survive a lost session / a different
+// device, not just this browser tab. Requires the event PATCH endpoint to
+// accept (and store) an `albumSelections` field — add that field to your
+// EVENT_FIELDS list on the backend if it isn't there yet.
+async function syncAlbumsToServer(eventId: string | null, albums: ServiceAlbumGroup[]) {
+  if (!eventId) return;
+  try {
+    const token = localStorage.getItem("token");
+    await fetch(`${API_BASE}/studio/events/${eventId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ albumSelections: albums }),
+    });
+  } catch {
+    // Silent — local sessionStorage persistence (above) is still intact,
+    // so nothing is lost for the current browser session even if the
+    // server sync fails.
+  }
+}
+
+function generateAccessCode(): string {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+// Sends the curated selection to the customer for review. This calls a
+// backend endpoint that does NOT exist in the code you shared, so you'll
+// need to add it. Expected contract:
+//
+//   POST /studio/events/:eventId/album-review
+//   body: {
+//     templateId, templateName, service, version,
+//     photoCount, note, deadline, accessCode
+//   }
+//   -> on success: { success: true, accessCode, reviewUrl }
+//      (the backend should email the customer a link containing
+//      reviewUrl + accessCode, and store the access code so the
+//      customer-facing review page can verify it)
+//
+// If the request fails, the album stays in its current status instead of
+// silently flipping to "In Review" — so you never end up thinking a
+// customer was emailed when they weren't.
+async function sendAlbumForReview(
+  eventId: string | null,
+  payload: {
+    templateId: number;
+    templateName: string;
+    service: string;
+    version: number;
+    photoCount: number;
+    note: string;
+    deadline: string;
+    accessCode: string;
+  }
+): Promise<{ ok: boolean; message?: string; accessCode?: string; reviewUrl?: string }> {
+  if (!eventId) {
+    return { ok: false, message: "Save the event first — there's nothing to send yet." };
+  }
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/studio/events/${eventId}/album-review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) {
+      return { ok: false, message: body?.message || "The server didn't accept the review request." };
+    }
+    return { ok: true, accessCode: body.accessCode || payload.accessCode, reviewUrl: body.reviewUrl };
+  } catch {
+    return { ok: false, message: "Network error while sending for review." };
+  }
+}
+
+function buildAlbumsFromSavedEvent(saved: SavedEventForm | null): ServiceAlbumGroup[] {
   const selectedServices = saved?.selectedServices ?? [];
   const albumData = saved?.albumData ?? {};
 
@@ -120,6 +252,7 @@ function buildAlbumsFromSavedEvent(): ServiceAlbumGroup[] {
           deadline: "",
           currentVersion: 1,
           versionHistory: [],
+          review: null,
         };
       });
 
@@ -432,16 +565,25 @@ function CuratedGallery({
 /* TEMPLATE CARD (album, shown as version history + curation panel) */
 function TemplateCard({
   template,
+  eventId,
+  serviceName,
   onUpdate,
 }: {
   template: TemplateCardData;
+  eventId: string | null;
+  serviceName: string;
   onUpdate: (templateId: number, patch: Partial<TemplateCardData>) => void;
 }) {
   const navigate = useNavigate();
   const [stagedFiles, setStagedFiles] = useState<{ name: string; size: string; preview: string }[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [reviewPath, setReviewPath] = useState<"send" | "self" | null>(null);
+  const [reviewState, setReviewState] = useState<{ sending: boolean; error: string | null }>({
+    sending: false,
+    error: null,
+  });
 
   const imgRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
@@ -453,6 +595,19 @@ function TemplateCard({
     return (b / 1048576).toFixed(1) + " MB";
   };
 
+  // Photos are stored as base64 data URLs (not blob: object URLs) so that
+  // curated/staged photos actually survive a page reload or a return trip
+  // through sessionStorage — object URLs are revoked/invalidated the
+  // moment the page unloads, which is part of why album progress used to
+  // "disappear."
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const bumpVersion = (patch: Partial<TemplateCardData>) => {
     const archivedEntry: AlbumVersion = { version: template.currentVersion, status: "Archived" };
     onUpdate(template.id, {
@@ -462,15 +617,22 @@ function TemplateCard({
     });
   };
 
-  const addFiles = (fileList: FileList | File[]) => {
-    const picked = Array.from(fileList)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((f: File) => ({
-        name: f.name,
-        size: formatBytes(f.size),
-        preview: URL.createObjectURL(f),
-      }));
-    if (picked.length) setStagedFiles((prev) => [...prev, ...picked]);
+  const addFiles = async (fileList: FileList | File[]) => {
+    const imageFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (!imageFiles.length) return;
+    setIsProcessingFiles(true);
+    try {
+      const picked = await Promise.all(
+        imageFiles.map(async (f: File) => ({
+          name: f.name,
+          size: formatBytes(f.size),
+          preview: await fileToBase64(f),
+        }))
+      );
+      setStagedFiles((prev) => [...prev, ...picked]);
+    } finally {
+      setIsProcessingFiles(false);
+    }
   };
 
   const handleAddPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -503,7 +665,7 @@ function TemplateCard({
     if (template.curatedPhotos.length === 0) {
       notifyAlbumCreated({
         albumName: template.name,
-        createdBy: "AXS System", 
+        createdBy: "AXS System",
         mediaCount: merged.length,
       });
     }
@@ -520,14 +682,42 @@ function TemplateCard({
     setLightboxIdx(null);
   };
 
-  const handleSendForReview = () => {
+  const handleSendForReview = async () => {
     if (!template.curatedPhotos.length) return;
-    bumpVersion({ status: "In Review" });
+    setReviewState({ sending: true, error: null });
+
+    const accessCode = generateAccessCode();
+    const { ok, message, accessCode: serverCode, reviewUrl } = await sendAlbumForReview(eventId, {
+      templateId: template.id,
+      templateName: template.name,
+      service: serviceName,
+      version: template.currentVersion,
+      photoCount: template.curatedPhotos.length,
+      note: template.note,
+      deadline: template.deadline,
+      accessCode,
+    });
+
+    if (!ok) {
+      setReviewState({ sending: false, error: message || "Could not send the album for review." });
+      return;
+    }
+
+    bumpVersion({
+      status: "In Review",
+      review: { accessCode: serverCode || accessCode, sentAt: new Date().toISOString(), reviewUrl },
+    });
+    setReviewState({ sending: false, error: null });
     setReviewPath(null);
   };
 
   const handleSelfSelect = () => {
     if (!template.curatedPhotos.length) return;
+    // Self-select skips the customer round-trip entirely: the studio
+    // finalizes the album right here. No email/access code involved —
+    // the finalized selection is what gets bundled and sent to the
+    // customer as the *final* album once the whole event is closed
+    // (see EventClosurePage).
     bumpVersion({ status: "Finalized" });
     setReviewPath(null);
   };
@@ -557,6 +747,13 @@ function TemplateCard({
       versionNum,
       isLatest,
       status: status || "Draft",
+      // Hand off enough context for the editor to (a) offer the photos
+      // already curated here as a drag-in library instead of forcing a
+      // re-upload, and (b) save its work back into THIS event's album
+      // record instead of into an orphaned sessionStorage key.
+      eventId,
+      serviceName,
+      curatedPhotos: template.curatedPhotos,
     };
     sessionStorage.setItem("currentTemplateEditor", JSON.stringify(payload));
     navigate("/events/create/album/template-editor");
@@ -618,7 +815,9 @@ function TemplateCard({
         </div>
       </div>
 
-      {/* Upload dropzone */}
+      {/* Upload dropzone — this is "create the album on the spot": photos
+          uploaded here become the curated set for the current version
+          immediately, no separate Media Management step required. */}
       <div className="as-upload-section">
         <input
           ref={imgRef}
@@ -650,10 +849,10 @@ function TemplateCard({
           tabIndex={0}
         >
           <div className="as-dropzone-icon">
-            <UploadOutlined />
+            {isProcessingFiles ? <LoadingOutlined spin /> : <UploadOutlined />}
           </div>
           <div className="as-dropzone-text">
-            <strong>Drag &amp; drop photos here</strong>
+            <strong>{isProcessingFiles ? "Processing photos…" : "Drag & drop photos here"}</strong>
             <span>or use the buttons below to browse files or a whole folder</span>
           </div>
 
@@ -706,7 +905,7 @@ function TemplateCard({
         />
       </div>
 
-      {/* Send for customer review */}
+      {/* Send for customer review / self finalize */}
       <div className="as-review-section">
         <div className="as-review-head">
           <SendOutlined className="as-review-head-icon" />
@@ -717,6 +916,27 @@ function TemplateCard({
           <div className="as-info-banner">
             <InfoCircleOutlined />
             Upload curated photos first before sending for customer review.
+          </div>
+        )}
+
+        {template.status === "In Review" && template.review && (
+          <div className="as-info-banner">
+            <CheckCircleOutlined /> Sent to the customer on{" "}
+            {new Date(template.review.sentAt).toLocaleString()}. Access code:{" "}
+            <strong>{template.review.accessCode}</strong>
+          </div>
+        )}
+
+        {template.status === "Finalized" && (
+          <div className="as-info-banner">
+            <CheckCircleOutlined /> This version is finalized. It will be included in the final
+            album sent to the customer once the event is closed.
+          </div>
+        )}
+
+        {reviewState.error && (
+          <div className="ec-error-banner" role="alert">
+            {reviewState.error}
           </div>
         )}
 
@@ -775,16 +995,18 @@ function TemplateCard({
             )}
 
             <div className="as-review-confirm-row">
-              <button className="as-btn-secondary" onClick={() => setReviewPath(null)}>
+              <button className="as-btn-secondary" onClick={() => setReviewPath(null)} disabled={reviewState.sending}>
                 Cancel
               </button>
               <button
                 className="as-btn-primary"
+                disabled={reviewState.sending}
                 onClick={reviewPath === "send" ? handleSendForReview : handleSelfSelect}
               >
                 {reviewPath === "send" ? (
                   <>
-                    <SendOutlined /> Confirm &amp; Send
+                    {reviewState.sending ? <LoadingOutlined spin /> : <SendOutlined />}{" "}
+                    {reviewState.sending ? "Sending…" : "Confirm & Send"}
                   </>
                 ) : (
                   <>
@@ -813,13 +1035,33 @@ function TemplateCard({
 export default function AlbumSelectionPage() {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(5);
-  const [albums, setAlbums] = useState<ServiceAlbumGroup[]>(() => buildAlbumsFromSavedEvent());
+
+  const [currentEvent] = useState<SavedEventForm | null>(() => loadCurrentEvent());
+  const eventId = resolveEventId(currentEvent);
+
+  // Load previously-saved album progress for THIS event if it exists;
+  // only fall back to rebuilding a fresh set of templates from Event
+  // Details when there is nothing saved yet (first visit for this event).
+  // This is the fix for albums resetting every time the page is revisited.
+  const [albums, setAlbums] = useState<ServiceAlbumGroup[]>(() => {
+    const persisted = loadPersistedAlbums(eventId);
+    if (persisted && persisted.length) return persisted;
+    return buildAlbumsFromSavedEvent(currentEvent);
+  });
   const [activeService, setActiveService] = useState(0);
 
+  // Persist on every change — sessionStorage immediately (so returning to
+  // this page keeps everything), plus a best-effort server sync so the
+  // studio can pick the event back up from anywhere.
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    setAlbums(buildAlbumsFromSavedEvent());
-    setActiveService(0);
-  }, []);
+    savePersistedAlbums(eventId, albums);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    syncAlbumsToServer(eventId, albums);
+  }, [albums, eventId]);
 
   const activeGroup = albums[activeService];
 
@@ -901,7 +1143,12 @@ export default function AlbumSelectionPage() {
                   <p>Curate photos by service, send the selection for customer review, and prepare the final album.</p>
                 </div>
               </div>
-              <button className="as-icon-btn" onClick={() => window.location.reload()} aria-label="Refresh">
+              <button
+                className="as-icon-btn"
+                onClick={() => setAlbums(loadPersistedAlbums(eventId) || buildAlbumsFromSavedEvent(currentEvent))}
+                aria-label="Refresh"
+                title="Reload saved progress"
+              >
                 <ReloadOutlined />
               </button>
             </div>
@@ -962,6 +1209,8 @@ export default function AlbumSelectionPage() {
                       <TemplateCard
                         key={tpl.id}
                         template={tpl}
+                        eventId={eventId}
+                        serviceName={activeGroup.serviceName}
                         onUpdate={(templateId, patch) => handleTemplateUpdate(activeService, templateId, patch)}
                       />
                     ))
