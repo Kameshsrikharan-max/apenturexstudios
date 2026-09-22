@@ -9,6 +9,7 @@ import UsersPage            from "../features/users/pages/UsersPage";
 import EventPage            from "../features/event/pages/EventPage";
 import CreateEventPage      from "../features/event/pages/CreateEventPage";
 import TeamAssignmentPage   from "../features/event/pages/Teamassignmentpage";
+import EquipmentChecklistPage from "../features/event/pages/EquipmentChecklistPage";
 import PaymentPage          from "../features/event/pages/PaymentPage";
 import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
@@ -44,6 +45,7 @@ const UsersPageAny: any = UsersPage;
 const EventPageAny: any = EventPage;
 const CreateEventPageAny: any = CreateEventPage;
 const TeamAssignmentPageAny: any = TeamAssignmentPage;
+const EquipmentChecklistPageAny: any = EquipmentChecklistPage;
 const PaymentPageAny: any = PaymentPage;
 const AttendancePageAny: any = AttendancePage;
 const MediaManagementPageAny: any = MediaManagementPage;
@@ -221,6 +223,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           element={
             <SectionGuard user={user} path="/events/create/team-assignment">
               <TeamAssignmentPageAny user={user} />
+            </SectionGuard>
+          }
+        />
+        <Route
+          path="/events/create/equipment-checklist"
+          element={
+            <SectionGuard user={user} path="/events/create/equipment-checklist">
+              <EquipmentChecklistPageAny user={user} />
             </SectionGuard>
           }
         />

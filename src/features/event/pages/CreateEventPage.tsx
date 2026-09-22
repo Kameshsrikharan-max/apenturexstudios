@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useNavigate } from "react-router-dom";
-import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,DoubleLeftOutlined,EnvironmentOutlined,InfoCircleOutlined,LeftOutlined,MailOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,ReloadOutlined,RightOutlined,TeamOutlined,ThunderboltOutlined,UserOutlined,} from "@ant-design/icons";
+import {CalendarOutlined,CameraOutlined,CheckCircleOutlined,ClockCircleOutlined,CloseOutlined,DollarOutlined,DoubleLeftOutlined,EnvironmentOutlined,InfoCircleOutlined,LeftOutlined,MailOutlined,PhoneOutlined,PictureOutlined,PlusOutlined,ReloadOutlined,RightOutlined,TeamOutlined,ThunderboltOutlined,ToolOutlined,UserOutlined,} from "@ant-design/icons";
 import "./CreateEventPage.css";
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 
@@ -15,6 +15,7 @@ interface StepDef {
 const steps: StepDef[] = [
   { label: "Event Details", icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
+  { label: "Equipment Checklist", icon: <ToolOutlined /> },
   { label: "Payment", icon: <DollarOutlined /> },
   { label: "Attendance", icon: <ClockCircleOutlined /> },
   { label: "Media", icon: <CameraOutlined /> },
@@ -1110,7 +1111,7 @@ export default function CreateEventPage() {
           <div className="cep-title-wrap">
             <span className="cep-title-icon"><CalendarOutlined /></span>
             <div>
-              <p className="cep-subtitle">Step 1 of 7 / Event Details</p>
+              <p className="cep-subtitle">Step 1 of 8 / Event Details</p>
               <h1 className="cep-heading">Create New Event</h1>
             </div>
           </div>

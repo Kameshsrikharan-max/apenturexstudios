@@ -38,6 +38,7 @@ import {
   TableOutlined,
   TeamOutlined,
   ThunderboltOutlined,
+  ToolOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
 import "./EventPage.css";
@@ -47,6 +48,7 @@ import { fetchEventMessagesRequest } from "../../../redux/actions/messageActions
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 import EventQRModal from "../../../components/UI/EventQRModal";
 import EventThreadPanel from "../../../components/UI/EventThreadPanel";
+import EquipmentChecklistModal from "../../../components/UI/EquipmentChecklistModal";
 
 const { Title, Text } = Typography;
 
@@ -109,6 +111,26 @@ const staticMapThumb = (lat: number, lng: number, size = "600x180") =>
 
 const googleMapsUrl = (lat: number, lng: number) =>
   `https://www.google.com/maps?q=${lat},${lng}`;
+
+// Reads the same "Jun 16, 2026" / "12:00 AM" board strings CreateEventPage's
+// formatBoardDate/formatBoardTime produce, so no schema change is needed to
+// know how far out an event is.
+const parseEventDateTime = (event: any): Date | null => {
+  if (!event?.date) return null;
+  const combined = `${event.date} ${event.time || ""}`.trim();
+  const parsed = new Date(combined);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// True once an event is inside its 2-hour pre-event equipment prep window —
+// drives the urgent styling on the checklist action icon.
+const isWithinPrepWindow = (event: any): boolean => {
+  const eventDate = parseEventDateTime(event);
+  if (!eventDate) return false;
+  const diffMs = eventDate.getTime() - Date.now();
+  const twoHoursMs = 2 * 60 * 60 * 1000;
+  return diffMs > 0 && diffMs <= twoHoursMs;
+};
 
 /* ---------- Unread message tracking (client-side) ----------
    There's no read-receipt field from the backend yet, so "unread" is
@@ -240,6 +262,9 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
   // recompute (the underlying "last read" value lives in localStorage,
   // outside Redux, so it needs an explicit nudge).
   const [readVersion, setReadVersion] = useState(0);
+
+  // --- Equipment checklist state ---
+  const [checklistEvent, setChecklistEvent] = useState<any>(null);
 
   const [form] = Form.useForm();
 
@@ -581,6 +606,17 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
           onClick={(e) => {
             e.stopPropagation();
             setAssignEvent(record);
+          }}
+        />
+      </Tooltip>
+      <Tooltip title={isWithinPrepWindow(record) ? "Equipment check due — under 2 hrs to go" : "Equipment checklist"}>
+        <Button
+          type="text"
+          icon={<ToolOutlined />}
+          className={`event-action-btn checklist ${isWithinPrepWindow(record) ? "urgent" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setChecklistEvent(record);
           }}
         />
       </Tooltip>
@@ -935,6 +971,14 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                               onClick={() => setAssignEvent(event)}
                             />
                           </Tooltip>
+                          <Tooltip title={isWithinPrepWindow(event) ? "Equipment check due — under 2 hrs to go" : "Equipment checklist"}>
+                            <Button
+                              type="text"
+                              icon={<ToolOutlined />}
+                              className={isWithinPrepWindow(event) ? "urgent" : ""}
+                              onClick={() => setChecklistEvent(event)}
+                            />
+                          </Tooltip>
                           <Tooltip title="Team chat">
                             <Badge
                               size="small"
@@ -1101,6 +1145,13 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                   {unreadCounts[viewEvent.id]
                     ? `Team Chat (${unreadCounts[viewEvent.id]})`
                     : "Team Chat"}
+                </Button>
+                <Button
+                  icon={<ToolOutlined />}
+                  onClick={() => setChecklistEvent(viewEvent)}
+                  className={isWithinPrepWindow(viewEvent) ? "event-checklist-cta-urgent" : ""}
+                >
+                  Equipment Checklist
                 </Button>
                 <Button icon={<QrcodeOutlined />} onClick={() => setQrEvent(viewEvent)}>
                   Show QR
@@ -1320,6 +1371,11 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
           user={user}
           onMessagesSeen={markEventRead}
           unreadAtOpen={chatEvent ? unreadCounts[chatEvent.id] || 0 : 0}
+        />
+
+        <EquipmentChecklistModal
+          event={checklistEvent}
+          onClose={() => setChecklistEvent(null)}
         />
       </main>
     </ConfigProvider>

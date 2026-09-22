@@ -2,10 +2,16 @@ import { useMemo, useRef, useState } from "react";
 import {
   CameraOutlined,
   EditOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  HomeOutlined,
+  PhoneOutlined,
   PictureOutlined,
   ReloadOutlined,
   SaveOutlined,
+  StarOutlined,
   StopOutlined,
+  TagsOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
 import { Button, Form, Input, Select, Tooltip } from "antd";
@@ -42,6 +48,13 @@ const REQUIRED_FIELDS = [
   "country",
   "postalCode",
 ];
+
+const PROGRESS_LABELS = {
+  empty: "No changes yet",
+  under: "Roll incomplete — required fields missing",
+  balanced: "Roll complete — ready to develop",
+  error: "Exposure fault — fix the highlighted fields",
+};
 
 const loadLS = (k, fb) => {
   try {
@@ -144,12 +157,25 @@ function areRequiredFieldsFilled(values) {
   });
 }
 
-function Field({ name, label, required, children }: { name: any; label: any; required?: any; children: any }) {
+function Field({
+  name,
+  label,
+  required,
+  icon,
+  children,
+}: {
+  name: any;
+  label: any;
+  required?: any;
+  icon?: React.ReactNode;
+  children: any;
+}) {
   return (
     <Form.Item
       name={name}
       label={
-        <span>
+        <span className="studio-field-label">
+          {icon ? <span className="studio-field-icon">{icon}</span> : null}
           {required && <span className="studio-required">*</span>} {label}
         </span>
       }
@@ -181,29 +207,45 @@ function ApertureIcon({ open }: { open: boolean }) {
   );
 }
 
-/** Camera-style exposure meter: reframes form validity as an exposure reading
- *  instead of a plain disabled-button state, so editors get a legible signal
- *  of how close the profile is to "correctly exposed" (ready to save). */
-function ExposureMeter({ percent, state }: { percent: number; state: "empty" | "under" | "balanced" | "error" }) {
-  const clamped = Math.max(0, Math.min(100, percent));
-  const labels = {
-    empty: "No changes yet",
-    under: "Underexposed — required fields missing",
-    balanced: "Balanced — ready to save",
-    error: "Overexposed — fix the highlighted fields",
-  };
+/** Film-strip progress indicator: one perforated frame per required field.
+ *  Each frame lights up as its field is filled, so editors see exactly
+ *  which fields still need exposure instead of reading an abstract percent. */
+function FilmStrip({
+  values,
+  hasErrors,
+  state,
+}: {
+  values: Record<string, any>;
+  hasErrors: boolean;
+  state: "empty" | "under" | "balanced" | "error";
+}) {
   return (
-    <div className={`studio-exposure studio-exposure-${state}`} role="status">
-      <div className="studio-exposure-scale">
-        {["-2", "-1", "0", "+1", "+2"].map((tick) => (
-          <span key={tick} className="studio-exposure-tick">{tick}</span>
-        ))}
+    <div className={`studio-filmstrip studio-filmstrip-${state}`} role="status" aria-live="polite">
+      <span className="studio-filmstrip-sprockets" aria-hidden="true" />
+      <div className="studio-filmstrip-frames">
+        {REQUIRED_FIELDS.map((key) => {
+          const filled = values?.[key] !== undefined && values?.[key] !== null && String(values[key]).trim() !== "";
+          return (
+            <span
+              key={key}
+              className={`studio-frame ${filled ? "studio-frame-filled" : ""} ${hasErrors ? "studio-frame-error" : ""}`}
+              title={key}
+            />
+          );
+        })}
       </div>
-      <div className="studio-exposure-track">
-        <div className="studio-exposure-fill" style={{ width: `${clamped}%` }} />
-        <div className="studio-exposure-needle" style={{ left: `${clamped}%` }} />
-      </div>
-      <span className="studio-exposure-label">{labels[state]}</span>
+      <span className="studio-filmstrip-sprockets" aria-hidden="true" />
+      <span className="studio-filmstrip-label">{PROGRESS_LABELS[state]}</span>
+    </div>
+  );
+}
+
+function StatChip({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
+  return (
+    <div className="studio-stat-chip">
+      <span className="studio-stat-icon">{icon}</span>
+      <span className="studio-stat-value">{value}</span>
+      <span className="studio-stat-label">{label}</span>
     </div>
   );
 }
@@ -224,6 +266,7 @@ function FanSlot({ action, open, index }: { action: FanAction; open: boolean; in
     <div
       className={`studio-fan-slot ${open ? "studio-fan-slot-open" : ""}`}
       style={{ transitionDelay: open ? `${index * 55}ms` : `${(3 - index) * 35}ms` }}
+      role="menuitem"
     >
       <span className="studio-fan-label">{action.tooltip}</span>
       <Button
@@ -249,13 +292,16 @@ export default function ViewStudioPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isFormValid, setIsFormValid] = useState(true);
   const [justSaved, setJustSaved] = useState(false);
-  const [exposure, setExposure] = useState({ percent: 0, state: "empty" as "empty" | "under" | "balanced" | "error" });
+  const [progress, setProgress] = useState({ percent: 0, state: "empty" as "empty" | "under" | "balanced" | "error" });
+  const [liveValues, setLiveValues] = useState<Record<string, any>>({});
   const [photos, setPhotos] = useState<string[]>(() => loadLS("axsStudioPhotos", DEFAULT_PHOTOS));
   const fileInputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   const initialValues = useMemo(() => loadLS("axsStudio", DEFAULT_STUDIO_DATA), []);
+  const servicesWatch = Form.useWatch("services", form) ?? initialValues.services ?? [];
+  const specializationsWatch = Form.useWatch("specializations", form) ?? initialValues.specializations ?? [];
 
-  const computeExposure = () => {
+  const computeProgress = () => {
     const values = form.getFieldsValue();
     const hasErrors = form.getFieldsError().some(({ errors }) => errors.length > 0);
     const filledCount = REQUIRED_FIELDS.filter((key) => {
@@ -270,12 +316,13 @@ export default function ViewStudioPage() {
     else if (filledCount < REQUIRED_FIELDS.length) state = "under";
     else state = "balanced";
 
-    setExposure({ percent, state });
+    setProgress({ percent, state });
+    setLiveValues(values);
     return { hasErrors, filledCount, percent };
   };
 
   const handleFieldsChange = () => {
-    const { hasErrors, filledCount } = computeExposure();
+    const { hasErrors, filledCount } = computeProgress();
     setIsFormValid(!hasErrors && filledCount === REQUIRED_FIELDS.length);
   };
 
@@ -378,6 +425,12 @@ export default function ViewStudioPage() {
     },
   ];
 
+  const mosaicSlots = [
+    { key: "one", area: "studio-photo-card-big" },
+    { key: "two", area: "studio-photo-card-small-a" },
+    { key: "three", area: "studio-photo-card-small-b" },
+  ];
+
   return (
     <main className="studio-page">
       <div className="studio-grain" aria-hidden="true" />
@@ -387,7 +440,7 @@ export default function ViewStudioPage() {
       <div className="studio-light-beam studio-light-beam-two" />
 
       {/* Vertical lens-dock: fixed to the viewport edge, fully on-screen at every breakpoint */}
-      <div className="studio-fan-layer" aria-label="Studio actions">
+      <div className="studio-fan-layer" aria-label="Studio actions" role="menu">
         {actions.map((action, index) => (
           <FanSlot key={action.key} action={action} open={isRailOpen} index={index} />
         ))}
@@ -397,6 +450,7 @@ export default function ViewStudioPage() {
             className="studio-dock-toggle"
             aria-label={isRailOpen ? "Close actions" : "Open actions"}
             aria-expanded={isRailOpen}
+            aria-haspopup="menu"
             onClick={() => setIsRailOpen((current) => !current)}
           >
             <ApertureIcon open={isRailOpen} />
@@ -405,7 +459,8 @@ export default function ViewStudioPage() {
       </div>
 
       <div className="studio-shell">
-        <section className="studio-hero studio-viewfinder">
+      <div className="studio-flow" style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+        <section className="studio-hero studio-viewfinder" style={{ width: "100%" }}>
           <span className="studio-vf-bracket studio-vf-bracket-tl" />
           <span className="studio-vf-bracket studio-vf-bracket-tr" />
           <span className="studio-vf-bracket studio-vf-bracket-bl" />
@@ -418,32 +473,42 @@ export default function ViewStudioPage() {
             </div>
             <h1 className="studio-title">My Studio</h1>
             <p className="studio-subtitle">Tap a frame to swap in your own shots.</p>
+
+            <div className="studio-stat-row">
+              <StatChip icon={<TagsOutlined />} value={servicesWatch?.length ?? 0} label="Services" />
+              <StatChip icon={<StarOutlined />} value={specializationsWatch?.length ?? 0} label="Specializations" />
+              <StatChip icon={<PictureOutlined />} value={`${photos.length}/3`} label="Photos" />
+            </div>
           </div>
 
+          {/* Bento-style mosaic: each photo is assigned an explicit grid area,
+              so slots stay in their designated place at every viewport. */}
           <div className="studio-photo-stage">
             <div className="studio-focus-reticle" aria-hidden="true" />
-            {photos.map((src, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`studio-photo-card studio-photo-card-${["one", "two", "three"][i]}`}
-                style={{ backgroundImage: `url(${src})` }}
-                onClick={() => handlePhotoPick(i)}
-                aria-label={`Replace studio photo ${i + 1}`}
-              >
-                <span className="studio-photo-swap"><UploadOutlined /></span>
-                <input
-                  ref={fileInputRefs[i]}
-                  type="file"
-                  accept="image/*"
-                  className="studio-photo-input"
-                  onChange={(e) => handlePhotoChange(i, e)}
-                />
+            <div className="studio-mosaic">
+              {mosaicSlots.map(({ key, area }, i) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`studio-photo-card ${area}`}
+                  style={{ backgroundImage: `url(${photos[i]})` }}
+                  onClick={() => handlePhotoPick(i)}
+                  aria-label={`Replace studio photo ${i + 1}`}
+                >
+                  <span className="studio-photo-swap"><UploadOutlined /></span>
+                  <input
+                    ref={fileInputRefs[i]}
+                    type="file"
+                    accept="image/*"
+                    className="studio-photo-input"
+                    onChange={(e) => handlePhotoChange(i, e)}
+                  />
+                </button>
+              ))}
+              <button className="studio-lens-mark" type="button" aria-label="Go to profile gallery" onClick={goToProfile}>
+                <PictureOutlined />
               </button>
-            ))}
-            <button className="studio-lens-mark" type="button" aria-label="Go to profile gallery" onClick={goToProfile}>
-              <PictureOutlined />
-            </button>
+            </div>
           </div>
         </section>
 
@@ -458,40 +523,41 @@ export default function ViewStudioPage() {
           onFieldsChange={handleFieldsChange}
           disabled={!isEditing}
           className="studio-form"
+          style={{ width: "100%" }}
           scrollToFirstError={{ behavior: "smooth", block: "center" }}
         >
           <section className="studio-glass-card">
             <header className="studio-card-header">
               <h2>Studio Details</h2>
-              {isEditing && <ExposureMeter percent={exposure.percent} state={exposure.state} />}
+              {isEditing && <FilmStrip values={liveValues} hasErrors={progress.state === "error"} state={progress.state} />}
             </header>
 
             <div className="studio-grid">
-              <Field name="studioName" label="Studio Name" required>
+              <Field name="studioName" label="Studio Name" icon={<CameraOutlined />} required>
                 <Input placeholder="Studio name" />
               </Field>
 
-              <Field name="phoneNumber" label="Phone Number" required>
+              <Field name="phoneNumber" label="Phone Number" icon={<PhoneOutlined />} required>
                 <Input placeholder="Phone number" maxLength={10} />
               </Field>
 
-              <Field name="address" label="Address" required>
+              <Field name="address" label="Address" icon={<HomeOutlined />} required>
                 <Input placeholder="Address" />
               </Field>
 
-              <Field name="city" label="City" required>
+              <Field name="city" label="City" icon={<EnvironmentOutlined />} required>
                 <Input placeholder="City" />
               </Field>
 
-              <Field name="state" label="State" required>
+              <Field name="state" label="State" icon={<EnvironmentOutlined />} required>
                 <Input placeholder="State" />
               </Field>
 
-              <Field name="country" label="Country" required>
+              <Field name="country" label="Country" icon={<GlobalOutlined />} required>
                 <Input placeholder="Country" />
               </Field>
 
-              <Field name="postalCode" label="Postal code" required>
+              <Field name="postalCode" label="Postal code" icon={<GlobalOutlined />} required>
                 <Input placeholder="Postal code" maxLength={6} />
               </Field>
             </div>
@@ -507,7 +573,7 @@ export default function ViewStudioPage() {
                 <TextArea rows={3} placeholder="About studio" maxLength={1000} showCount />
               </Field>
 
-              <Field name="services" label="Services">
+              <Field name="services" label="Services" icon={<TagsOutlined />}>
                 <Select
                   mode="tags"
                   options={serviceOptions}
@@ -518,7 +584,7 @@ export default function ViewStudioPage() {
                 />
               </Field>
 
-              <Field name="specializations" label="Specializations">
+              <Field name="specializations" label="Specializations" icon={<StarOutlined />}>
                 <Select
                   mode="tags"
                   options={specializationOptions}
@@ -531,6 +597,7 @@ export default function ViewStudioPage() {
             </div>
           </section>
         </Form>
+      </div>
       </div>
     </main>
   );

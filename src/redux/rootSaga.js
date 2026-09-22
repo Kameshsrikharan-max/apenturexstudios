@@ -15,6 +15,7 @@ import { notificationDetailSaga } from "./sagas/notificationDetailSaga";
 import { deleteRequestSaga } from "./sagas/deleteRequestSaga";
 import { registrationApprovalSaga } from "./sagas/registrationApprovalSaga";
 import { messageSaga } from "./sagas/messageSaga";
+import { equipmentChecklistSaga } from "./sagas/equipmentChecklistSaga";
 
 export default function* rootSaga() {
   yield all([
@@ -33,5 +34,6 @@ export default function* rootSaga() {
     deleteRequestSaga(),
     registrationApprovalSaga(),
     messageSaga(),
+    equipmentChecklistSaga(),
   ]);
 }

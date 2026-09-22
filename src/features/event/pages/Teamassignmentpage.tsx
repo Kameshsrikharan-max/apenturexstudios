@@ -5,18 +5,19 @@ import {
   CheckCircleOutlined, ClockCircleOutlined, DollarOutlined, DoubleLeftOutlined,
   CameraOutlined, PictureOutlined, PlusOutlined, TeamOutlined, ReloadOutlined,
   SearchOutlined, EnvironmentOutlined, UserOutlined, CloseOutlined, DownOutlined,
-  ArrowRightOutlined, ArrowLeftOutlined, LoadingOutlined, WarningOutlined,
+  ArrowRightOutlined, ArrowLeftOutlined, LoadingOutlined, WarningOutlined, ToolOutlined,
 } from "@ant-design/icons";
 import "./TeamAssignmentPage.css";
 
 const STEPS = [
-  { label: "Event Details",   icon: <PlusOutlined /> },
-  { label: "Team Assignment", icon: <TeamOutlined /> },
-  { label: "Payment",         icon: <DollarOutlined /> },
-  { label: "Attendance",      icon: <ClockCircleOutlined /> },
-  { label: "Media",           icon: <CameraOutlined /> },
-  { label: "Album",           icon: <PictureOutlined /> },
-  { label: "Closure",         icon: <CheckCircleOutlined /> },
+  { label: "Event Details",        icon: <PlusOutlined /> },
+  { label: "Team Assignment",      icon: <TeamOutlined /> },
+  { label: "Equipment Checklist",  icon: <ToolOutlined /> },
+  { label: "Payment",              icon: <DollarOutlined /> },
+  { label: "Attendance",           icon: <ClockCircleOutlined /> },
+  { label: "Media",                icon: <CameraOutlined /> },
+  { label: "Album",                icon: <PictureOutlined /> },
+  { label: "Closure",              icon: <CheckCircleOutlined /> },
 ];
 
 const ROLES = ["Photographer", "Videographer", "Drone Operator", "Assistant"];
@@ -226,9 +227,9 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
   // Restore whatever team has already been put together for this event.
   //
   // Two very different situations land here:
-  //  1) Mid-wizard (CreateEventPage -> here -> Payment...): the only record
-  //     of the team so far is the wizard's own sessionStorage draft
-  //     (`currentEvent._assignedTeam`).
+  //  1) Mid-wizard (CreateEventPage -> here -> Equipment Checklist...): the
+  //     only record of the team so far is the wizard's own sessionStorage
+  //     draft (`currentEvent._assignedTeam`).
   //  2) Reopening an *already created* event from the Events list
   //     (EventPage's "Assign members" action, which renders this component
   //     with a real `event` prop): the source of truth is what the backend
@@ -429,7 +430,9 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       onNext(assignedTeam);
       return;
     }
-    navigate("/events/create/payment");
+    // Wizard flow (standalone route, no onNext prop) continues on to the
+    // Equipment Checklist step rather than jumping straight to Payment.
+    navigate("/events/create/equipment-checklist", { state: { eventId } });
   };
 
   const handlePrevious = () => {
@@ -466,7 +469,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
           <div className="tap-title-wrap">
             <span className="tap-title-icon"><TeamOutlined /></span>
             <div>
-              <p className="tap-subtitle">Step 2 of 7 / Team Assignment</p>
+              <p className="tap-subtitle">Step 2 of 8 / Team Assignment</p>
               <div className="tap-heading-row">
                 <h1 className="tap-heading">Assign Your Team</h1>
                 {event ? (

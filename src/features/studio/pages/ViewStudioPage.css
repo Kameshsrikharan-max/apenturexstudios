@@ -1,6 +1,7 @@
 .studio-page,
 .studio-page * {box-sizing: border-box;}
-.studio-page {position: relative;width: 100%;min-height: 100vh;overflow-x: hidden;padding: 18px 96px 30px 22px;color: #f8fafc;background: transparent;}
+:root {--studio-dock-w: 96px;}
+.studio-page {position: relative;width: 100%;min-height: 100vh;overflow-x: hidden;padding: 18px var(--studio-dock-w) 30px 22px;color: #f8fafc;background: transparent;font-family: "Times New Roman", Times, serif;}
 
 /* Fine grain layer — ties the page to a photographic surface without any extra motion */
 .studio-grain {position: fixed;inset: 0;z-index: 0;pointer-events: none;opacity: 0.05;mix-blend-mode: overlay;background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");}
@@ -8,10 +9,12 @@
 .studio-light-beam {position: fixed;z-index: 0;pointer-events: none;width: 460px;height: 160px;border-radius: 999px;filter: blur(28px);opacity: 0.28;transform-origin: center;}
 .studio-light-beam-one {top: 90px;left: -130px;background: linear-gradient(90deg, rgba(56, 189, 248, 0.52), transparent);animation: studioSweepOne 9s ease-in-out infinite;}
 .studio-light-beam-two {right: -180px;bottom: 90px;background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.22), rgba(244, 114, 182, 0.2));animation: studioSweepTwo 11s ease-in-out infinite;}
-.studio-shell {position: relative;z-index: 1;width: 100%;max-width: 1060px;margin: 0 auto;}
+.studio-shell {position: relative;z-index: 1;width: 100%;max-width: 1080px;margin: 0 auto;}
+.studio-flow {display: flex !important;flex-direction: column !important;width: 100% !important;}
 
-/* Hero / Viewfinder                                                      */
-.studio-hero {display: grid;grid-template-columns: minmax(0, 1fr) 280px;align-items: center;gap: 24px;min-height: 168px;margin-bottom: 14px;}
+/* Hero / Viewfinder — single column: heading block, then the mosaic below it,   */
+/* so the page always reads top-to-bottom instead of splitting into two rails.   */
+.studio-hero {display: flex;flex-direction: column;gap: 22px;margin-bottom: 16px;}
 .studio-viewfinder {position: relative;}
 .studio-vf-bracket {position: absolute;width: 22px;height: 22px;border: 2px solid rgba(125, 211, 252, 0.55);pointer-events: none;z-index: 2;opacity: 0.85;}
 .studio-vf-bracket-tl {top: -6px;left: -6px;border-right: 0;border-bottom: 0;border-radius: 5px 0 0 0;}
@@ -24,30 +27,40 @@
 .studio-title {margin: 0;color: #ffffff;font-size: clamp(24px, 3vw, 40px);line-height: 1.02;font-weight: 950;text-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);}
 .studio-subtitle {margin: 8px 0 0;color: rgba(248, 250, 252, 0.56);font-size: 13px;font-weight: 600;}
 
-.studio-photo-stage {position: relative;min-height: 156px;perspective: 900px;}
-.studio-photo-stage::before {position: absolute;inset: 18px 36px;content: "";border: 1px dashed rgba(56, 189, 248, 0.35);border-radius: 26px;filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.22));animation: studioFrameSpin 14s linear infinite;}
+/* Stat strip — live counts pulled from the form, so the hero reflects real state */
+.studio-stat-row {display: flex;flex-wrap: wrap;gap: 10px;margin-top: 18px;}
+.studio-stat-chip {display: inline-flex;align-items: baseline;gap: 6px;padding: 7px 13px;border-radius: 999px;border: 1px solid rgba(255, 255, 255, 0.14);background: rgba(255, 255, 255, 0.045);backdrop-filter: blur(10px);-webkit-backdrop-filter: blur(10px);}
+.studio-stat-icon {display: inline-flex;color: #38bdf8;font-size: 13px;}
+.studio-stat-value {color: #ffffff;font-size: 14px;font-weight: 800;}
+.studio-stat-label {color: rgba(248, 250, 252, 0.52);font-size: 11px;font-weight: 700;text-transform: uppercase;letter-spacing: 0.02em;}
+
+/* Photo mosaic — each frame lives in an explicitly assigned grid area,       */
+/* so slots hold their designated place instead of floating/overlapping.     */
+.studio-photo-stage {position: relative;width: 100%;max-width: 560px;min-height: 240px;}
 .studio-focus-reticle {position: absolute;inset: 38% 30%;border: 1.5px solid rgba(34, 197, 94, 0.8);border-radius: 6px;opacity: 0;pointer-events: none;z-index: 3;animation: studioFocusHunt 1.9s ease-out 500ms both;}
 .studio-focus-reticle::before,
 .studio-focus-reticle::after {position: absolute;content: "";width: 6px;height: 6px;border: 1.5px solid rgba(34, 197, 94, 0.8);}
 .studio-focus-reticle::before {top: -1.5px;left: -1.5px;border-right: 0;border-bottom: 0;}
 .studio-focus-reticle::after {bottom: -1.5px;right: -1.5px;border-left: 0;border-top: 0;}
 
-.studio-photo-card {position: absolute;overflow: hidden;border: 1px solid rgba(255, 255, 255, 0.24);border-radius: 12px;background-position: center;background-size: cover;box-shadow: 0 26px 70px rgba(0, 0, 0, 0.38);padding: 0;cursor: pointer;transition: transform 220ms ease, box-shadow 220ms ease;}
+.studio-mosaic {position: relative;display: grid;height: 100%;min-height: 180px;grid-template-columns: 1.5fr 1fr;grid-template-rows: 1fr 1fr;grid-template-areas: "big small-a" "big small-b";gap: 10px;padding: 6px;border: 1px dashed rgba(56, 189, 248, 0.3);border-radius: 20px;}
+
+.studio-photo-card {position: relative;overflow: hidden;border: 1px solid rgba(255, 255, 255, 0.24);border-radius: 12px;background-position: center;background-size: cover;box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);padding: 0;cursor: pointer;transition: transform 220ms ease, box-shadow 220ms ease;}
 .studio-photo-card::after {position: absolute;inset: 0;content: "";background:linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 38%),linear-gradient(to top, rgba(8, 13, 28, 0.58), transparent 55%);}
-.studio-photo-card-one {inset: 16px 92px 14px 0;transform: rotate(-7deg);animation: studioPhotoFloat 6s ease-in-out infinite;}
-.studio-photo-card-two {inset: 2px 18px 24px 92px;transform: rotate(6deg);animation: studioPhotoFloat 6.8s ease-in-out infinite reverse;}
-.studio-photo-card-three {inset: 70px 52px 0 54px;transform: rotate(1deg);animation: studioPhotoFloat 7.4s ease-in-out infinite;}
+.studio-photo-card-big {grid-area: big;}
+.studio-photo-card-small-a {grid-area: small-a;}
+.studio-photo-card-small-b {grid-area: small-b;}
 .studio-photo-card:hover,
-.studio-photo-card:focus-visible {transform: translateY(-4px) scale(1.03) rotate(0deg);box-shadow: 0 30px 76px rgba(56, 189, 248, 0.3);z-index: 5;}
+.studio-photo-card:focus-visible {transform: translateY(-3px) scale(1.015);box-shadow: 0 22px 54px rgba(56, 189, 248, 0.28);z-index: 5;}
 .studio-photo-swap {position: absolute;top: 50%;left: 50%;z-index: 4;display: grid;width: 34px;height: 34px;place-items: center;border-radius: 50%;color: #ffffff;background: rgba(8, 13, 28, 0.68);border: 1px solid rgba(255, 255, 255, 0.4);opacity: 0;transform: translate(-50%, -50%) scale(0.7);transition: opacity 180ms ease, transform 180ms ease;}
 .studio-photo-card:hover .studio-photo-swap,
 .studio-photo-card:focus-visible .studio-photo-swap {opacity: 1;transform: translate(-50%, -50%) scale(1);}
 .studio-photo-input {position: absolute;inset: 0;width: 100%;height: 100%;opacity: 0;pointer-events: none;}
 
-.studio-lens-mark {position: absolute;right: 10px;bottom: 2px;display: grid;width: 42px;height: 42px;place-items: center;padding: 0;border: 1px solid rgba(56, 189, 248, 0.55);border-radius: 50%;color: #ffffff;background: rgba(56, 189, 248, 0.24);backdrop-filter: blur(16px);-webkit-backdrop-filter: blur(16px);box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);cursor: pointer;transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;z-index: 6;}
+.studio-lens-mark {position: absolute;right: 12px;bottom: 12px;display: grid;width: 40px;height: 40px;place-items: center;padding: 0;border: 1px solid rgba(56, 189, 248, 0.55);border-radius: 50%;color: #ffffff;background: rgba(56, 189, 248, 0.28);backdrop-filter: blur(16px);-webkit-backdrop-filter: blur(16px);box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);cursor: pointer;transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;z-index: 6;}
 .studio-lens-mark:hover,
 .studio-lens-mark:focus-visible {border-color: rgba(255, 255, 255, 0.72);background: #38bdf8;transform: translateY(-3px) scale(1.04);}
-.studio-lens-mark .anticon {font-size: 18px;}
+.studio-lens-mark .anticon {font-size: 17px;}
 
 /* Lens dock: a single fixed column, fully inside the viewport at every       */
 /* breakpoint so it never overlaps the scrollbar or gets clipped at the edge. */
@@ -92,20 +105,23 @@
 .studio-card-header::after {position: absolute;right: 20px;bottom: -1px;left: 20px;height: 1px;content: "";background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.74), transparent);}
 .studio-card-header h2 {margin: 0;color: #f8fafc;font-size: 19px;font-weight: 900;line-height: 1.2;}
 
-/* Exposure meter — reframes "is the form valid" as a camera exposure reading */
-.studio-exposure {display: flex;align-items: center;gap: 10px;min-width: 220px;}
-.studio-exposure-scale {display: none;}
-.studio-exposure-track {position: relative;width: 120px;height: 6px;border-radius: 999px;background: rgba(255, 255, 255, 0.14);overflow: hidden;}
-.studio-exposure-fill {height: 100%;border-radius: 999px;background: linear-gradient(90deg, #f43f5e, #f2b705, #22c55e);transition: width 260ms ease;}
-.studio-exposure-needle {position: absolute;top: 50%;width: 9px;height: 9px;border-radius: 50%;background: #ffffff;box-shadow: 0 0 0 3px rgba(8, 13, 28, 0.6);transform: translate(-50%, -50%);transition: left 260ms ease;}
-.studio-exposure-label {font-size: 12px;font-weight: 700;color: rgba(248, 250, 252, 0.72);white-space: nowrap;}
-.studio-exposure-balanced .studio-exposure-label {color: #86efac;}
-.studio-exposure-error .studio-exposure-label {color: #fca5a5;}
-.studio-exposure-under .studio-exposure-label {color: #fde68a;}
+/* Film-strip progress — one perforated frame per required field, lights up as filled */
+.studio-filmstrip {display: flex;align-items: center;gap: 8px;min-width: 260px;}
+.studio-filmstrip-sprockets {flex-shrink: 0;width: 8px;height: 18px;border-radius: 2px;background:repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.4) 0, rgba(255, 255, 255, 0.4) 3px, transparent 3px, transparent 7px);opacity: 0.5;}
+.studio-filmstrip-frames {display: flex;align-items: center;gap: 4px;padding: 4px 6px;border-radius: 6px;background: rgba(0, 0, 0, 0.28);border: 1px solid rgba(255, 255, 255, 0.1);}
+.studio-frame {width: 14px;height: 14px;border-radius: 3px;background: rgba(255, 255, 255, 0.12);border: 1px solid rgba(255, 255, 255, 0.16);transition: background 220ms ease, border-color 220ms ease, box-shadow 220ms ease;}
+.studio-frame-filled {background: #22c55e;border-color: rgba(255, 255, 255, 0.4);box-shadow: 0 0 8px rgba(34, 197, 94, 0.65);}
+.studio-frame-error.studio-frame-filled {background: #f43f5e;box-shadow: 0 0 8px rgba(244, 63, 94, 0.65);}
+.studio-filmstrip-label {font-size: 12px;font-weight: 700;color: rgba(248, 250, 252, 0.72);white-space: nowrap;}
+.studio-filmstrip-balanced .studio-filmstrip-label {color: #86efac;}
+.studio-filmstrip-error .studio-filmstrip-label {color: #fca5a5;}
+.studio-filmstrip-under .studio-filmstrip-label {color: #fde68a;}
 
 .studio-grid {display: grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap: 18px 16px;padding: 20px 22px;}
 .studio-grid-portfolio {align-items: start;}
 .studio-required {color: #fb7185;font-weight: 900;}
+.studio-field-label {display: inline-flex;align-items: center;gap: 6px;}
+.studio-field-icon {display: inline-flex;color: #38bdf8;font-size: 13px;opacity: 0.85;}
 .studio-page .ant-form-item {margin-bottom: 0;}
 .studio-page .ant-form-item-label {padding-bottom: 6px;}
 .studio-page .ant-form-item-label > label {height: auto;color: #f8fafc;font-size: 15px;font-weight: 650;}
@@ -146,8 +162,6 @@
 /* Keyframes */
 @keyframes studioSweepOne {0%,100% {transform: rotate(-10deg) translateX(0);}50% {transform: rotate(-4deg) translateX(120px);}}
 @keyframes studioSweepTwo {0%,100% {transform: rotate(8deg) translateX(0);}50% {transform: rotate(2deg) translateX(-120px);}}
-@keyframes studioFrameSpin {from {transform: rotate(0deg);}to {transform: rotate(360deg);}}
-@keyframes studioPhotoFloat {0%,100% {translate: 0 0;}50% {translate: 0 -10px;}}
 @keyframes studioCardIn {from {opacity: 0;transform: translateY(16px);}to {opacity: 1;transform: translateY(0);}}
 @keyframes studioShutterFlash {0% {opacity: 0.88;}100% {opacity: 0;}}
 @keyframes studioFocusHunt {
@@ -161,8 +175,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .studio-light-beam,
-  .studio-photo-stage::before,
-  .studio-photo-card,
   .studio-glass-card,
   .studio-focus-reticle,
   .studio-shutter-flash-active {animation: none !important;}
@@ -170,23 +182,24 @@
 }
 
 @media (max-width: 900px) {
-  .studio-page {padding: 16px 80px 24px 16px;}
-  .studio-hero {grid-template-columns: 1fr;min-height: auto;}
-  .studio-photo-stage {min-height: 150px;}
+  :root {--studio-dock-w: 80px;}
+  .studio-page {padding: 16px var(--studio-dock-w) 24px 16px;}
+  .studio-photo-stage {max-width: 100%;min-height: 210px;}
   .studio-grid {grid-template-columns: 1fr;padding: 18px;}
   .studio-card-header {padding: 12px 18px;}
   .studio-fan-layer {right: 16px;}
-  .studio-exposure {min-width: 0;}
-  .studio-exposure-track {width: 90px;}
+  .studio-filmstrip {min-width: 0;}
 }
 @media (max-width: 620px) {
-  .studio-page {padding: 14px 70px 24px 14px;}
+  :root {--studio-dock-w: 70px;}
+  .studio-page {padding: 14px var(--studio-dock-w) 24px 14px;}
   .studio-title {font-size: 28px;}
-  .studio-photo-stage {min-height: 138px;}
+  .studio-photo-stage {min-height: 190px;}
   .studio-fan-layer {right: 10px;gap: 8px;}
   .studio-dock-toggle {width: 48px;height: 48px;}
   .studio-rail-btn {width: 38px;min-width: 38px;height: 38px;}
   .studio-fan-label {display: none;}
+  .studio-filmstrip-label {display: none;}
   .studio-page .ant-form-item-label > label,
   .studio-page .ant-input,
   .studio-page .ant-input-textarea textarea,
