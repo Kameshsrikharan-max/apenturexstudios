@@ -1,0 +1,13 @@
+.cisp-panel {background: rgba(15, 23, 42, 0.5);border: 1px solid rgba(148, 163, 184, 0.2);border-radius: 16px;padding: 20px;margin: 16px 0;}
+.cisp-loading {display: flex;justify-content: center;padding: 24px;}
+.cisp-title {margin-bottom: 16px !important;}
+.cisp-list {display: flex;flex-direction: column;gap: 14px;}
+.cisp-row {display: flex;gap: 12px;align-items: flex-start;}
+.cisp-photo {width: 56px;height: 56px;border-radius: 12px;object-fit: cover;flex-shrink: 0;border: 1px solid rgba(148, 163, 184, 0.25);}
+.cisp-photo-placeholder {background: rgba(148, 163, 184, 0.15);}
+.cisp-row-body {display: flex;flex-direction: column;gap: 4px;}
+.cisp-check-icon {color: #4ade80;margin-right: 6px;}
+.cisp-time .anticon {margin-right: 4px;}
+.cisp-location-link {font-size: 12px;color: #38d5ff;}
+.cisp-pending {margin-top: 14px;padding-top: 14px;border-top: 1px dashed rgba(148, 163, 184, 0.25);}
+.cisp-empty {padding: 12px 0;}

@@ -1,0 +1,26 @@
+.ci-page {min-height: 100vh;padding: 32px 16px;background: radial-gradient(circle at top, #0f172a 0%, #020617 65%);display: flex;justify-content: center;align-items: flex-start;}
+.ci-center {align-items: center;}
+.ci-card,
+.ci-status-card {width: 100%;max-width: 420px;background: rgba(15, 23, 42, 0.72);border: 1px solid rgba(56, 189, 248, 0.25);border-radius: 20px;padding: 28px 24px;backdrop-filter: blur(14px);box-shadow: 0 20px 60px rgba(2, 6, 23, 0.45);}
+.ci-status-card {text-align: center;padding: 40px 24px;}
+.ci-status-icon {font-size: 40px;color: #38bdf8;margin-bottom: 12px;display: block;}
+.ci-success-icon {color: #4ade80;}
+.ci-heading {color: #e2e8f0 !important;margin-bottom: 16px !important;}
+.ci-status-card .ant-typography,
+.ci-card .ant-typography {color: #cbd5e1;}
+.ci-event-summary {border: 1px solid rgba(148, 163, 184, 0.2);border-radius: 14px;padding: 14px 16px;margin-bottom: 22px;display: flex;flex-direction: column;gap: 8px;}
+.ci-summary-row {display: flex;align-items: center;gap: 8px;color: #e2e8f0;font-size: 14px;}
+.ci-summary-row .anticon {color: #38bdf8;}
+.ci-step {margin-bottom: 20px;}
+.ci-step .ant-typography {display: block;margin-bottom: 8px;color: #e2e8f0;}
+.ci-camera-box,
+.ci-location-box {border: 1px dashed rgba(148, 163, 184, 0.35);border-radius: 14px;padding: 16px;display: flex;flex-direction: column;align-items: center;gap: 10px;}
+.ci-camera-live {width: 100%;display: flex;flex-direction: column;align-items: center;gap: 10px;}
+.ci-camera-live video {width: 100%;border-radius: 12px;transform: scaleX(-1);}
+.ci-capture-btn {width: 100%;}
+.ci-photo-preview {width: 100%;display: flex;flex-direction: column;align-items: center;gap: 10px;}
+.ci-photo-preview img {width: 100%;border-radius: 12px;transform: scaleX(-1);}
+.ci-coords {color: #4ade80 !important;}
+.ci-arrive-row {display: flex;align-items: center;justify-content: space-between;margin-bottom: 22px;}
+.ci-error {display: block;margin-bottom: 14px;text-align: center;}
+.ci-submit-btn {height: 46px;border-radius: 12px;font-weight: 600;}

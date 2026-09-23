@@ -1,45 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Avatar,
-  Badge,
-  Button,
-  ConfigProvider,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Pagination,
-  Popover,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-  notification,
-} from "antd";
-import {
-  AppstoreOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CopyOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  FilterOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  QrcodeOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  TableOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  ToolOutlined,
-  UnorderedListOutlined,
+import { Avatar,Badge,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,notification,} from "antd";
+import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,MessageOutlined,PlusOutlined,QrcodeOutlined,RadarChartOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,ToolOutlined,UnorderedListOutlined,
 } from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
@@ -49,6 +12,9 @@ import LocationPickerModal, { LocationData } from "./LocationPickerModal";
 import EventQRModal from "../../../components/UI/EventQRModal";
 import EventThreadPanel from "../../../components/UI/EventThreadPanel";
 import EquipmentChecklistModal from "../../../components/UI/EquipmentChecklistModal";
+import CheckInStatusBadge from "../../../components/UI/CheckInStatusBadge";
+import CheckInStatusModal from "../../../components/UI/CheckInStatusModal";
+import { fetchCheckInStatusForEvents, EventCheckInStatus } from "../../../utils/checkinStatusApi";
 
 const { Title, Text } = Typography;
 
@@ -130,6 +96,19 @@ const isWithinPrepWindow = (event: any): boolean => {
   const diffMs = eventDate.getTime() - Date.now();
   const twoHoursMs = 2 * 60 * 60 * 1000;
   return diffMs > 0 && diffMs <= twoHoursMs;
+};
+
+// True if an event's date falls on today's calendar day (local time) —
+// drives whether the check-in badge's "awaiting" state animates.
+const isEventToday = (event: any): boolean => {
+  const eventDate = parseEventDateTime(event);
+  if (!eventDate) return false;
+  const now = new Date();
+  return (
+    eventDate.getFullYear() === now.getFullYear() &&
+    eventDate.getMonth() === now.getMonth() &&
+    eventDate.getDate() === now.getDate()
+  );
 };
 
 /* ---------- Unread message tracking (client-side) ----------
@@ -266,6 +245,12 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
   // --- Equipment checklist state ---
   const [checklistEvent, setChecklistEvent] = useState<any>(null);
 
+  // --- Check-in status modal state ---
+  const [checkinModalEvent, setCheckinModalEvent] = useState<any>(null);
+
+  // --- Photographer check-in status (badges + view-modal panel) ---
+  const [checkinStatusMap, setCheckinStatusMap] = useState<Record<string, EventCheckInStatus>>({});
+
   const [form] = Form.useForm();
 
   const canCreateEvents = user?.role === "studio_admin" || user?.role === "super_admin";
@@ -280,6 +265,11 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
     setTablePage(1);
     setCardPage(1);
   }, [activeStatus, searchTerm, events.length]);
+
+  useEffect(() => {
+    if (!events.length) return;
+    fetchCheckInStatusForEvents(events.map((e) => e.id)).then(setCheckinStatusMap);
+  }, [events]);
 
   const scopedEvents = useMemo(() => {
     if (!isAssignedOnlyRole) return events;
@@ -639,6 +629,17 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
           />
         </Badge>
       </Tooltip>
+      <Tooltip title="Photographer check-in status">
+        <Button
+          type="text"
+          icon={<RadarChartOutlined />}
+          className="event-action-btn checkin"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCheckinModalEvent(record);
+          }}
+        />
+      </Tooltip>
       <Tooltip title="Show QR code">
         <Button
           type="text"
@@ -683,6 +684,7 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
           <span>
             <strong>{highlightText(text)}</strong>
             <small>{record.type}</small>
+            <CheckInStatusBadge status={checkinStatusMap[record.id]} isToday={isEventToday(record)} />
           </span>
         </button>
       ),
@@ -954,6 +956,7 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                         <EnvironmentOutlined /> {event.city}
                       </p>
                       <div className="event-card-footer">
+                        <CheckInStatusBadge status={checkinStatusMap[event.id]} isToday={isEventToday(event)} />
                         {renderStatus(event.status)}
                         <Space size={4}>
                           <Tooltip title={event.location ? "View pinned venue" : "Pin venue location"}>
@@ -993,6 +996,13 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                                 onClick={() => setChatEvent(event)}
                               />
                             </Badge>
+                          </Tooltip>
+                          <Tooltip title="Photographer check-in status">
+                            <Button
+                              type="text"
+                              icon={<RadarChartOutlined />}
+                              onClick={() => setCheckinModalEvent(event)}
+                            />
                           </Tooltip>
                           <Tooltip title="Show QR code">
                             <Button
@@ -1141,6 +1151,9 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
               <div className="event-modal-actions">
                 <Button onClick={() => setViewEvent(null)}>Close</Button>
+                <Button icon={<RadarChartOutlined />} onClick={() => setCheckinModalEvent(viewEvent)}>
+                  Check-In Status
+                </Button>
                 <Button icon={<MessageOutlined />} onClick={() => setChatEvent(viewEvent)}>
                   {unreadCounts[viewEvent.id]
                     ? `Team Chat (${unreadCounts[viewEvent.id]})`
@@ -1364,6 +1377,14 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
         ) : null}
 
         <EventQRModal event={qrEvent} onClose={() => setQrEvent(null)} />
+
+        <CheckInStatusModal
+          open={!!checkinModalEvent}
+          eventId={checkinModalEvent?.id || null}
+          eventName={checkinModalEvent?.name}
+          venueLocation={checkinModalEvent?.location || null}
+          onClose={() => setCheckinModalEvent(null)}
+        />
 
         <EventThreadPanel
           event={chatEvent}

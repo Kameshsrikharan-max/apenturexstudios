@@ -1,5 +1,5 @@
-import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,AuditOutlined,} from "@ant-design/icons";
-import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,RegistrationRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,} from "../../redux/types/notificationDetailTypes";
+import {StarOutlined,EditOutlined,DeleteOutlined,TeamOutlined,DollarOutlined,PictureOutlined,UploadOutlined,HeartOutlined,FolderAddOutlined,UserAddOutlined,LoginOutlined,LockOutlined,StopOutlined,CheckCircleOutlined,WalletOutlined,HourglassOutlined,CloseCircleOutlined,CalendarOutlined,CheckOutlined,AuditOutlined,CameraOutlined,} from "@ant-design/icons";
+import {NotificationCategoryKey,NotificationEvent,NotificationDetailItem,ReviewEndorsementPayload,ChangeRequestPayload,DeleteRequestPayload,RegistrationRequestPayload,EventAssignmentPayload,PaymentExpensesPayload,MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,PhotographerCheckInPayload,} from "../../redux/types/notificationDetailTypes";
 
 export interface DecisionLabels {
   approve: string;
@@ -414,6 +414,24 @@ const CATEGORY_CONFIG: Record<NotificationCategoryKey, CategoryConfig> = {
         field("Total Amount Paid", payload.amountPaid != null ? `${cur}${payload.amountPaid}` : undefined),
         field("Balance Remaining", payload.balanceAmount != null ? `${cur}${payload.balanceAmount}` : undefined),
         field("Transaction ID", payload.transactionId),
+      ]);
+    },
+    decisionLabels: DEFAULT_DECISION_LABELS,
+  },
+
+  // ===== event day =====
+  photographerCheckIn: {
+    key: "photographerCheckIn",
+    label: "Photographer Check-In",
+    accent: "#4ade80",
+    icon: <CameraOutlined />,
+    getPayloadFields: (event) => {
+      const payload = (event.payload || {}) as PhotographerCheckInPayload;
+      return compact([
+        field("Event", payload.eventName),
+        field("Photographer", payload.photographerName),
+        field("Checked In At", payload.arrivedAt),
+        field("Location", payload.location),
       ]);
     },
     decisionLabels: DEFAULT_DECISION_LABELS,

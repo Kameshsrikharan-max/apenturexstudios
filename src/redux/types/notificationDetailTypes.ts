@@ -26,7 +26,9 @@ export type NotificationCategoryKey =
   | "paymentPending"
   | "paymentFailed"
   | "paymentDue"
-  | "paymentCompleted";
+  | "paymentCompleted"
+  // event day
+  | "photographerCheckIn";
 
 export interface ReviewEndorsementPayload {
   referralName?: string;
@@ -106,6 +108,13 @@ export interface PaymentStatusPayload {
   balanceAmount?: number;   // remaining balance
 }
 
+export interface PhotographerCheckInPayload {
+  eventName?: string;
+  photographerName?: string;
+  arrivedAt?: string;
+  location?: string;
+}
+
 export type NotificationPayload =
   | ReviewEndorsementPayload
   | ChangeRequestPayload
@@ -116,7 +125,8 @@ export type NotificationPayload =
   | MediaNotificationPayload
   | MediaEngagementPayload
   | UserAccountPayload
-  | PaymentStatusPayload;
+  | PaymentStatusPayload
+  | PhotographerCheckInPayload;
 
 export type NotificationEvent = {
   id: string;
