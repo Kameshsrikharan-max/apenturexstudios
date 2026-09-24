@@ -9,8 +9,7 @@
   letter-spacing: 0.02em;
   line-height: 1.6;
   white-space: nowrap;
-  width: fit-content;
-  margin-top: 2px;
+  flex-shrink: 0;
   backdrop-filter: blur(6px);
   transition: transform 0.15s ease;
 }
@@ -92,6 +91,9 @@
 
 /* ---- Progress ring (partial / complete) ---- */
 .cis-ring {
+  width: 15px !important;
+  height: 15px !important;
+  min-width: 15px;
   flex-shrink: 0;
   overflow: visible;
 }

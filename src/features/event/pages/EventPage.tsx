@@ -684,7 +684,6 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
           <span>
             <strong>{highlightText(text)}</strong>
             <small>{record.type}</small>
-            <CheckInStatusBadge status={checkinStatusMap[record.id]} isToday={isEventToday(record)} />
           </span>
         </button>
       ),
@@ -733,6 +732,14 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
       key: "status",
       width: 100,
       render: renderStatus,
+    },
+    {
+      title: "Check-In",
+      key: "checkin",
+      width: 130,
+      render: (_: any, record: any) => (
+        <CheckInStatusBadge status={checkinStatusMap[record.id]} isToday={isEventToday(record)} />
+      ),
     },
     {
       title: "Stage",

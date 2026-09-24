@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Typography, Button, Switch, Spin } from "antd";
-import { motion } from "framer-motion";
+import { Typography, Button, Switch, Spin, Segmented, message } from "antd";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CameraOutlined,
   EnvironmentOutlined,
@@ -9,12 +9,18 @@ import {
   ClockCircleOutlined,
   CalendarOutlined,
   UserOutlined,
+  UploadOutlined,
+  InboxOutlined,
+  ReloadOutlined,
+  AimOutlined,
+  CloseCircleOutlined,
 } from "@ant-design/icons";
 import "./CheckInFormPage.css";
 
 const { Title, Text } = Typography;
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB
 
 type PageState =
   | "loading"
@@ -26,6 +32,8 @@ type PageState =
   | "submitting"
   | "success"
   | "error";
+
+type PhotoSource = "camera" | "upload";
 
 interface CheckInContext {
   state: string;
@@ -43,21 +51,33 @@ interface CheckInContext {
   };
 }
 
+const STEPS = [
+  { key: "photo", label: "Photo", icon: <CameraOutlined /> },
+  { key: "location", label: "Location", icon: <EnvironmentOutlined /> },
+  { key: "confirm", label: "Confirm", icon: <CheckCircleOutlined /> },
+] as const;
+
 export default function CheckInFormPage() {
   const { token } = useParams<{ token: string }>();
   const [pageState, setPageState] = useState<PageState>("loading");
   const [context, setContext] = useState<CheckInContext | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [photoSource, setPhotoSource] = useState<PhotoSource>("camera");
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraStarting, setCameraStarting] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState("");
   const [arrivedConfirmed, setArrivedConfirmed] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -83,7 +103,15 @@ export default function CheckInFormPage() {
     };
   }, []);
 
+  const stopCameraStream = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  };
+
   const startCamera = async () => {
+    setErrorMsg("");
+    setCameraStarting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
@@ -96,15 +124,18 @@ export default function CheckInFormPage() {
         await videoRef.current.play();
       }
     } catch {
-      setErrorMsg("Camera access is required to check in. Please allow camera permission and try again.");
+      setErrorMsg("Camera access is required to check in this way. Please allow camera permission, or switch to Upload.");
+    } finally {
+      setCameraStarting(false);
     }
   };
 
-  const captureLocation = () => {
+  const captureLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setErrorMsg("Location access is required to check in.");
+      setLocError("Location access is required to check in.");
       return;
     }
+    setLocError("");
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -112,12 +143,12 @@ export default function CheckInFormPage() {
         setLocating(false);
       },
       () => {
-        setErrorMsg("Please allow location access to complete check-in.");
+        setLocError("Please allow location access to complete check-in.");
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
+  }, []);
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -129,20 +160,63 @@ export default function CheckInFormPage() {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     setPhoto(canvas.toDataURL("image/jpeg", 0.85));
-
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    setCameraActive(false);
-
+    stopCameraStream();
     captureLocation();
   };
 
   const retakePhoto = () => {
     setPhoto(null);
     setCoords(null);
-    startCamera();
+    setLocError("");
+    if (photoSource === "camera") startCamera();
+  };
+
+  const handleSourceChange = (value: PhotoSource) => {
+    setErrorMsg("");
+    if (value === photoSource) return;
+    stopCameraStream();
+    setPhoto(null);
+    setCoords(null);
+    setLocError("");
+    setPhotoSource(value);
+  };
+
+  const readFileAsPhoto = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      message.error("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      message.error("Image is too large. Please choose a file under 8MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhoto(reader.result as string);
+      captureLocation();
+    };
+    reader.onerror = () => {
+      message.error("Couldn't read that file. Please try another photo.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) readFileAsPhoto(file);
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) readFileAsPhoto(file);
   };
 
   const canCheckIn = !!photo && !!coords && arrivedConfirmed;
+
+  const activeStepIndex = !photo ? 0 : !coords ? 1 : 2;
 
   const handleSubmit = async () => {
     if (!token || !canCheckIn) return;
@@ -155,6 +229,7 @@ export default function CheckInFormPage() {
         body: JSON.stringify({
           arrivedConfirmed,
           photo,
+          photoSource,
           lat: coords!.lat,
           lng: coords!.lng,
         }),
@@ -221,9 +296,26 @@ export default function CheckInFormPage() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
         >
-          <CheckCircleOutlined className="ci-status-icon ci-success-icon" />
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 15 }}
+          >
+            <CheckCircleOutlined className="ci-status-icon ci-success-icon" />
+          </motion.div>
           <Title level={3}>You're checked in</Title>
           <Text>Have a great shoot. The studio has been notified.</Text>
+          {coords ? (
+            <div className="ci-mini-map">
+              <iframe
+                title="check-in location"
+                className="ci-mini-map-frame"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng - 0.004}%2C${
+                  coords.lat - 0.003
+                }%2C${coords.lng + 0.004}%2C${coords.lat + 0.003}&marker=${coords.lat}%2C${coords.lng}&layer=mapnik`}
+              />
+            </div>
+          ) : null}
         </motion.div>
       </main>
     );
@@ -231,7 +323,7 @@ export default function CheckInFormPage() {
 
   return (
     <main className="ci-page">
-      <div className="ci-card">
+      <div className="ci-card ci-card-glow">
         <Title level={3} className="ci-heading">
           Pre-Event Check-In
         </Title>
@@ -262,44 +354,145 @@ export default function CheckInFormPage() {
           ) : null}
         </div>
 
+        {/* Step progress rail */}
+        <div className="ci-stepper">
+          {STEPS.map((step, i) => (
+            <div className="ci-stepper-item" key={step.key}>
+              <div
+                className={
+                  "ci-stepper-dot" +
+                  (i < activeStepIndex ? " ci-stepper-dot-done" : "") +
+                  (i === activeStepIndex ? " ci-stepper-dot-active" : "")
+                }
+              >
+                {i < activeStepIndex ? <CheckCircleOutlined /> : step.icon}
+              </div>
+              <Text className="ci-stepper-label">{step.label}</Text>
+              {i < STEPS.length - 1 ? (
+                <div className={"ci-stepper-line" + (i < activeStepIndex ? " ci-stepper-line-done" : "")} />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
         <div className="ci-step">
-          <Text strong>Step 1 — Live photo</Text>
-          <div className="ci-camera-box">
-            {!photo && !cameraActive ? (
-              <Button icon={<CameraOutlined />} type="primary" onClick={startCamera}>
-                Open Camera
-              </Button>
-            ) : null}
-
-            {cameraActive ? (
-              <div className="ci-camera-live">
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                <video ref={videoRef} playsInline muted />
-                <Button type="primary" onClick={capturePhoto} className="ci-capture-btn">
-                  Capture
-                </Button>
-              </div>
-            ) : null}
-
-            {photo ? (
-              <div className="ci-photo-preview">
-                <img src={photo} alt="Check-in capture" />
-                <Button size="small" onClick={retakePhoto}>
-                  Retake
-                </Button>
-              </div>
-            ) : null}
+          <div className="ci-step-header">
+            <Text strong>Step 1 — Verification photo</Text>
+            <Segmented
+              size="small"
+              value={photoSource}
+              onChange={(v) => handleSourceChange(v as PhotoSource)}
+              options={[
+                { label: "Camera", value: "camera", icon: <CameraOutlined /> },
+                { label: "Upload", value: "upload", icon: <UploadOutlined /> },
+              ]}
+            />
           </div>
+
+          <AnimatePresence mode="wait">
+            {photo ? (
+              <motion.div
+                key="preview"
+                className="ci-photo-preview"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+              >
+                <img src={photo} alt="Check-in capture" className={photoSource === "camera" ? "ci-mirrored" : ""} />
+                <Button icon={<ReloadOutlined />} size="small" onClick={retakePhoto}>
+                  {photoSource === "camera" ? "Retake" : "Choose another"}
+                </Button>
+              </motion.div>
+            ) : photoSource === "camera" ? (
+              <motion.div
+                key="camera"
+                className="ci-camera-box"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+              >
+                {!cameraActive ? (
+                  <Button
+                    icon={<CameraOutlined />}
+                    type="primary"
+                    loading={cameraStarting}
+                    onClick={startCamera}
+                  >
+                    Open Camera
+                  </Button>
+                ) : (
+                  <div className="ci-camera-live">
+                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <video ref={videoRef} playsInline muted />
+                    <div className="ci-camera-ring" />
+                    <Button type="primary" onClick={capturePhoto} className="ci-capture-btn">
+                      Capture
+                    </Button>
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="upload"
+                className={"ci-upload-zone" + (isDragging ? " ci-upload-zone-active" : "")}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+              >
+                <InboxOutlined className="ci-upload-icon" />
+                <Text strong>Drop a photo here, or click to browse</Text>
+                <Text type="secondary" className="ci-upload-hint">
+                  JPG or PNG, up to 8MB
+                </Text>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="ci-hidden-input"
+                  onChange={handleFileInputChange}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <canvas ref={canvasRef} style={{ display: "none" }} />
         </div>
 
         <div className="ci-step">
           <Text strong>Step 2 — Location</Text>
           <div className="ci-location-box">
-            {locating ? <Spin size="small" /> : null}
-            {coords ? (
-              <Text className="ci-coords">
-                <EnvironmentOutlined /> {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} captured
+            {locating ? (
+              <div className="ci-location-locating">
+                <Spin size="small" />
+                <Text type="secondary">Pinpointing your location…</Text>
+              </div>
+            ) : coords ? (
+              <>
+                <Text className="ci-coords">
+                  <AimOutlined /> {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} captured
+                </Text>
+                <div className="ci-mini-map">
+                  <iframe
+                    title="captured location"
+                    className="ci-mini-map-frame"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng - 0.004}%2C${
+                      coords.lat - 0.003
+                    }%2C${coords.lng + 0.004}%2C${coords.lat + 0.003}&marker=${coords.lat}%2C${coords.lng}&layer=mapnik`}
+                  />
+                </div>
+              </>
+            ) : locError ? (
+              <Text type="danger">
+                <CloseCircleOutlined /> {locError}
               </Text>
             ) : (
               <Text type="secondary">Captured automatically right after your photo.</Text>

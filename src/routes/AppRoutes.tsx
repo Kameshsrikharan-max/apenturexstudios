@@ -28,6 +28,7 @@ import TransactionPage      from "../features/Transaction/pages/Transactionpage"
 import TodaysAgendaWidget   from "../components/UI/TodaysAgendaWidget";
 import MainLayout           from "../components/Layout/MainLayout";
 import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
+import CheckInFormPage      from "../components/UI/CheckInFormPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
 import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
 import TemplatesPage        from "../features/templates/pages/TemplatesPage";
@@ -63,6 +64,7 @@ const SubscriptionPageAny: any = SubscriptionPage;
 const TransactionPageAny: any = TransactionPage;
 const TodaysAgendaWidgetAny: any = TodaysAgendaWidget;
 const EventPublicViewPageAny: any = EventPublicViewPage;
+const CheckInFormPageAny: any = CheckInFormPage;
 const DeleteRequestsPageAny: any = DeleteRequestsPage;
 const RegistrationRequestsPageAny: any = RegistrationRequestsPage;
 const TemplatesPageAny: any = TemplatesPage;
@@ -166,6 +168,13 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
       {/* Public QR scan destination — intentionally OUTSIDE ProtectedLayout so it
           works without login when someone scans an event's QR code */}
       <Route path="/events/public" element={<EventPublicViewPageAny />} />
+
+      {/* Public pre-event check-in destination — reached from the emailed
+          link, 1hr before the event. Intentionally OUTSIDE ProtectedLayout:
+          the token itself is the credential, and the photographer may not
+          be logged in (or may be logged in as themselves, which shouldn't
+          matter — this route must render regardless of auth state). */}
+      <Route path="/checkin/:token" element={<CheckInFormPageAny />} />
 
       <Route
         element={

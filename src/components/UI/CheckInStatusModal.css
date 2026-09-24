@@ -1,34 +1,7 @@
-.cism-modal .ant-modal-content {
-  border-radius: 18px;
-  padding: 0;
-  overflow: hidden;
-  background: #ffffff !important;
-}
-
-.cism-shell {
-  padding: 24px;
-  color: #0f172a;
-}
-
-.cism-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.cism-header-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #3b82f6, #38d5ff);
-  color: #fff !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-}
+.cism-modal .ant-modal-content {border-radius: 18px;padding: 0;overflow: hidden;background: #ffffff !important;}
+.cism-shell {padding: 24px;color: #0f172a;}
+.cism-header {display: flex;align-items: center;gap: 12px;margin-bottom: 16px;}
+.cism-header-icon {width: 40px;height: 40px;border-radius: 12px;background: linear-gradient(135deg, #3b82f6, #38d5ff);color: #fff !important;display: flex;align-items: center;justify-content: center;font-size: 18px;flex-shrink: 0;}
 
 .cism-header h3 {
   margin: 0 !important;
@@ -44,45 +17,14 @@
 }
 
 /* ---- Window status strip ---- */
-.cism-window-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 13px;
-  margin-bottom: 16px;
-}
+.cism-window-strip {display: flex;align-items: center;gap: 8px;padding: 10px 14px;border-radius: 12px;font-size: 13px;margin-bottom: 16px;}
 .cism-window-strip,
 .cism-window-strip span,
-.cism-window-strip strong {
-  color: inherit !important;
-}
-
-.cism-window-before {
-  background: rgba(148, 163, 184, 0.1) !important;
-  color: #64748b !important;
-}
-
-.cism-window-active {
-  background: linear-gradient(135deg, rgba(250, 199, 117, 0.14), rgba(250, 199, 117, 0.05)) !important;
-  color: #b45309 !important;
-  border: 1px solid rgba(250, 199, 117, 0.35);
-}
-
-.cism-window-closed {
-  background: rgba(148, 163, 184, 0.08) !important;
-  color: #94a3b8 !important;
-}
-
-.cism-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 0 rgba(245, 158, 11, 0.5);
-  animation: cism-live-pulse 1.6s ease-out infinite;
-}
+.cism-window-strip strong {color: inherit !important;}
+.cism-window-before {background: rgba(148, 163, 184, 0.1) !important;color: #64748b !important;}
+.cism-window-active {background: linear-gradient(135deg, rgba(250, 199, 117, 0.14), rgba(250, 199, 117, 0.05)) !important;color: #b45309 !important;border: 1px solid rgba(250, 199, 117, 0.35);}
+.cism-window-closed {background: rgba(148, 163, 184, 0.08) !important;color: #94a3b8 !important;}
+.cism-live-dot {width: 7px;height: 7px;border-radius: 50%;background: #f59e0b;box-shadow: 0 0 0 rgba(245, 158, 11, 0.5);animation: cism-live-pulse 1.6s ease-out infinite;}
 
 @keyframes cism-live-pulse {
   0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
@@ -91,127 +33,22 @@
 
 /* ---- People list ---- */
 .cism-loading,
-.cism-empty {
-  text-align: center;
-  padding: 32px 0;
-  color: #94a3b8 !important;
-  font-size: 13px;
-}
-
-.cism-empty .anticon {
-  font-size: 24px;
-  margin-bottom: 8px;
-  display: block;
-  color: #94a3b8 !important;
-}
-.cism-empty p {
-  color: #94a3b8 !important;
-  margin: 0;
-}
-
-.cism-people {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-.cism-person {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 14px;
-  background: #f8fafc !important;
-  border: 1px solid #e2e8f0;
-}
-
-.cism-person.is-in {
-  background: #f0fdf4 !important;
-  border-color: #bbf7d0;
-}
-
-.cism-person-photo {
-  border-radius: 10px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.cism-person-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 10px;
-  background: #e2e8f0 !important;
-  color: #94a3b8 !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.cism-person-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.cism-person-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 13.5px;
-  color: #0f172a !important;
-  flex-wrap: wrap;
-}
-
-.cism-person-tag {
-  margin: 0;
-  font-size: 10px;
-  line-height: 1.6;
-  border-radius: 999px;
-}
-
-.cism-tag-pending {
-  background: rgba(148, 163, 184, 0.12) !important;
-  color: #64748b !important;
-  border-color: rgba(148, 163, 184, 0.3);
-}
-
-.cism-person-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-  font-size: 12px;
-  color: #64748b !important;
-}
-.cism-person-meta span {
-  color: inherit !important;
-}
-
-.cism-person-meta a {
-  color: #3b82f6 !important;
-}
-
-.cism-dist-ok {
-  color: #16a34a !important;
-  font-weight: 600;
-}
-
-.cism-dist-warn {
-  color: #dc2626 !important;
-  font-weight: 600;
-}
-
-.cism-sent-at {
-  color: #94a3b8 !important;
-  font-size: 11.5px;
-}
-
-.cism-footer {
-  margin-top: 18px;
-  display: flex;
-  justify-content: flex-end;
-}
+.cism-empty {text-align: center;padding: 32px 0;color: #94a3b8 !important;font-size: 13px;}
+.cism-empty .anticon {font-size: 24px;margin-bottom: 8px;display: block;color: #94a3b8 !important;}
+.cism-empty p {color: #94a3b8 !important;margin: 0;}
+.cism-people {display: flex;flex-direction: column;gap: 10px;max-height: 360px;overflow-y: auto;}
+.cism-person {display: flex;gap: 12px;padding: 12px;border-radius: 14px;background: #f8fafc !important;border: 1px solid #e2e8f0;}
+.cism-person.is-in {background: #f0fdf4 !important;border-color: #bbf7d0;}
+.cism-person-photo {border-radius: 10px;object-fit: cover;flex-shrink: 0;}
+.cism-person-avatar {width: 52px;height: 52px;border-radius: 10px;background: #e2e8f0 !important;color: #94a3b8 !important;display: flex;align-items: center;justify-content: center;font-size: 20px;flex-shrink: 0;}
+.cism-person-body {flex: 1;min-width: 0;}
+.cism-person-name {display: flex;align-items: center;gap: 8px;font-weight: 600;font-size: 13.5px;color: #0f172a !important;flex-wrap: wrap;}
+.cism-person-tag {margin: 0;font-size: 10px;line-height: 1.6;border-radius: 999px;}
+.cism-tag-pending {background: rgba(148, 163, 184, 0.12) !important;color: #64748b !important;border-color: rgba(148, 163, 184, 0.3);}
+.cism-person-meta {display: flex;align-items: center;gap: 12px;flex-wrap: wrap;margin-top: 6px;font-size: 12px;color: #64748b !important;}
+.cism-person-meta span {color: inherit !important;}
+.cism-person-meta a {color: #3b82f6 !important;}
+.cism-dist-ok {color: #16a34a !important;font-weight: 600;}
+.cism-dist-warn {color: #dc2626 !important;font-weight: 600;}
+.cism-sent-at {color: #94a3b8 !important;font-size: 11.5px;}
+.cism-footer {margin-top: 18px;display: flex;justify-content: flex-end;}

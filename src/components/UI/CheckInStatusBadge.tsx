@@ -63,23 +63,33 @@ export default function CheckInStatusBadge({ status, isToday }: Props) {
   const fraction = total ? checkedInCount / total : 0;
 
   if (checkedInCount === 0) {
+    const pendingNames = status.pending
+      .map((p) => p.photographerName || p.photographerEmail)
+      .join(", ");
+
+    const pendingTooltip = isToday
+      ? `Check-in window is live. Waiting on: ${pendingNames}`
+      : `Check-in link hasn't opened yet. Assigned: ${pendingNames}`;
+
     return (
-      <span className={`cis-pill ${isToday ? "cis-pill-live" : "cis-pill-idle"}`}>
-        {isToday ? (
-          <span className="cis-radar">
-            <span className="cis-radar-ping" />
-            <span className="cis-radar-ping cis-radar-ping-delay" />
-            <span className="cis-radar-dot" />
-          </span>
-        ) : (
-          <span className="cis-idle-dot" />
-        )}
-        {isToday ? "Live · Awaiting" : "Awaiting"}
-      </span>
+      <Tooltip title={pendingTooltip}>
+        <span className={`cis-pill ${isToday ? "cis-pill-live" : "cis-pill-idle"}`}>
+          {isToday ? (
+            <span className="cis-radar">
+              <span className="cis-radar-ping" />
+              <span className="cis-radar-ping cis-radar-ping-delay" />
+              <span className="cis-radar-dot" />
+            </span>
+          ) : (
+            <span className="cis-idle-dot" />
+          )}
+          {isToday ? "Live · Awaiting" : "Awaiting"}
+        </span>
+      </Tooltip>
     );
   }
 
-  const tooltipText = status.checkedIn
+  const perPersonLines = status.checkedIn
     .map(
       (c) =>
         `${c.photographerName || c.photographerEmail}${
@@ -90,11 +100,16 @@ export default function CheckInStatusBadge({ status, isToday }: Props) {
     )
     .join("\n");
 
+  const tooltipText = isToday
+    ? `Check-in window is live.\n${perPersonLines}`
+    : perPersonLines;
+
   return (
     <Tooltip title={<div style={{ whiteSpace: "pre-line" }}>{tooltipText}</div>}>
       <span className={`cis-pill ${allIn ? "cis-pill-complete" : "cis-pill-partial"}`}>
         <ProgressRing fraction={fraction} spin={allIn} />
         {allIn ? <CheckCircleFilled className="cis-check-icon" /> : null}
+        {isToday ? "Live · " : ""}
         {checkedInCount}/{total}
       </span>
     </Tooltip>
