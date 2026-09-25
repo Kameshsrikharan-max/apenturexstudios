@@ -37,11 +37,7 @@ function* handleVerifyOtp(action: any): any {
   }
 }
 
-// Completes signup after onboarding: creates the real account using the
-// signupToken issued by verify-otp, then logs the new user in. Falls back
-// to state.auth.registerRole if the dispatched payload didn't include a
-// role, so whichever screen finally calls signupRequest doesn't need to
-// know about registerRole itself.
+
 function* handleSignup(action: any): any {
   try {
     const registerRole = yield select((state: any) => state.auth.registerRole);

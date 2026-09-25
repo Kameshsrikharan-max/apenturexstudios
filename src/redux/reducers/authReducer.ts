@@ -25,9 +25,7 @@ const initialState = {
   signupEmail: null as string | null,
   signupToken: null as string | null,
 
-  // Selected on the Register page (role cards), consumed by the saga when
-  // completing signup. Not tied to otpSent/needsSignup lifecycle because
-  // it's chosen *before* either of those happen.
+
   registerRole: null as RegisterRole | null,
 };
 

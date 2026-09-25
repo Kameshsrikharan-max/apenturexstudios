@@ -15,6 +15,7 @@ import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
 import TemplateEditorPage   from "../features/event/pages/TemplateEditorPage";
+import AlbumLibraryPage     from "../features/event/pages/AlbumLibraryPage"; // adjust path if placed elsewhere
 import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
@@ -52,6 +53,7 @@ const AttendancePageAny: any = AttendancePage;
 const MediaManagementPageAny: any = MediaManagementPage;
 const AlbumSelectionPageAny: any = AlbumSelectionPage;
 const TemplateEditorPageAny: any = TemplateEditorPage;
+const AlbumLibraryPageAny: any = AlbumLibraryPage;
 const EventClosurePageAny: any = EventClosurePage;
 const EnquiryPageAny: any = EnquiryPage;
 const MediaLibraryPageAny: any = MediaLibraryPage;
@@ -376,6 +378,7 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
 
         {/* Shared utility routes — not part of the role matrix, open to any authenticated user */}
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
+        <Route path="/albums/library" element={<AlbumLibraryPageAny user={user} />} />
         <Route path="/profile"     element={<ProfilePageAny user={user} />} />
         <Route path="/calendar" element={<CalendarPageAny />} />
         <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />

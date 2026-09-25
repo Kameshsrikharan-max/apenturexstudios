@@ -23,8 +23,6 @@ export async function verifyOtpApi({ email, otp }: { email: string; otp: string 
   if (!res.ok || !data.success) {
     throw new Error(data.message || "Invalid OTP");
   }
-  // Shape: either { needsSignup: true, email, signupToken }
-  // or     { needsSignup: false, user, token }
   return data;
 }
 

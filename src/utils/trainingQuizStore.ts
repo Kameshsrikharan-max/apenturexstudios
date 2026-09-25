@@ -56,8 +56,6 @@ const ATTEMPTS_KEY = "axs_training_quiz_attempts_v1";
  * automatically — you don't have to fill this in for the app to work.
  */
 export const QUIZ_BANK: Record<string, QuizQuestion[]> = {
-  // EXAMPLE — shows the shape. Replace "onboarding-1" with a real id
-  // from TRAINING_MODULES once you want to hand-write that module's quiz.
   "onboarding-1": [
     {
       id: "q1",
@@ -72,7 +70,7 @@ export const QUIZ_BANK: Record<string, QuizQuestion[]> = {
       explanation:
         "Onboarding exists to get new team members comfortable with the core AXS workflow before they touch real client work.",
     },
-    // ...add up to 10 questions to fully replace the auto-generated quiz
+    // 
   ],
 };
 

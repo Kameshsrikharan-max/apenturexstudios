@@ -1,6 +1,20 @@
 import { Layout, Menu, Typography, Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {DashboardOutlined,StarOutlined,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,ExclamationCircleOutlined,FileImageOutlined,ClockCircleOutlined,} from "@ant-design/icons";
+import {
+  DashboardOutlined,
+  StarOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  ScheduleOutlined,
+  MailOutlined,
+  ShopOutlined,
+  CameraOutlined,
+  CreditCardOutlined,
+  ExclamationCircleOutlined,
+  FileImageOutlined,
+  ClockCircleOutlined,
+  BookOutlined,
+} from "@ant-design/icons";
 import { canAccessSection, SectionKey } from "../../config/rolePermissions";
 
 import "./Sidebar.css";
@@ -48,6 +62,7 @@ const Sidebar = ({
     { key: "availability", icon: <ClockCircleOutlined />, label: "Availability", path: "/availability", section: "availability" },
     { key: "enquiry", icon: <MailOutlined />, label: "Enquiry", path: "/enquiry", section: "enquiry" },
     { key: "media", icon: <CameraOutlined />, label: "Media Library", path: "/media" },
+    { key: "album-library", icon: <BookOutlined />, label: "Album Library", path: "/albums/library" },
     { key: "studio", icon: <ShopOutlined />, label: "My Studio", path: "/studio/view", section: "studio" },
     { key: "templates", icon: <FileImageOutlined />, label: "Templates", path: "/templates", section: "templates" },
     { key: "subscription", icon: <CreditCardOutlined />, label: "Subscription", path: "/subscription", section: "subscription" },

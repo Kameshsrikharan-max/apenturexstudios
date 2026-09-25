@@ -3,27 +3,45 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {ArrowLeftOutlined,UndoOutlined,RedoOutlined,SettingOutlined,SaveOutlined,ShareAltOutlined,PlusOutlined,DeleteOutlined,PictureOutlined,MoreOutlined,UploadOutlined,CloseOutlined,CopyOutlined,RotateRightOutlined,SwapOutlined,CheckOutlined,SendOutlined,AppstoreOutlined,HistoryOutlined,MessageOutlined,VerticalAlignTopOutlined,VerticalAlignBottomOutlined,ReadOutlined,LeftOutlined,RightOutlined,BookOutlined,CaretRightOutlined,PauseCircleOutlined,
   SoundOutlined,AudioMutedOutlined,FontSizeOutlined,SmileOutlined,BoldOutlined,ItalicOutlined,UnderlineOutlined,AlignLeftOutlined,AlignCenterOutlined,AlignRightOutlined,BgColorsOutlined,
+  FolderOpenOutlined,
 } from "@ant-design/icons";
 import "./TemplateEditorPage.css";
+import {
+  upsertSavedAlbum,
+  type SavedAlbumEntry,
+  type LibrarySheetSnapshot,
+} from "../../../utils/albumLibraryStore"; // adjust path to your project structure
 
 /* Types */
 
-interface EditorContext {templateId: number;templateName: string;sheetsCount: number;canvasSize: string;photosRequired: number;versionNum: number;isLatest: boolean;status: string;}
-interface Slot {id: string;image: string | null;fileName?: string;caption?: string;rotateExtra?: number;flip?: boolean;front?: boolean;filter?: string;scale?: number;}
+interface EditorContext {
+  templateId: number;
+  templateName: string;
+  sheetsCount: number;
+  canvasSize: string;
+  photosRequired: number;
+  versionNum: number;
+  isLatest: boolean;
+  status: string;
+  eventId?: string | null;
+  serviceName?: string;
+  eventName?: string;
+}
+export interface Slot {id: string;image: string | null;fileName?: string;caption?: string;rotateExtra?: number;flip?: boolean;front?: boolean;filter?: string;scale?: number;}
 type LayoutId =| "full"| "split2h"| "split2v"| "three"| "grid4"| "grid6"| "collage"| "hero"| "beforeAfter"| "timeline"| "magazine"| "panoramic"| "minimal"| "asymmetrical"| "polaroid";
 type TextAlign = "left" | "center" | "right";
-interface TextElement {id: string;text: string;xPct: number;yPct: number;wPct: number;hPct: number;rotate: number;color: string;fontFamily: string;fontSize: number;bold: boolean;italic: boolean;underline: boolean;align: TextAlign;bg: string;isSticker?: boolean;}
+export interface TextElement {id: string;text: string;xPct: number;yPct: number;wPct: number;hPct: number;rotate: number;color: string;fontFamily: string;fontSize: number;bold: boolean;italic: boolean;underline: boolean;align: TextAlign;bg: string;isSticker?: boolean;}
 
-interface Sheet {id: string;name: string;layout: LayoutId;slots: Slot[];bgColor: string;bgImage: string | null;title?: string;subtitle?: string;textElements: TextElement[];}
-interface Rect {top: number;left: number;width: number;height: number;rotate?: number;z?: number;}
-interface LayoutMeta {id: LayoutId;label: string;blurb: string;rects: Rect[];captions?: boolean;captionStyle?: "before-after" | "timeline";style?: "collage" | "polaroid";decorative?: "vs" | "timeline" | "spine";textRect?: Rect;}
+export interface Sheet {id: string;name: string;layout: LayoutId;slots: Slot[];bgColor: string;bgImage: string | null;title?: string;subtitle?: string;textElements: TextElement[];}
+export interface Rect {top: number;left: number;width: number;height: number;rotate?: number;z?: number;}
+export interface LayoutMeta {id: LayoutId;label: string;blurb: string;rects: Rect[];captions?: boolean;captionStyle?: "before-after" | "timeline";style?: "collage" | "polaroid";decorative?: "vs" | "timeline" | "spine";textRect?: Rect;}
 interface Comment {id: string;text: string;author: string;time: string;}
 interface VersionEntry {id: string;label: string;time: string;sheetCount: number;snapshot: Sheet[];}
 type FlipDir = "forward" | "backward";
 interface TurnState {from: number;to: number;dir: FlipDir;committing: boolean;}
 type RightTab = "layout" | "elements" | "comments" | "history";
 type TextDragMode = "move" | "resize" | "rotate";
-const LAYOUTS: LayoutMeta[] = [
+export const LAYOUTS: LayoutMeta[] = [
   {
     id: "full",
     label: "Full-Page",
@@ -185,8 +203,8 @@ const LAYOUTS: LayoutMeta[] = [
   },
 ];
 
-const layoutMap = new Map(LAYOUTS.map((l) => [l.id, l]));
-const getLayout = (id: LayoutId) => layoutMap.get(id) ?? LAYOUTS[0];
+export const layoutMap = new Map(LAYOUTS.map((l) => [l.id, l]));
+export const getLayout = (id: LayoutId) => layoutMap.get(id) ?? LAYOUTS[0];
 
 const CANVAS_W = 2540;
 const CANVAS_H = 2032;
@@ -250,6 +268,9 @@ function loadContext(): EditorContext {
     versionNum: 1,
     isLatest: true,
     status: "Draft",
+    eventId: null,
+    serviceName: "",
+    eventName: "Untitled Event",
   };
 }
 
@@ -287,7 +308,51 @@ function cloneSheets(sheets: Sheet[]): Sheet[] {
     : JSON.parse(JSON.stringify(sheets));
 }
 
-function rectStyle(r: Rect, gap: number, radius: number): React.CSSProperties {
+// blob: URLs only live as long as the document that created them — they
+// won't survive a reload or a fresh tab. Convert to base64 data URLs before
+// persisting to the Album Library so saved albums stay viewable later.
+async function blobUrlToDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function toPersistableImage(src: string | null | undefined): Promise<string | null> {
+  if (!src) return null;
+  if (src.startsWith("blob:")) {
+    try {
+      return await blobUrlToDataUrl(src);
+    } catch {
+      return null; // blob was revoked/unreachable — drop rather than store a dead reference
+    }
+  }
+  return src;
+}
+
+async function buildLibrarySheets(sheets: Sheet[]): Promise<LibrarySheetSnapshot[]> {
+  return Promise.all(
+    sheets.map(async (s) => ({
+      id: s.id,
+      name: s.name,
+      layout: s.layout,
+      bgColor: s.bgColor,
+      bgImage: await toPersistableImage(s.bgImage),
+      title: s.title,
+      subtitle: s.subtitle,
+      textElements: s.textElements.map((t) => ({ ...t })),
+      slots: await Promise.all(
+        s.slots.map(async (sl) => ({ ...sl, image: await toPersistableImage(sl.image) }))
+      ),
+    }))
+  );
+}
+
+export function rectStyle(r: Rect, gap: number, radius: number): React.CSSProperties {
   return {
     top: `calc(${r.top}% + ${gap}px)`,
     left: `calc(${r.left}% + ${gap}px)`,
@@ -994,7 +1059,7 @@ export default function TemplateEditorPage() {
   };
 
   /* ── Save / Share / Versions ── */
-  const handleSave = () => {
+  const handleSave = async () => {
     const payload = { ...ctx, sheets };
     sessionStorage.setItem(`albumTemplate_${ctx.templateId}_v${ctx.versionNum}`, JSON.stringify(payload));
     setVersions((v) => [
@@ -1010,7 +1075,40 @@ export default function TemplateEditorPage() {
     setSaved(true);
     setPreviewMode(true);
     setMenuSlotId(null);
-    showToast("✓ Album saved");
+
+    // Also sync a persistable snapshot into the shared Album Library so this
+    // version can be browsed later from the Album Library page, regardless
+    // of session/tab. blob: URLs are converted to base64 first since they
+    // don't survive a reload.
+    try {
+      const librarySheets = await buildLibrarySheets(sheets);
+      const firstWithPhoto = librarySheets.find((s) => s.slots.some((sl) => sl.image));
+      const coverImage =
+        librarySheets[0]?.bgImage ??
+        firstWithPhoto?.slots.find((sl) => sl.image)?.image ??
+        null;
+
+      const entry: SavedAlbumEntry = {
+        id: `${ctx.eventId ?? "no-event"}_${ctx.templateId}_v${ctx.versionNum}`,
+        templateId: ctx.templateId,
+        templateName: ctx.templateName,
+        serviceName: ctx.serviceName || "Album",
+        eventId: ctx.eventId ?? null,
+        eventName: ctx.eventName || "Untitled Event",
+        versionNum: ctx.versionNum,
+        canvasSize: ctx.canvasSize,
+        sheetCount: librarySheets.length,
+        coverImage,
+        savedAt: new Date().toISOString(),
+        sheets: librarySheets,
+      };
+      upsertSavedAlbum(entry);
+      showToast("✓ Saved to Album Library");
+    } catch (e) {
+      console.warn("TemplateEditorPage: could not sync album to library", e);
+      showToast("✓ Album saved");
+    }
+
     window.setTimeout(() => setSaved(false), 1800);
   };
 
@@ -1427,6 +1525,9 @@ export default function TemplateEditorPage() {
 
             <button className="tp-btn-ghost" onClick={() => setSettingsOpen(true)}>
               <SettingOutlined /> Preview setting
+            </button>
+            <button className="tp-btn-outline" onClick={() => navigate("/albums/library")}>
+              <FolderOpenOutlined /> Album Library
             </button>
             <button className="tp-btn-outline" onClick={openReview}>
               <ReadOutlined /> Review Album

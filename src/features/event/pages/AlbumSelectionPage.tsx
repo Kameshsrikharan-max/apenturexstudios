@@ -566,11 +566,13 @@ function CuratedGallery({
 function TemplateCard({
   template,
   eventId,
+  eventName,
   serviceName,
   onUpdate,
 }: {
   template: TemplateCardData;
   eventId: string | null;
+  eventName: string;
   serviceName: string;
   onUpdate: (templateId: number, patch: Partial<TemplateCardData>) => void;
 }) {
@@ -749,9 +751,12 @@ function TemplateCard({
       status: status || "Draft",
       // Hand off enough context for the editor to (a) offer the photos
       // already curated here as a drag-in library instead of forcing a
-      // re-upload, and (b) save its work back into THIS event's album
-      // record instead of into an orphaned sessionStorage key.
+      // re-upload, (b) save its work back into THIS event's album
+      // record instead of into an orphaned sessionStorage key, and (c)
+      // identify itself correctly when it syncs a saved version into the
+      // shared Album Library.
       eventId,
+      eventName,
       serviceName,
       curatedPhotos: template.curatedPhotos,
     };
@@ -1038,6 +1043,7 @@ export default function AlbumSelectionPage() {
 
   const [currentEvent] = useState<SavedEventForm | null>(() => loadCurrentEvent());
   const eventId = resolveEventId(currentEvent);
+  const eventName = currentEvent?.eventName || "Untitled Event";
 
   // Load previously-saved album progress for THIS event if it exists;
   // only fall back to rebuilding a fresh set of templates from Event
@@ -1143,14 +1149,24 @@ export default function AlbumSelectionPage() {
                   <p>Curate photos by service, send the selection for customer review, and prepare the final album.</p>
                 </div>
               </div>
-              <button
-                className="as-icon-btn"
-                onClick={() => setAlbums(loadPersistedAlbums(eventId) || buildAlbumsFromSavedEvent(currentEvent))}
-                aria-label="Refresh"
-                title="Reload saved progress"
-              >
-                <ReloadOutlined />
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="as-icon-btn"
+                  onClick={() => navigate("/albums/library")}
+                  aria-label="Album Library"
+                  title="View all saved albums"
+                >
+                  <FolderOpenOutlined />
+                </button>
+                <button
+                  className="as-icon-btn"
+                  onClick={() => setAlbums(loadPersistedAlbums(eventId) || buildAlbumsFromSavedEvent(currentEvent))}
+                  aria-label="Refresh"
+                  title="Reload saved progress"
+                >
+                  <ReloadOutlined />
+                </button>
+              </div>
             </div>
 
             {albums.length === 0 ? (
@@ -1210,6 +1226,7 @@ export default function AlbumSelectionPage() {
                         key={tpl.id}
                         template={tpl}
                         eventId={eventId}
+                        eventName={eventName}
                         serviceName={activeGroup.serviceName}
                         onUpdate={(templateId, patch) => handleTemplateUpdate(activeService, templateId, patch)}
                       />
