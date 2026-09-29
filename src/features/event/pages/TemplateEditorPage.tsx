@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeftOutlined, UndoOutlined, RedoOutlined, SettingOutlined, SaveOutlined, ShareAltOutlined,
   PlusOutlined, DeleteOutlined, PictureOutlined, MoreOutlined, UploadOutlined, CloseOutlined,
@@ -17,9 +17,15 @@ import {
 import "./TemplateEditorPage.css";
 import {
   upsertSavedAlbum,
+  getAlbumById,
+  readEditorSession,
+  clearEditorSession,
+  isLibraryReady,
+  whenLibraryReady,
+  newAlbumId,
   type SavedAlbumEntry,
   type LibrarySheetSnapshot,
-} from "../../../utils/albumLibraryStore"; 
+} from "../../../utils/albumLibraryStore"; // adjust path to your project structure
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -257,6 +263,8 @@ const AUTOPLAY_GAP_MS = 2600;
 const MAX_STACK_PAGES = 16;
 const LOW_RES_EDGE = 1400;
 const COALESCE_MS = 700;
+/** photos are downscaled to this long edge when saved to the library (keeps localStorage small) */
+const PERSIST_MAX_EDGE = 1800;
 
 const FONT_OPTIONS = [
   "'Times New Roman', Times, serif",
@@ -338,6 +346,7 @@ const SHORTCUTS: { keys: string; label: string }[] = [
 ];
 
 const PHOTO_DND = "text/axs-photo";
+const EVENT_CTX_KEY = "currentTemplateEditor";
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
 
@@ -351,7 +360,7 @@ function clamp(value: number, min: number, max: number) {
 
 function loadContext(): EditorContext {
   try {
-    const raw = sessionStorage.getItem("currentTemplateEditor");
+    const raw = sessionStorage.getItem(EVENT_CTX_KEY);
     if (raw) return JSON.parse(raw);
   } catch {
     /* ignore */
@@ -387,6 +396,27 @@ function buildInitialSheets(count: number): Sheet[] {
 
 function cloneSheets(sheets: Sheet[]): Sheet[] {
   return typeof structuredClone === "function" ? structuredClone(sheets) : JSON.parse(JSON.stringify(sheets));
+}
+
+/** Library snapshot → editable sheet (ids preserved so "continue editing" is seamless). */
+function fromSnapshot(s: LibrarySheetSnapshot): Sheet {
+  const layout = (layoutMap.has(s.layout as LayoutId) ? s.layout : "full") as LayoutId;
+  const slots = (s.slots ?? []).map((sl) => ({ ...sl })) as Slot[];
+  const need = getLayout(layout).rects.length;
+  while (slots.length < need) slots.push(makeSlot());
+  return {
+    id: s.id || `sheet_${uid()}`,
+    name: s.name || "Page",
+    layout,
+    slots,
+    bgColor: s.bgColor ?? "#ffffff",
+    bgImage: s.bgImage ?? null,
+    title: s.title,
+    subtitle: s.subtitle,
+    gap: s.gap,
+    radius: s.radius,
+    textElements: (s.textElements ?? []).map((t) => ({ ...t })) as TextElement[],
+  };
 }
 
 /** Re-flows a sheet's slots into a new layout (optionally packing filled slots first). */
@@ -527,16 +557,42 @@ async function blobUrlToDataUrl(url: string): Promise<string> {
   });
 }
 
+/** Downscale + JPEG-encode so a whole album fits comfortably in localStorage. */
+async function compressImage(src: string, maxEdge = PERSIST_MAX_EDGE, quality = 0.86): Promise<string> {
+  const img = await loadImage(src);
+  const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  const cv = document.createElement("canvas");
+  cv.width = w;
+  cv.height = h;
+  const g = cv.getContext("2d");
+  if (!g) throw new Error("no ctx");
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, w, h);
+  g.drawImage(img, 0, 0, w, h);
+  return cv.toDataURL("image/jpeg", quality);
+}
+
+const persistCache = new Map<string, string>();
+
 async function toPersistableImage(src: string | null | undefined): Promise<string | null> {
   if (!src) return null;
-  if (src.startsWith("blob:")) {
-    try {
-      return await blobUrlToDataUrl(src);
-    } catch {
-      return null;
+  if (src.startsWith("data:") && src.length < 400_000) return src; // already small
+  const hit = persistCache.get(src);
+  if (hit) return hit;
+  let out: string | null = null;
+  try {
+    out = await compressImage(src);
+  } catch {
+    if (src.startsWith("blob:")) {
+      try { out = await blobUrlToDataUrl(src); } catch { out = null; }
+    } else {
+      out = src; // remote / tainted image – keep the reference
     }
   }
-  return src;
+  if (out) persistCache.set(src, out);
+  return out;
 }
 
 async function buildLibrarySheets(sheets: Sheet[]): Promise<LibrarySheetSnapshot[]> {
@@ -549,6 +605,8 @@ async function buildLibrarySheets(sheets: Sheet[]): Promise<LibrarySheetSnapshot
       bgImage: await toPersistableImage(s.bgImage),
       title: s.title,
       subtitle: s.subtitle,
+      gap: s.gap,
+      radius: s.radius,
       textElements: s.textElements.map((t) => ({ ...t })),
       slots: await Promise.all(s.slots.map(async (sl) => ({ ...sl, image: await toPersistableImage(sl.image) }))),
     }))
@@ -746,13 +804,60 @@ function Field({ label, value, children }: { label: string; value?: string; chil
   );
 }
 
-/* ───────────────────────────── Main component ───────────────────────────── */
+/* ───────────────────────────── Editor ───────────────────────────── */
 
-export default function TemplateEditorPage() {
+function TemplateEditorInner() {
   const navigate = useNavigate();
-  const ctx = useMemo(loadContext, []);
 
-  const [sheets, setSheets] = useState<Sheet[]>(() => buildInitialSheets(ctx.sheetsCount || 14));
+  /**
+   * Boot once per mount (the wrapper remounts this on every navigation):
+   *  - event flow  → `currentTemplateEditor` exists. It is the NEWER hand-off, so any leftover
+   *                   library editor session is stale: clear it and start a fresh album.
+   *  - library "edit" session → load THAT album and continue
+   *  - library "new" session  → blank album with its own id
+   *  - nothing at all         → legacy behaviour
+   */
+  const boot = useMemo(() => {
+    let hasEventCtx = false;
+    try { hasEventCtx = !!sessionStorage.getItem(EVENT_CTX_KEY); } catch { /* ignore */ }
+    if (hasEventCtx) clearEditorSession();
+
+    const session = hasEventCtx ? null : readEditorSession();
+    const existing = session ? getAlbumById(session.albumId) : null;
+    if (existing && existing.sheets.length) {
+      const c: EditorContext = {
+        templateId: existing.templateId,
+        templateName: existing.templateName,
+        sheetsCount: existing.sheets.length,
+        canvasSize: existing.canvasSize,
+        photosRequired: 0,
+        versionNum: existing.versionNum,
+        isLatest: true,
+        status: "Draft",
+        eventId: existing.eventId,
+        serviceName: existing.serviceName,
+        eventName: existing.eventName,
+      };
+      return {
+        ctx: c,
+        sheets: existing.sheets.map(fromSnapshot),
+        albumId: existing.id,
+        resumed: true,
+        settings: existing.settings ?? null,
+      };
+    }
+    const c = loadContext();
+    const albumId = session?.albumId ?? (c.templateId ? `${c.eventId ?? "no-event"}_${c.templateId}_v${c.versionNum}` : newAlbumId());
+    return { ctx: c, sheets: buildInitialSheets(c.sheetsCount || 14), albumId, resumed: false, settings: null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const ctx = boot.ctx;
+  const albumIdRef = useRef<string>(boot.albumId);
+  const [albumName, setAlbumName] = useState<string>(ctx.templateName || "Untitled Album");
+  const [savedName, setSavedName] = useState<string>(ctx.templateName || "Untitled Album");
+
+  const [sheets, setSheets] = useState<Sheet[]>(boot.sheets);
   const sheetsRef = useRef<Sheet[]>(sheets);
   const [savedSnap, setSavedSnap] = useState<Sheet[]>(sheets);
   const [activeSheetId, setActiveSheetId] = useState<string>(sheets[0]?.id ?? "");
@@ -763,8 +868,13 @@ export default function TemplateEditorPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState({ gap: 6, radius: 10, showGuides: false, showSafe: false, showBleed: false });
+  const [settings, setSettings] = useState({
+    gap: boot.settings?.gap ?? 6,
+    radius: boot.settings?.radius ?? 10,
+    showGuides: false, showSafe: false, showBleed: false,
+  });
 
   const [dragSlotId, setDragSlotId] = useState<string | null>(null);
   const [dragOverSlotId, setDragOverSlotId] = useState<string | null>(null);
@@ -851,7 +961,7 @@ export default function TemplateEditorPage() {
   const totalSpreads = sheets.length <= 1 ? 1 : 1 + Math.ceil((sheets.length - 1) / 2);
   const spreadLeft = (i: number): Sheet | undefined => (i === 0 ? undefined : sheets[1 + (i - 1) * 2]);
   const spreadRight = (i: number): Sheet | undefined => (i === 0 ? sheets[0] : sheets[1 + (i - 1) * 2 + 1]);
-  const dirty = sheets !== savedSnap;
+  const dirty = sheets !== savedSnap || albumName !== savedName;
 
   const usedUrls = useMemo(() => {
     const set = new Set<string>();
@@ -1214,6 +1324,13 @@ export default function TemplateEditorPage() {
       .then((d) => setImgDims((m) => ({ ...m, [url]: d })))
       .catch(() => {});
   };
+
+  // When continuing an existing album, measure its photos so health / smart layout work immediately
+  useEffect(() => {
+    if (!boot.resumed) return;
+    sheetsRef.current.forEach((s) => s.slots.forEach((sl) => sl.image && trackDims(sl.image)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setSlotImage = (sheetId: string, slotId: string, url: string, name?: string) => {
     trackDims(url);
@@ -1584,7 +1701,7 @@ export default function TemplateEditorPage() {
     const first = sheetsRef.current[0];
     if (!first) return;
     const title = makeTextElement("title");
-    title.text = (ctx.eventName && ctx.eventName !== "Untitled Event" ? ctx.eventName : ctx.templateName).toUpperCase();
+    title.text = (ctx.eventName && ctx.eventName !== "Untitled Event" ? ctx.eventName : albumName).toUpperCase();
     title.color = "#f4dab1"; title.xPct = 10; title.wPct = 80; title.yPct = 34; title.hPct = 18; title.fontSize = 7;
     const sub = makeTextElement("signature");
     sub.text = "A story in photographs";
@@ -1727,36 +1844,31 @@ export default function TemplateEditorPage() {
   };
 
   /* ── Save / Share / Export / Versions ── */
-  const handleSave = async () => {
+
+  /**
+   * Saves the album into the library under a STABLE id, so:
+   *  - first save of a new album creates the library entry
+   *  - every later save (here, or after pressing Edit in the library) overwrites the same entry
+   */
+  const saveAlbum = async (goLibrary: boolean) => {
+    if (saving) return;
+    setSaving(true);
     const current = sheetsRef.current;
-    const payload = { ...ctx, sheets: current };
-    sessionStorage.setItem(`albumTemplate_${ctx.templateId}_v${ctx.versionNum}`, JSON.stringify(payload));
-    setVersions((v) => [
-      ...v,
-      {
-        id: uid(),
-        label: `Save ${v.length + 1}`,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        sheetCount: current.length,
-        snapshot: cloneSheets(current),
-      },
-    ]);
-    setSavedSnap(current);
-    setSaved(true);
-    setPreviewMode(true);
-    setMenuSlotId(null);
-
-
+    const finalName = albumName.trim() || "Untitled Album";
     try {
       const librarySheets = await buildLibrarySheets(current);
+      const cover = librarySheets[0];
       const firstWithPhoto = librarySheets.find((s) => s.slots.some((sl) => sl.image));
       const coverImage =
-        librarySheets[0]?.bgImage ?? firstWithPhoto?.slots.find((sl) => sl.image)?.image ?? null;
+        cover?.slots.find((sl) => sl.image)?.image ??
+        cover?.bgImage ??
+        firstWithPhoto?.slots.find((sl) => sl.image)?.image ??
+        null;
 
       const entry: SavedAlbumEntry = {
-        id: `${ctx.eventId ?? "no-event"}_${ctx.templateId}_v${ctx.versionNum}`,
+        id: albumIdRef.current,
         templateId: ctx.templateId,
-        templateName: ctx.templateName,
+        templateName: finalName,
         serviceName: ctx.serviceName || "Album",
         eventId: ctx.eventId ?? null,
         eventName: ctx.eventName || "Untitled Event",
@@ -1766,16 +1878,57 @@ export default function TemplateEditorPage() {
         coverImage,
         savedAt: new Date().toISOString(),
         sheets: librarySheets,
+        settings: { gap: settings.gap, radius: settings.radius },
       };
-      upsertSavedAlbum(entry);
-      showToast("✓ Saved to Album Library");
-    } catch (e) {
-      console.warn("TemplateEditorPage: could not sync album to library", e);
-      showToast("✓ Album saved");
-    }
 
-    window.setTimeout(() => setSaved(false), 1800);
+      const ok = upsertSavedAlbum(entry);
+      if (!ok) {
+        showToast("Storage is full — export a backup and remove old albums");
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(
+          `albumTemplate_${ctx.templateId}_v${ctx.versionNum}`,
+          JSON.stringify({ ...ctx, sheets: librarySheets })
+        );
+      } catch {
+        /* session copy is optional */
+      }
+
+      setAlbumName(finalName);
+      setSavedName(finalName);
+      setVersions((v) => [
+        ...v,
+        {
+          id: uid(),
+          label: `Save ${v.length + 1}`,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sheetCount: current.length,
+          snapshot: cloneSheets(current),
+        },
+      ]);
+      setSavedSnap(current);
+      setSaved(true);
+      setMenuSlotId(null);
+      window.setTimeout(() => setSaved(false), 1800);
+
+      if (goLibrary) {
+        navigate("/albums/library");
+      } else {
+        setPreviewMode(true);
+        showToast("✓ Saved to Album Library");
+      }
+    } catch (e) {
+      console.warn("TemplateEditorPage: could not save album", e);
+      showToast("Could not save album");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleSave = () => { void saveAlbum(false); };
+  const handleSaveAndOpenLibrary = () => { void saveAlbum(true); };
 
   const restoreVersion = (entry: VersionEntry) => {
     commitSheets(() => cloneSheets(entry.snapshot));
@@ -1797,12 +1950,12 @@ export default function TemplateEditorPage() {
     const librarySheets = await buildLibrarySheets(sheetsRef.current);
     const blob = new Blob(
       [JSON.stringify({
-        app: "axs-album", version: 2, templateName: ctx.templateName, canvasSize: ctx.canvasSize,
+        app: "axs-album", version: 2, templateName: albumName, canvasSize: ctx.canvasSize,
         exportedAt: new Date().toISOString(), sheets: librarySheets,
       })],
       { type: "application/json" }
     );
-    downloadBlob(blob, `${ctx.templateName.replace(/\s+/g, "_")}_v${ctx.versionNum}.axsalbum.json`);
+    downloadBlob(blob, `${albumName.replace(/\s+/g, "_")}_v${ctx.versionNum}.axsalbum.json`);
     showToast("✓ Album exported");
   };
 
@@ -1935,7 +2088,7 @@ export default function TemplateEditorPage() {
 
       cv.toBlob((b) => {
         if (!b) { showToast("Could not render page"); return; }
-        downloadBlob(b, `${ctx.templateName.replace(/\s+/g, "_")}_${sheet.name.replace(/\s+/g, "_")}.png`);
+        downloadBlob(b, `${albumName.replace(/\s+/g, "_")}_${sheet.name.replace(/\s+/g, "_")}.png`);
         showToast("✓ Page exported as PNG");
       }, "image/png");
     } catch (e) {
@@ -2022,6 +2175,7 @@ export default function TemplateEditorPage() {
     { id: "review", group: "Album", label: "Review album as flip-book", run: () => openReview() },
     { id: "health", group: "Album", label: "Open album health check", run: () => setHealthOpen(true) },
     { id: "save", group: "Album", label: "Save album", hint: "Ctrl S", run: handleSave },
+    { id: "saveexit", group: "Album", label: "Save & open Album Library", run: handleSaveAndOpenLibrary },
     { id: "export", group: "Album", label: "Export album file (.json)", run: exportAlbumFile },
     { id: "exportpng", group: "Album", label: "Export current page as PNG", run: exportPagePng },
     { id: "import", group: "Album", label: "Import album file…", run: () => importRef.current?.click() },
@@ -2286,7 +2440,7 @@ export default function TemplateEditorPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewOpen, reviewIndex, turn]);
 
   useEffect(() => {
@@ -2321,7 +2475,7 @@ export default function TemplateEditorPage() {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
-    
+      /* noop */
     }
   };
 
@@ -2485,12 +2639,25 @@ export default function TemplateEditorPage() {
             <button className="tp-icon-btn" onClick={() => navigate(-1)} aria-label="Back">
               <ArrowLeftOutlined />
             </button>
+            <input
+              value={albumName}
+              onChange={(e) => setAlbumName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
+              aria-label="Album name"
+              title="Album name (shown in Album Library)"
+              maxLength={60}
+              style={{
+                width: 190, padding: "7px 12px", borderRadius: 10, fontSize: 13, fontWeight: 800,
+                border: "1px solid rgba(56,189,248,0.32)", background: "rgba(8,18,34,0.6)", color: "#edf8ff", outline: "none",
+              }}
+            />
             <div className="tp-breadcrumb">
               <span>{sheets.length} sheets</span>
               <span className="tp-dot">·</span>
               <span>{activeSheet.name}</span>
               <span className="tp-dot">·</span>
               <span>{layoutMeta.label}</span>
+              {boot.resumed && !dirty && <span className="tp-dot" title="Loaded from Album Library">· Saved</span>}
               {dirty && <span className="tp-dirty" title="Unsaved changes">● Unsaved</span>}
             </div>
           </div>
@@ -2548,8 +2715,8 @@ export default function TemplateEditorPage() {
             <button className="tp-btn-outline" onClick={openReview}>
               <ReadOutlined /> Review Album
             </button>
-            <button className="tp-btn-outline" onClick={handleSave} title="Save (Ctrl S)">
-              {saved ? <CheckOutlined /> : <SaveOutlined />} {saved ? "Saved!" : "Save Album"}
+            <button className="tp-btn-outline" onClick={handleSave} disabled={saving} title="Save (Ctrl S)">
+              {saved ? <CheckOutlined /> : <SaveOutlined />} {saving ? "Saving…" : saved ? "Saved!" : "Save Album"}
             </button>
             <span className="tp-size-pill">{ctx.canvasSize}</span>
 
@@ -2561,6 +2728,9 @@ export default function TemplateEditorPage() {
                 <>
                   <div className="tp-slot-menu-backdrop" onClick={() => setMoreOpen(false)} />
                   <div className="tp-more-menu">
+                    <button onClick={() => { setMoreOpen(false); handleSaveAndOpenLibrary(); }}>
+                      <SaveOutlined /> Save &amp; open Album Library
+                    </button>
                     <button onClick={() => { setMoreOpen(false); exportPagePng(); }}>
                       <FileImageOutlined /> Export page as PNG
                     </button>
@@ -3552,7 +3722,7 @@ export default function TemplateEditorPage() {
             {rightTab === "history" && (
               <div className="tp-props-body">
                 {versions.length === 0 ? (
-                  <div className="tp-empty-tab">Version history for “{ctx.templateName}” will appear here once you save.</div>
+                  <div className="tp-empty-tab">Version history for “{albumName}” will appear here once you save.</div>
                 ) : (
                   <div className="tp-version-list">
                     {[...versions].reverse().map((v) => (
@@ -3851,7 +4021,7 @@ export default function TemplateEditorPage() {
             <div className="ab-shell" onClick={(e) => e.stopPropagation()}>
               <div className="ab-shell-head">
                 <div className="ab-shell-title">
-                  <BookOutlined /> {ctx.templateName}
+                  <BookOutlined /> {albumName}
                 </div>
                 <div className="ab-shell-actions">
                   <button
@@ -4006,4 +4176,31 @@ export default function TemplateEditorPage() {
         )}
     </main>
   );
+}
+
+/* ───────────────────────────── Route entry ─────────────────────────────
+ * 1. Waits for the IndexedDB-backed library cache, so `getAlbumById` can actually find the album.
+ * 2. Remounts the editor on every navigation (key = location.key), so `boot` re-reads the hand-off
+ *    each time you arrive from the event flow or the library.
+ */
+export default function TemplateEditorPage() {
+  const location = useLocation();
+  const [ready, setReady] = useState<boolean>(isLibraryReady());
+
+  useEffect(() => {
+    if (ready) return;
+    let alive = true;
+    whenLibraryReady().then(() => { if (alive) setReady(true); });
+    return () => { alive = false; };
+  }, [ready]);
+
+  if (!ready) {
+    return (
+      <main className="tp-page">
+        <p style={{ color: "#cbd8e7", padding: 40 }}>Loading library…</p>
+      </main>
+    );
+  }
+
+  return <TemplateEditorInner key={location.key} />;
 }

@@ -7,14 +7,18 @@ import {
   UnorderedListOutlined, CheckSquareOutlined, ExportOutlined, ImportOutlined, PlusOutlined, DatabaseOutlined,
   ThunderboltOutlined, PushpinOutlined, PushpinFilled, InfoCircleOutlined, FullscreenOutlined,
   FullscreenExitOutlined, ZoomInOutlined, ZoomOutOutlined, ReadOutlined, FieldTimeOutlined, MoreOutlined,
-  CloudUploadOutlined, ClockCircleOutlined, UndoOutlined,
+  CloudUploadOutlined, ClockCircleOutlined, UndoOutlined, CameraOutlined, HddOutlined, CompressOutlined,
+  SafetyCertificateOutlined, BgColorsOutlined, WarningOutlined, BulbOutlined,
+  SaveOutlined, TableOutlined, UpOutlined, DownOutlined, CheckCircleFilled, MinusCircleOutlined,
 } from "@ant-design/icons";
 import {
   getSavedAlbums, deleteSavedAlbum, deleteSavedAlbums, subscribeToAlbumLibrary, getFavoriteIds, toggleFavorite,
   renameSavedAlbum, duplicateSavedAlbum, getLibraryStats, exportAlbumsAsJson, importAlbumsFromJsonText,
-  beginEditAlbum, beginBlankAlbum, upsertSavedAlbum,
+  beginEditAlbum, beginBlankAlbum, upsertSavedAlbum, LIBRARY_LIMITS, isLibraryReady, whenLibraryReady,
+  subscribeToStorageErrors, getStorageEstimate, requestPersistentStorage, optimizeLibrary,
   type SavedAlbumEntry, type LibrarySheetSnapshot, type LibraryTextSnapshot, type LibraryStats,
-} from "../../../utils/albumLibraryStore"; // adjust path to your project structure
+  type StorageEstimateInfo, type OptimizeOptions, type OptimizeResult,
+} from "../../../utils/albumLibraryStore"; 
 import { getLayout, rectStyle } from "./TemplateEditorPage"; // adjust path if this page lives elsewhere
 import "./AlbumLibraryPage.css";
 
@@ -33,14 +37,25 @@ const MIX_COLORS = ["#38d5ff", "#4ade80", "#fbbf24", "#a78bfa", "#f472b6", "#fb7
 const META_KEY = "axs.albumLibrary.meta.v1";
 const ORDER_KEY = "axs.albumLibrary.order.v1";
 const PREFS_KEY = "axs.albumLibrary.prefs.v1";
+const BACKUP_KEY = "axs.albumLibrary.lastBackup.v1";
+const VIEWS_KEY = "axs.albumLibrary.savedViews.v1";
 const RECENT_DAYS = 14;
+const BACKUP_NUDGE_DAYS = 7;
+const WALL_PAGE = 96;
+const MAX_SAVED_VIEWS = 8;
+
+const PRESETS: { id: string; label: string; hint: string; opts: OptimizeOptions }[] = [
+  { id: "balanced", label: "Balanced", hint: "1600 px · sharp on screens and 8×10 prints", opts: { maxDim: 1600, quality: 0.82 } },
+  { id: "compact", label: "Compact", hint: "1280 px · smallest files, fits the most photos", opts: { maxDim: 1280, quality: 0.72 } },
+  { id: "archive", label: "High quality", hint: "2400 px · large prints, uses more space", opts: { maxDim: 2400, quality: 0.9 } },
+];
 
 type FlipDir = "forward" | "backward";
 interface TurnState { from: number; to: number; dir: FlipDir; committing: boolean }
-type ViewMode = "grid" | "list" | "shelf" | "timeline";
-type SortMode = "newest" | "oldest" | "name" | "pages" | "completion" | "opened" | "custom";
+type ViewMode = "grid" | "list" | "shelf" | "timeline" | "wall";
+type SortMode = "newest" | "oldest" | "name" | "pages" | "completion" | "opened" | "mostOpened" | "custom";
 type Collection = "all" | "favorites" | "pinned" | "recent" | "incomplete";
-const VIEW_ORDER: ViewMode[] = ["grid", "list", "shelf", "timeline"];
+const VIEW_ORDER: ViewMode[] = ["grid", "list", "shelf", "timeline", "wall"];
 
 interface AlbumMeta { tags: string[]; note: string; color: string | null; pinned: boolean; opens: number; lastOpened?: string }
 const DEFAULT_META: AlbumMeta = { tags: [], note: "", color: null, pinned: false, opens: 0 };
@@ -49,6 +64,10 @@ interface Fill { filled: number; total: number; pct: number }
 interface ToastState { msg: string; action?: { label: string; run: () => void } }
 interface MenuItem { id: string; label: string; icon?: React.ReactNode; run?: () => void; danger?: boolean; sep?: boolean }
 interface PaletteItem { id: string; label: string; hint?: string; icon: React.ReactNode; run: () => void; group: "Actions" | "Albums" }
+interface OptState { running: boolean; done: number; total: number; result?: OptimizeResult }
+interface WallPhoto { key: string; album: SavedAlbumEntry; sheet: number; src: string; label: string }
+interface SavedView { id: string; name: string; search: string; service: string; collection: Collection; tag: string | null }
+interface Insight { id: string; label: string; icon: React.ReactNode; tone: "warn" | "info"; run: () => void }
 
 /* ════════════════════════════ helpers ════════════════════════════ */
 function usePersisted<T>(key: string, initial: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -96,9 +115,17 @@ function relativeTime(iso?: string) {
   return new Date(iso).toLocaleDateString();
 }
 
+function fmtBytes(n: number) {
+  if (!n || n < 0) return "0 KB";
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
 const normalizeTag = (t: string) => t.trim().toLowerCase().replace(/^#+/, "").slice(0, 24);
 const clampNum = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 const spreadForSheet = (i: number) => (i > 0 ? 1 + Math.floor((i - 1) / 2) : 0);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Average colour of a cover, used to tint each card's glow. */
 const colorCache = new Map<string, string>();
@@ -136,11 +163,75 @@ function useDominantColor(src?: string | null) {
   return rgb;
 }
 
-/** Search operators: tag:x  service:x  is:fav  is:pinned  is:incomplete  pages>10  pages<5 */
+/** Colour story: the 5 most characteristic colours across an album's photos. */
+const toHex = (r: number, g: number, b: number) =>
+  `#${[r, g, b].map((v) => Math.round(clampNum(v, 0, 255)).toString(16).padStart(2, "0")).join("")}`;
+
+function useAlbumPalette(album: SavedAlbumEntry | null) {
+  const [colors, setColors] = useState<string[]>([]);
+  useEffect(() => {
+    if (!album) { setColors([]); return; }
+    let dead = false;
+    const srcs: string[] = [];
+    if (album.coverImage) srcs.push(album.coverImage);
+    outer: for (const s of album.sheets) {
+      for (const sl of s.slots) {
+        if (sl.image) srcs.push(sl.image);
+        if (srcs.length >= 14) break outer;
+      }
+    }
+    if (!srcs.length) { setColors([]); return; }
+
+    const buckets = new Map<number, { n: number; r: number; g: number; b: number }>();
+    let pending = srcs.length;
+    const finish = () => {
+      if (dead) return;
+      const ranked = [...buckets.values()].sort((a, b) => b.n - a.n);
+      const picked: { r: number; g: number; b: number }[] = [];
+      for (const v of ranked) {
+        const c = { r: v.r / v.n, g: v.g / v.n, b: v.b / v.n };
+        if (picked.every((p) => Math.abs(p.r - c.r) + Math.abs(p.g - c.g) + Math.abs(p.b - c.b) > 110)) picked.push(c);
+        if (picked.length === 5) break;
+      }
+      setColors(picked.map((c) => toHex(c.r, c.g, c.b)));
+    };
+    srcs.forEach((src) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const cv = document.createElement("canvas");
+          cv.width = cv.height = 12;
+          const cx = cv.getContext("2d");
+          if (cx) {
+            cx.drawImage(img, 0, 0, 12, 12);
+            const d = cx.getImageData(0, 0, 12, 12).data;
+            for (let i = 0; i < d.length; i += 4) {
+              const r = d[i], g = d[i + 1], b = d[i + 2];
+              const lum = (r + g + b) / 3;
+              if (lum < 28 || lum > 240) continue; // skip pure black / white
+              const key = ((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5);
+              const cur = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+              cur.n++; cur.r += r; cur.g += g; cur.b += b;
+              buckets.set(key, cur);
+            }
+          }
+        } catch { /* ignore */ }
+        if (--pending === 0) finish();
+      };
+      img.onerror = () => { if (--pending === 0) finish(); };
+      img.src = src;
+    });
+    return () => { dead = true; };
+  }, [album?.id, album?.savedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  return colors;
+}
+
+/** Search operators: tag:x  service:x  is:fav  is:pinned  is:incomplete  is:untagged  is:heavy  pages>10  pages<5 */
 function parseQuery(raw: string) {
   const out = {
     terms: [] as string[], tags: [] as string[], services: [] as string[],
-    fav: false, pinned: false, incomplete: false, pagesMin: null as number | null, pagesMax: null as number | null,
+    fav: false, pinned: false, incomplete: false, untagged: false, heavy: false,
+    pagesMin: null as number | null, pagesMax: null as number | null,
   };
   raw.trim().toLowerCase().split(/\s+/).filter(Boolean).forEach((t) => {
     let m: RegExpMatchArray | null;
@@ -149,6 +240,8 @@ function parseQuery(raw: string) {
     else if (t === "is:fav" || t === "is:favorite") out.fav = true;
     else if (t === "is:pinned") out.pinned = true;
     else if (t === "is:incomplete" || t === "is:empty") out.incomplete = true;
+    else if (t === "is:untagged") out.untagged = true;
+    else if (t === "is:heavy") out.heavy = true;
     else if ((m = t.match(/^pages([<>])(\d+)$/))) {
       if (m[1] === ">") out.pagesMin = Number(m[2]) + 1; else out.pagesMax = Number(m[2]) - 1;
     } else out.terms.push(t);
@@ -234,6 +327,8 @@ function AlbumViewer({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isFs, setIsFs] = useState(false);
+  const [overview, setOverview] = useState(false);
+  const [goto, setGoto] = useState("");
 
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const flipTimerRef = useRef<number | null>(null);
@@ -371,8 +466,25 @@ function AlbumViewer({
     startCommittedFlip(index, index > reviewIndex ? "forward" : "backward");
   };
 
+  const submitGoto = () => {
+    const n = clampNum(parseInt(goto, 10) || 0, 1, sheets.length);
+    setGoto("");
+    setAutoPlay(false);
+    jumpToPage(spreadForSheet(n - 1));
+    overlayRef.current?.focus();
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (/^(input|textarea)$/i.test(t.tagName)) {
+        if (e.key === "Escape") t.blur();
+        return;
+      }
+      if (overview) {
+        if (e.key === "Escape" || e.key.toLowerCase() === "g") { e.preventDefault(); setOverview(false); }
+        return;
+      }
       if (e.key === "ArrowRight") goToPage("forward");
       else if (e.key === "ArrowLeft") goToPage("backward");
       else if (e.key === "Home") jumpToPage(0);
@@ -380,6 +492,7 @@ function AlbumViewer({
       else if (e.key === "Escape") onClose();
       else if (e.key === " ") { e.preventDefault(); setAutoPlay((a) => !a); }
       else if (e.key.toLowerCase() === "f") toggleFullscreen();
+      else if (e.key.toLowerCase() === "g") { setAutoPlay(false); setOverview(true); }
       else if (e.key === "+" || e.key === "=") changeZoom(zoom + 0.5);
       else if (e.key === "-") changeZoom(zoom - 0.5);
       else if (e.key === "0") changeZoom(1);
@@ -387,7 +500,7 @@ function AlbumViewer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reviewIndex, turn, zoom]);
+  }, [reviewIndex, turn, zoom, overview]);
 
   useEffect(() => {
     if (!autoPlay || turn) return;
@@ -496,6 +609,9 @@ function AlbumViewer({
           </div>
           <div className="alv-shell-actions">
             <button className="alv-mini-btn" onClick={() => onEdit(album)}><EditOutlined /> Edit</button>
+            <button className="alv-mini-btn" onClick={() => { setAutoPlay(false); setOverview(true); }} aria-haspopup="dialog" title="All pages (G)">
+              <TableOutlined /> Pages
+            </button>
             <button
               className={`alv-mini-btn ${autoPlay ? "active" : ""}`}
               onClick={() => setAutoPlay((a) => !a)}
@@ -598,17 +714,32 @@ function AlbumViewer({
         </div>
 
         <div className="alv-shell-foot">
-          <span className="alv-page-count" aria-live="polite">
-            {reviewIndex === 0
-              ? `Cover — Page 1 of ${sheets.length}`
-              : firstPageNum === lastPageNum ? `Page ${firstPageNum} of ${sheets.length}` : `Pages ${firstPageNum}–${lastPageNum} of ${sheets.length}`}
-            {" — "}
-            {reviewIndex === 0 ? currentRight?.name : currentLeft?.name}
-            {reviewIndex !== 0 && currentRight ? ` · ${currentRight.name}` : ""}
-          </span>
+          <div className="alv-foot-row">
+            <span className="alv-page-count" aria-live="polite">
+              {reviewIndex === 0
+                ? `Cover — Page 1 of ${sheets.length}`
+                : firstPageNum === lastPageNum ? `Page ${firstPageNum} of ${sheets.length}` : `Pages ${firstPageNum}–${lastPageNum} of ${sheets.length}`}
+              {" — "}
+              {reviewIndex === 0 ? currentRight?.name : currentLeft?.name}
+              {reviewIndex !== 0 && currentRight ? ` · ${currentRight.name}` : ""}
+            </span>
+            <label className="alv-goto">
+              <span>Go to page</span>
+              <input
+                type="number"
+                min={1}
+                max={sheets.length}
+                value={goto}
+                placeholder={`1–${sheets.length}`}
+                onChange={(e) => setGoto(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitGoto(); } }}
+                aria-label="Go to page number"
+              />
+            </label>
+          </div>
           <div className="alv-progress-rail" aria-hidden><div className="alv-progress-rail-fill" style={{ width: `${progressPct}%` }} /></div>
           <span className="alv-kbd-hint">
-            <kbd>←</kbd><kbd>→</kbd> turn <kbd>Space</kbd> play <kbd>F</kbd> full screen <kbd>+</kbd><kbd>−</kbd> zoom <kbd>Home</kbd><kbd>End</kbd> jump
+            <kbd>←</kbd><kbd>→</kbd> turn <kbd>Space</kbd> play <kbd>G</kbd> all pages <kbd>F</kbd> full screen <kbd>+</kbd><kbd>−</kbd> zoom <kbd>Home</kbd><kbd>End</kbd> jump
           </span>
 
           <div className="alv-filmstrip" role="tablist" aria-label="Jump to page">
@@ -639,6 +770,36 @@ function AlbumViewer({
           </div>
         </div>
       </div>
+
+      {overview && (
+        <div
+          className="alv-overview"
+          role="dialog"
+          aria-modal="true"
+          aria-label="All pages"
+          onClick={(e) => { e.stopPropagation(); setOverview(false); }}
+        >
+          <div className="alv-overview-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="alv-overview-head">
+              <strong><TableOutlined /> All pages <em>{sheets.length}</em></strong>
+              <button className="alv-icon-btn" onClick={() => setOverview(false)} aria-label="Close page overview" autoFocus><CloseOutlined /></button>
+            </div>
+            <div className="alv-overview-grid">
+              {sheets.map((s, i) => (
+                <button
+                  key={s.id}
+                  className={`alv-ov-thumb ${spreadForSheet(i) === reviewIndex ? "active" : ""}`}
+                  onClick={() => { setOverview(false); setAutoPlay(false); jumpToPage(spreadForSheet(i)); }}
+                  aria-label={`Go to page ${i + 1}, ${s.name}`}
+                >
+                  <span className="alv-ov-page">{renderLibraryPage(s)}</span>
+                  <em>{i + 1}</em>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -662,15 +823,16 @@ interface CardHandlers {
 }
 
 function AlbumCard({
-  a, view, fav, fill, meta, selected, selectMode, renaming, renameDraft, setRenameDraft, draggable, dragging, dropTarget, h,
+  a, view, fav, fill, meta, size, selected, selectMode, renaming, renameDraft, setRenameDraft, draggable, dragging, dropTarget, h,
 }: {
-  a: SavedAlbumEntry; view: ViewMode; fav: boolean; fill: Fill; meta: AlbumMeta; selected: boolean; selectMode: boolean;
+  a: SavedAlbumEntry; view: ViewMode; fav: boolean; fill: Fill; meta: AlbumMeta; size: number; selected: boolean; selectMode: boolean;
   renaming: boolean; renameDraft: string; setRenameDraft: (s: string) => void; draggable: boolean; dragging: boolean;
   dropTarget: boolean; h: CardHandlers;
 }) {
   const glow = useDominantColor(a.coverImage);
   const [scrub, setScrub] = useState<number | null>(null);
   const pages = pageCount(a);
+  const overLimit = fill.filled > LIBRARY_LIMITS.maxPhotosPerAlbum;
   const style = { ["--glow" as any]: glow ?? "56,213,255" } as React.CSSProperties;
   const moreRef = useRef<HTMLButtonElement | null>(null);
 
@@ -695,7 +857,7 @@ function AlbumCard({
       }
     : {};
 
-  const cover = a.coverImage ? <img src={a.coverImage} alt="" loading="lazy" /> : (
+  const cover = a.coverImage ? <img src={a.coverImage} alt="" loading="lazy" decoding="async" /> : (
     <div className="al-card-cover-empty"><PictureOutlined /></div>
   );
 
@@ -823,7 +985,9 @@ function AlbumCard({
         </div>
         <div className="al-card-event">{a.eventName}</div>
         <div className="al-card-sheets">
-          {pages} pages · {fill.filled} photos{meta.lastOpened ? ` · opened ${relativeTime(meta.lastOpened)}` : ""}
+          {pages} pages · {fill.filled} photos · {fmtBytes(size)}
+          {meta.lastOpened ? ` · opened ${relativeTime(meta.lastOpened)}` : ""}
+          {overLimit ? <span className="al-card-warn" title={`Over the ${LIBRARY_LIMITS.maxPhotosPerAlbum}-photo guideline`}> <WarningOutlined /> over {LIBRARY_LIMITS.maxPhotosPerAlbum}</span> : null}
         </div>
 
         {meta.tags.length ? (
@@ -980,22 +1144,28 @@ function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClose: () 
 
 /* ════════════════════════════ details drawer (quick look) ════════════════════════════ */
 function DetailsDrawer({
-  album, meta, fill, fav, onClose, onPatch, onOpen, onEdit, onDuplicate, onExport, onDelete, onToggleFav,
+  album, meta, fill, fav, size, position, onClose, onPatch, onOpen, onEdit, onDuplicate, onExport, onDelete, onToggleFav, onCopyColor, onStep,
 }: {
-  album: SavedAlbumEntry; meta: AlbumMeta; fill: Fill; fav: boolean; onClose: () => void;
+  album: SavedAlbumEntry; meta: AlbumMeta; fill: Fill; fav: boolean; size: number;
+  position: { index: number; count: number };
+  onClose: () => void;
   onPatch: (patch: Partial<AlbumMeta>) => void; onOpen: (sheetIndex: number) => void; onEdit: () => void;
-  onDuplicate: () => void; onExport: () => void; onDelete: () => void; onToggleFav: () => void;
+  onDuplicate: () => void; onExport: () => void; onDelete: () => void; onToggleFav: () => void; onCopyColor: (hex: string) => void;
+  onStep: (dir: 1 | -1) => void;
 }) {
   const [tagDraft, setTagDraft] = useState("");
   const [showAll, setShowAll] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const prevFocus = useRef<HTMLElement | null>(null);
+  const palette = useAlbumPalette(album);
 
   useEffect(() => {
     prevFocus.current = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     return () => prevFocus.current?.focus?.();
-  }, [album.id]);
+  }, []); // focus once; stepping between albums keeps focus where the person is
+
+  useEffect(() => { setShowAll(false); setTagDraft(""); }, [album.id]);
 
   const addTag = () => {
     const t = normalizeTag(tagDraft);
@@ -1003,6 +1173,15 @@ function DetailsDrawer({
     if (!t || meta.tags.includes(t) || meta.tags.length >= 8) return;
     onPatch({ tags: [...meta.tags, t] });
   };
+
+  const checks = [
+    { ok: fill.pct >= 100, label: "Every photo slot is filled" },
+    { ok: !!album.coverImage, label: "Cover image is set" },
+    { ok: meta.tags.length > 0, label: "Tagged, so it turns up in search" },
+    { ok: meta.note.trim().length > 0, label: "Has a note or print spec" },
+    { ok: fill.filled <= LIBRARY_LIMITS.maxPhotosPerAlbum, label: `Within the ${LIBRARY_LIMITS.maxPhotosPerAlbum}-photo guideline` },
+  ];
+  const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
 
   const thumbs = showAll ? album.sheets : album.sheets.slice(0, 24);
 
@@ -1015,7 +1194,11 @@ function DetailsDrawer({
     >
       <div className="al-drawer-head">
         <h2>{album.templateName}</h2>
-        <button ref={closeRef} className="alv-icon-btn" onClick={onClose} aria-label="Close details"><CloseOutlined /></button>
+        <div className="al-drawer-nav">
+          <button className="alv-icon-btn" onClick={() => onStep(-1)} disabled={position.index <= 0} aria-label="Previous album (K)" title="Previous album (K)"><UpOutlined /></button>
+          <button className="alv-icon-btn" onClick={() => onStep(1)} disabled={position.index >= position.count - 1} aria-label="Next album (J)" title="Next album (J)"><DownOutlined /></button>
+          <button ref={closeRef} className="alv-icon-btn" onClick={onClose} aria-label="Close details"><CloseOutlined /></button>
+        </div>
       </div>
 
       <div className="al-drawer-body">
@@ -1029,7 +1212,8 @@ function DetailsDrawer({
           <div><dt>Version</dt><dd>v{album.versionNum}</dd></div>
           <div><dt>Canvas</dt><dd>{album.canvasSize}</dd></div>
           <div><dt>Pages</dt><dd>{pageCount(album)}</dd></div>
-          <div><dt>Photos</dt><dd>{fill.filled} of {fill.total} slots</dd></div>
+          <div><dt>Photos</dt><dd>{fill.filled} of {LIBRARY_LIMITS.maxPhotosPerAlbum} max · {fill.total} slots</dd></div>
+          <div><dt>Size</dt><dd>{fmtBytes(size)}</dd></div>
           <div><dt>Saved</dt><dd>{new Date(album.savedAt).toLocaleString()}</dd></div>
           <div><dt>Opened</dt><dd>{meta.opens ? `${meta.opens}× · last ${relativeTime(meta.lastOpened)}` : "Never"}</dd></div>
         </dl>
@@ -1046,6 +1230,30 @@ function DetailsDrawer({
           <button className="al-tool-btn" onClick={onExport}><ExportOutlined /> Export</button>
           <button className="al-tool-btn danger" onClick={onDelete}><DeleteOutlined /> Delete</button>
         </div>
+
+        <h3 className="al-drawer-h"><SafetyCertificateOutlined /> Ready to deliver <span className={`al-health-score ${score === 100 ? "perfect" : ""}`}>{score}%</span></h3>
+        <ul className="al-health" aria-label="Delivery checklist">
+          {checks.map((c) => (
+            <li key={c.label} className={c.ok ? "ok" : ""}>
+              {c.ok ? <CheckCircleFilled aria-hidden /> : <MinusCircleOutlined aria-hidden />}
+              <span>{c.label}</span>
+              <span className="al-sr-only">{c.ok ? "done" : "not done"}</span>
+            </li>
+          ))}
+        </ul>
+
+        {palette.length > 0 && (
+          <>
+            <h3 className="al-drawer-h"><BgColorsOutlined /> Colour story</h3>
+            <div className="al-palette" role="group" aria-label="Album colour story. Click a colour to copy its hex code">
+              {palette.map((c) => (
+                <button key={c} style={{ background: c }} onClick={() => onCopyColor(c)} title={`Copy ${c}`} aria-label={`Copy colour ${c}`}>
+                  <span>{c}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <h3 className="al-drawer-h">Label</h3>
         <div className="al-swatches" role="group" aria-label="Color label">
@@ -1101,22 +1309,159 @@ function DetailsDrawer({
   );
 }
 
+/* ════════════════════════════ storage manager ════════════════════════════ */
+function StorageManager({
+  albums, stats, estimate, fills, opt, onClose, onOptimize, onPersist, onOpen, onDelete,
+}: {
+  albums: SavedAlbumEntry[]; stats: LibraryStats; estimate: StorageEstimateInfo | null; fills: Map<string, Fill>; opt: OptState;
+  onClose: () => void; onOptimize: (o: OptimizeOptions) => void; onPersist: () => void;
+  onOpen: (a: SavedAlbumEntry) => void; onDelete: (a: SavedAlbumEntry) => void;
+}) {
+  const [preset, setPreset] = useState(PRESETS[0].id);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const prevFocus = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    prevFocus.current = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    return () => prevFocus.current?.focus?.();
+  }, []);
+
+  const usedBytes = stats.storageKB * 1024;
+  const deviceUsed = estimate?.supported ? estimate.usage : usedBytes;
+  const quota = estimate?.supported && estimate.quota ? estimate.quota : stats.quotaBytes;
+  const devicePct = clampNum(Math.round((deviceUsed / quota) * 100), 0, 100);
+  const avgPhoto = stats.totalPhotos ? usedBytes / stats.totalPhotos : 0;
+  const roomPhotos = avgPhoto ? Math.max(0, Math.floor((quota * 0.9 - deviceUsed) / avgPhoto)) : null;
+  const sorted = [...albums].sort((a, b) => (stats.albumBytes[b.id] ?? 0) - (stats.albumBytes[a.id] ?? 0));
+  const biggest = Math.max(1, ...sorted.map((a) => stats.albumBytes[a.id] ?? 0));
+  const chosen = PRESETS.find((p) => p.id === preset) ?? PRESETS[0];
+  const saved = opt.result ? opt.result.before - opt.result.after : 0;
+
+  return (
+    <div className="al-modal-overlay" onClick={onClose}>
+      <section
+        className="al-sm"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Storage manager"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}
+      >
+        <header className="al-sm-head">
+          <h2><HddOutlined /> Storage manager</h2>
+          <button ref={closeRef} className="alv-icon-btn" onClick={onClose} aria-label="Close storage manager"><CloseOutlined /></button>
+        </header>
+
+        <div className="al-sm-body">
+          <div className="al-sm-grid">
+            <div className="al-sm-card">
+              <span className="al-sm-k">Device storage</span>
+              <strong>{fmtBytes(deviceUsed)} <em>of {fmtBytes(quota)}</em></strong>
+              <div className="al-storage-track"><div className={`al-storage-fill ${devicePct > 80 ? "warn" : ""}`} style={{ width: `${devicePct}%` }} /></div>
+              <small>{roomPhotos === null ? "Add photos to see how many more will fit." : `Room for about ${roomPhotos.toLocaleString()} more photos at your current photo size.`}</small>
+            </div>
+            <div className="al-sm-card">
+              <span className="al-sm-k">Albums</span>
+              <strong>{stats.totalAlbums} <em>of {stats.maxAlbums}</em></strong>
+              <div className="al-storage-track"><div className={`al-storage-fill ${stats.totalAlbums >= stats.maxAlbums ? "warn" : ""}`} style={{ width: `${(stats.totalAlbums / stats.maxAlbums) * 100}%` }} /></div>
+              <small>{stats.totalAlbums >= stats.maxAlbums ? "Library is full. Export, then delete an album to add another." : `${stats.maxAlbums - stats.totalAlbums} more album${stats.maxAlbums - stats.totalAlbums === 1 ? "" : "s"} can be saved.`}</small>
+            </div>
+            <div className="al-sm-card">
+              <span className="al-sm-k">Photos in library</span>
+              <strong>{stats.totalPhotos.toLocaleString()} <em>up to {stats.maxPhotosPerAlbum} per album</em></strong>
+              <small>Average {avgPhoto ? fmtBytes(avgPhoto) : "—"} per photo.</small>
+            </div>
+          </div>
+
+          {estimate?.supported && (
+            <div className={`al-sm-persist ${estimate.persisted ? "on" : ""}`}>
+              <SafetyCertificateOutlined />
+              <p>
+                {estimate.persisted
+                  ? "Protected: your browser won't clear this library when disk space runs low."
+                  : "Not protected yet: under disk pressure the browser may clear saved albums. Ask it to keep them."}
+              </p>
+              {!estimate.persisted && <button className="al-tool-btn active" onClick={onPersist}>Protect my albums</button>}
+            </div>
+          )}
+
+          <div className="al-sm-opt">
+            <h3><CompressOutlined /> Optimize photos</h3>
+            <p>Shrinks every saved photo to fit far more into the same space. Identical photos are processed once. Layouts and captions are untouched.</p>
+            <div className="al-sm-presets" role="radiogroup" aria-label="Optimization level">
+              {PRESETS.map((p) => (
+                <button key={p.id} role="radio" aria-checked={preset === p.id} className={preset === p.id ? "on" : ""} onClick={() => setPreset(p.id)} disabled={opt.running}>
+                  <strong>{p.label}</strong><span>{p.hint}</span>
+                </button>
+              ))}
+            </div>
+            <div className="al-sm-run">
+              <button className="al-new-btn" onClick={() => onOptimize(chosen.opts)} disabled={opt.running || !albums.length}>
+                <CompressOutlined /> {opt.running ? "Optimizing…" : "Optimize now"}
+              </button>
+              {opt.running && (
+                <div className="al-sm-progress" role="progressbar" aria-valuemin={0} aria-valuemax={opt.total || 1} aria-valuenow={opt.done}>
+                  <div style={{ width: `${opt.total ? (opt.done / opt.total) * 100 : 0}%` }} />
+                  <span>{opt.done} / {opt.total} photos</span>
+                </div>
+              )}
+              {!opt.running && opt.result && (
+                <p className="al-sm-result">
+                  {saved > 0 ? `Freed ${fmtBytes(saved)} (${fmtBytes(opt.result.before)} → ${fmtBytes(opt.result.after)}).` : "Already as small as this level can make it."}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <h3 className="al-sm-h">Space by album</h3>
+          {sorted.length === 0 ? <p className="al-sm-empty">No albums saved yet.</p> : (
+            <ul className="al-sm-list">
+              {sorted.map((a) => {
+                const b = stats.albumBytes[a.id] ?? 0;
+                const photos = fills.get(a.id)?.filled ?? 0;
+                return (
+                  <li key={a.id}>
+                    <div className="al-sm-row-top">
+                      <button className="al-sm-name" onClick={() => onOpen(a)}>{a.templateName}</button>
+                      <span>{fmtBytes(b)}</span>
+                      <span className={photos > stats.maxPhotosPerAlbum ? "al-card-warn" : ""}>{photos}/{stats.maxPhotosPerAlbum} photos</span>
+                      <button className="al-sm-del" onClick={() => onDelete(a)} aria-label={`Delete ${a.templateName}`}><DeleteOutlined /></button>
+                    </div>
+                    <div className="al-sm-bar"><i style={{ width: `${(b / biggest) * 100}%` }} /></div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 /* ════════════════════════════ main page ════════════════════════════ */
 export default function AlbumLibraryPage() {
   const navigate = useNavigate();
+  const [ready, setReady] = useState<boolean>(() => isLibraryReady());
   const [albums, setAlbums] = useState<SavedAlbumEntry[]>(() => getSavedAlbums());
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set(getFavoriteIds()));
   const [stats, setStats] = useState<LibraryStats>(() => getLibraryStats());
+  const [estimate, setEstimate] = useState<StorageEstimateInfo | null>(null);
 
   const [metaMap, setMetaMap] = usePersisted<Record<string, AlbumMeta>>(META_KEY, {});
   const [order, setOrder] = usePersisted<string[]>(ORDER_KEY, []);
   const [prefs, setPrefs] = usePersisted<Prefs>(PREFS_KEY, { view: "grid", sort: "newest", density: 230 });
+  const [lastBackup, setLastBackup] = usePersisted<string | null>(BACKUP_KEY, null);
+  const [savedViews, setSavedViews] = usePersisted<SavedView[]>(VIEWS_KEY, []);
   const { view: viewMode, sort: sortMode, density } = prefs;
 
   const [search, setSearch] = useState("");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [collection, setCollection] = useState<Collection>("all");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [savingView, setSavingView] = useState(false);
+  const [viewName, setViewName] = useState("");
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1129,14 +1474,20 @@ export default function AlbumLibraryPage() {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; album: SavedAlbumEntry } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
   const [fileDrag, setFileDrag] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [wallLimit, setWallLimit] = useState(WALL_PAGE);
+  const [nudgeHidden, setNudgeHidden] = useState(false);
+  const [opt, setOpt] = useState<OptState>({ running: false, done: 0, total: 0 });
 
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const refreshEstimate = useCallback(() => { getStorageEstimate().then(setEstimate).catch(() => {}); }, []);
 
   const refresh = () => {
     setAlbums(getSavedAlbums());
@@ -1144,6 +1495,12 @@ export default function AlbumLibraryPage() {
     setStats(getLibraryStats());
   };
   useEffect(() => subscribeToAlbumLibrary(refresh), []);
+  useEffect(() => {
+    let live = true;
+    whenLibraryReady().then(() => { if (live) { setReady(true); refresh(); refreshEstimate(); } });
+    return () => { live = false; };
+  }, [refreshEstimate]);
+  useEffect(() => { refreshEstimate(); }, [albums, refreshEstimate]);
   useEffect(() => () => { if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current); }, []);
 
   const showToast = (msg: string, action?: ToastState["action"]) => {
@@ -1151,6 +1508,7 @@ export default function AlbumLibraryPage() {
     setToast({ msg, action });
     toastTimerRef.current = window.setTimeout(() => setToast(null), action ? 7000 : 2600);
   };
+  useEffect(() => subscribeToStorageErrors((msg) => showToast(msg)), []);
 
   /* ── derived data ── */
   const metaOf = useCallback((id: string) => metaMap[id] ?? DEFAULT_META, [metaMap]);
@@ -1159,6 +1517,8 @@ export default function AlbumLibraryPage() {
 
   const fills = useMemo(() => new Map(albums.map((a) => [a.id, albumFill(a)])), [albums]);
   const fillOf = (a: SavedAlbumEntry): Fill => fills.get(a.id) ?? { filled: 0, total: 0, pct: 100 };
+  const sizeOf = (a: SavedAlbumEntry) => stats.albumBytes[a.id] ?? 0;
+  const atLimit = albums.length >= LIBRARY_LIMITS.maxAlbums;
 
   const services = useMemo(() => Array.from(new Set(albums.map((a) => a.serviceName))), [albums]);
   const serviceMix = useMemo(() => {
@@ -1196,6 +1556,7 @@ export default function AlbumLibraryPage() {
     let list = albums.filter((a) => {
       const m = metaOf(a.id);
       const pct = fills.get(a.id)?.pct ?? 100;
+      const photos = fills.get(a.id)?.filled ?? 0;
       const pages = pageCount(a);
       if (serviceFilter !== "all" && a.serviceName !== serviceFilter) return false;
       if (tagFilter && !m.tags.includes(tagFilter)) return false;
@@ -1206,6 +1567,8 @@ export default function AlbumLibraryPage() {
       if (query.fav && !favoriteIds.has(a.id)) return false;
       if (query.pinned && !m.pinned) return false;
       if (query.incomplete && pct >= 100) return false;
+      if (query.untagged && m.tags.length) return false;
+      if (query.heavy && photos <= LIBRARY_LIMITS.maxPhotosPerAlbum) return false;
       if (query.pagesMin !== null && pages < query.pagesMin) return false;
       if (query.pagesMax !== null && pages > query.pagesMax) return false;
       if (query.tags.some((t) => !m.tags.some((x) => x.includes(t)))) return false;
@@ -1228,6 +1591,7 @@ export default function AlbumLibraryPage() {
         case "pages": return pageCount(b) - pageCount(a);
         case "completion": return (fills.get(a.id)?.pct ?? 100) - (fills.get(b.id)?.pct ?? 100);
         case "opened": return t(mb.lastOpened ?? "1970-01-01") - t(ma.lastOpened ?? "1970-01-01");
+        case "mostOpened": return mb.opens - ma.opens || t(b.savedAt) - t(a.savedAt);
         case "custom": {
           const ia = order.indexOf(a.id), ib = order.indexOf(b.id);
           if (ia === -1 && ib === -1) return t(b.savedAt) - t(a.savedAt);
@@ -1241,10 +1605,20 @@ export default function AlbumLibraryPage() {
     return list;
   }, [albums, metaOf, fills, favoriteIds, serviceFilter, tagFilter, collection, query, sortMode, viewMode, order]);
 
+  const filteredRef = useRef(filtered);
+  filteredRef.current = filtered;
+
   const recents = useMemo(
     () => albums.filter((a) => metaOf(a.id).lastOpened).sort((a, b) => (metaOf(b.id).lastOpened! > metaOf(a.id).lastOpened! ? 1 : -1)).slice(0, 5),
     [albums, metaOf]
   );
+
+  /** Spotlight: one album resurfaced per day so old work doesn't get buried. */
+  const spotlight = useMemo(() => {
+    const withCover = albums.filter((a) => a.coverImage);
+    if (!withCover.length) return null;
+    return withCover[Math.floor(Date.now() / 86400000) % withCover.length];
+  }, [albums]);
 
   const groups = useMemo(() => {
     if (viewMode !== "timeline") return [{ label: "", items: filtered }];
@@ -1256,6 +1630,24 @@ export default function AlbumLibraryPage() {
     });
     return out;
   }, [filtered, viewMode]);
+
+  /** Photo wall: every photo from the albums currently shown. */
+  const wallPhotos = useMemo<WallPhoto[]>(() => {
+    if (viewMode !== "wall") return [];
+    const out: WallPhoto[] = [];
+    filtered.forEach((a) => a.sheets.forEach((s, si) => s.slots.forEach((sl) => {
+      if (sl.image) out.push({ key: `${a.id}-${sl.id}`, album: a, sheet: si, src: sl.image, label: sl.caption || sl.fileName || a.templateName });
+    })));
+    return out;
+  }, [filtered, viewMode]);
+  useEffect(() => { setWallLimit(WALL_PAGE); }, [search, serviceFilter, collection, tagFilter, viewMode]);
+
+  const needsBackup = ready && albums.length > 0 && !nudgeHidden &&
+    (!lastBackup || Date.now() - new Date(lastBackup).getTime() > BACKUP_NUDGE_DAYS * 86400000);
+
+  const usedBytes = stats.storageKB * 1024;
+  const quotaBytes = estimate?.supported && estimate.quota ? estimate.quota : stats.quotaBytes;
+  const storagePct = clampNum(Math.round((usedBytes / quotaBytes) * 100), 0, 100);
 
   /* ── actions ── */
   const openAlbum = (a: SavedAlbumEntry, sheet = 0) => {
@@ -1272,6 +1664,11 @@ export default function AlbumLibraryPage() {
   };
 
   const handleNewBlank = () => {
+    if (atLimit) {
+      showToast(`Library is full (${LIBRARY_LIMITS.maxAlbums} albums). Export a backup, then delete one.`);
+      setStorageOpen(true);
+      return;
+    }
     beginBlankAlbum();
     navigate("/events/create/album/template-editor");
   };
@@ -1294,6 +1691,10 @@ export default function AlbumLibraryPage() {
   };
 
   const handleDuplicate = (a: SavedAlbumEntry) => {
+    if (atLimit) {
+      showToast(`Library is full (${LIBRARY_LIMITS.maxAlbums} albums). Delete one before duplicating.`);
+      return;
+    }
     const copy = duplicateSavedAlbum(a.id);
     if (copy) {
       const m = metaOf(a.id);
@@ -1308,19 +1709,26 @@ export default function AlbumLibraryPage() {
     setRenamingId(null);
   };
 
+  const metaFor = (list: SavedAlbumEntry[]) => {
+    const subset: Record<string, AlbumMeta> = {};
+    list.forEach((a) => { if (metaMap[a.id]) subset[a.id] = metaMap[a.id]; });
+    return { meta: subset };
+  };
+
   const exportOne = (a: SavedAlbumEntry) => {
-    exportAlbumsAsJson([a], `axs-album-${a.templateName.replace(/\W+/g, "-").toLowerCase()}-${Date.now()}.json`);
+    exportAlbumsAsJson([a], `axs-album-${a.templateName.replace(/\W+/g, "-").toLowerCase()}-${Date.now()}.json`, metaFor([a]));
     showToast("Exported album");
   };
   const handleExportAll = () => {
     if (!albums.length) return;
-    exportAlbumsAsJson(albums);
-    showToast(`Exported ${albums.length} album(s)`);
+    exportAlbumsAsJson(albums, undefined, metaFor(albums));
+    setLastBackup(new Date().toISOString());
+    showToast(`Backed up ${albums.length} album(s)`);
   };
   const handleBulkExport = () => {
     const sel = albums.filter((a) => selectedIds.has(a.id));
     if (!sel.length) return;
-    exportAlbumsAsJson(sel, `axs-selected-albums-${Date.now()}.json`);
+    exportAlbumsAsJson(sel, `axs-selected-albums-${Date.now()}.json`, metaFor(sel));
     showToast(`Exported ${sel.length} album(s)`);
   };
   const handleBulkFavorite = () => {
@@ -1341,12 +1749,44 @@ export default function AlbumLibraryPage() {
     });
     showToast(`Tagged ${selectedIds.size} album(s) #${tag}`);
   };
+  const handleBulkLabel = (color: string | null) => {
+    if (!selectedIds.size) return;
+    setMetaMap((p) => {
+      const next = { ...p };
+      selectedIds.forEach((id) => { next[id] = { ...(next[id] ?? DEFAULT_META), color }; });
+      return next;
+    });
+    showToast(color ? `Labelled ${plural(selectedIds.size, "album")}` : `Cleared labels on ${plural(selectedIds.size, "album")}`);
+  };
+  const handleBulkPin = () => {
+    if (!selectedIds.size) return;
+    const ids = Array.from(selectedIds);
+    const allPinned = ids.every((id) => metaOf(id).pinned);
+    setMetaMap((p) => {
+      const next = { ...p };
+      ids.forEach((id) => { next[id] = { ...(next[id] ?? DEFAULT_META), pinned: !allPinned }; });
+      return next;
+    });
+    showToast(`${allPinned ? "Unpinned" : "Pinned"} ${plural(ids.length, "album")}`);
+  };
 
   const importFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const count = importAlbumsFromJsonText(String(reader.result || ""));
-      showToast(count ? `Imported ${count} album(s)` : "Nothing to import — check the file");
+      const res = importAlbumsFromJsonText(String(reader.result || ""));
+      if (res.count && res.extra?.meta) {
+        setMetaMap((p) => {
+          const next = { ...p };
+          Object.entries(res.idMap).forEach(([oldId, newId]) => {
+            const m = res.extra.meta[oldId];
+            if (m) next[newId] = { ...DEFAULT_META, ...m, opens: 0, lastOpened: undefined };
+          });
+          return next;
+        });
+      }
+      if (!res.count && !res.skipped) showToast("Nothing to import — check the file");
+      else if (res.skipped) showToast(`Imported ${res.count}; skipped ${res.skipped} (library limit is ${LIBRARY_LIMITS.maxAlbums} albums)`);
+      else showToast(`Imported ${res.count} album(s)`);
     };
     reader.onerror = () => showToast("Could not read that file");
     reader.readAsText(file);
@@ -1358,6 +1798,57 @@ export default function AlbumLibraryPage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (file) importFile(file);
+  };
+
+  const runOptimize = async (o: OptimizeOptions) => {
+    setOpt({ running: true, done: 0, total: 0 });
+    try {
+      const result = await optimizeLibrary(o, (done, total) => setOpt((p) => ({ ...p, done, total })));
+      setOpt({ running: false, done: result.images, total: result.images, result });
+      const saved = result.before - result.after;
+      showToast(saved > 0 ? `Freed ${fmtBytes(saved)}` : "Photos were already optimized");
+    } catch {
+      setOpt({ running: false, done: 0, total: 0 });
+      showToast("Optimization stopped — nothing was lost");
+    }
+    refresh();
+    refreshEstimate();
+  };
+
+  const handlePersist = async () => {
+    const ok = await requestPersistentStorage();
+    refreshEstimate();
+    showToast(ok ? "Library protected from browser cleanup" : "Browser declined — installing the app or bookmarking the site can help");
+  };
+
+  const copyColor = (hex: string) => {
+    navigator.clipboard?.writeText(hex).then(() => showToast(`Copied ${hex}`)).catch(() => showToast(hex));
+  };
+
+  /* ── saved views ── */
+  const clearFilters = () => { setSearch(""); setServiceFilter("all"); setCollection("all"); setTagFilter(null); };
+
+  const applyView = (v: SavedView) => {
+    setSearch(v.search);
+    setServiceFilter(v.service);
+    setCollection(v.collection);
+    setTagFilter(v.tag);
+  };
+  const isActiveView = (v: SavedView) =>
+    v.search === search && v.service === serviceFilter && v.collection === collection && v.tag === tagFilter;
+
+  const commitSaveView = () => {
+    const name = viewName.trim().slice(0, 28);
+    setSavingView(false);
+    setViewName("");
+    if (!name || !isFiltering) return;
+    if (savedViews.length >= MAX_SAVED_VIEWS) { showToast(`You can keep ${MAX_SAVED_VIEWS} saved views. Remove one first.`); return; }
+    setSavedViews((p) => [...p, { id: `v${Date.now().toString(36)}`, name, search, service: serviceFilter, collection, tag: tagFilter }]);
+    showToast(`Saved view “${name}”`);
+  };
+  const removeView = (v: SavedView) => {
+    setSavedViews((p) => p.filter((x) => x.id !== v.id));
+    showToast(`Removed view “${v.name}”`, { label: "Undo", run: () => { setSavedViews((p) => [...p, v]); setToast(null); } });
   };
 
   /* ── selection ── */
@@ -1391,7 +1882,7 @@ export default function AlbumLibraryPage() {
   };
 
   /* ── manual ordering ── */
-  const canReorder = sortMode === "custom" && !selectMode && viewMode !== "list";
+  const canReorder = sortMode === "custom" && !selectMode && viewMode !== "list" && viewMode !== "wall";
   const handleDrop = (targetId: string) => {
     if (!dragId || dragId === targetId) { setDragId(null); setOverId(null); return; }
     const ids = filtered.map((a) => a.id).filter((id) => id !== dragId);
@@ -1400,6 +1891,14 @@ export default function AlbumLibraryPage() {
     setOrder([...ids, ...order.filter((id) => !ids.includes(id))]);
     setDragId(null);
     setOverId(null);
+  };
+
+  /* ── quick look stepping ── */
+  const stepDetails = (dir: 1 | -1) => {
+    const list = filteredRef.current;
+    const i = list.findIndex((a) => a.id === detailsId);
+    const next = list[i + dir];
+    if (next) setDetailsId(next.id);
   };
 
   /* ── menu & palette contents ── */
@@ -1418,21 +1917,26 @@ export default function AlbumLibraryPage() {
 
   const setView = (v: ViewMode) => setPrefs((p) => ({ ...p, view: v }));
   const setSort = (s: SortMode) => setPrefs((p) => ({ ...p, sort: s }));
-  const clearFilters = () => { setSearch(""); setServiceFilter("all"); setCollection("all"); setTagFilter(null); };
 
   const paletteItems: PaletteItem[] = paletteOpen
     ? [
         { id: "new", label: "New album", icon: <PlusOutlined />, group: "Actions", run: handleNewBlank },
+        { id: "stor", label: "Manage storage", hint: "Space, limits, optimize", icon: <HddOutlined />, group: "Actions", run: () => setStorageOpen(true) },
+        { id: "opt", label: "Optimize photos", hint: "Free up space", icon: <CompressOutlined />, group: "Actions", run: () => setStorageOpen(true) },
         { id: "rand", label: "Open a random album", hint: "Feeling lucky", icon: <ThunderboltOutlined />, group: "Actions", run: () => { if (albums.length) openAlbum(albums[Math.floor(Math.random() * albums.length)]); } },
         { id: "sel", label: selectMode ? "Exit select mode" : "Select multiple", icon: <CheckSquareOutlined />, group: "Actions", run: toggleSelectMode },
         { id: "imp", label: "Import library backup", icon: <ImportOutlined />, group: "Actions", run: () => importInputRef.current?.click() },
-        { id: "exp", label: "Export entire library", icon: <ExportOutlined />, group: "Actions", run: handleExportAll },
+        { id: "exp", label: "Back up entire library", icon: <ExportOutlined />, group: "Actions", run: handleExportAll },
+        ...(isFiltering ? [{ id: "sv", label: "Save current view", hint: "Keep this search and filters", icon: <SaveOutlined />, group: "Actions" as const, run: () => setSavingView(true) }] : []),
+        ...savedViews.map((v): PaletteItem => ({ id: `sv-${v.id}`, label: `View: ${v.name}`, hint: "Saved view", icon: <SaveOutlined />, group: "Actions", run: () => applyView(v) })),
         { id: "vg", label: "View: grid", icon: <AppstoreOutlined />, group: "Actions", run: () => setView("grid") },
         { id: "vl", label: "View: list", icon: <UnorderedListOutlined />, group: "Actions", run: () => setView("list") },
         { id: "vs", label: "View: bookshelf", icon: <ReadOutlined />, group: "Actions", run: () => setView("shelf") },
         { id: "vt", label: "View: timeline", icon: <FieldTimeOutlined />, group: "Actions", run: () => setView("timeline") },
+        { id: "vw", label: "View: photo wall", hint: "Every photo, all albums", icon: <CameraOutlined />, group: "Actions", run: () => setView("wall") },
         { id: "cf", label: "Show favorites", icon: <StarOutlined />, group: "Actions", run: () => setCollection("favorites") },
         { id: "ci", label: "Show incomplete albums", hint: "Missing photos", icon: <PictureOutlined />, group: "Actions", run: () => setCollection("incomplete") },
+        { id: "cu", label: "Show untagged albums", hint: "Hard to find in search", icon: <TagOutlined />, group: "Actions", run: () => setSearch("is:untagged") },
         { id: "cr", label: "Show recently saved", icon: <ClockCircleOutlined />, group: "Actions", run: () => setCollection("recent") },
         { id: "cc", label: "Clear all filters", icon: <CloseOutlined />, group: "Actions", run: clearFilters },
         ...albums.map((a): PaletteItem => ({
@@ -1449,7 +1953,7 @@ export default function AlbumLibraryPage() {
         if (!viewing) setPaletteOpen((o) => !o);
         return;
       }
-      if (viewing || paletteOpen || menu) return;
+      if (viewing || paletteOpen || menu || storageOpen) return;
       const t = e.target as HTMLElement;
       const typing = /^(input|textarea|select)$/i.test(t.tagName) || t.isContentEditable;
       if (e.key === "Escape") {
@@ -1458,15 +1962,19 @@ export default function AlbumLibraryPage() {
         return;
       }
       if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
       if (e.key === "/") { e.preventDefault(); searchRef.current?.focus(); }
-      else if (e.key.toLowerCase() === "n") handleNewBlank();
-      else if (e.key.toLowerCase() === "s") toggleSelectMode();
-      else if (e.key.toLowerCase() === "v") setView(VIEW_ORDER[(VIEW_ORDER.indexOf(viewMode) + 1) % VIEW_ORDER.length]);
+      else if (detailsId && k === "j") stepDetails(1);
+      else if (detailsId && k === "k") stepDetails(-1);
+      else if (k === "n") handleNewBlank();
+      else if (k === "s") toggleSelectMode();
+      else if (k === "m") setStorageOpen(true);
+      else if (k === "v") setView(VIEW_ORDER[(VIEW_ORDER.indexOf(viewMode) + 1) % VIEW_ORDER.length]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewing, paletteOpen, menu, detailsId, selectMode, viewMode]);
+  }, [viewing, paletteOpen, menu, storageOpen, detailsId, selectMode, viewMode, atLimit]);
 
   /* ── drop a backup file anywhere to import ── */
   useEffect(() => {
@@ -1521,6 +2029,7 @@ export default function AlbumLibraryPage() {
         fav={favoriteIds.has(a.id)}
         fill={fillOf(a)}
         meta={metaOf(a.id)}
+        size={sizeOf(a)}
         selected={selectedIds.has(a.id)}
         selectMode={selectMode}
         renaming={renamingId === a.id}
@@ -1533,12 +2042,26 @@ export default function AlbumLibraryPage() {
       />
     ));
 
+  /* ── smart insights: what needs attention, one click to see it ── */
+  const insights: Insight[] = [];
+  if (ready && albums.length) {
+    const needPhotos = collectionCounts.incomplete;
+    const untagged = albums.filter((a) => !metaOf(a.id).tags.length).length;
+    const heavy = albums.filter((a) => (fills.get(a.id)?.filled ?? 0) > LIBRARY_LIMITS.maxPhotosPerAlbum).length;
+    if (needPhotos > 0) insights.push({ id: "photos", label: `${plural(needPhotos, "album")} still ${needPhotos === 1 ? "needs" : "need"} photos`, icon: <PictureOutlined />, tone: "warn", run: () => setCollection("incomplete") });
+    if (heavy > 0) insights.push({ id: "heavy", label: `${plural(heavy, "album")} over the ${LIBRARY_LIMITS.maxPhotosPerAlbum}-photo guideline`, icon: <WarningOutlined />, tone: "warn", run: () => setSearch("is:heavy") });
+    if (storagePct > 80) insights.push({ id: "space", label: `Storage is ${storagePct}% full`, icon: <HddOutlined />, tone: "warn", run: () => setStorageOpen(true) });
+    if (untagged > 0 && albums.length > 2) insights.push({ id: "tags", label: `${plural(untagged, "album")} without tags`, icon: <TagOutlined />, tone: "info", run: () => setSearch("is:untagged") });
+  }
+
   const detailsAlbum = detailsId ? albums.find((a) => a.id === detailsId) ?? null : null;
+  const detailsIndex = detailsAlbum ? filtered.findIndex((a) => a.id === detailsAlbum.id) : -1;
   const VIEWS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
     { id: "grid", label: "Grid view", icon: <AppstoreOutlined /> },
     { id: "list", label: "List view", icon: <UnorderedListOutlined /> },
     { id: "shelf", label: "Bookshelf view", icon: <ReadOutlined /> },
     { id: "timeline", label: "Timeline view", icon: <FieldTimeOutlined /> },
+    { id: "wall", label: "Photo wall", icon: <CameraOutlined /> },
   ];
   const COLLECTIONS: { id: Collection; label: string }[] = [
     { id: "all", label: "All" }, { id: "favorites", label: "Favorites" }, { id: "pinned", label: "Pinned" },
@@ -1582,7 +2105,10 @@ export default function AlbumLibraryPage() {
         <div className="al-body">
           {/* stats */}
           <section className="al-stats-bar" aria-label="Library statistics">
-            <div className="al-stat"><span className="al-stat-val">{stats.totalAlbums}</span><span className="al-stat-label">Albums</span></div>
+            <div className="al-stat">
+              <span className={`al-stat-val ${atLimit ? "full" : ""}`}>{stats.totalAlbums}<small>/{stats.maxAlbums}</small></span>
+              <span className="al-stat-label">Albums</span>
+            </div>
             <div className="al-stat"><span className="al-stat-val">{stats.totalPages}</span><span className="al-stat-label">Total Pages</span></div>
             <div className="al-stat"><span className="al-stat-val">{insight.photos}</span><span className="al-stat-label">Photos</span></div>
             <div className="al-stat"><span className="al-stat-val">{stats.totalServices}</span><span className="al-stat-label">Services</span></div>
@@ -1608,27 +2134,76 @@ export default function AlbumLibraryPage() {
             )}
 
             <div className="al-stat al-stat-storage">
-              <div className="al-storage-head"><DatabaseOutlined /><span>{stats.storageKB} KB used</span></div>
-              <div className="al-storage-track" role="progressbar" aria-valuenow={stats.storagePct} aria-valuemin={0} aria-valuemax={100} aria-label="Storage used">
-                <div className={`al-storage-fill ${stats.storagePct > 80 ? "warn" : ""}`} style={{ width: `${stats.storagePct}%` }} />
+              <div className="al-storage-head">
+                <DatabaseOutlined />
+                <span>{fmtBytes(usedBytes)} of {fmtBytes(quotaBytes)}</span>
+                <button className="al-link-btn" onClick={() => setStorageOpen(true)}>Manage</button>
               </div>
-              {stats.storagePct > 80 && <span className="al-storage-warn">Almost full — export a backup, then remove old albums.</span>}
+              <div className="al-storage-track" role="progressbar" aria-valuenow={storagePct} aria-valuemin={0} aria-valuemax={100} aria-label="Storage used">
+                <div className={`al-storage-fill ${storagePct > 80 ? "warn" : ""}`} style={{ width: `${Math.max(storagePct, usedBytes ? 1 : 0)}%` }} />
+              </div>
+              {(storagePct > 80 || atLimit) && (
+                <span className="al-storage-warn">
+                  {atLimit ? `Album limit reached (${stats.maxAlbums}). ` : ""}
+                  {storagePct > 80 ? "Almost full — optimize photos or export a backup." : ""}
+                </span>
+              )}
             </div>
           </section>
 
-          {/* jump back in */}
-          {!isFiltering && recents.length > 0 && (
-            <section className="al-jump" aria-label="Jump back in">
-              <span className="al-jump-title"><ClockCircleOutlined /> Jump back in</span>
-              <div className="al-jump-row">
-                {recents.map((a) => (
-                  <button key={a.id} className="al-jump-item" onClick={() => openAlbum(a)}>
-                    <span className="al-jump-thumb">{a.coverImage ? <img src={a.coverImage} alt="" /> : <PictureOutlined />}</span>
-                    <span className="al-jump-text"><strong>{a.templateName}</strong><em>{relativeTime(metaOf(a.id).lastOpened)}</em></span>
-                  </button>
-                ))}
-              </div>
+          {/* smart insights */}
+          {!isFiltering && insights.length > 0 && (
+            <section className="al-insights" aria-label="Needs attention">
+              <span className="al-insights-title">Needs attention</span>
+              {insights.map((i) => (
+                <button key={i.id} className={`al-insight ${i.tone}`} onClick={i.run}>
+                  {i.icon}<span>{i.label}</span>
+                </button>
+              ))}
             </section>
+          )}
+
+          {/* backup nudge */}
+          {needsBackup && (
+            <div className="al-nudge" role="status">
+              <SafetyCertificateOutlined />
+              <p>{lastBackup ? `Last backup was ${relativeTime(lastBackup)}.` : "This library has never been backed up."} Browser data can be cleared; a backup file keeps your albums safe.</p>
+              <button className="al-tool-btn active" onClick={handleExportAll}><ExportOutlined /> Back up now</button>
+              <button className="alv-icon-btn" onClick={() => setNudgeHidden(true)} aria-label="Dismiss backup reminder"><CloseOutlined /></button>
+            </div>
+          )}
+
+          {/* spotlight + jump back in */}
+          {!isFiltering && ready && (spotlight || recents.length > 0) && (
+            <div className="al-top-row">
+              {spotlight && (
+                <section className="al-spot" aria-label="Album spotlight" style={{ ["--spot" as any]: `url(${spotlight.coverImage})` }}>
+                  <div className="al-spot-img" />
+                  <div className="al-spot-text">
+                    <span className="al-spot-tag"><BulbOutlined /> Today's spotlight</span>
+                    <strong>{spotlight.templateName}</strong>
+                    <em>{spotlight.eventName} · {pageCount(spotlight)} pages · saved {relativeTime(spotlight.savedAt)}</em>
+                    <div className="al-spot-actions">
+                      <button className="al-tool-btn active" onClick={() => openAlbum(spotlight)}><BookOutlined /> Open</button>
+                      <button className="al-tool-btn" onClick={() => setDetailsId(spotlight.id)}><InfoCircleOutlined /> Quick look</button>
+                    </div>
+                  </div>
+                </section>
+              )}
+              {recents.length > 0 && (
+                <section className="al-jump" aria-label="Jump back in">
+                  <span className="al-jump-title"><ClockCircleOutlined /> Jump back in</span>
+                  <div className="al-jump-row">
+                    {recents.map((a) => (
+                      <button key={a.id} className="al-jump-item" onClick={() => openAlbum(a)}>
+                        <span className="al-jump-thumb">{a.coverImage ? <img src={a.coverImage} alt="" /> : <PictureOutlined />}</span>
+                        <span className="al-jump-text"><strong>{a.templateName}</strong><em>{relativeTime(metaOf(a.id).lastOpened)}</em></span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
           )}
 
           {/* toolbar */}
@@ -1640,8 +2215,8 @@ export default function AlbumLibraryPage() {
                   ref={searchRef}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search…  try  tag:wedding  is:fav  pages>10"
-                  aria-label="Search albums. Supports tag:, service:, is:fav, is:pinned, is:incomplete, pages> and pages<"
+                  placeholder="Search…  try  tag:wedding  is:fav  is:untagged  pages>10"
+                  aria-label="Search albums. Supports tag:, service:, is:fav, is:pinned, is:incomplete, is:untagged, is:heavy, pages> and pages<"
                 />
                 {search && <button className="al-search-clear" onClick={() => setSearch("")} aria-label="Clear search"><CloseOutlined /></button>}
               </div>
@@ -1655,6 +2230,7 @@ export default function AlbumLibraryPage() {
                 <option value="pages">Most pages</option>
                 <option value="completion">Least complete</option>
                 <option value="opened">Recently opened</option>
+                <option value="mostOpened">Most opened</option>
                 <option value="custom">My order (drag)</option>
               </select>
 
@@ -1674,13 +2250,14 @@ export default function AlbumLibraryPage() {
               )}
 
               <button className={`al-tool-btn ${selectMode ? "active" : ""}`} onClick={toggleSelectMode} aria-pressed={selectMode}><CheckSquareOutlined /> Select</button>
+              <button className="al-tool-btn" onClick={() => setStorageOpen(true)}><HddOutlined /> Storage</button>
               <button className="al-tool-btn" onClick={() => importInputRef.current?.click()}><ImportOutlined /> Import</button>
               <input ref={importInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleImportFile} aria-label="Import library backup" />
               <button className="al-tool-btn" onClick={handleExportAll} disabled={!albums.length}><ExportOutlined /> Export All</button>
             </div>
           </div>
 
-          {/* collections + filters */}
+          {/* collections + saved views + filters */}
           <div className="al-tabs" role="tablist" aria-label="Collections">
             {COLLECTIONS.map((c) => (
               <button key={c.id} role="tab" aria-selected={collection === c.id} className={`al-tab ${collection === c.id ? "active" : ""}`} onClick={() => setCollection(c.id)}>
@@ -1688,6 +2265,39 @@ export default function AlbumLibraryPage() {
               </button>
             ))}
           </div>
+
+          {(savedViews.length > 0 || isFiltering) && (
+            <div className="al-views" role="group" aria-label="Saved views">
+              <span className="al-views-title"><SaveOutlined /> Saved views</span>
+              {savedViews.map((v) => (
+                <span key={v.id} className={`al-view-chip ${isActiveView(v) ? "active" : ""}`}>
+                  <button onClick={() => applyView(v)} aria-pressed={isActiveView(v)}>{v.name}</button>
+                  <button className="x" onClick={() => removeView(v)} aria-label={`Remove saved view ${v.name}`}><CloseOutlined /></button>
+                </span>
+              ))}
+              {isFiltering && !savingView && savedViews.length < MAX_SAVED_VIEWS && !savedViews.some(isActiveView) && (
+                <button className="al-view-save" onClick={() => setSavingView(true)}><PlusOutlined /> Save this view</button>
+              )}
+              {savingView && (
+                <span className="al-view-form">
+                  <input
+                    autoFocus
+                    value={viewName}
+                    maxLength={28}
+                    placeholder="Name this view"
+                    aria-label="Saved view name"
+                    onChange={(e) => setViewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); commitSaveView(); }
+                      if (e.key === "Escape") { e.stopPropagation(); setSavingView(false); setViewName(""); }
+                    }}
+                  />
+                  <button className="al-tool-btn active" onClick={commitSaveView} disabled={!viewName.trim()}>Save</button>
+                  <button className="al-tool-btn" onClick={() => { setSavingView(false); setViewName(""); }}>Cancel</button>
+                </span>
+              )}
+            </div>
+          )}
 
           {(services.length > 1 || allTags.length > 0) && (
             <div className="al-filter-chips" aria-label="Filters">
@@ -1713,18 +2323,31 @@ export default function AlbumLibraryPage() {
               <div className="al-bulk-actions">
                 <button className="al-tool-btn" onClick={() => setSelectedIds(new Set(filtered.map((a) => a.id)))}>Select all ({filtered.length})</button>
                 <button className="al-tool-btn" onClick={handleBulkFavorite} disabled={!selectedIds.size}><StarOutlined /> Favorite</button>
+                <button className="al-tool-btn" onClick={handleBulkPin} disabled={!selectedIds.size}><PushpinOutlined /> Pin</button>
                 <button className="al-tool-btn" onClick={handleBulkTag} disabled={!selectedIds.size}><TagOutlined /> Tag</button>
+                <span className="al-bulk-swatches" role="group" aria-label="Apply colour label to selected albums">
+                  <button className="al-swatch none" onClick={() => handleBulkLabel(null)} disabled={!selectedIds.size} aria-label="Clear label on selected albums" title="Clear label"><CloseOutlined /></button>
+                  {LABEL_COLORS.map((c) => (
+                    <button key={c} className="al-swatch" style={{ background: c }} onClick={() => handleBulkLabel(c)} disabled={!selectedIds.size} aria-label={`Label selected albums ${c}`} title="Apply label" />
+                  ))}
+                </span>
                 <button className="al-tool-btn" onClick={handleBulkExport} disabled={!selectedIds.size}><ExportOutlined /> Export</button>
                 <button className="al-tool-btn danger" onClick={() => removeAlbums(albums.filter((a) => selectedIds.has(a.id)))} disabled={!selectedIds.size}><DeleteOutlined /> Delete</button>
               </div>
             </div>
           )}
 
-          {sortMode === "custom" && !selectMode && viewMode !== "list" && filtered.length > 1 && (
+          {canReorder && filtered.length > 1 && (
             <p className="al-hint">Drag albums to arrange them. Your order is saved on this device.</p>
           )}
 
-          {filtered.length === 0 ? (
+          {!ready ? (
+            <div className="al-loading" role="status">
+              <span className="al-spinner" aria-hidden />
+              <strong>Opening your library…</strong>
+              <p>Loading albums from local storage.</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="al-empty">
               <BookOutlined className="al-empty-icon" />
               <strong>{albums.length === 0 ? "No albums saved yet" : "No albums match"}</strong>
@@ -1737,6 +2360,31 @@ export default function AlbumLibraryPage() {
                 <button className="al-new-btn" onClick={handleNewBlank}><PlusOutlined /> Start a New Album</button>
               ) : (
                 <button className="al-tool-btn" onClick={clearFilters}>Clear filters</button>
+              )}
+            </div>
+          ) : viewMode === "wall" ? (
+            <div>
+              <p className="al-hint">{wallPhotos.length.toLocaleString()} photos across {filtered.length} album{filtered.length === 1 ? "" : "s"}. Click a photo to open its page.</p>
+              {wallPhotos.length === 0 ? (
+                <div className="al-empty"><PictureOutlined className="al-empty-icon" /><strong>No photos yet</strong><p>Albums in this view don't contain any photos.</p></div>
+              ) : (
+                <>
+                  <div className="al-wall">
+                    {wallPhotos.slice(0, wallLimit).map((p) => (
+                      <button key={p.key} className="al-wall-tile" onClick={() => openAlbum(p.album, p.sheet)} aria-label={`Open ${p.album.templateName}, page ${p.sheet + 1}`}>
+                        <img src={p.src} alt={p.label} loading="lazy" decoding="async" />
+                        <span><strong>{p.album.templateName}</strong> · page {p.sheet + 1}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {wallLimit < wallPhotos.length && (
+                    <div className="al-wall-more">
+                      <button className="al-tool-btn" onClick={() => setWallLimit((n) => n + WALL_PAGE)}>
+                        Show {Math.min(WALL_PAGE, wallPhotos.length - wallLimit)} more ({wallPhotos.length - wallLimit} left)
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : viewMode === "timeline" ? (
@@ -1765,6 +2413,8 @@ export default function AlbumLibraryPage() {
           meta={metaOf(detailsAlbum.id)}
           fill={fillOf(detailsAlbum)}
           fav={favoriteIds.has(detailsAlbum.id)}
+          size={sizeOf(detailsAlbum)}
+          position={{ index: detailsIndex, count: filtered.length }}
           onClose={() => setDetailsId(null)}
           onPatch={(patch) => patchMeta(detailsAlbum.id, patch)}
           onOpen={(i) => openAlbum(detailsAlbum, i)}
@@ -1773,6 +2423,23 @@ export default function AlbumLibraryPage() {
           onExport={() => exportOne(detailsAlbum)}
           onDelete={() => removeAlbums([detailsAlbum])}
           onToggleFav={() => toggleFavorite(detailsAlbum.id)}
+          onCopyColor={copyColor}
+          onStep={stepDetails}
+        />
+      )}
+
+      {storageOpen && (
+        <StorageManager
+          albums={albums}
+          stats={stats}
+          estimate={estimate}
+          fills={fills}
+          opt={opt}
+          onClose={() => setStorageOpen(false)}
+          onOptimize={runOptimize}
+          onPersist={handlePersist}
+          onOpen={(a) => { setStorageOpen(false); openAlbum(a); }}
+          onDelete={(a) => removeAlbums([a])}
         />
       )}
 
