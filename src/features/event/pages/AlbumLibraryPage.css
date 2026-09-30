@@ -15,6 +15,76 @@
 
 .al-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
+/* ══════════════════════════ THEMED SCROLLBARS ══════════════════════════
+   Chrome / Edge / Safari: gradient pill thumb on a glass track, no arrows.
+   Firefox (and any browser without ::-webkit-scrollbar): thin themed bar. */
+.al-page *, .alv-overlay * { overscroll-behavior: contain; }
+
+.al-page *::-webkit-scrollbar,
+.alv-overlay *::-webkit-scrollbar { width: 10px; height: 10px; }
+
+.al-page *::-webkit-scrollbar-button,
+.alv-overlay *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+.al-page *::-webkit-scrollbar-corner,
+.alv-overlay *::-webkit-scrollbar-corner { background: transparent; }
+
+.al-page *::-webkit-scrollbar-track,
+.alv-overlay *::-webkit-scrollbar-track {
+  margin: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.10);
+}
+
+.al-page *::-webkit-scrollbar-thumb,
+.alv-overlay *::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  background-color: var(--al-sky);
+  min-height: 36px;
+  min-width: 36px;
+  box-shadow: 0 0 10px rgba(56, 213, 255, 0.35);
+}
+.al-page *::-webkit-scrollbar-thumb:horizontal,
+.alv-overlay *::-webkit-scrollbar-thumb:horizontal {
+  background-image: linear-gradient(90deg, #38d5ff, #4ade80);
+}
+.al-page *::-webkit-scrollbar-thumb:vertical,
+.alv-overlay *::-webkit-scrollbar-thumb:vertical {
+  background-image: linear-gradient(180deg, #38d5ff, #4ade80);
+}
+.al-page *::-webkit-scrollbar-thumb:hover,
+.alv-overlay *::-webkit-scrollbar-thumb:hover {
+  filter: brightness(1.15) saturate(1.1);
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.55);
+}
+.al-page *::-webkit-scrollbar-thumb:active,
+.alv-overlay *::-webkit-scrollbar-thumb:active {
+  background-image: linear-gradient(135deg, #a78bfa, #38d5ff);
+  box-shadow: 0 0 18px rgba(167, 139, 250, 0.6);
+}
+
+/* Slimmer bars for the horizontal rows */
+.al-jump-row::-webkit-scrollbar,
+.alv-filmstrip::-webkit-scrollbar { height: 8px; }
+.al-jump-row::-webkit-scrollbar-track,
+.alv-filmstrip::-webkit-scrollbar-track { margin-inline: 14px; background: rgba(9, 20, 37, 0.7); }
+
+/* Firefox & fallback */
+@supports not selector(::-webkit-scrollbar) {
+  .al-page, .al-page *, .alv-overlay, .alv-overlay * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 213, 255, 0.7) rgba(255, 255, 255, 0.05);
+  }
+}
+
+@media (forced-colors: active) {
+  .al-page *::-webkit-scrollbar-thumb, .alv-overlay *::-webkit-scrollbar-thumb { background: Highlight; box-shadow: none; }
+  .al-page *::-webkit-scrollbar-track, .alv-overlay *::-webkit-scrollbar-track { background: Canvas; }
+}
+
 .al-page { min-height: 100vh; background: transparent; color: var(--al-text); transition: padding-right 0.28s var(--al-ease); }
 .al-page button, .al-page select, .al-page input, .al-page textarea { font-family: inherit; }
 .al-page :is(button, a, select, input, textarea, .al-card):focus-visible,
@@ -127,8 +197,13 @@
 .al-jump { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .al-top-row .al-jump { flex: 1 1 260px; margin-bottom: 0; align-content: center; }
 .al-jump-title { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--al-label); }
-.al-jump-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; flex: 1; }
-.al-jump-item {flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 12px; cursor: pointer; text-align: left;
+.al-jump-row {
+  display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; flex: 1; min-width: 0;
+  padding: 2px 14px 12px; scroll-behavior: smooth; scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+.al-jump-item {flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 12px; cursor: pointer; text-align: left; scroll-snap-align: start;
   border: 1px solid rgba(56,189,248,0.16); background: rgba(9,20,37,0.55); color: var(--al-text); transition: border-color 0.15s, transform 0.15s var(--al-ease);
 }
 .al-jump-item:hover { border-color: var(--al-sky-border); transform: translateY(-1px); }
@@ -675,7 +750,15 @@
 .alv-progress-rail { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .alv-progress-rail-fill { height: 100%; background: linear-gradient(90deg, var(--al-sky), var(--al-green)); transition: width 0.25s var(--al-ease); }
 .alv-kbd-hint { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11px; color: var(--al-muted); }
-.alv-filmstrip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 8px; scroll-snap-type: x proximity; }
+
+/* filmstrip: glass tray, edge-faded, themed scrollbar underneath */
+.alv-filmstrip {
+  display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 6px 16px 12px;
+  scroll-snap-type: x proximity; scroll-behavior: smooth;
+  border-radius: 14px; border: 1px solid rgba(56,189,248,0.12); background: rgba(9,20,37,0.45);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
 .alv-film-thumb {flex-shrink: 0; display: grid; grid-template-columns: repeat(2, 20px); grid-auto-rows: 30px;
   border: 1px solid rgba(56,189,248,0.16); background: rgba(9,20,37,0.5); border-radius: 8px; padding: 4px; cursor: pointer;
   scroll-snap-align: center; transition: border-color 0.15s, transform 0.15s;
@@ -739,16 +822,19 @@
 /* ── Accessibility: motion, contrast, touch ── */
 @media (prefers-reduced-motion: reduce) {
   .al-stage::before, .al-empty-icon, .al-spinner { animation: none !important; }
-  .al-page *, .alv-overlay * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  .al-page *, .alv-overlay * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
   .al-book-open, .al-book:hover .al-book-open { transform: none; }
 }
 @media (hover: none) {
   .al-card-fav, .al-card-pin, .al-card-delete, .al-book-tools { opacity: 1; pointer-events: auto; }
   .al-wall-tile span { opacity: 1; }
+  /* touch devices use overlay scrollbars, so keep the bars a bit thicker for dragging */
+  .al-page *::-webkit-scrollbar, .alv-overlay *::-webkit-scrollbar { width: 12px; height: 12px; }
 }
 @media (forced-colors: active) {
   .al-card, .al-chip, .al-tab, .al-tool-btn, .al-card-action-btn, .al-insight, .al-view-chip { border: 1px solid ButtonText; }
   .al-chip.active, .al-tab.active, .al-tool-btn.active, .al-view-chip.active { outline: 2px solid Highlight; }
+  .al-jump-row, .alv-filmstrip { -webkit-mask-image: none; mask-image: none; }
 }
 
 @media print {

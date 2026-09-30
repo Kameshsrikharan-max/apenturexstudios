@@ -1,15 +1,20 @@
+/* ===== Base layout ===== */
+:root {
+  color-scheme: dark; /* native Chrome dark scrollbar */
+}
+
 html,
 body,
 #root {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   margin: 0;
   padding: 0;
   background-color: #020617 !important;
   color: #ffffff;
 }
 
-/* Structural fix to avoid default layout layout jumps */
+/* Structural fix to avoid default layout jumps */
 body {
   overflow-x: hidden;
   background: #020617 !important;
