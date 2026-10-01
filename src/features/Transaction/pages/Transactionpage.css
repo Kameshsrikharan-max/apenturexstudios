@@ -16,12 +16,27 @@
 .tx-mini-stats {display: flex;gap: 10px;}
 .tx-mini-stats span {height: 36px;padding: 0 12px;display: inline-flex;align-items: center;gap: 7px;color: #ffffff;border-radius: 999px;border: 1px solid rgba(96, 165, 250, 0.35);background: rgba(15, 23, 42, 0.44);}
 .transaction-panel-container {position: relative;overflow: hidden;background: rgba(15, 23, 42, 0.5) !important;backdrop-filter: blur(18px);border: 1px solid rgba(8, 139, 245, 0.22);border-bottom: none !important;box-shadow: none !important;border-radius: 26px;margin-top: 0 !important;}
-.transaction-panel-container::before {content: "";position: absolute;inset: 0;pointer-events: none;background: linear-gradient(120deg, transparent 0%, rgba(59, 130, 246, 0.13) 45%, transparent 70%);transform: translateX(-100%);animation: txPanelSweep 6s ease-in-out infinite;}
-@keyframes txPanelSweep {
-  0% {transform: translateX(-100%);}
-  45%,
-  100% {transform: translateX(100%);}
-}
+/* Let every flex/grid ancestor shrink to the screen so the table scrolls inside itself
+   instead of pushing Status / Actions off-screen (the page is overflow:hidden). */
+.transaction-visual-page .dashboard-frame,
+.transaction-shell,
+.transaction-content,
+.transaction-panel-container,
+.tx-table-holder,
+.tx-table-holder .ant-table-wrapper,
+.tx-table-holder .ant-spin-nested-loading,
+.tx-table-holder .ant-spin-container,
+.tx-table-holder .ant-table {min-width: 0 !important;max-width: 100%;}
+.transaction-shell {overflow-x: hidden;}
+.tx-table-holder .ant-table-content,
+.tx-table-holder .ant-table-body {overflow-x: auto;}
+/* Compact cells so every column, including Actions, fits without scrolling */
+.tx-table-custom .ant-table-thead > tr > th,
+.tx-table-custom .ant-table-tbody > tr > td {padding: 14px 10px !important;}
+.tx-table-custom .ant-table-thead > tr > th {white-space: nowrap;}
+.tx-table-custom .ant-table-tbody > tr > td {overflow: hidden;text-overflow: ellipsis;}
+.tx-table-custom .ant-table-tbody > tr > td.tx-actions-anchor-cell {overflow: visible;padding-left: 4px !important;padding-right: 4px !important;}
+.tx-soft-cell,.tx-cell-paid,.tx-cell-balance {white-space: nowrap;font-size: 13.5px;}
 
 /* Hero strip with summary card */
 .tx-hero-strip {position: relative;z-index: 1;margin: 20px;padding: 24px;display: grid;grid-template-columns: minmax(280px, 1fr) minmax(420px, 560px);gap: 24px;align-items: center;border-radius: 24px;background: rgba(2, 6, 23, 0.42);border: 1px solid rgba(96, 165, 250, 0.18);box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);}
@@ -85,20 +100,53 @@
 .tx-range-dropdown .ant-picker-panel-container .ant-picker-footer {border-top: 1px solid rgba(96, 165, 250, 0.18) !important;}
 
 
-.tx-table-custom.ant-table-wrapper .ant-table {background: transparent !important;}
-.tx-table-custom .ant-table-container {background: transparent !important;}
-.tx-table-custom .ant-table-thead > tr > th {background: rgba(15, 23, 42, 0.65) !important;color: #93c5fd !important;border-bottom: 1px solid rgba(96, 165, 250, 0.22) !important;font-weight: 800;font-size: 11px;text-transform: uppercase;letter-spacing: 0.4px;}
+/* ---- Table wrapper ---- */
+.tx-table-holder {position: relative;z-index: 1;min-width: 0;padding: 0 20px 16px;}
+
+/* ---- Table ---- */
+.tx-table-custom.ant-table-wrapper .ant-table {background: transparent !important;border-radius: 0 !important;}
+.tx-table-custom .ant-table-container {background: transparent !important;border-radius: 0 !important;border: none !important;}
+.tx-table-custom .ant-table-content,
+.tx-table-custom .ant-table-body {background: transparent !important;border-radius: 0 !important;}
+.tx-table-custom table {border-radius: 0 !important;border-spacing: 0;}
+.tx-table-custom .ant-table-thead > tr > th {background: rgba(15, 23, 42, 0.65) !important;color: #93c5fd !important;border-bottom: 1px solid rgba(96, 165, 250, 0.22) !important;font-weight: 800;font-size: 11px;text-transform: uppercase;letter-spacing: 0.4px;border-radius: 0 !important;}
 .tx-table-custom .ant-table-thead > tr > th::before {display: none !important;}
 .tx-table-custom .ant-table-tbody > tr > td {background: transparent !important;border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;color: #e2e8f0;}
 .tx-table-custom .ant-table-tbody > tr:hover > td {background: rgba(56, 189, 248, 0.07) !important;}
 .tx-table-custom .ant-table-placeholder,
 .tx-table-custom .ant-table-placeholder:hover > td {background: transparent !important;}
-.tx-table-custom .ant-table-cell-fix-right,
-.tx-table-custom .ant-table-cell-fix-left {background: rgba(13, 20, 40, 0.92) !important;}
+
+/* Hidden measuring row (tableLayout="fixed") — must be zero height, no band */
+.tx-table-custom .ant-table-measure-row,
+.tx-table-custom .ant-table-measure-row > td,
+.tx-table-custom .ant-table-tbody > tr.ant-table-measure-row > td {height: 0 !important;padding: 0 !important;margin: 0 !important;border: 0 !important;line-height: 0 !important;font-size: 0 !important;background: transparent !important;visibility: collapse;}
+
+/* Fixed (sticky) Actions column — opaque so scrolling cells don't show through */
+.tx-table-custom .ant-table-thead > tr > th.ant-table-cell-fix-right,
+.tx-table-custom .ant-table-thead > tr > th.ant-table-cell-fix-left {background: rgba(15, 23, 42, 0.97) !important;}
+.tx-table-custom .ant-table-tbody > tr > td.ant-table-cell-fix-right,
+.tx-table-custom .ant-table-tbody > tr > td.ant-table-cell-fix-left {background: rgba(13, 20, 40, 0.97) !important;}
 .tx-table-custom .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right,
-.tx-table-custom .ant-table-tbody > tr:hover > td.ant-table-cell-fix-left {background: rgba(30, 58, 95, 0.55) !important;}
+.tx-table-custom .ant-table-tbody > tr:hover > td.ant-table-cell-fix-left {background: rgba(24, 48, 82, 0.97) !important;}
+
+/* Kill the white scroll-shadow strip on the right/left edge */
+.tx-table-custom .ant-table-container::before,
+.tx-table-custom .ant-table-container::after,
+.tx-table-custom .ant-table-ping-left .ant-table-container::before,
+.tx-table-custom .ant-table-ping-right .ant-table-container::after,
+.tx-table-custom .ant-table-cell-fix-right::after,
 .tx-table-custom .ant-table-cell-fix-right-first::after,
-.tx-table-custom .ant-table-cell-fix-left-last::after {box-shadow: none !important;}
+.tx-table-custom .ant-table-cell-fix-right-last::after,
+.tx-table-custom .ant-table-cell-fix-left::after,
+.tx-table-custom .ant-table-cell-fix-left-first::after,
+.tx-table-custom .ant-table-cell-fix-left-last::after,
+.tx-table-custom .ant-table-ping-right .ant-table-cell-fix-right-first::after,
+.tx-table-custom .ant-table-ping-left .ant-table-cell-fix-left-last::after {content: none !important;display: none !important;box-shadow: none !important;background: none !important;border: 0 !important;width: 0 !important;}
+.tx-table-custom .ant-table-cell-fix-right,
+.tx-table-custom .ant-table-cell-fix-left {box-shadow: none !important;}
+.tx-table-custom .ant-table-cell-scrollbar {display: none !important;box-shadow: none !important;background: transparent !important;}
+
+/* Scrollbar */
 .tx-table-custom .ant-table-body::-webkit-scrollbar,
 .tx-table-custom .ant-table-content::-webkit-scrollbar {height: 8px;width: 8px;}
 .tx-table-custom .ant-table-body::-webkit-scrollbar-track,
@@ -107,17 +155,18 @@
 .tx-table-custom .ant-table-content::-webkit-scrollbar-thumb {background: rgba(56, 189, 248, 0.35);border-radius: 10px;}
 .tx-table-custom .ant-table-body::-webkit-scrollbar-thumb:hover,
 .tx-table-custom .ant-table-content::-webkit-scrollbar-thumb:hover {background: rgba(56, 189, 248, 0.55);}
+
 .tx-soft-cell {color: rgba(248, 250, 252, 0.84);font-weight: 600;}
 .tx-muted {color: rgba(255, 255, 255, 0.35);}
-.tx-name-cell {max-width: 210px;padding: 0;display: inline-flex;align-items: center;gap: 10px;border: 0;color: inherit;background: transparent;text-align: left;cursor: pointer;}
+.tx-name-cell {max-width: 100%;padding: 0;display: inline-flex;align-items: center;gap: 10px;border: 0;color: inherit;background: transparent;text-align: left;cursor: pointer;}
 .tx-name-icon {width: 32px;height: 32px;flex: 0 0 auto;display: grid;place-items: center;border-radius: 10px;color: #ffffff;background: linear-gradient(135deg, #3b82f6, #38bdf8);box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);font-size: 13px;}
 .tx-name-cell span {min-width: 0;display: grid;gap: 1px;}
 .tx-name-cell strong {overflow: hidden;color: #ffffff;font-size: 14px;font-weight: 850;text-overflow: ellipsis;white-space: nowrap;}
 .tx-name-cell small {color: #93c5fd;font-size: 10px;font-weight: 800;text-transform: uppercase;}
-.tx-pipeline-tag {min-height: 26px;display: inline-flex !important;align-items: center;gap: 5px;border-radius: 7px !important;font-size: 12px !important;font-weight: 800 !important;line-height: 1 !important;white-space: nowrap;color: #93c5fd !important;border: 1px solid rgba(148, 163, 184, 0.18) !important;background: rgba(255, 255, 255, 0.055) !important;}
+.tx-pipeline-tag {min-height: 26px;max-width: 100%;display: inline-flex !important;align-items: center;gap: 5px;border-radius: 7px !important;font-size: 12px !important;font-weight: 800 !important;line-height: 1 !important;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;color: #93c5fd !important;border: 1px solid rgba(148, 163, 184, 0.18) !important;background: rgba(255, 255, 255, 0.055) !important;}
 .tx-cell-paid {color: #4ade80 !important;font-weight: 800;}
 .tx-cell-balance {color: #fbbf24 !important;font-weight: 800;}
-.tx-status-dot {min-height: 26px;display: inline-flex !important;align-items: center;gap: 5px;border-radius: 999px !important;padding: 0 12px !important;font-size: 11px !important;font-weight: 800 !important;background: transparent !important;}
+.tx-status-dot {min-height: 26px;margin: 0 !important;display: inline-flex !important;align-items: center;gap: 5px;border-radius: 999px !important;padding: 0 10px !important;font-size: 11px !important;font-weight: 800 !important;background: transparent !important;}
 .tx-status-paid {color: #22c55e !important;border: 1px solid rgba(34, 197, 94, 0.48) !important;}
 .tx-status-partial {color: #f59e0b !important;border: 1px solid rgba(245, 158, 11, 0.48) !important;}
 .tx-status-pending {color: #facc15 !important;border: 1px solid rgba(250, 204, 21, 0.48) !important;}
@@ -135,7 +184,7 @@
 .tx-action-btn.more:hover {color: #fff !important;background: rgba(255, 255, 255, 0.1) !important;}
 
 /* Pagination — dark theme, always visible*/
-.user-table-pagination.ant-pagination {padding: 16px 20px 4px;margin: 0 !important;}
+.user-table-pagination.ant-pagination {padding: 16px 0 4px;margin: 0 !important;}
 .user-table-pagination .ant-pagination-total-text {color: rgba(226, 232, 240, 0.6) !important;font-size: 12px;font-weight: 600;}
 .user-table-pagination .ant-pagination-item {background: rgba(255, 255, 255, 0.04) !important;border: 1px solid rgba(96, 165, 250, 0.2) !important;border-radius: 8px !important;}
 .user-table-pagination .ant-pagination-item a {color: #cbd5e1 !important;font-weight: 700;}
@@ -167,6 +216,7 @@
 @media (max-width: 720px) {
   .tx-summary-grid {grid-template-columns: repeat(2, 1fr);}
   .transaction-toolbar-inline {flex-direction: column;align-items: stretch;}
+  .tx-table-holder {padding: 0 10px 12px;}
   .tx-view-grid {grid-template-columns: 1fr;}
   .tx-view-item-full {grid-column: span 1;}
   .filter-adv-panel {width: 320px;}

@@ -46,6 +46,25 @@ const methodIconMap: Record<PaymentMethod, ReactNode> = {
 
 const formatINR = (value: number) => `₹ ${value.toLocaleString("en-IN")}`;
 
+// Handles both "2026-09-14" and full ISO timestamps like "2026-09-24T18:30:00.000Z"
+// and always renders a short, readable date: "14 Sep 2026".
+const formatDisplayDate = (raw: string): string => {
+  if (!raw) return "—";
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  const parsed = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(raw);
+
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  return parsed.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -329,7 +348,7 @@ const TransactionPage = () => {
     {
       title: "S.No",
       key: "sNo",
-      width: 60,
+      width: 56,
       align: "center",
       render: (_, __, index) => (
         <span className="tx-soft-cell">{(currentPage - 1) * PAGE_SIZE + index + 1}</span>
@@ -339,7 +358,7 @@ const TransactionPage = () => {
       title: "Event Name",
       dataIndex: "eventName",
       key: "eventName",
-      width: 220,
+      width: 190,
       render: (text: string, record) => (
         <button type="button" className="tx-name-cell" onClick={() => setViewTransaction(record)}>
           <span className="tx-name-icon">
@@ -356,17 +375,19 @@ const TransactionPage = () => {
       title: "Client Name",
       dataIndex: "clientName",
       key: "clientName",
-      width: 160,
-      render: (text: string) => <span className="tx-soft-cell">{highlightText(text)}</span>,
+      width: 130,
+      render: (text: string) => (
+        <span className="tx-soft-cell">{text ? highlightText(text) : "—"}</span>
+      ),
     },
     {
       title: "Date",
       dataIndex: "date",
       key: "date",
-      width: 120,
+      width: 130,
       render: (text: string) => (
         <Tag className="tx-pipeline-tag">
-          <CalendarOutlined /> {text}
+          <CalendarOutlined /> {formatDisplayDate(text)}
         </Tag>
       ),
     },
@@ -374,7 +395,7 @@ const TransactionPage = () => {
       title: "Total Amount",
       dataIndex: "totalAmount",
       key: "totalAmount",
-      width: 130,
+      width: 110,
       align: "right",
       render: (value: number) => <span className="tx-soft-cell">{formatINR(value)}</span>,
     },
@@ -382,7 +403,7 @@ const TransactionPage = () => {
       title: "Amount Paid",
       dataIndex: "amountPaid",
       key: "amountPaid",
-      width: 130,
+      width: 110,
       align: "right",
       render: (value: number) => <span className="tx-cell-paid">{formatINR(value)}</span>,
     },
@@ -390,7 +411,7 @@ const TransactionPage = () => {
       title: "Balance",
       dataIndex: "balanceAmount",
       key: "balanceAmount",
-      width: 120,
+      width: 100,
       align: "right",
       render: (value: number) =>
         value > 0 ? (
@@ -403,16 +424,15 @@ const TransactionPage = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      width: 130,
+      width: 100,
       align: "center",
       render: (status: TransactionStatus) => renderStatusTag(status),
     },
     {
       title: "Actions",
       key: "actions",
-      width: 130,
+      width: 116,
       align: "center",
-      fixed: "right",
       className: "tx-actions-anchor-cell",
       render: (_, record) => renderRowActionsOverlay(record),
     },
@@ -485,70 +505,70 @@ const TransactionPage = () => {
                 </div>
 
                 <div className="smart-filter-row">
-                  <div className="smart-filter-row">
-                    {statusOptions.map((status) => (
-                      <Tooltip title={status} key={status}>
-                        <button
-                          type="button"
-                          className={`smart-chip ${statusFilter === status ? "active" : ""}`}
-                          onClick={() => setStatusFilter(status)}
-                        >
-                          {statusIconMap[status]}
-                          <b>{statusCounts[status] || 0}</b>
-                        </button>
-                      </Tooltip>
-                    ))}
-                  </div>
-
-                  <div className="review-toolbar transaction-toolbar-inline">
-                    <Space size="middle" wrap>
-                      <Input
-                        placeholder="Search transactions..."
-                        prefix={<SearchOutlined />}
-                        className="review-search"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        allowClear
-                      />
-                      <Popover
-                        open={filterOpen}
-                        onOpenChange={setFilterOpen}
-                        content={advancedFilterPanel}
-                        trigger="click"
-                        placement="bottomLeft"
-                        overlayClassName="filter-popover-overlay"
-                        zIndex={3000}
+                  {statusOptions.map((status) => (
+                    <Tooltip title={status} key={status}>
+                      <button
+                        type="button"
+                        className={`smart-chip ${statusFilter === status ? "active" : ""}`}
+                        onClick={() => setStatusFilter(status)}
                       >
-                        <Tooltip title="Filter">
-                          <Badge dot={methodFilter !== "all" || !!dateRange} offset={[-4, 4]}>
-                            <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
-                          </Badge>
-                        </Tooltip>
-                      </Popover>
-                      <Tooltip title="Refresh">
-                        <Button
-                          type="text"
-                          icon={<ReloadOutlined spin={isLoading} />}
-                          onClick={handleRefresh}
-                          className="icon-btn-glass"
-                        />
-                      </Tooltip>
-                    </Space>
+                        {statusIconMap[status]}
+                        <b>{statusCounts[status] || 0}</b>
+                      </button>
+                    </Tooltip>
+                  ))}
+                </div>
 
-                    <Space wrap>
-                      <Tooltip title="Export transactions">
-                        <Button
-                          icon={<ExportOutlined />}
-                          className="tx-export-btn"
-                          loading={exporting}
-                          onClick={handleExport}
-                        >
-                          Export
-                        </Button>
+                <div className="review-toolbar transaction-toolbar-inline">
+                  <Space size="middle" wrap>
+                    <Input
+                      placeholder="Search transactions..."
+                      prefix={<SearchOutlined />}
+                      className="review-search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      allowClear
+                    />
+                    <Popover
+                      open={filterOpen}
+                      onOpenChange={setFilterOpen}
+                      content={advancedFilterPanel}
+                      trigger="click"
+                      placement="bottomLeft"
+                      overlayClassName="filter-popover-overlay"
+                      zIndex={3000}
+                    >
+                      <Tooltip title="Filter">
+                        <Badge dot={methodFilter !== "all" || !!dateRange} offset={[-4, 4]}>
+                          <Button type="text" icon={<FilterOutlined />} className="icon-btn-glass" />
+                        </Badge>
                       </Tooltip>
-                    </Space>
-                  </div>
+                    </Popover>
+                    <Tooltip title="Refresh">
+                      <Button
+                        type="text"
+                        icon={<ReloadOutlined spin={isLoading} />}
+                        onClick={handleRefresh}
+                        className="icon-btn-glass"
+                      />
+                    </Tooltip>
+                  </Space>
 
+                  <Space wrap>
+                    <Tooltip title="Export transactions">
+                      <Button
+                        icon={<ExportOutlined />}
+                        className="tx-export-btn"
+                        loading={exporting}
+                        onClick={handleExport}
+                      >
+                        Export
+                      </Button>
+                    </Tooltip>
+                  </Space>
+                </div>
+
+                <div className="tx-table-holder">
                   <Table
                     columns={columns}
                     dataSource={filteredData}
@@ -556,7 +576,6 @@ const TransactionPage = () => {
                     rowKey="id"
                     tableLayout="fixed"
                     loading={isLoading}
-                    scroll={{ x: 1280 }}
                     locale={{
                       emptyText: (
                         <Empty
@@ -600,7 +619,7 @@ const TransactionPage = () => {
                 </div>
                 <div className="tx-view-item">
                   <small>Date</small>
-                  <strong>{viewTransaction.date}</strong>
+                  <strong>{formatDisplayDate(viewTransaction.date)}</strong>
                 </div>
                 <div className="tx-view-item">
                   <small>Payment Method</small>

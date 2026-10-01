@@ -10,18 +10,20 @@ import {
 import {
   ArrowRightOutlined, CalendarOutlined, CameraOutlined, CheckCircleOutlined,
   CloseOutlined, ClockCircleOutlined, CopyOutlined, DeleteOutlined,
-  DollarOutlined, EnvironmentOutlined, EyeOutlined, FireOutlined,
-  FlagOutlined, HistoryOutlined, HourglassOutlined, PhoneOutlined,
-  PictureOutlined, PlusOutlined, QuestionCircleOutlined, RiseOutlined,
-  RocketOutlined, SafetyCertificateOutlined, SearchOutlined, SunOutlined,
-  TeamOutlined, ThunderboltFilled, UsergroupAddOutlined, UserOutlined,
-  VideoCameraOutlined, BulbOutlined,
+  DollarOutlined, EnvironmentOutlined, EyeOutlined,
+  FireOutlined, FlagOutlined, HourglassOutlined,
+  PhoneOutlined, PictureOutlined, PlusOutlined, QuestionCircleOutlined,
+  ReloadOutlined, RiseOutlined, RocketOutlined,
+  SafetyCertificateOutlined, SearchOutlined, SunOutlined, TeamOutlined,
+  ThunderboltFilled, UsergroupAddOutlined, UserOutlined, VideoCameraOutlined,
+  BulbOutlined, CompassOutlined, WarningOutlined,
 } from "@ant-design/icons";
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import {
+  AnimatePresence, motion, useMotionValue, useSpring, useTransform,
+} from "framer-motion";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import "./DashboardPage.css";
-// Adjust this path if DashboardPage sits at a different depth than EventPage
 import { getEvents } from "../../../redux/actions/eventActions";
 import PipelineEventPanel from "./PipelineEventPanel";
 
@@ -138,7 +140,7 @@ const parseBudgetToNumber = (budget?: string): number => {
 const formatCompactINR = (value: number): string => {
   if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
   if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
-  return `₹${value}`;
+  return `₹${Math.round(value)}`;
 };
 
 const statusTagColor: Record<string, string> = {
@@ -158,14 +160,256 @@ const getGreeting = (date: Date) => {
 };
 
 // ---------------------------------------------------------------------------
-// Shared weather hook — used by both the Golden Hour panel and the AI Briefing
+// Sky maths — sun position, golden / blue hour windows, moon phase.
+// All computed locally from the studio's latitude / longitude, so the only
+// network data needed is the weather forecast itself.
+// ---------------------------------------------------------------------------
+
+const HOUR_MS = 3600000;
+const DAY_MS = 86400000;
+const RAD = Math.PI / 180;
+const norm360 = (v: number) => ((v % 360) + 360) % 360;
+
+const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const compassDir = (az: number) => COMPASS[Math.round(norm360(az) / 22.5) % 16];
+
+interface SunPos {
+  azimuth: number; // degrees clockwise from north
+  elevation: number; // degrees above the horizon (negative = below)
+}
+
+const sunPosition = (ms: number): SunPos => {
+  const d = ms / DAY_MS + 2440587.5 - 2451545.0; // days since J2000
+  const L = norm360(280.46 + 0.9856474 * d);
+  const g = norm360(357.528 + 0.9856003 * d) * RAD;
+  const lambda = (L + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD;
+  const eps = (23.439 - 0.0000004 * d) * RAD;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
+  const gmst = norm360(280.46061837 + 360.98564736629 * d);
+  const ha = norm360(gmst + STUDIO_LON) * RAD - ra;
+  const lat = STUDIO_LAT * RAD;
+
+  const elevation = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha));
+  const azimuth = Math.atan2(Math.sin(ha), Math.cos(ha) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat));
+
+  return { azimuth: norm360(azimuth / RAD + 180), elevation: elevation / RAD };
+};
+
+interface Span {
+  start: number;
+  end: number;
+}
+
+interface LightWindows {
+  morningBlue: Span; // sun -8° → -4°
+  morningGold: Span; // sun -4° → +6°
+  eveningGold: Span; // sun +6° → -4°
+  eveningBlue: Span; // sun -4° → -8°
+  noon: number;
+  domainStart: number;
+  domainEnd: number;
+}
+
+const findCrossing = (from: number, to: number, target: number, rising: boolean): number | null => {
+  let prev = sunPosition(from).elevation;
+  for (let t = from + 60000; t <= to; t += 60000) {
+    const cur = sunPosition(t).elevation;
+    if (rising ? prev < target && cur >= target : prev >= target && cur < target) return t;
+    prev = cur;
+  }
+  return null;
+};
+
+const computeLightWindows = (sunrise: number, sunset: number): LightWindows => {
+  const noon = (sunrise + sunset) / 2;
+  const from = sunrise - 3 * HOUR_MS;
+  const to = sunset + 3 * HOUR_MS;
+
+  const mb0 = findCrossing(from, noon, -8, true) ?? sunrise - 0.7 * HOUR_MS;
+  const mb1 = findCrossing(from, noon, -4, true) ?? sunrise - 0.35 * HOUR_MS;
+  const mg1 = findCrossing(from, noon, 6, true) ?? sunrise + HOUR_MS;
+  const eg0 = findCrossing(noon, to, 6, false) ?? sunset - HOUR_MS;
+  const eg1 = findCrossing(noon, to, -4, false) ?? sunset + 0.35 * HOUR_MS;
+  const eb1 = findCrossing(noon, to, -8, false) ?? sunset + 0.7 * HOUR_MS;
+
+  return {
+    morningBlue: { start: mb0, end: mb1 },
+    morningGold: { start: mb1, end: mg1 },
+    eveningGold: { start: eg0, end: eg1 },
+    eveningBlue: { start: eg1, end: eb1 },
+    noon,
+    domainStart: mb0,
+    domainEnd: eb1,
+  };
+};
+
+const lightQuality = (ms: number, w: LightWindows) => {
+  if (ms < w.morningBlue.start || ms > w.eveningBlue.end) return { label: "Night", color: "#64748b" };
+  if ((ms >= w.morningBlue.start && ms < w.morningBlue.end) || (ms > w.eveningBlue.start && ms <= w.eveningBlue.end)) {
+    return { label: "Blue hour", color: "#60a5fa" };
+  }
+  if ((ms >= w.morningGold.start && ms <= w.morningGold.end) || (ms >= w.eveningGold.start && ms <= w.eveningGold.end)) {
+    return { label: "Golden hour", color: "#fbbf24" };
+  }
+  if (sunPosition(ms).elevation >= 50) return { label: "Harsh midday", color: "#f87171" };
+  return { label: "Soft light", color: "#34d399" };
+};
+
+const SYNODIC = 29.530588853;
+
+const getMoon = (ms: number) => {
+  const jd = ms / DAY_MS + 2440587.5;
+  const age = (((jd - 2451550.1) % SYNODIC) + SYNODIC) % SYNODIC;
+  const frac = age / SYNODIC;
+  const illum = (1 - Math.cos(2 * Math.PI * frac)) / 2;
+
+  let name = "Waning Crescent";
+  if (frac < 0.03 || frac >= 0.97) name = "New Moon";
+  else if (frac < 0.22) name = "Waxing Crescent";
+  else if (frac < 0.28) name = "First Quarter";
+  else if (frac < 0.47) name = "Waxing Gibbous";
+  else if (frac < 0.53) name = "Full Moon";
+  else if (frac < 0.72) name = "Waning Gibbous";
+  else if (frac < 0.78) name = "Last Quarter";
+
+  const daysToFull = (SYNODIC / 2 - age + SYNODIC) % SYNODIC;
+  const daysToNew = (SYNODIC - age) % SYNODIC;
+
+  let tip = "Soft moonlight — good for night portraits mixed with practical lights.";
+  if (illum >= 0.85) tip = "Bright moonlight washes out the stars — shoot moonlit landscapes, not the Milky Way.";
+  else if (illum <= 0.15) tip = "Dark skies — ideal for stars, astro and long-exposure night work.";
+
+  return { age, frac, illum, name, daysToFull, daysToNew, tip };
+};
+
+const COLOR_BLUE = "#60a5fa";
+const COLOR_GOLD = "#fbbf24";
+
+const fmtClock = (ms: number, tz?: string) =>
+  new Date(ms).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: tz });
+
+const fmtHourLabel = (ms: number, tz?: string) =>
+  new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", hour12: true, timeZone: tz });
+
+const fmtDuration = (ms: number) => {
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  return h ? `${h}h ${totalMin % 60}m` : `${totalMin}m`;
+};
+
+// ---------------------------------------------------------------------------
+// Weather — forecast + risk rules
+// ---------------------------------------------------------------------------
+
+interface HourPoint {
+  ms: number;
+  temp: number;
+  rain: number;
+  cloud: number;
+  wind: number;
+  code: number;
+}
+
+const describeWeather = (code: number): { label: string; icon: string } => {
+  if (code === 0) return { label: "Clear sky", icon: "☀️" };
+  if (code === 1 || code === 2) return { label: "Partly cloudy", icon: "🌤️" };
+  if (code === 3) return { label: "Overcast", icon: "☁️" };
+  if (code === 45 || code === 48) return { label: "Fog", icon: "🌫️" };
+  if (code >= 51 && code <= 57) return { label: "Drizzle", icon: "🌦️" };
+  if (code >= 61 && code <= 67) return { label: "Rain", icon: "🌧️" };
+  if (code >= 71 && code <= 77) return { label: "Snow", icon: "🌨️" };
+  if (code >= 80 && code <= 82) return { label: "Rain showers", icon: "🌦️" };
+  if (code === 85 || code === 86) return { label: "Snow showers", icon: "🌨️" };
+  if (code >= 95) return { label: "Thunderstorm", icon: "⛈️" };
+  return { label: "Mixed", icon: "⛅" };
+};
+
+type RiskLevel = "ok" | "warn" | "danger";
+
+interface RiskIssue {
+  level: "warn" | "danger";
+  title: string;
+  detail: string;
+}
+
+interface WeatherAlert extends RiskIssue {
+  key: string;
+  scope: string;
+}
+
+const assessConditions = (p: { rain: number; wind: number; temp: number; cloud: number; code: number }): RiskIssue[] => {
+  const issues: RiskIssue[] = [];
+
+  if (p.code >= 95) {
+    issues.push({ level: "danger", title: "Thunderstorm risk", detail: "Lightning in the forecast — keep crew and gear indoors." });
+  }
+
+  if (p.rain >= 60) {
+    issues.push({ level: "danger", title: `Rain likely (${Math.round(p.rain)}%)`, detail: "Cover bodies and lenses, and line up an indoor backup." });
+  } else if (p.rain >= 30) {
+    issues.push({ level: "warn", title: `Chance of showers (${Math.round(p.rain)}%)`, detail: "Pack rain covers and keep a sheltered fallback nearby." });
+  }
+
+  if (p.wind >= 35) {
+    issues.push({ level: "danger", title: `Strong wind (${Math.round(p.wind)} km/h)`, detail: "Ground drones; secure light stands, reflectors and backdrops." });
+  } else if (p.wind >= 22) {
+    issues.push({ level: "warn", title: `Breezy (${Math.round(p.wind)} km/h)`, detail: "Weigh down stands and lightweight backdrops." });
+  }
+
+  if (p.temp >= 38) {
+    issues.push({ level: "danger", title: `Extreme heat (${Math.round(p.temp)}°C)`, detail: "Limit time outdoors, hydrate the crew, keep batteries and gear shaded." });
+  } else if (p.temp >= 34) {
+    issues.push({ level: "warn", title: `Hot (${Math.round(p.temp)}°C)`, detail: "Plan shade breaks and keep batteries cool." });
+  } else if (p.temp <= 5) {
+    issues.push({ level: "warn", title: `Cold (${Math.round(p.temp)}°C)`, detail: "Batteries drain faster — carry spares in a warm pocket." });
+  }
+
+  if (p.code === 45 || p.code === 48) {
+    issues.push({ level: "warn", title: "Fog", detail: "Moody look, but low contrast makes autofocus harder." });
+  }
+
+  if (p.cloud >= 85 && p.rain < 30 && p.code < 95) {
+    issues.push({ level: "warn", title: `Heavy cloud (${Math.round(p.cloud)}%)`, detail: "Flat light — golden-hour colour is unlikely." });
+  }
+
+  return issues;
+};
+
+const worstLevel = (issues: RiskIssue[]): RiskLevel =>
+  issues.some((i) => i.level === "danger") ? "danger" : issues.length ? "warn" : "ok";
+
+const nearestHour = (hourly: HourPoint[], ms: number): HourPoint | null => {
+  let best: HourPoint | null = null;
+  let bestDiff = Infinity;
+  for (const point of hourly) {
+    const diff = Math.abs(point.ms - ms);
+    if (diff < bestDiff) {
+      best = point;
+      bestDiff = diff;
+    }
+  }
+  return best && bestDiff <= 2 * HOUR_MS ? best : null;
+};
+
+// ---------------------------------------------------------------------------
+// Shared weather hook — used by the Golden Hour panel, the AI Briefing
+// and the Light Timeline
 // ---------------------------------------------------------------------------
 
 interface WeatherState {
   temperature: number;
   windSpeed: number;
+  rainNow: number;
+  cloudNow: number;
+  weatherCode: number;
   sunset: string;
   goldenHourStart: string;
+  sunriseMs: number;
+  sunsetMs: number;
+  tz: string;
+  hourly: HourPoint[];
+  windows: LightWindows | null;
   loading: boolean;
   error: boolean;
 }
@@ -173,8 +417,16 @@ interface WeatherState {
 const INITIAL_WEATHER: WeatherState = {
   temperature: 0,
   windSpeed: 0,
+  rainNow: 0,
+  cloudNow: 0,
+  weatherCode: 0,
   sunset: "",
   goldenHourStart: "",
+  sunriseMs: 0,
+  sunsetMs: 0,
+  tz: "",
+  hourly: [],
+  windows: null,
   loading: true,
   error: false,
 };
@@ -187,21 +439,53 @@ const useGoldenHourWeather = () => {
 
     const fetchWeather = async () => {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${STUDIO_LAT}&longitude=${STUDIO_LON}&current_weather=true&daily=sunrise,sunset&timezone=auto`;
+        const url =
+          `https://api.open-meteo.com/v1/forecast?latitude=${STUDIO_LAT}&longitude=${STUDIO_LON}` +
+          `&current_weather=true` +
+          `&hourly=temperature_2m,precipitation_probability,cloud_cover,wind_speed_10m,weather_code` +
+          `&daily=sunrise,sunset&forecast_days=3&timezone=auto`;
         const response = await fetch(url);
         const data = await response.json();
 
         if (cancelled) return;
 
-        const sunsetISO: string = data?.daily?.sunset?.[0];
-        const sunsetDate = sunsetISO ? new Date(sunsetISO) : null;
-        const goldenHourDate = sunsetDate ? new Date(sunsetDate.getTime() - 60 * 60 * 1000) : null;
+        // Open-Meteo returns local wall-clock strings; convert them to real epoch ms
+        // using the offset it reports, so the page is right even if the browser is elsewhere.
+        const offset: number = data?.utc_offset_seconds ?? 0;
+        const tz: string = data?.timezone || "";
+        const toMs = (iso: string) => Date.parse(iso + (iso.length === 16 ? ":00Z" : "Z")) - offset * 1000;
+
+        const sunriseISO: string | undefined = data?.daily?.sunrise?.[0];
+        const sunsetISO: string | undefined = data?.daily?.sunset?.[0];
+        const sunriseMs = sunriseISO ? toMs(sunriseISO) : 0;
+        const sunsetMs = sunsetISO ? toMs(sunsetISO) : 0;
+        const windows = sunriseMs && sunsetMs > sunriseMs ? computeLightWindows(sunriseMs, sunsetMs) : null;
+
+        const times: string[] = data?.hourly?.time ?? [];
+        const hourly: HourPoint[] = times.map((t, i) => ({
+          ms: toMs(t),
+          temp: data.hourly.temperature_2m?.[i] ?? 0,
+          rain: data.hourly.precipitation_probability?.[i] ?? 0,
+          cloud: data.hourly.cloud_cover?.[i] ?? 0,
+          wind: data.hourly.wind_speed_10m?.[i] ?? 0,
+          code: data.hourly.weather_code?.[i] ?? 0,
+        }));
+
+        const nowPoint = nearestHour(hourly, Date.now());
 
         setWeather({
-          temperature: data?.current_weather?.temperature ?? 0,
-          windSpeed: data?.current_weather?.windspeed ?? 0,
-          sunset: sunsetDate ? sunsetDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—",
-          goldenHourStart: goldenHourDate ? goldenHourDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—",
+          temperature: data?.current_weather?.temperature ?? nowPoint?.temp ?? 0,
+          windSpeed: data?.current_weather?.windspeed ?? nowPoint?.wind ?? 0,
+          rainNow: nowPoint?.rain ?? 0,
+          cloudNow: nowPoint?.cloud ?? 0,
+          weatherCode: data?.current_weather?.weathercode ?? nowPoint?.code ?? 0,
+          sunset: sunsetMs ? fmtClock(sunsetMs, tz || undefined) : "—",
+          goldenHourStart: windows ? fmtClock(windows.eveningGold.start, tz || undefined) : "—",
+          sunriseMs,
+          sunsetMs,
+          tz,
+          hourly,
+          windows,
           loading: false,
           error: false,
         });
@@ -213,8 +497,10 @@ const useGoldenHourWeather = () => {
     };
 
     fetchWeather();
+    const refresh = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => {
       cancelled = true;
+      clearInterval(refresh);
     };
   }, []);
 
@@ -240,7 +526,9 @@ const GoldenHourWeather = ({ weather }: { weather: WeatherState }) => {
             <Title level={2} className="weather-temp-value">{Math.round(weather.temperature)}°C</Title>
           </div>
 
-          <Text type="secondary" style={{ fontSize: 12 }}>Wind {Math.round(weather.windSpeed)} km/h</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Wind {Math.round(weather.windSpeed)} km/h · Rain {Math.round(weather.rainNow)}% · Cloud {Math.round(weather.cloudNow)}%
+          </Text>
 
           <div className="weather-golden-row">
             <div className="weather-golden-chip">
@@ -357,6 +645,10 @@ const AiBriefingPanel = ({ todaysEvents, tomorrowsEvents, weather, busiestUpcomi
     if (!weather.loading && !weather.error) {
       lines.push(`Golden hour begins around ${weather.goldenHourStart} — line up outdoor portraits before then.`);
 
+      if (weather.rainNow >= 50) {
+        lines.push(`Rain chance is ${Math.round(weather.rainNow)}% right now — keep rain covers and an indoor fallback ready.`);
+      }
+
       if (weather.windSpeed > 20) {
         lines.push(`Wind is running high at ${Math.round(weather.windSpeed)} km/h — secure reflectors and lightweight backdrops.`);
       }
@@ -370,7 +662,7 @@ const AiBriefingPanel = ({ todaysEvents, tomorrowsEvents, weather, busiestUpcomi
       lines.push(`Highest-value shoot coming up is "${busiestUpcoming.name}" (${busiestUpcoming.budget}) on ${busiestUpcoming.date} — prioritize prep there.`);
     }
 
-    return lines.slice(0, 4);
+    return lines.slice(0, 5);
   }, [todaysEvents, tomorrowsEvents, weather, busiestUpcoming]);
 
   return (
@@ -457,7 +749,7 @@ const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: Pipelin
             <Space size={6}>
               <Tag>{grouped[stage].length}</Tag>
               <Tooltip title="Add new shoot">
-                <button type="button" className="kanban-add-btn" onClick={onAddNew}>
+                <button type="button" className="kanban-add-btn" onClick={onAddNew} aria-label={`Add shoot to ${stage}`}>
                   <PlusOutlined />
                 </button>
               </Tooltip>
@@ -469,7 +761,7 @@ const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: Pipelin
               grouped[stage].map((event) => (
                 <div
                   key={event.id}
-                  className="kanban-card"
+                  className="pb-card"
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData("text/plain", event.id)}
                   onClick={() => onSelect(event)}
@@ -477,7 +769,7 @@ const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: Pipelin
                   <Tooltip title="Delete shoot">
                     <button
                       type="button"
-                      className="kanban-card-delete"
+                      className="pb-card-delete"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDelete(event.id, event.name);
@@ -488,14 +780,26 @@ const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: Pipelin
                     </button>
                   </Tooltip>
 
-                  <Text strong className="kanban-card-title">{event.name}</Text>
-                  <div className="kanban-card-meta">
-                    <CalendarOutlined /> <span>{event.date}</span>
+                  <div className="pb-card-title" title={event.name}>{event.name}</div>
+
+                  <div className="pb-card-meta-row">
+                    <span className="pb-card-meta">
+                      <CalendarOutlined />
+                      <span>{event.date}</span>
+                    </span>
+                    <span className="pb-card-meta">
+                      <EnvironmentOutlined />
+                      <span>{event.city}</span>
+                    </span>
                   </div>
-                  <div className="kanban-card-meta">
-                    <EnvironmentOutlined /> <span>{event.city}</span>
+
+                  <div className="pb-card-footer">
+                    <span className="pb-card-meta">
+                      <ClockCircleOutlined />
+                      <span>{event.time}</span>
+                    </span>
+                    <Tag className="pb-card-budget">{event.budget}</Tag>
                   </div>
-                  <Tag className="kanban-card-budget">{event.budget}</Tag>
                 </div>
               ))
             ) : (
@@ -505,6 +809,609 @@ const PipelineBoard = ({ events, onMove, onSelect, onDelete, onAddNew }: Pipelin
         </div>
       ))}
     </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Moon disc — drawn from the phase fraction (0 = new, 0.5 = full)
+// ---------------------------------------------------------------------------
+
+const MoonDisc = ({ frac }: { frac: number }) => {
+  const r = 30;
+  const c = 36;
+  const waning = frac > 0.5;
+  const p = waning ? 1 - frac : frac;
+  const k = Math.cos(2 * Math.PI * p);
+  const rx = Math.max(0.01, Math.abs(k) * r);
+  const sweep = k < 0 ? 1 : 0;
+  const d = `M${c} ${c - r} A${r} ${r} 0 0 1 ${c} ${c + r} A${rx} ${r} 0 0 ${sweep} ${c} ${c - r} Z`;
+
+  return (
+    <svg viewBox="0 0 72 72" className="moon-svg" role="img" aria-label="Current moon phase">
+      <defs>
+        <radialGradient id="moon-lit" cx="40%" cy="38%">
+          <stop offset="0%" stopColor="#f8fafc" />
+          <stop offset="100%" stopColor="#cbd5e1" />
+        </radialGradient>
+      </defs>
+      <circle cx={c} cy={c} r={r} fill="#1e293b" stroke="rgba(148,163,184,0.35)" />
+      <g transform={waning ? `translate(${2 * c} 0) scale(-1 1)` : undefined}>
+        <path d={d} fill="url(#moon-lit)" />
+      </g>
+    </svg>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Light Timeline — sun elevation curve across the whole day with golden & blue
+// hour bands, a scrubber for sun position, live weather, moon phase and
+// automatic weather alerts for today's and tomorrow's shoots.
+// ---------------------------------------------------------------------------
+
+const LT = { w: 640, h: 262, x0: 34, x1: 606, base: 172, peak: 118, below: 3.6 };
+
+interface LightTimelineProps {
+  weather: WeatherState;
+  todaysEvents: ParsedStudioEvent[];
+  tomorrowsEvents: ParsedStudioEvent[];
+  now: Date;
+  onSelect: (event: ParsedStudioEvent) => void;
+}
+
+const LightTimeline = ({ weather, todaysEvents, tomorrowsEvents, now, onSelect }: LightTimelineProps) => {
+  const [scrubMs, setScrubMs] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  const w = weather.windows;
+  const tz = weather.tz || undefined;
+  const ready = !weather.loading && !weather.error && w !== null;
+  const nowMs = now.valueOf();
+  const minuteKey = Math.floor(nowMs / 60000);
+  const hourKey = Math.floor(nowMs / HOUR_MS);
+
+  const moon = useMemo(() => getMoon(hourKey * HOUR_MS), [hourKey]);
+
+  const upcomingHours = useMemo(
+    () => weather.hourly.filter((h) => h.ms >= hourKey * HOUR_MS).slice(0, 8),
+    [weather.hourly, hourKey]
+  );
+
+  // Weather alerts — rule-based check of the forecast at each shoot's hour,
+  // plus a check on the golden-hour windows that are still ahead.
+  const { alerts, eventRisk } = useMemo(() => {
+    const list: WeatherAlert[] = [];
+    const risk: Record<string, RiskLevel> = {};
+    const current = minuteKey * 60000;
+
+    if (!weather.hourly.length || !w) return { alerts: list, eventRisk: risk };
+
+    [...todaysEvents, ...tomorrowsEvents].forEach((event) => {
+      if (!event.dateObj.isValid()) return;
+      const ms = event.dateObj.valueOf();
+      if (ms < current - 2 * HOUR_MS) return;
+
+      const point = nearestHour(weather.hourly, ms);
+      if (!point) return;
+
+      const issues = assessConditions(point);
+      risk[event.id] = worstLevel(issues);
+
+      const dayLabel = event.dateObj.isSame(dayjs(current), "day") ? "Today" : "Tomorrow";
+      issues.forEach((issue) => {
+        list.push({ ...issue, key: `${event.id}-${issue.title}`, scope: `${dayLabel} · ${event.name} at ${event.time}` });
+      });
+    });
+
+    (
+      [
+        { label: "Morning golden hour", span: w.morningGold },
+        { label: "Evening golden hour", span: w.eveningGold },
+      ] as const
+    ).forEach(({ label, span }) => {
+      if (span.end < current) return;
+      const point = nearestHour(weather.hourly, (span.start + span.end) / 2);
+      if (point && (point.cloud >= 85 || point.rain >= 60 || point.code >= 95)) {
+        list.push({
+          key: `gold-${label}`,
+          level: "warn",
+          title: "Golden hour at risk",
+          detail: `${Math.round(point.rain)}% rain chance and ${Math.round(point.cloud)}% cloud cover — expect muted colour.`,
+          scope: label,
+        });
+      }
+    });
+
+    list.sort((a, b) => (a.level === b.level ? 0 : a.level === "danger" ? -1 : 1));
+    return { alerts: list.slice(0, 4), eventRisk: risk };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weather.hourly, w, todaysEvents, tomorrowsEvents, minuteKey]);
+
+  const cardTitle = (
+    <Space>
+      <CompassOutlined className="inline-blue" />
+      Light Timeline
+    </Space>
+  );
+
+  if (!ready || !w) {
+    return (
+      <Card title={cardTitle} extra={<Tag>Today</Tag>} className="dashboard-panel">
+        <div className="light-empty">
+          <Text type="secondary">{weather.loading ? "Calculating today's light…" : "Sun and weather data unavailable right now"}</Text>
+        </div>
+      </Card>
+    );
+  }
+
+  const dStart = w.domainStart;
+  const dEnd = w.domainEnd;
+  const dSpan = dEnd - dStart;
+  const maxElev = Math.max(30, sunPosition(w.noon).elevation);
+
+  const xOf = (ms: number) => LT.x0 + ((ms - dStart) / dSpan) * (LT.x1 - LT.x0);
+  const yOfElev = (e: number) => (e >= 0 ? LT.base - (e / maxElev) * LT.peak : LT.base - e * LT.below);
+
+  const pointAt = (ms: number) => {
+    const s = sunPosition(ms);
+    return { x: xOf(ms), y: yOfElev(s.elevation), az: s.azimuth, elev: s.elevation };
+  };
+
+  const curvePath = (a: number, b: number) => {
+    const steps = Math.max(2, Math.round((b - a) / (6 * 60000)));
+    let d = "";
+    for (let i = 0; i <= steps; i++) {
+      const p = pointAt(a + ((b - a) * i) / steps);
+      d += `${i ? "L" : "M"}${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+    }
+    return d;
+  };
+
+  const handleScrub = (clientX: number) => {
+    const el = svgRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vx = ((clientX - rect.left) / rect.width) * LT.w;
+    const t = Math.max(0, Math.min(1, (vx - LT.x0) / (LT.x1 - LT.x0)));
+    setScrubMs(dStart + t * dSpan);
+  };
+
+  const focusMs = scrubMs ?? Math.min(dEnd, Math.max(dStart, nowMs));
+  const focus = pointAt(focusMs);
+  const focusQuality = lightQuality(focusMs, w);
+  const liveSun = nowMs >= dStart && nowMs <= dEnd ? pointAt(nowMs) : null;
+
+  let status: string;
+  if (nowMs < w.morningBlue.start) status = `Morning blue hour in ${fmtDuration(w.morningBlue.start - nowMs)}`;
+  else if (nowMs < w.morningBlue.end) status = "Morning blue hour — cool, cinematic light now";
+  else if (nowMs < w.morningGold.end) status = "Morning golden hour — shoot now";
+  else if (nowMs < w.eveningGold.start) status = `Evening golden hour in ${fmtDuration(w.eveningGold.start - nowMs)}`;
+  else if (nowMs < w.eveningGold.end) status = "Evening golden hour — shoot now";
+  else if (nowMs < w.eveningBlue.end) status = "Evening blue hour — cinematic dusk light now";
+  else status = "Night — a good time for long exposures and moon work";
+
+  const markers = todaysEvents
+    .filter((event) => event.dateObj.isValid())
+    .map((event) => {
+      const ms = event.dateObj.valueOf();
+      return { event, ms, quality: lightQuality(ms, w), risk: eventRisk[event.id] ?? "ok" };
+    });
+
+  const keyMoments = [
+    { key: "sunrise", label: "Sunrise", ms: weather.sunriseMs },
+    { key: "gold-am", label: "Gold ends", ms: w.morningGold.end },
+    { key: "noon", label: "Solar noon", ms: w.noon },
+    { key: "gold-pm", label: "Gold begins", ms: w.eveningGold.start },
+    { key: "sunset", label: "Sunset", ms: weather.sunsetMs },
+  ].map((m) => ({ ...m, pos: sunPosition(m.ms) }));
+
+  const windowCards = [
+    { key: "mb", title: "Morning blue hour", span: w.morningBlue, color: COLOR_BLUE, tip: "Cool teal skies — moody, cinematic portraits" },
+    { key: "mg", title: "Morning golden hour", span: w.morningGold, color: COLOR_GOLD, tip: "Warm, soft, low-angle light — flattering skin tones" },
+    { key: "eg", title: "Evening golden hour", span: w.eveningGold, color: COLOR_GOLD, tip: "Long shadows and glow — couples, flares, rim light" },
+    { key: "eb", title: "Evening blue hour", span: w.eveningBlue, color: COLOR_BLUE, tip: "Deep blue sky with warm lights — cinematic dusk" },
+  ].map((c) => ({
+    ...c,
+    state: nowMs >= c.span.start && nowMs <= c.span.end ? "now" : nowMs > c.span.end ? "past" : "next",
+  }));
+
+  const weatherNow = describeWeather(weather.weatherCode);
+  const tiles = [
+    { label: "Temperature", value: `${Math.round(weather.temperature)}°C`, pct: Math.min(100, Math.max(0, (weather.temperature / 45) * 100)), color: "#f59e0b" },
+    { label: "Rain chance", value: `${Math.round(weather.rainNow)}%`, pct: weather.rainNow, color: "#60a5fa" },
+    { label: "Cloud cover", value: `${Math.round(weather.cloudNow)}%`, pct: weather.cloudNow, color: "#94a3b8" },
+    { label: "Wind", value: `${Math.round(weather.windSpeed)} km/h`, pct: Math.min(100, (weather.windSpeed / 50) * 100), color: "#34d399" },
+  ];
+
+  const riskColor: Record<RiskLevel, string> = { ok: "#34d399", warn: "#fbbf24", danger: "#f87171" };
+
+  return (
+    <Card title={cardTitle} extra={<Tag>Today</Tag>} className="dashboard-panel lt-panel">
+      <div className="light-status">
+        <ThunderboltFilled />
+        <span>{status}</span>
+      </div>
+
+      <div className="lt-alerts">
+        {alerts.length ? (
+          alerts.map((alert) => (
+            <div key={alert.key} className={`lt-alert lt-alert-${alert.level}`} role="alert">
+              <WarningOutlined />
+              <div>
+                <strong>{alert.title}</strong>
+                <em>{alert.scope}</em>
+                <span>{alert.detail}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="lt-alert lt-alert-ok">
+            <CheckCircleOutlined />
+            <div>
+              <strong>Conditions look good</strong>
+              <span>No risky weather flagged for today's or tomorrow's shoots.</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="lt-grid">
+        <div className="lt-main">
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${LT.w} ${LT.h}`}
+            className="light-svg lt-svg"
+            role="img"
+            aria-label={`Sun elevation across the day. Sunrise ${fmtClock(weather.sunriseMs, tz)}, sunset ${fmtClock(weather.sunsetMs, tz)}. ${status}.`}
+            onMouseMove={(e) => handleScrub(e.clientX)}
+            onMouseLeave={() => setScrubMs(null)}
+            onTouchMove={(e) => handleScrub(e.touches[0].clientX)}
+            onTouchEnd={() => setScrubMs(null)}
+          >
+            <defs>
+              <radialGradient id="lt-sun">
+                <stop offset="0%" stopColor="#fde68a" />
+                <stop offset="45%" stopColor="#fbbf24" stopOpacity="0.55" />
+                <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id="lt-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="lt-night" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.04" />
+              </linearGradient>
+              <filter id="lt-blur" x="-20%" y="-50%" width="140%" height="200%">
+                <feGaussianBlur stdDeviation="4" />
+              </filter>
+            </defs>
+
+            {/* below-horizon band: where the blue hour lives */}
+            <rect x={LT.x0 - 24} y={LT.base} width={LT.x1 - LT.x0 + 48} height={8 * LT.below + 2} fill="url(#lt-night)" />
+
+            {/* daylight fill */}
+            <path
+              d={`${curvePath(weather.sunriseMs, weather.sunsetMs)} L${xOf(weather.sunsetMs).toFixed(1)} ${LT.base} L${xOf(weather.sunriseMs).toFixed(1)} ${LT.base} Z`}
+              fill="url(#lt-sky)"
+            />
+
+            {/* full sun path */}
+            <path d={curvePath(dStart, dEnd)} fill="none" stroke="rgba(125,211,252,0.35)" strokeWidth="1.5" strokeDasharray="4 5" />
+
+            {/* blue hour bands */}
+            {[w.morningBlue, w.eveningBlue].map((span, i) => (
+              <g key={`blue-${i}`}>
+                <path d={curvePath(span.start, span.end)} fill="none" stroke={COLOR_BLUE} strokeWidth="7" strokeLinecap="round" opacity="0.45" filter="url(#lt-blur)" />
+                <path d={curvePath(span.start, span.end)} fill="none" stroke={COLOR_BLUE} strokeWidth="3" strokeLinecap="round" />
+              </g>
+            ))}
+
+            {/* golden hour bands */}
+            {[w.morningGold, w.eveningGold].map((span, i) => (
+              <g key={`gold-${i}`}>
+                <path d={curvePath(span.start, span.end)} fill="none" stroke={COLOR_GOLD} strokeWidth="7" strokeLinecap="round" opacity="0.5" filter="url(#lt-blur)" />
+                <path d={curvePath(span.start, span.end)} fill="none" stroke={COLOR_GOLD} strokeWidth="3" strokeLinecap="round" />
+              </g>
+            ))}
+
+            {/* horizon + labels */}
+            <line x1={LT.x0 - 24} x2={LT.x1 + 24} y1={LT.base} y2={LT.base} stroke="rgba(125,211,252,0.3)" />
+            <circle cx={xOf(weather.sunriseMs)} cy={LT.base} r="3" fill="#fde68a" />
+            <circle cx={xOf(weather.sunsetMs)} cy={LT.base} r="3" fill="#fde68a" />
+
+            <text x={xOf(weather.sunriseMs)} y={LT.base + 46} textAnchor="middle" className="light-svg-label">{fmtClock(weather.sunriseMs, tz)}</text>
+            <text x={xOf(weather.sunriseMs)} y={LT.base + 59} textAnchor="middle" className="light-svg-sub">Sunrise</text>
+            <text x={xOf(weather.sunsetMs)} y={LT.base + 46} textAnchor="middle" className="light-svg-label">{fmtClock(weather.sunsetMs, tz)}</text>
+            <text x={xOf(weather.sunsetMs)} y={LT.base + 59} textAnchor="middle" className="light-svg-sub">Sunset</text>
+            <text x={xOf(w.noon)} y={LT.base + 46} textAnchor="middle" className="light-svg-label">{fmtDuration(weather.sunsetMs - weather.sunriseMs)}</text>
+            <text x={xOf(w.noon)} y={LT.base + 59} textAnchor="middle" className="light-svg-sub">of daylight</text>
+            <text x={LT.x0 - 24} y={LT.base + 8 * LT.below + 14} className="light-svg-sub">Blue-hour zone</text>
+
+            {/* scrub guide */}
+            {scrubMs !== null ? (
+              <g pointerEvents="none">
+                <line x1={focus.x} x2={focus.x} y1={focus.y} y2={LT.base + 8 * LT.below} stroke={focusQuality.color} strokeDasharray="3 4" opacity="0.8" />
+                <circle cx={focus.x} cy={focus.y} r="6" fill={focusQuality.color} stroke="#f8fafc" strokeWidth="1.5" />
+              </g>
+            ) : null}
+
+            {/* live sun */}
+            {liveSun ? (
+              <g pointerEvents="none">
+                <circle cx={liveSun.x} cy={liveSun.y} r="26" fill="url(#lt-sun)" />
+                <circle cx={liveSun.x} cy={liveSun.y} r="7" fill="#fde68a" />
+              </g>
+            ) : null}
+
+            {/* today's shoots */}
+            {markers
+              .filter((m) => m.ms >= dStart && m.ms <= dEnd)
+              .map((m) => {
+                const p = pointAt(m.ms);
+                return (
+                  <g
+                    key={m.event.id}
+                    className="light-marker"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${m.event.name} at ${m.event.time}, ${m.quality.label}${m.risk !== "ok" ? `, weather risk: ${m.risk}` : ""}`}
+                    onClick={() => onSelect(m.event)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelect(m.event);
+                      }
+                    }}
+                  >
+                    <title>{`${m.event.name} · ${m.event.time} · ${m.quality.label}`}</title>
+                    <line x1={p.x} x2={p.x} y1={p.y} y2={LT.base} stroke={m.quality.color} strokeDasharray="2 4" opacity="0.7" />
+                    {m.risk !== "ok" ? (
+                      <circle cx={p.x} cy={p.y} r="13" fill="none" stroke={riskColor[m.risk]} strokeWidth="1.5" strokeDasharray="3 3" />
+                    ) : null}
+                    <circle cx={p.x} cy={p.y} r="8" fill={m.quality.color} stroke="#0f172a" strokeWidth="2" />
+                    <text x={p.x} y={p.y - 17} textAnchor="middle" className="light-svg-label">{m.event.time}</text>
+                  </g>
+                );
+              })}
+          </svg>
+
+          <div className="lt-readout">
+            <i className="lt-readout-dot" style={{ background: focusQuality.color }} />
+            <strong>{fmtClock(focusMs, tz)}</strong>
+            <span>
+              Sun {compassDir(focus.az)} {Math.round(focus.az)}° · {Math.abs(Math.round(focus.elev))}°{" "}
+              {focus.elev >= 0 ? "above" : "below"} horizon
+            </span>
+            <span className="lt-readout-quality" style={{ color: focusQuality.color }}>{focusQuality.label}</span>
+            <em>{scrubMs === null ? "Hover or drag across the curve to move the sun" : "Scrubbing"}</em>
+          </div>
+
+          <div className="lt-moments">
+            {keyMoments.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                className="lt-moment"
+                onMouseEnter={() => setScrubMs(m.ms)}
+                onMouseLeave={() => setScrubMs(null)}
+                onFocus={() => setScrubMs(m.ms)}
+                onBlur={() => setScrubMs(null)}
+              >
+                <span>{m.label}</span>
+                <strong>{fmtClock(m.ms, tz)}</strong>
+                <em>{compassDir(m.pos.azimuth)} · {Math.round(m.pos.elevation)}°</em>
+              </button>
+            ))}
+          </div>
+
+          <div className="lt-windows">
+            {windowCards.map((c) => (
+              <div key={c.key} className={`lt-window lt-window-${c.state}`} style={{ ["--lt-c" as string]: c.color }}>
+                <div className="lt-window-head">
+                  <strong>{c.title}</strong>
+                  <span>
+                    {c.state === "now" ? "Happening now" : c.state === "past" ? "Passed" : `In ${fmtDuration(c.span.start - nowMs)}`}
+                  </span>
+                </div>
+                <div className="lt-window-time">{fmtClock(c.span.start, tz)} – {fmtClock(c.span.end, tz)}</div>
+                <em>{c.tip}</em>
+              </div>
+            ))}
+          </div>
+
+          <div className="light-events">
+            {markers.length ? (
+              markers.map((m) => (
+                <button key={m.event.id} type="button" className="light-event" onClick={() => onSelect(m.event)}>
+                  <i className="light-event-dot" style={{ background: m.quality.color }} />
+                  <span className="light-event-main">
+                    <strong>{m.event.name}</strong>
+                    <em>{m.event.time} · {m.event.city}</em>
+                  </span>
+                  {m.risk !== "ok" ? (
+                    <span className="light-event-risk" style={{ color: riskColor[m.risk] }}>
+                      <WarningOutlined /> {m.risk === "danger" ? "Weather risk" : "Watch weather"}
+                    </span>
+                  ) : null}
+                  <span className="light-event-quality" style={{ color: m.quality.color }}>{m.quality.label}</span>
+                </button>
+              ))
+            ) : (
+              <div className="light-empty">No shoots today — the golden and blue windows above are yours.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="lt-side">
+          <div className="lt-block">
+            <Text strong className="lt-block-title">Weather now · {weatherNow.icon} {weatherNow.label}</Text>
+            <div className="lt-wx-tiles">
+              {tiles.map((t) => (
+                <div key={t.label} className="lt-wx-tile">
+                  <span>{t.label}</span>
+                  <strong>{t.value}</strong>
+                  <div className="lt-wx-bar"><i style={{ width: `${Math.max(3, t.pct)}%`, background: t.color }} /></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="lt-hours">
+              {upcomingHours.map((h) => {
+                const q = lightQuality(h.ms, w);
+                const d = describeWeather(h.code);
+                return (
+                  <div key={h.ms} className="lt-hour" style={{ borderBottomColor: q.color }} title={`${q.label} · ${d.label}`}>
+                    <span className="lt-hour-time">{fmtHourLabel(h.ms, tz)}</span>
+                    <span className="lt-hour-icon">{d.icon}</span>
+                    <strong>{Math.round(h.temp)}°</strong>
+                    <em>{Math.round(h.rain)}%</em>
+                  </div>
+                );
+              })}
+            </div>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              Next hours · temperature and rain chance · underline shows the light quality
+            </Text>
+          </div>
+
+          <div className="lt-block">
+            <Text strong className="lt-block-title">Moon phase</Text>
+            <div className="lt-moon">
+              <MoonDisc frac={moon.frac} />
+              <div className="lt-moon-text">
+                <strong>{moon.name}</strong>
+                <span>{Math.round(moon.illum * 100)}% lit · day {Math.floor(moon.age) + 1} of 30</span>
+                <em>
+                  Full moon in {Math.round(moon.daysToFull)} {Math.round(moon.daysToFull) === 1 ? "day" : "days"} · new moon in {Math.round(moon.daysToNew)}{" "}
+                  {Math.round(moon.daysToNew) === 1 ? "day" : "days"}
+                </em>
+              </div>
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{moon.tip}</Text>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Command palette — Ctrl/⌘ + K. Jump to any shoot or run a quick action.
+// ---------------------------------------------------------------------------
+
+interface CommandItem {
+  key: string;
+  group: string;
+  label: string;
+  hint?: string;
+  icon: ReactNode;
+  run: () => void;
+}
+
+interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+  items: CommandItem[];
+}
+
+const CommandPalette = ({ open, onClose, items }: CommandPaletteProps) => {
+  const [query, setQuery] = useState("");
+  const [active, setActive] = useState(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const pool = q
+      ? items.filter((item) => `${item.label} ${item.hint || ""} ${item.group}`.toLowerCase().includes(q))
+      : items;
+    return pool.slice(0, 8);
+  }, [items, query]);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setActive(0);
+      const id = window.setTimeout(() => inputRef.current?.focus(), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [open]);
+
+  useEffect(() => setActive(0), [query]);
+
+  if (!open) return null;
+
+  const runItem = (item: CommandItem) => {
+    onClose();
+    item.run();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((current) => (results.length ? (current + 1) % results.length : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((current) => (results.length ? (current - 1 + results.length) % results.length : 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (results[active]) runItem(results[active]);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
+  return createPortal(
+    <div className="cp-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cp-panel" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div className="cp-input-row">
+          <SearchOutlined />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a command or search shoots…"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="cp-list"
+            aria-activedescendant={results[active] ? `cp-opt-${results[active].key}` : undefined}
+          />
+          <kbd>Esc</kbd>
+        </div>
+
+        <div className="cp-list" id="cp-list" role="listbox">
+          {results.length ? (
+            results.map((item, index) => (
+              <div
+                key={item.key}
+                id={`cp-opt-${item.key}`}
+                role="option"
+                aria-selected={index === active}
+                className={index === active ? "cp-item cp-item-active" : "cp-item"}
+                onMouseEnter={() => setActive(index)}
+                onClick={() => runItem(item)}
+              >
+                <span className="cp-item-icon">{item.icon}</span>
+                <span className="cp-item-text">
+                  <strong>{item.label}</strong>
+                  {item.hint ? <em>{item.hint}</em> : null}
+                </span>
+                <span className="cp-item-group">{item.group}</span>
+              </div>
+            ))
+          ) : (
+            <div className="cp-empty">No matches</div>
+          )}
+        </div>
+
+        <div className="cp-footer">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -571,6 +1478,8 @@ const SpeedDialFab = ({ actions }: SpeedDialFabProps) => {
         onClick={() => setOpen((current) => !current)}
         animate={{ rotate: open ? 45 : 0 }}
         whileTap={{ scale: 0.92 }}
+        aria-label={open ? "Close quick actions" : "Open quick actions"}
+        aria-expanded={open}
       >
         {open ? <CloseOutlined /> : <RocketOutlined />}
       </motion.button>
@@ -607,7 +1516,7 @@ const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps)
 
   return (
     <div className="cm-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="cm-panel creative-modal" style={{ maxWidth: width }}>
+      <div className="cm-panel creative-modal" style={{ maxWidth: width }} role="dialog" aria-modal="true">
         <button className="cm-close" onClick={onClose} aria-label="Close">
           <CloseOutlined />
         </button>
@@ -680,8 +1589,8 @@ const SearchSpotlight = ({ anchorRef, visible, hits }: SearchSpotlightProps) => 
 
 // ---------------------------------------------------------------------------
 // Event sidebar — cover hero, live stage stepper, budget-share ring, and
-// quick actions (view / copy / advance stage). Used by the Users/Events/
-// Schedule tables — Pipeline Board cards open PipelineEventPanel instead.
+// quick actions (view / copy / advance stage). Used by the Events table and the
+// Light Timeline — Pipeline Board cards open PipelineEventPanel instead.
 // ---------------------------------------------------------------------------
 
 interface EventSidebarProps {
@@ -871,8 +1780,7 @@ const DashboardPage = () => {
   const displayName = displayEmail.split("@")[0];
 
   // Single source of truth: Redux, populated from GET /studio/events —
-  // same store EventPage.tsx uses. No more localStorage ("ax.events.v1"),
-  // which is why events created on the Events page weren't showing up here.
+  // same store EventPage.tsx uses.
   const { events: reduxEvents } = useSelector((state: any) => state.event);
   const events: StudioEvent[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
@@ -884,6 +1792,7 @@ const DashboardPage = () => {
   const [pipelineEvent, setPipelineEvent] = useState<ParsedStudioEvent | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const searchAnchorRef = useRef<HTMLDivElement | null>(null);
   const weather = useGoldenHourWeather();
@@ -907,6 +1816,7 @@ const DashboardPage = () => {
     heroMouseY.set(0.5);
   };
 
+  // Still powers the user hits in the search spotlight.
   const userData = useMemo(
     () => [
       {
@@ -937,6 +1847,27 @@ const DashboardPage = () => {
     () => events.map((event) => ({ ...event, dateObj: parseEventDateTime(event.date, event.time) })),
     [events]
   );
+
+  // Depends on the current day only, so memoised blocks don't recompute every clock tick.
+  const currentDayKey = dayjs(currentTime).format("YYYY-MM-DD");
+
+  const weekRange = useMemo(() => {
+    const base = dayjs(currentDayKey);
+    return { start: base.startOf("week"), end: base.endOf("week") };
+  }, [currentDayKey]);
+
+  const weekEvents = useMemo(
+    () =>
+      eventsWithDate.filter(
+        (event) =>
+          event.dateObj.isValid() &&
+          !event.dateObj.isBefore(weekRange.start) &&
+          !event.dateObj.isAfter(weekRange.end)
+      ),
+    [eventsWithDate, weekRange]
+  );
+
+  const hiddenFromBoardCount = eventsWithDate.length - weekEvents.length;
 
   const todaysEvents = useMemo(
     () => eventsWithDate.filter((event) => event.dateObj.isSame(currentTime, "day")),
@@ -1030,6 +1961,15 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Command palette works everywhere, even while typing
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
       if (isTyping) return;
@@ -1053,8 +1993,8 @@ const DashboardPage = () => {
   const filteredUsers = useMemo(() => {
     const value = searchText.toLowerCase();
 
-    return userData.filter((user) =>
-      [user.name, user.email, user.phone, user.role].some((field) =>
+    return userData.filter((u) =>
+      [u.name, u.email, u.phone, u.role].some((field) =>
         field.toLowerCase().includes(value)
       )
     );
@@ -1087,13 +2027,6 @@ const DashboardPage = () => {
     () => filteredEvents.slice(0, EVENTS_LIST_LIMIT),
     [filteredEvents]
   );
-
-  const upcomingSchedule = useMemo(() => {
-    return eventsWithDate
-      .filter((event) => event.dateObj.startOf("day").diff(dayjs(currentTime).startOf("day"), "day") >= 0)
-      .sort((a, b) => a.dateObj.valueOf() - b.dateObj.valueOf())
-      .slice(0, EVENTS_LIST_LIMIT);
-  }, [eventsWithDate, currentTime]);
 
   // ---- Navigation handlers ----
   const goToUsersPage = () => navigate("/users");
@@ -1134,6 +2067,7 @@ const DashboardPage = () => {
     }));
 
     return [...eventHits, ...userHits];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, filteredEvents, filteredUsers]);
 
   // ---- Pipeline stage move (drag & drop / sidebar stepper / panel rail) ----
@@ -1168,42 +2102,6 @@ const DashboardPage = () => {
       },
     });
   };
-
-  const userColumns = [
-    {
-      title: "User",
-      dataIndex: "name",
-      key: "name",
-      render: (text: string) => (
-        <Space>
-          <Avatar
-            src={`https://api.dicebear.com/7.x/initials/svg?seed=${text}`}
-            style={{ background: THEME_COLOR }}
-          />
-          <div>
-            <Text strong>{text}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              Admin
-            </Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      render: (value: string) => <Text type="secondary">{value}</Text>,
-    },
-    { title: "Phone", dataIndex: "phone", key: "phone" },
-    {
-      title: "Joined",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: (date: string) => <Tag>{date}</Tag>,
-    },
-  ];
 
   const eventColumns = [
     {
@@ -1270,9 +2168,36 @@ const DashboardPage = () => {
 
   const speedDialActions: SpeedDialAction[] = [
     { key: "create", label: "New Event", icon: <PlusOutlined />, run: goToCreateEvent },
+    { key: "palette", label: "Command Palette", icon: <SearchOutlined />, run: () => setPaletteOpen(true) },
     { key: "users", label: "Users", icon: <UsergroupAddOutlined />, run: goToUsersPage },
     { key: "events", label: "Events", icon: <VideoCameraOutlined />, run: () => goToEventPage() },
     { key: "shortcuts", label: "Shortcuts", icon: <QuestionCircleOutlined />, run: () => setShortcutsOpen(true) },
+  ];
+
+  const commandItems: CommandItem[] = [
+    { key: "cmd-create", group: "Action", label: "New event", hint: "Create a shoot", icon: <PlusOutlined />, run: goToCreateEvent },
+    { key: "cmd-events", group: "Go to", label: "Events", hint: "Open all events", icon: <VideoCameraOutlined />, run: () => goToEventPage() },
+    { key: "cmd-users", group: "Go to", label: "Users", hint: "Open user management", icon: <UsergroupAddOutlined />, run: goToUsersPage },
+    {
+      key: "cmd-refresh",
+      group: "Action",
+      label: "Refresh data",
+      hint: "Re-fetch events from the server",
+      icon: <ReloadOutlined />,
+      run: () => {
+        dispatch(getEvents());
+        message.success("Refreshing events…");
+      },
+    },
+    { key: "cmd-shortcuts", group: "Help", label: "Keyboard shortcuts", hint: "Show all shortcuts", icon: <QuestionCircleOutlined />, run: () => setShortcutsOpen(true) },
+    ...eventsWithDate.map((event) => ({
+      key: `cmd-event-${event.id}`,
+      group: "Shoot",
+      label: event.name,
+      hint: `${event.date} · ${event.city} · ${normalizeStage(event.pipeline)}`,
+      icon: <CameraOutlined />,
+      run: () => setSelectedEvent(event),
+    })),
   ];
 
   return (
@@ -1300,17 +2225,25 @@ const DashboardPage = () => {
         <div className="dashboard-page-top">
           <Title level={2}>Dashboard</Title>
 
-          <div ref={searchAnchorRef} style={{ width: "min(420px, 100%)" }}>
-            <Search
-              placeholder="Search events, users…"
-              allowClear
-              enterButton={<SearchOutlined />}
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              className="dashboard-local-search"
-            />
+          <div className="dashboard-top-tools">
+            <div ref={searchAnchorRef} style={{ width: "min(420px, 100%)" }}>
+              <Search
+                placeholder="Search events, users…"
+                allowClear
+                enterButton={<SearchOutlined />}
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                className="dashboard-local-search"
+              />
+            </div>
+
+            <button type="button" className="palette-trigger" onClick={() => setPaletteOpen(true)}>
+              <SearchOutlined />
+              <span>Command</span>
+              <kbd>Ctrl K</kbd>
+            </button>
           </div>
 
           <SearchSpotlight anchorRef={searchAnchorRef} visible={searchFocused && Boolean(searchText.trim())} hits={searchHits} />
@@ -1521,40 +2454,42 @@ const DashboardPage = () => {
               Pipeline Board
             </Space>
           }
+          extra={
+            <Tag icon={<CalendarOutlined />}>
+              This week · {weekRange.start.format("MMM D")} – {weekRange.end.format("MMM D")}
+            </Tag>
+          }
           className="dashboard-panel"
         >
           <PipelineBoard
-            events={eventsWithDate}
+            events={weekEvents}
             onMove={handleMovePipeline}
             onSelect={setPipelineEvent}
             onDelete={handleDeleteEvent}
             onAddNew={goToCreateEvent}
           />
+
+          <div className="events-view-more">
+            <Button type="link" onClick={() => goToEventPage()}>
+              {hiddenFromBoardCount > 0
+                ? `See more (${hiddenFromBoardCount} other ${hiddenFromBoardCount === 1 ? "event" : "events"})`
+                : "See more"}{" "}
+              <ArrowRightOutlined />
+            </Button>
+          </div>
         </Card>
 
-        <Card
-          title={
-            <Space>
-              <HistoryOutlined />
-              Users
-            </Space>
-          }
-          extra={
-            <Button type="text" icon={<ArrowRightOutlined />} onClick={goToUsersPage} />
-          }
-          className="dashboard-panel"
-        >
-          <Table
-            columns={userColumns}
-            dataSource={filteredUsers}
-            pagination={false}
-            scroll={{ x: 760 }}
-            onRow={() => ({
-              onClick: goToUsersPage,
-              style: { cursor: "pointer" },
-            })}
-          />
-        </Card>
+        <Row gutter={[24, 24]} className="insight-row studio-intel-row">
+          <Col xs={24}>
+            <LightTimeline
+              weather={weather}
+              todaysEvents={todaysEvents}
+              tomorrowsEvents={tomorrowsEvents}
+              now={currentTime}
+              onSelect={setSelectedEvent}
+            />
+          </Col>
+        </Row>
 
         <Card
           title={
@@ -1598,51 +2533,6 @@ const DashboardPage = () => {
           ) : null}
         </Card>
 
-        <Card
-          title={
-            <Space>
-              <ThunderboltFilled className="inline-blue" />
-              Schedule
-            </Space>
-          }
-          extra={
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<PlusOutlined />}
-              onClick={goToCreateEvent}
-            />
-          }
-          className="dashboard-panel schedule-panel"
-          styles={{ body: { padding: 0 } }}
-        >
-          <Table
-            columns={eventColumns}
-            dataSource={upcomingSchedule}
-            rowKey="id"
-            pagination={false}
-            scroll={{ x: 900 }}
-            onRow={(record) => ({
-              onClick: () => setSelectedEvent(record),
-              style: { cursor: "pointer" },
-            })}
-            locale={{
-              emptyText: (
-                <div className="empty-schedule">
-                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Nothing on the schedule yet" />
-
-                  <Button
-                    type="primary"
-                    shape="circle"
-                    icon={<PlusOutlined />}
-                    onClick={goToCreateEvent}
-                  />
-                </div>
-              ),
-            }}
-          />
-        </Card>
-
         <EventSidebar
           event={selectedEvent}
           totalBudget={totalBudget}
@@ -1659,6 +2549,8 @@ const DashboardPage = () => {
           onDelete={handleDeleteEvent}
           onViewFull={(id) => goToEventPage(id)}
         />
+
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={commandItems} />
 
         {/* Keyboard shortcuts overlay */}
         <CustomModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} width={420}>
@@ -1681,6 +2573,10 @@ const DashboardPage = () => {
             <div className="shortcut-row">
               <span>Show shortcuts</span>
               <Tag>?</Tag>
+            </div>
+            <div className="shortcut-row">
+              <span>Move the sun on Light Timeline</span>
+              <Tag>Hover / drag</Tag>
             </div>
             <div className="shortcut-row">
               <span>Close panel</span>

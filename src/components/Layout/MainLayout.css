@@ -124,15 +124,7 @@ html[data-axs-theme]::-webkit-scrollbar-corner {
 }
 
 /* Page scrollbar — up / down arrow buttons */
-html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical {
-  display: block;
-  width: 14px;
-  height: 18px;
-  background-color: var(--sb-btn-bg);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 11px 11px;
-  border-left: 1px solid var(--sb-track-edge);
+html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical {display: block;width: 14px;height: 18px;background-color: var(--sb-btn-bg);background-repeat: no-repeat;background-position: center;background-size: 11px 11px;border-left: 1px solid var(--sb-track-edge);
 }
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:decrement {
@@ -161,22 +153,11 @@ html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:active {
 
 /* ---------- Inner scrollbars: tables, sidebar, dropdowns, modals, textareas ---------- */
 
-html[data-axs-theme] *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+html[data-axs-theme] *::-webkit-scrollbar {width: 10px;height: 10px;}
 
-html[data-axs-theme] *::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 999px;
-}
+html[data-axs-theme] *::-webkit-scrollbar-track {background: transparent;border-radius: 999px;}
 
-html[data-axs-theme] *::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: var(--sb-thumb);
-  background-clip: padding-box;
-}
+html[data-axs-theme] *::-webkit-scrollbar-thumb {border: 2px solid transparent;border-radius: 999px;background: var(--sb-thumb);background-clip: padding-box;}
 
 html[data-axs-theme] *::-webkit-scrollbar-thumb:hover {
   background: var(--sb-thumb-hover);
@@ -187,16 +168,8 @@ html[data-axs-theme] *::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* Inner scrollbars — smaller up / down arrows */
-html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical {
-  display: block;
-  width: 10px;
-  height: 12px;
-  background-color: transparent;
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 9px 9px;
-}
+
+html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical {display: block;width: 10px;height: 12px;background-color: transparent;background-repeat: no-repeat;background-position: center;background-size: 9px 9px;}
 
 html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:decrement {
   background-image: var(--sb-arrow-up);
@@ -216,7 +189,7 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
   background-color: var(--sb-btn-bg-hover);
 }
 
-/* Firefox fallback (no ::-webkit-scrollbar support, so no custom arrows) */
+
 @supports not selector(::-webkit-scrollbar) {
   html[data-axs-theme],
   html[data-axs-theme] * {
@@ -225,108 +198,26 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
   }
 }
 
-/* ==========================================================
-   Top scroll progress line
-   ========================================================== */
+/* Top scroll progress line */
 
-.scroll-progress {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  z-index: 2000;
-  pointer-events: none;
-  background: transparent;
-}
+.scroll-progress {position: fixed;top: 0;left: 0;width: 100%;height: 3px;z-index: 2000;pointer-events: none;background: transparent;}
+.scroll-progress-fill {--progress: 0;position: relative;width: 100%;height: 100%;transform-origin: left center;transform: scaleX(var(--progress));background: linear-gradient(90deg, #0284c7, #38bdf8 55%, #bae6fd);will-change: transform;}
 
-.scroll-progress-fill {
-  --progress: 0;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-origin: left center;
-  transform: scaleX(var(--progress));
-  background: linear-gradient(90deg, #0284c7, #38bdf8 55%, #bae6fd);
-  will-change: transform;
-}
+.scroll-progress-fill::after {content: "";position: absolute;right: 0;top: 50%;width: 46px;height: 9px;transform: translateY(-50%);border-radius: 50%;background: radial-gradient(ellipse at right, rgba(186, 230, 253, 0.9), transparent 70%);filter: blur(2px);}
+.site-light .scroll-progress-fill {background: linear-gradient(90deg, #075985, #0284c7 55%, #38bdf8);}
 
-/* Glowing "shutter" head at the leading edge */
-.scroll-progress-fill::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 50%;
-  width: 46px;
-  height: 9px;
-  transform: translateY(-50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse at right, rgba(186, 230, 253, 0.9), transparent 70%);
-  filter: blur(2px);
-}
+.site-light .scroll-progress-fill::after {background: radial-gradient(ellipse at right, rgba(14, 165, 233, 0.85), transparent 70%);}
 
-.site-light .scroll-progress-fill {
-  background: linear-gradient(90deg, #075985, #0284c7 55%, #38bdf8);
-}
+/* Footer */
 
-.site-light .scroll-progress-fill::after {
-  background: radial-gradient(ellipse at right, rgba(14, 165, 233, 0.85), transparent 70%);
-}
+.site-footer {position: fixed;left: 0;bottom: 0;width: 100%;z-index: 1000;backdrop-filter: blur(18px);-webkit-backdrop-filter: blur(18px);background: rgba(3, 22, 51, 0.55);border-top: 1px solid rgba(125, 211, 252, 0.18);transition: background 0.3s ease, border-color 0.3s ease;}
 
-/* ==========================================================
-   Footer
-   ========================================================== */
+.site-footer-bar {position: relative;max-width: 1400px;height: 44px;margin: 0 auto;padding: 0 24px;display: flex;align-items: center;justify-content: center;}
+.site-footer-brand {display: flex;align-items: center;gap: 8px;}
+.site-footer-aperture .aperture-ring {fill: none;stroke: rgba(125, 211, 248, 0.35);stroke-width: 1.5;}
 
-.site-footer {
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  z-index: 1000;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  background: rgba(3, 22, 51, 0.55);
-  border-top: 1px solid rgba(125, 211, 252, 0.18);
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
-
-.site-footer-bar {
-  position: relative;
-  max-width: 1400px;
-  height: 44px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.site-footer-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.site-footer-aperture .aperture-ring {
-  fill: none;
-  stroke: rgba(125, 211, 248, 0.35);
-  stroke-width: 1.5;
-}
-
-/* Aperture rotates with page scroll; blades still breathe individually */
-.site-footer-aperture .aperture-blades {
-  --aperture-rotate: 0deg;
-  transform-box: view-box;
-  transform-origin: 16px 16px;
-  transform: rotate(var(--aperture-rotate));
-  transition: transform 0.15s linear;
-}
-
-.site-footer-aperture .blade {
-  fill: #38bdf8;
-  transform-origin: 16px 16px;
-  animation: apertureBreathe 4s ease-in-out infinite;
-}
+.site-footer-aperture .aperture-blades {--aperture-rotate: 0deg;transform-box: view-box;transform-origin: 16px 16px;transform: rotate(var(--aperture-rotate));transition: transform 0.15s linear;}
+.site-footer-aperture .blade {fill: #38bdf8;transform-origin: 16px 16px;animation: apertureBreathe 4s ease-in-out infinite;}
 
 .site-footer-aperture .blade:nth-child(1) { animation-delay: 0s; }
 .site-footer-aperture .blade:nth-child(2) { animation-delay: 0.12s; }
@@ -335,44 +226,18 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
 .site-footer-aperture .blade:nth-child(5) { animation-delay: 0.48s; }
 .site-footer-aperture .blade:nth-child(6) { animation-delay: 0.6s; }
 
-.site-footer-name {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #ffffff;
-  white-space: nowrap;
-}
+.site-footer-name {font-size: 12px;font-weight: 800;letter-spacing: 0.04em;color: #ffffff;white-space: nowrap;}
 
-.site-footer-copy {
-  position: absolute;
-  right: 24px;
-  font-size: 11px;
-  color: #94a3b8;
-  white-space: nowrap;
-}
+.site-footer-copy {position: absolute;right: 24px;font-size: 11px;color: #94a3b8;white-space: nowrap;}
 
 @keyframes apertureBreathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(0.72); }
 }
 
-/* ==========================================================
-   Scroll-to-top — progress ring button
-   ========================================================== */
+/* Scroll-to-top — progress ring button */
 
-.scroll-top-btn {
-  position: fixed;
-  right: 24px;
-  bottom: 64px;
-  z-index: 1100;
-  width: 46px;
-  height: 46px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  color: #e0f2fe;
+.scroll-top-btn {position: fixed;right: 24px;bottom: 64px;z-index: 1100;width: 46px;height: 46px;padding: 0;display: grid;place-items: center;border: 0;border-radius: 50%;color: #e0f2fe;
   background:
     radial-gradient(circle at 30% 25%, rgba(56, 189, 248, 0.22), transparent 60%),
     rgba(10, 18, 32, 0.82);
@@ -392,11 +257,7 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
     background 0.2s ease;
 }
 
-.scroll-top-btn.is-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
-}
+.scroll-top-btn.is-visible {opacity: 1;transform: translateY(0) scale(1);pointer-events: auto;}
 
 .scroll-top-btn:hover {
   transform: translateY(-3px) scale(1.05);
@@ -405,71 +266,20 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
     inset 0 0 0 1px rgba(125, 211, 252, 0.4);
 }
 
-.scroll-top-btn:active {
-  transform: translateY(0) scale(0.96);
-}
-
-.scroll-top-btn:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: 3px;
-}
-
-.scroll-top-ring {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-  pointer-events: none;
-}
-
-.scroll-top-ring .ring-track {
-  fill: none;
-  stroke: rgba(125, 211, 252, 0.16);
-  stroke-width: 2.5;
-}
-
-.scroll-top-ring .ring-progress {
-  fill: none;
-  stroke: #38bdf8;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.8));
-  transition: stroke-dashoffset 0.12s linear;
-}
+.scroll-top-btn:active {transform: translateY(0) scale(0.96);}
+.scroll-top-btn:focus-visible {outline: 2px solid #38bdf8;outline-offset: 3px;}
+.scroll-top-ring {position: absolute;inset: 0;width: 100%;height: 100%;transform: rotate(-90deg);pointer-events: none;}
+.scroll-top-ring .ring-track {fill: none;stroke: rgba(125, 211, 252, 0.16);stroke-width: 2.5;}
+.scroll-top-ring .ring-progress {fill: none;stroke: #38bdf8;stroke-width: 2.5;stroke-linecap: round;filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.8));transition: stroke-dashoffset 0.12s linear;}
 
 .scroll-top-icon,
-.scroll-top-pct {
-  grid-area: 1 / 1;
-  display: grid;
-  place-items: center;
-  transition: opacity 0.2s ease, transform 0.25s ease;
-}
+.scroll-top-pct {grid-area: 1 / 1;display: grid;place-items: center;transition: opacity 0.2s ease, transform 0.25s ease;}
+.scroll-top-icon {font-size: 15px;}
+.scroll-top-pct {font-size: 10.5px;font-weight: 800;letter-spacing: 0.02em;font-variant-numeric: tabular-nums;opacity: 0;transform: translateY(6px);}
+.scroll-top-btn:hover .scroll-top-icon {opacity: 0;transform: translateY(-6px);}
+.scroll-top-btn:hover .scroll-top-pct {opacity: 1;transform: translateY(0);}
 
-.scroll-top-icon {
-  font-size: 15px;
-}
 
-.scroll-top-pct {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  opacity: 0;
-  transform: translateY(6px);
-}
-
-.scroll-top-btn:hover .scroll-top-icon {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.scroll-top-btn:hover .scroll-top-pct {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Light-mode variant (button lives in a portal, so it uses data-theme) */
 .scroll-top-btn[data-theme="light"] {
   color: #082f49;
   background:
@@ -486,22 +296,12 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
     inset 0 0 0 1px rgba(14, 116, 144, 0.4);
 }
 
-.scroll-top-btn[data-theme="light"] .ring-track {
-  stroke: rgba(14, 116, 144, 0.18);
-}
+.scroll-top-btn[data-theme="light"] .ring-track {stroke: rgba(14, 116, 144, 0.18);}
+.scroll-top-btn[data-theme="light"] .ring-progress {stroke: #0284c7;filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.5));}
 
-.scroll-top-btn[data-theme="light"] .ring-progress {
-  stroke: #0284c7;
-  filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.5));
-}
+/* Light mode global */
 
-/* ==========================================================
-   Light mode global
-   ========================================================== */
-
-.site-light .site-content {
-  color: #082f49;
-}
+.site-light .site-content {color: #082f49;}
 
 .site-light .dashboard-page-content,
 .site-light .review-page,
@@ -611,31 +411,19 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
 .site-light .review-table .ant-table-body,
 .site-light .enquiry-table .ant-table,
 .site-light .enquiry-table .ant-table-container,
-.site-light .enquiry-table .ant-table-cell {
-  background: transparent !important;
-  color: #082f49 !important;
-}
+.site-light .enquiry-table .ant-table-cell {background: transparent !important;color: #082f49 !important;}
 
 .site-light .ant-table-thead > tr > th,
 .site-light .review-table .ant-table-thead > tr > th,
-.site-light .enquiry-table .ant-table-thead > tr > th {
-  background: rgba(224, 242, 254, 0.78) !important;
-  color: #082f49 !important;
-  border-color: rgba(14, 116, 144, 0.18) !important;
-}
+.site-light .enquiry-table .ant-table-thead > tr > th {background: rgba(224, 242, 254, 0.78) !important;color: #082f49 !important;border-color: rgba(14, 116, 144, 0.18) !important;}
 
 .site-light .ant-table-tbody > tr > td,
 .site-light .review-table .ant-table-tbody > tr > td,
-.site-light .enquiry-table .ant-table-tbody > tr > td {
-  color: #0f172a !important;
-  border-color: rgba(14, 116, 144, 0.14) !important;
-}
+.site-light .enquiry-table .ant-table-tbody > tr > td {color: #0f172a !important;border-color: rgba(14, 116, 144, 0.14) !important;}
 
 .site-light .ant-table-tbody > tr:hover > td,
 .site-light .review-table .ant-table-tbody > tr:hover > td,
-.site-light .enquiry-table .ant-table-tbody > tr:hover > td {
-  background: rgba(56, 189, 248, 0.12) !important;
-}
+.site-light .enquiry-table .ant-table-tbody > tr:hover > td {background: rgba(56, 189, 248, 0.12) !important;}
 
 .site-light .applicant-name,
 .site-light .date-chip,
@@ -644,209 +432,88 @@ html[data-axs-theme] *::-webkit-scrollbar-button:single-button:vertical:incremen
 .site-light .enquiry-link,
 .site-light .feature-value,
 .site-light .dashboard-panel .ant-card-head-title,
-.site-light .metric-card .ant-statistic-content {
-  color: #082f49 !important;
-}
+.site-light .metric-card .ant-statistic-content {color: #082f49 !important;}
 
 .site-light .feature-label,
-.site-light .feature-caption {
-  color: rgba(255, 255, 255, 0.92) !important;
-}
+.site-light .feature-caption {color: rgba(255, 255, 255, 0.92) !important;}
+.site-light .site-footer {background: rgba(255, 255, 255, 0.65);border-top: 1px solid rgba(14, 116, 144, 0.16);}
+.site-light .site-footer-name {color: #082f49;}
+.site-light .site-footer-copy {color: #64748b;}
+.site-light .site-footer-aperture .blade {fill: #0284c7;}
+.site-light .site-footer-aperture .aperture-ring {stroke: rgba(14, 116, 144, 0.35);}
 
-.site-light .site-footer {
-  background: rgba(255, 255, 255, 0.65);
-  border-top: 1px solid rgba(14, 116, 144, 0.16);
-}
+/* Responsive breakpoints */
 
-.site-light .site-footer-name {
-  color: #082f49;
-}
 
-.site-light .site-footer-copy {
-  color: #64748b;
-}
-
-.site-light .site-footer-aperture .blade {
-  fill: #0284c7;
-}
-
-.site-light .site-footer-aperture .aperture-ring {
-  stroke: rgba(14, 116, 144, 0.35);
-}
-
-/* ==========================================================
-   Responsive breakpoints
-   ========================================================== */
-
-/* Large desktop / wide screens: >= 1600px */
 @media (min-width: 1600px) {
-  .site-content {
-    padding: 40px 8% 80px;
-  }
+  .site-content {padding: 40px 8% 80px;}
 
-  .site-footer-bar {
-    max-width: 1600px;
-  }
+  .site-footer-bar {max-width: 1600px;}
 }
 
-/* Desktop: 1200px - 1599px */
+
 @media (min-width: 1200px) and (max-width: 1599px) {
-  .site-content {
-    padding: 36px 6% 76px;
-  }
+  .site-content {padding: 36px 6% 76px;}
 }
 
-/* Laptop / small desktop: 992px - 1199px */
+
 @media (min-width: 992px) and (max-width: 1199px) {
-  .site-content {
-    padding: 30px 5% 72px;
-  }
+  .site-content {padding: 30px 5% 72px;}
 
-  .site-footer-bar {
-    padding: 0 20px;
-  }
+  .site-footer-bar {padding: 0 20px;}
 }
 
-/* Tablet: 576px - 991px */
+
 @media (min-width: 576px) and (max-width: 991px) {
-  .site-content {
-    padding: 26px 20px 90px;
-  }
-
-  .site-footer-bar {
-    height: auto;
-    min-height: 44px;
-    padding: 8px 20px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .site-footer-copy {
-    position: static;
-    font-size: 10.5px;
-  }
-
-  .site-footer-name {
-    font-size: 11.5px;
-  }
-
-  .scroll-top-btn {
-    right: 20px;
-    bottom: 76px;
-    width: 44px;
-    height: 44px;
-  }
+  .site-content {padding: 26px 20px 90px;}
+  .site-footer-bar {height: auto;min-height: 44px;padding: 8px 20px;flex-wrap: wrap;gap: 8px;}
+  .site-footer-copy {position: static;font-size: 10.5px;}
+  .site-footer-name {font-size: 11.5px;}
+  .scroll-top-btn {right: 20px;bottom: 76px;width: 44px;height: 44px;}
 }
 
-/* Mobile: 401px - 575px */
+
 @media (min-width: 401px) and (max-width: 575px) {
-  .site-content {
-    padding: 22px 16px 96px;
-  }
+  .site-content {padding: 22px 16px 96px;}
+  .site-footer-bar {height: auto;padding: 10px 16px;flex-direction: column;gap: 6px;}
+  .site-footer-copy {position: static;}
+  .site-footer-name {font-size: 11px;}
+  .scroll-top-btn {right: 16px;bottom: 88px;width: 42px;height: 42px;}
 
-  .site-footer-bar {
-    height: auto;
-    padding: 10px 16px;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .site-footer-copy {
-    position: static;
-  }
-
-  .site-footer-name {
-    font-size: 11px;
-  }
-
-  .scroll-top-btn {
-    right: 16px;
-    bottom: 88px;
-    width: 42px;
-    height: 42px;
-  }
-
-  html[data-axs-theme]::-webkit-scrollbar {
-    width: 10px;
+  html[data-axs-theme]::-webkit-scrollbar {width: 10px;
   }
 }
 
-/* Small mobile: <= 400px */
 @media (max-width: 400px) {
-  .site-content {
-    padding: 18px 12px 100px;
-  }
+  .site-content {padding: 18px 12px 100px;}
 
-  .site-footer-bar {
-    height: auto;
-    padding: 8px 12px;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .site-footer-copy {
-    position: static;
-    font-size: 10px;
-  }
-
-  .site-footer-name {
-    font-size: 10.5px;
-  }
-
-  .site-footer-aperture svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .scroll-top-btn {
-    right: 12px;
-    bottom: 84px;
-    width: 40px;
-    height: 40px;
-  }
-
-  .scroll-top-icon {
-    font-size: 14px;
-  }
-
-  html[data-axs-theme]::-webkit-scrollbar {
-    width: 8px;
+  .site-footer-bar {height: auto;padding: 8px 12px;flex-direction: column;gap: 4px;}
+  .site-footer-copy {position: static;font-size: 10px;}
+  .site-footer-name {font-size: 10.5px;}
+  .site-footer-aperture svg {width: 14px;height: 14px;}
+  .scroll-top-btn {right: 12px;bottom: 84px;width: 40px;height: 40px;}
+  .scroll-top-icon {font-size: 14px;}
+  html[data-axs-theme]::-webkit-scrollbar {width: 8px;
   }
 }
 
-/* Legacy alias retained (matches previous single mobile breakpoint) */
+
 @media (max-width: 760px) {
-  .site-content {
-    padding: 22px 16px 96px;
-  }
+  .site-content {padding: 22px 16px 96px;}
 
-  .site-footer-bar {
-    height: auto;
-    padding: 10px 16px;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .site-footer-copy {
-    position: static;
-  }
-
-  .scroll-top-btn {
-    right: 16px;
-    bottom: 88px;
-  }
+  .site-footer-bar {height: auto;padding: 10px 16px;flex-direction: column;gap: 6px;}
+  .site-footer-copy {position: static;}
+  .scroll-top-btn {right: 16px;bottom: 88px;}
 }
 
-/* Hide scrollbar arrows on small screens (thin overlay scrollbars there) */
+
 @media (max-width: 575px) {
   html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical {
     display: none;
   }
 }
 
-/* ==========================================================
-   Reduced motion
-   ========================================================== */
+/* Reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
   .site-footer-aperture .blade {
