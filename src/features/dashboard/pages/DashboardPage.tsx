@@ -16,7 +16,7 @@ import {
   ReloadOutlined, RiseOutlined, RocketOutlined,
   SafetyCertificateOutlined, SearchOutlined, SunOutlined, TeamOutlined,
   ThunderboltFilled, UsergroupAddOutlined, UserOutlined, VideoCameraOutlined,
-  BulbOutlined, CompassOutlined, WarningOutlined,
+  BulbOutlined, CompassOutlined, WarningOutlined, BellOutlined,
 } from "@ant-design/icons";
 import {
   AnimatePresence, motion, useMotionValue, useSpring, useTransform,
@@ -1416,6 +1416,133 @@ const CommandPalette = ({ open, onClose, items }: CommandPaletteProps) => {
 };
 
 // ---------------------------------------------------------------------------
+// Reminders bell — header dropdown listing today's and tomorrow's shoots with
+// a live countdown. Badge shows how many of today's shoots are still ahead.
+// ---------------------------------------------------------------------------
+
+interface ReminderItem {
+  key: string;
+  title: string;
+  subtitle: string;
+  when: "Today" | "Tomorrow";
+  eta: string;
+  upcoming: boolean;
+  onSelect: () => void;
+}
+
+interface ReminderBellProps {
+  items: ReminderItem[];
+}
+
+const ReminderBell = ({ items }: ReminderBellProps) => {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateRect = () => {
+      if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const badgeCount = items.filter((item) => item.when === "Today" && item.upcoming).length;
+
+  const groups: { label: "Today" | "Tomorrow"; rows: ReminderItem[] }[] = [
+    { label: "Today", rows: items.filter((item) => item.when === "Today") },
+    { label: "Tomorrow", rows: items.filter((item) => item.when === "Tomorrow") },
+  ];
+
+  return (
+    <>
+      <Tooltip title="Reminders">
+        <button
+          ref={btnRef}
+          type="button"
+          className={open ? "bell-trigger bell-trigger-open" : "bell-trigger"}
+          onClick={() => setOpen((current) => !current)}
+          aria-label="Shoot reminders"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <BellOutlined />
+          {badgeCount > 0 ? <span className="bell-badge">{badgeCount}</span> : null}
+        </button>
+      </Tooltip>
+
+      {open && rect
+        ? createPortal(
+            <>
+              <div className="bell-backdrop" onMouseDown={() => setOpen(false)} />
+              <div
+                className="bell-panel"
+                style={{ top: rect.bottom + 10, right: Math.max(12, window.innerWidth - rect.right) }}
+                role="dialog"
+                aria-label="Shoot reminders"
+              >
+                <div className="bell-head">
+                  <strong>Reminders</strong>
+                  <span>{items.length ? `${items.length} shoot${items.length > 1 ? "s" : ""} · today & tomorrow` : "All clear"}</span>
+                </div>
+
+                <div className="bell-body">
+                  {items.length ? (
+                    groups.map((group) =>
+                      group.rows.length ? (
+                        <div key={group.label} className="bell-group">
+                          <span className="bell-group-label">{group.label}</span>
+                          {group.rows.map((item) => (
+                            <button
+                              key={item.key}
+                              type="button"
+                              className={item.upcoming ? "bell-item" : "bell-item bell-item-past"}
+                              onClick={() => {
+                                setOpen(false);
+                                item.onSelect();
+                              }}
+                            >
+                              <i className="bell-item-dot" />
+                              <span className="bell-item-main">
+                                <strong>{item.title}</strong>
+                                <em>{item.subtitle}</em>
+                              </span>
+                              <span className="bell-item-eta">{item.eta}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null
+                    )
+                  ) : (
+                    <div className="bell-empty">
+                      <BellOutlined />
+                      <span>No shoots today or tomorrow</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
+    </>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Speed dial
 // ---------------------------------------------------------------------------
 
@@ -1922,6 +2049,32 @@ const DashboardPage = () => {
       : ["No shoots scheduled today or tomorrow — plan one from the Events board"];
   }, [todaysEvents, tomorrowsEvents]);
 
+  // Reminders bell — today's + tomorrow's shoots with a live countdown
+  const reminderItems = useMemo<ReminderItem[]>(() => {
+    const nowMs = currentTime.valueOf();
+
+    const build = (list: ParsedStudioEvent[], when: "Today" | "Tomorrow"): ReminderItem[] =>
+      list
+        .filter((event) => event.dateObj.isValid())
+        .sort((a, b) => a.dateObj.valueOf() - b.dateObj.valueOf())
+        .map((event) => {
+          const diff = event.dateObj.valueOf() - nowMs;
+          const upcoming = diff > 0;
+
+          return {
+            key: `${when}-${event.id}`,
+            title: event.name,
+            subtitle: `${event.time} · ${event.city}`,
+            when,
+            eta: upcoming ? `in ${fmtDuration(diff)}` : "Started",
+            upcoming,
+            onSelect: () => setSelectedEvent(event),
+          };
+        });
+
+    return [...build(todaysEvents, "Today"), ...build(tomorrowsEvents, "Tomorrow")];
+  }, [todaysEvents, tomorrowsEvents, currentTime]);
+
   const metricCards = useMemo(
     () => [
       { title: "Users", value: 1042, suffix: "", percent: 100, icon: <UsergroupAddOutlined />, color: "#38BDF8" },
@@ -2239,11 +2392,7 @@ const DashboardPage = () => {
               />
             </div>
 
-            <button type="button" className="palette-trigger" onClick={() => setPaletteOpen(true)}>
-              <SearchOutlined />
-              <span>Command</span>
-              <kbd>Ctrl K</kbd>
-            </button>
+            <ReminderBell items={reminderItems} />
           </div>
 
           <SearchSpotlight anchorRef={searchAnchorRef} visible={searchFocused && Boolean(searchText.trim())} hits={searchHits} />

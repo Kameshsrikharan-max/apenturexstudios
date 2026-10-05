@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -149,6 +149,7 @@ interface Theme {
 }
 interface PageStyle { bgColor: string; bgImage: string | null; frame: FrameId; gap?: number; radius?: number; }
 interface Cmd { id: string; group: string; label: string; hint?: string; run: () => void; }
+interface SlotMenuState { slotId: string; x: number; y: number; top: number; left?: number; fixedTop?: number; }
 
 type FlipDir = "forward" | "backward";
 interface TurnState { from: number; to: number; dir: FlipDir; committing: boolean; }
@@ -347,6 +348,7 @@ const SHORTCUTS: { keys: string; label: string }[] = [
 
 const PHOTO_DND = "text/axs-photo";
 const EVENT_CTX_KEY = "currentTemplateEditor";
+const MENU_W = 210;
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
 
@@ -356,6 +358,11 @@ function uid() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+/** Quarter-turn rotation (0/90/180/270) stored on a slot, normalised. */
+function quarterOf(sl: Slot): number {
+  return (((sl.rotateExtra ?? 0) % 360) + 360) % 360;
 }
 
 function loadContext(): EditorContext {
@@ -721,6 +728,72 @@ function LayoutThumb({ rects, images }: { rects: Rect[]; images?: (string | null
   );
 }
 
+/**
+ * The photo inside a slot. ALL per-photo transforms live here (quarter-turn rotation, free tilt,
+ * flip, size, zoom + focal point) and everything is clipped to the slot, so rotating a photo can
+ * never spill over neighbouring photos, the menu button, or any other UI.
+ */
+function SlotImage({ slot, alt }: { slot: Slot; alt: string }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () =>
+      setBox((b) => (b.w === el.clientWidth && b.h === el.clientHeight ? b : { w: el.clientWidth, h: el.clientHeight }));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const q = quarterOf(slot);
+  const swap = q === 90 || q === 270;
+  const tilt = slot.tilt ?? 0;
+  const zoom = slot.zoom ?? 1;
+  const fx = slot.fx ?? 50;
+  const fy = slot.fy ?? 50;
+  const ready = box.w > 0 && box.h > 0;
+
+  // the image box is the slot box (swapped on quarter turns) so that after rotating it fills the slot exactly
+  const iw = swap ? box.h : box.w;
+  const ih = swap ? box.w : box.h;
+  // free tilt: scale up just enough that the rotated photo still covers the whole slot (no empty corners)
+  const rad = (Math.abs(tilt) * Math.PI) / 180;
+  const aspect = ready ? Math.max(box.w / box.h, box.h / box.w) : 1;
+  const cover = tilt ? Math.cos(rad) + Math.sin(rad) * aspect : 1;
+  const total = (slot.scale ?? 1) * cover;
+  const sx = (fx / 100 - 0.5) * iw * (1 - zoom);
+  const sy = (fy / 100 - 0.5) * ih * (1 - zoom);
+
+  return (
+    <div ref={wrapRef} style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+      {ready && (
+        <img
+          src={slot.image ?? ""}
+          alt={alt}
+          draggable={false}
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            width: iw * zoom,
+            height: ih * zoom,
+            maxWidth: "none",
+            maxHeight: "none",
+            objectFit: "cover",
+            objectPosition: `${fx}% ${fy}%`,
+            filter: slotFilter(slot),
+            transformOrigin: "center center",
+            transform: `translate(-50%, -50%) rotate(${q + tilt}deg) scaleX(${slot.flip ? -1 : 1}) translate(${sx}px, ${sy}px) scale(${total})`,
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 function SheetMini({ sheet }: { sheet: Sheet }) {
   const meta = getLayout(sheet.layout);
@@ -737,35 +810,11 @@ function SheetMini({ sheet }: { sheet: Sheet }) {
               transform: r.rotate ? `rotate(${r.rotate}deg)` : undefined, zIndex: r.z ?? 1,
             }}
           >
-            {sl.image && (
-              <img
-                src={sl.image} alt="" draggable={false}
-                style={{ filter: slotFilter(sl), objectPosition: `${sl.fx ?? 50}% ${sl.fy ?? 50}%` }}
-              />
-            )}
+            {sl.image && <SlotImage slot={sl} alt="" />}
           </span>
         );
       })}
     </span>
-  );
-}
-
-function SlotImage({ slot, alt }: { slot: Slot; alt: string }) {
-  const zoom = slot.zoom ?? 1;
-  const fx = slot.fx ?? 50;
-  const fy = slot.fy ?? 50;
-  return (
-    <img
-      src={slot.image ?? ""}
-      alt={alt}
-      draggable={false}
-      style={{
-        filter: slotFilter(slot),
-        objectPosition: `${fx}% ${fy}%`,
-        transform: zoom !== 1 ? `scale(${zoom})` : undefined,
-        transformOrigin: `${fx}% ${fy}%`,
-      }}
-    />
   );
 }
 
@@ -879,7 +928,10 @@ function TemplateEditorInner() {
   const [dragSlotId, setDragSlotId] = useState<string | null>(null);
   const [dragOverSlotId, setDragOverSlotId] = useState<string | null>(null);
   const [dragSheetId, setDragSheetId] = useState<string | null>(null);
-  const [menuSlotId, setMenuSlotId] = useState<string | null>(null);
+  /** slot ⋮ menu — rendered in a body-level portal so no panel / scroll area can clip or cover it */
+  const [menu, setMenu] = useState<SlotMenuState | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuSlotId = menu?.slotId ?? null;
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [repositionId, setRepositionId] = useState<string | null>(null);
 
@@ -918,7 +970,10 @@ function TemplateEditorInner() {
     id: string; mode: TextDragMode; startClientX: number; startClientY: number;
     startX: number; startY: number; startW: number; startH: number; rect: DOMRect;
   } | null>(null);
-  const repoDrag = useRef<{ id: string; sx: number; sy: number; fx: number; fy: number; w: number; h: number } | null>(null);
+  const repoDrag = useRef<{
+    id: string; sx: number; sy: number; fx: number; fy: number;
+    iw: number; ih: number; rot: number; flip: boolean;
+  } | null>(null);
 
   /* Toast */
   const [toast, setToast] = useState<string | null>(null);
@@ -958,6 +1013,7 @@ function TemplateEditorInner() {
   const selectedText = activeSheet?.textElements.find((t) => t.id === selectedTextId) ?? null;
   const selectedSlot = activeSheet?.slots.find((s) => s.id === selectedSlotId) ?? null;
   const selectedSlotIndex = selectedSlot ? activeSheet.slots.findIndex((s) => s.id === selectedSlot.id) : -1;
+  const menuSlot = menu ? activeSheet?.slots.find((s) => s.id === menu.slotId) ?? null : null;
   const totalSpreads = sheets.length <= 1 ? 1 : 1 + Math.ceil((sheets.length - 1) / 2);
   const spreadLeft = (i: number): Sheet | undefined => (i === 0 ? undefined : sheets[1 + (i - 1) * 2]);
   const spreadRight = (i: number): Sheet | undefined => (i === 0 ? sheets[0] : sheets[1 + (i - 1) * 2 + 1]);
@@ -1026,6 +1082,7 @@ function TemplateEditorInner() {
     setEmojiPickerOpen(false);
     setSelectedSlotId(null);
     setRepositionId(null);
+    setMenu(null);
   }, [activeSheetId]);
 
   useEffect(() => {
@@ -1050,6 +1107,34 @@ function TemplateEditorInner() {
     window.addEventListener("beforeunload", onBefore);
     return () => window.removeEventListener("beforeunload", onBefore);
   }, [dirty]);
+
+  // Slot menu: place it next to its button, keep it fully on-screen, flip above if there is no room below
+  useLayoutEffect(() => {
+    if (!menu || menu.left !== undefined) return;
+    const el = menuRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 8;
+    let left = menu.x - r.width;
+    if (left < pad) left = pad;
+    if (left + r.width > window.innerWidth - pad) left = window.innerWidth - r.width - pad;
+    let top = menu.y;
+    if (top + r.height > window.innerHeight - pad) top = Math.max(pad, menu.top - r.height - 6);
+    setMenu({ ...menu, left, fixedTop: top });
+  }, [menu]);
+
+  // Slot menu: close when the layout under it moves
+  useEffect(() => {
+    if (!menuSlotId) return;
+    const close = () => setMenu(null);
+    const wrap = wrapRef.current;
+    window.addEventListener("resize", close);
+    wrap?.addEventListener("scroll", close);
+    return () => {
+      window.removeEventListener("resize", close);
+      wrap?.removeEventListener("scroll", close);
+    };
+  }, [menuSlotId]);
 
   // Palette of the first photo on the current page
   const paletteSource = activeSheet?.slots.find((sl) => sl.image)?.image ?? activeSheet?.bgImage ?? null;
@@ -1473,15 +1558,23 @@ function TemplateEditorInner() {
     setDragSlotId(null);
   };
 
-  /* Focal-point repositioning: drag inside a photo */
+  /* Focal-point repositioning: drag inside a photo.
+     The pointer movement is converted into the photo's own (rotated / flipped) coordinate space,
+     so dragging always moves the picture the way it looks on screen. */
   const onRepoMove = (e: PointerEvent) => {
     const d = repoDrag.current;
     if (!d) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    const a = (-d.rot * Math.PI) / 180;
+    let lx = dx * Math.cos(a) - dy * Math.sin(a);
+    const ly = dx * Math.sin(a) + dy * Math.cos(a);
+    if (d.flip) lx = -lx;
     patchSlot(
       d.id,
       {
-        fx: clamp(d.fx - ((e.clientX - d.sx) / d.w) * 100, 0, 100),
-        fy: clamp(d.fy - ((e.clientY - d.sy) / d.h) * 100, 0, 100),
+        fx: clamp(d.fx - (lx / Math.max(1, d.iw)) * 100, 0, 100),
+        fy: clamp(d.fy - (ly / Math.max(1, d.ih)) * 100, 0, 100),
       },
       "focus"
     );
@@ -1492,11 +1585,21 @@ function TemplateEditorInner() {
     window.removeEventListener("pointerup", onRepoUp);
   };
   const onRepoDown = (e: React.PointerEvent, slot: Slot) => {
-    if (repositionId !== slot.id || previewMode || !slot.image) return;
+    if (repositionId !== slot.id || previewMode || !slot.image || !activeSheet) return;
     e.preventDefault();
     e.stopPropagation();
-    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    repoDrag.current = { id: slot.id, sx: e.clientX, sy: e.clientY, fx: slot.fx ?? 50, fy: slot.fy ?? 50, w: box.width, h: box.height };
+    const el = e.currentTarget as HTMLElement;
+    const idx = activeSheet.slots.findIndex((s) => s.id === slot.id);
+    const rect = layoutMeta.rects[idx] ?? layoutMeta.rects[layoutMeta.rects.length - 1];
+    const q = quarterOf(slot);
+    const swap = q === 90 || q === 270;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    repoDrag.current = {
+      id: slot.id, sx: e.clientX, sy: e.clientY, fx: slot.fx ?? 50, fy: slot.fy ?? 50,
+      iw: swap ? h : w, ih: swap ? w : h,
+      rot: (rect.rotate ?? 0) + q + (slot.tilt ?? 0), flip: !!slot.flip,
+    };
     window.addEventListener("pointermove", onRepoMove);
     window.addEventListener("pointerup", onRepoUp);
   };
@@ -1910,7 +2013,7 @@ function TemplateEditorInner() {
       ]);
       setSavedSnap(current);
       setSaved(true);
-      setMenuSlotId(null);
+      setMenu(null);
       window.setTimeout(() => setSaved(false), 1800);
 
       if (goLibrary) {
@@ -1994,13 +2097,13 @@ function TemplateEditorInner() {
         const y = (r.top / 100) * H + gap;
         const w = (r.width / 100) * W - gap * 2;
         const h = (r.height / 100) * H - gap * 2;
-        const rot = (((r.rotate ?? 0) + (sl.rotateExtra ?? 0) + (sl.tilt ?? 0)) * Math.PI) / 180;
+        // only the layout's own card rotation turns the whole slot; the photo's rotation lives INSIDE the slot
+        const cardRot = ((r.rotate ?? 0) * Math.PI) / 180;
         const rr = sl.frame === "circle" ? Math.min(w, h) / 2 : meta.style === "polaroid" ? 2 * k : radius;
         const img = await loadImage(sl.image);
         g.save();
         g.translate(x + w / 2, y + h / 2);
-        g.rotate(rot);
-        g.scale((sl.flip ? -1 : 1) * (sl.scale ?? 1), sl.scale ?? 1);
+        g.rotate(cardRot);
         g.translate(-w / 2, -h / 2);
         g.beginPath();
         roundedRectPath(g, 0, 0, w, h, rr);
@@ -2012,9 +2115,26 @@ function TemplateEditorInner() {
         g.shadowColor = "transparent";
         g.save();
         g.clip();
+
+        // photo transform (quarter turn + tilt + flip + size + zoom), identical to <SlotImage>
+        g.save();
         try { g.filter = slotFilter(sl); } catch { /* filter unsupported */ }
-        drawCover(g, img, 0, 0, w, h, sl.fx ?? 50, sl.fy ?? 50, sl.zoom ?? 1);
-        try { g.filter = "none"; } catch { /* ignore */ }
+        const q = quarterOf(sl);
+        const swap = q === 90 || q === 270;
+        const tilt = sl.tilt ?? 0;
+        const tr = (Math.abs(tilt) * Math.PI) / 180;
+        const aspect = Math.max(w / h, h / w);
+        const cover = tilt ? Math.cos(tr) + Math.sin(tr) * aspect : 1;
+        const sc = (sl.scale ?? 1) * cover;
+        const iw = swap ? h : w;
+        const ih = swap ? w : h;
+        g.translate(w / 2, h / 2);
+        g.rotate(((q + tilt) * Math.PI) / 180);
+        g.scale(sl.flip ? -1 : 1, 1);
+        g.scale(sc, sc);
+        drawCover(g, img, -iw / 2, -ih / 2, iw, ih, sl.fx ?? 50, sl.fy ?? 50, sl.zoom ?? 1);
+        g.restore();
+
         if (sl.vignette) {
           const grad = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
           grad.addColorStop(0, "rgba(0,0,0,0)");
@@ -2231,6 +2351,7 @@ function TemplateEditorInner() {
         setHelpOpen(false);
         setRepositionId(null);
         setSelectedSlotId(null);
+        setMenu(null);
         return;
       }
       if (k.cmdOpen) return;
@@ -2342,6 +2463,7 @@ function TemplateEditorInner() {
     clearTurnTimer();
     setTurn(null);
     setAutoPlay(false);
+    setMenu(null);
     setReviewOpen(true);
   };
 
@@ -2539,8 +2661,8 @@ function TemplateEditorInner() {
 
         {sheet.slots.map((slot, i) => {
           const rect = meta.rects[i] ?? meta.rects[meta.rects.length - 1];
-          const rotate = (rect.rotate ?? 0) + (slot.rotateExtra ?? 0) + (slot.tilt ?? 0);
-          const transform = `rotate(${rotate}deg) scaleX(${slot.flip ? -1 : 1}) scale(${slot.scale ?? 1})`;
+          // only the layout's own card rotation here — the photo's rotation is handled inside <SlotImage>
+          const transform = rect.rotate ? `rotate(${rect.rotate}deg)` : undefined;
           return (
             <div
               key={slot.id}
@@ -3046,147 +3168,95 @@ function TemplateEditorInner() {
 
                 {activeSheet.slots.map((slot, i) => {
                   const rect = layoutMeta.rects[i] ?? layoutMeta.rects[layoutMeta.rects.length - 1];
-                  const rotate = (rect.rotate ?? 0) + (slot.rotateExtra ?? 0) + (slot.tilt ?? 0);
-                  const scale = slot.scale ?? 1;
-                  const transform = `rotate(${rotate}deg) scaleX(${slot.flip ? -1 : 1}) scale(${scale})`;
                   const isRepo = repositionId === slot.id;
+                  const radiusPx = layoutMeta.style === "polaroid" ? 2 : pageRadius;
+                  const pos = rectStyle(rect, pageGap, 0);
                   return (
+                    /*
+                     * Two layers:
+                     *  1. .tp-slot-pos  — fixed position box, NEVER rotated. Holds the ⋮ button so it always stays upright.
+                     *  2. .tp-slot      — the visual card (frame, polaroid, collage tilt). Photo rotation happens
+                     *                     INSIDE it (see <SlotImage>), clipped to the card, so neighbours are never disturbed.
+                     */
                     <div
                       key={slot.id}
-                      className={`tp-slot frame-${slot.frame ?? "none"} ${layoutMeta.style === "polaroid" ? "tp-slot-polaroid" : ""} ${
-                        layoutMeta.style === "collage" ? "tp-slot-collage" : ""
-                      } ${dragOverSlotId === slot.id ? "drag-over" : ""} ${
-                        selectedSlotId === slot.id && !previewMode ? "is-selected" : ""
-                      } ${isRepo ? "is-reposition" : ""}`}
+                      className="tp-slot-pos"
                       style={{
-                        ...rectStyle(rect, pageGap, layoutMeta.style === "polaroid" ? 2 : pageRadius),
-                        transform,
+                        position: "absolute",
+                        top: pos.top, left: pos.left, width: pos.width, height: pos.height,
                         zIndex: menuSlotId === slot.id ? 900 : slot.front ? 50 : rect.z ?? 1,
-                        ["--slot-menu-rotation" as any]: `${-rotate}deg`,
-                        ["--slot-menu-flip" as any]: slot.flip ? -1 : 1,
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!slot.image) openSlotUpload(slot.id);
-                        else if (!previewMode) setSelectedSlotId(slot.id);
-                      }}
-                      onDoubleClick={(e) => {
-                        if (!slot.image || previewMode) return;
-                        e.stopPropagation();
-                        setSelectedSlotId(slot.id);
-                        setRepositionId((cur) => (cur === slot.id ? null : slot.id));
-                      }}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverSlotId(slot.id); }}
-                      onDragLeave={() => setDragOverSlotId((cur) => (cur === slot.id ? null : cur))}
-                      onDrop={(e) => handleSlotDrop(slot.id, e)}
                     >
-                      <div className={`tp-slot-media ${slot.vignette ? "vig" : ""}`} onPointerDown={(e) => onRepoDown(e, slot)}>
-                        {slot.image ? (
-                          <SlotImage slot={slot} alt={slot.fileName ?? "slot"} />
-                        ) : (
-                          <div className="tp-slot-empty">
-                            <UploadOutlined />
-                            <span>{previewMode ? "" : "Click or drop a photo"}</span>
-                          </div>
-                        )}
-                        {isRepo && (
-                          <div className="tp-repo-hint">
-                            <DragOutlined /> Drag to set focus
+                      <div
+                        className={`tp-slot frame-${slot.frame ?? "none"} ${layoutMeta.style === "polaroid" ? "tp-slot-polaroid" : ""} ${
+                          layoutMeta.style === "collage" ? "tp-slot-collage" : ""
+                        } ${dragOverSlotId === slot.id ? "drag-over" : ""} ${
+                          selectedSlotId === slot.id && !previewMode ? "is-selected" : ""
+                        } ${isRepo ? "is-reposition" : ""}`}
+                        style={{
+                          position: "absolute", top: 0, left: 0, width: "100%", height: "100%",
+                          borderRadius: radiusPx,
+                          transform: rect.rotate ? `rotate(${rect.rotate}deg)` : undefined,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!slot.image) openSlotUpload(slot.id);
+                          else if (!previewMode) setSelectedSlotId(slot.id);
+                        }}
+                        onDoubleClick={(e) => {
+                          if (!slot.image || previewMode) return;
+                          e.stopPropagation();
+                          setSelectedSlotId(slot.id);
+                          setRepositionId((cur) => (cur === slot.id ? null : slot.id));
+                        }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverSlotId(slot.id); }}
+                        onDragLeave={() => setDragOverSlotId((cur) => (cur === slot.id ? null : cur))}
+                        onDrop={(e) => handleSlotDrop(slot.id, e)}
+                      >
+                        <div className={`tp-slot-media ${slot.vignette ? "vig" : ""}`} onPointerDown={(e) => onRepoDown(e, slot)}>
+                          {slot.image ? (
+                            <SlotImage slot={slot} alt={slot.fileName ?? "slot"} />
+                          ) : (
+                            <div className="tp-slot-empty">
+                              <UploadOutlined />
+                              <span>{previewMode ? "" : "Click or drop a photo"}</span>
+                            </div>
+                          )}
+                          {isRepo && (
+                            <div className="tp-repo-hint">
+                              <DragOutlined /> Drag to set focus
+                            </div>
+                          )}
+                        </div>
+
+                        {layoutMeta.decorative === "timeline" && <span className="tp-timeline-step">{i + 1}</span>}
+
+                        {layoutMeta.captions && (
+                          <div
+                            className="tp-slot-caption" contentEditable={!previewMode} suppressContentEditableWarning
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={(e) => updateSlotCaption(slot.id, e.currentTarget.textContent || "")}
+                          >
+                            {slot.caption}
                           </div>
                         )}
                       </div>
 
-                      {layoutMeta.decorative === "timeline" && <span className="tp-timeline-step">{i + 1}</span>}
-
-                      {layoutMeta.captions && (
-                        <div
-                          className="tp-slot-caption" contentEditable={!previewMode} suppressContentEditableWarning
-                          onClick={(e) => e.stopPropagation()}
-                          onBlur={(e) => updateSlotCaption(slot.id, e.currentTarget.textContent || "")}
-                        >
-                          {slot.caption}
-                        </div>
-                      )}
-
                       {!previewMode && (
-                        <>
-                          <button
-                            className="tp-slot-menu"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuSlotId((cur) => (cur === slot.id ? null : slot.id));
-                            }}
-                            aria-label="Slot options"
-                          >
-                            <MoreOutlined />
-                          </button>
-
-                          {menuSlotId === slot.id && (
-                            <>
-                              <div
-                                className="tp-slot-menu-backdrop"
-                                onClick={(e) => { e.stopPropagation(); setMenuSlotId(null); }}
-                              />
-                              <div className="tp-slot-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => { openSlotUpload(slot.id); setMenuSlotId(null); }}>
-                                  <UploadOutlined /> {slot.image ? "Replace photo" : "Add photo"}
-                                </button>
-                                {slot.image && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedSlotId(slot.id);
-                                        setRightTab("photos");
-                                        setMenuSlotId(null);
-                                      }}
-                                    >
-                                      <EditOutlined /> Edit photo…
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setSelectedSlotId(slot.id);
-                                        setRepositionId(slot.id);
-                                        setMenuSlotId(null);
-                                      }}
-                                    >
-                                      <AimOutlined /> Reposition focus
-                                    </button>
-                                    <button onClick={() => { smartFocusSlot(slot.id); setMenuSlotId(null); }}>
-                                      <ThunderboltOutlined /> Auto focus
-                                    </button>
-                                  </>
-                                )}
-                                <button onClick={() => { rotateSlot(slot.id); setMenuSlotId(null); }}>
-                                  <RotateRightOutlined /> Rotate 90°
-                                </button>
-                                <button onClick={() => { flipSlot(slot.id); setMenuSlotId(null); }}>
-                                  <SwapOutlined /> Flip horizontal
-                                </button>
-                                <div className="tp-slot-size-control">
-                                  <div>
-                                    <span>Photo size</span>
-                                    <strong>{Math.round(scale * 100)}%</strong>
-                                  </div>
-                                  <input
-                                    type="range" min={60} max={150} value={Math.round(scale * 100)}
-                                    onChange={(e) => patchSlot(slot.id, { scale: Number(e.target.value) / 100 }, "scale")}
-                                    aria-label="Photo size"
-                                  />
-                                </div>
-                                {(layoutMeta.style === "collage" || layoutMeta.style === "polaroid") && (
-                                  <button onClick={() => { bringToFront(slot.id); setMenuSlotId(null); }}>
-                                    <VerticalAlignTopOutlined /> Bring to front
-                                  </button>
-                                )}
-                                {slot.image && (
-                                  <button className="danger" onClick={() => { removeSlotImage(slot.id); setMenuSlotId(null); }}>
-                                    <CloseOutlined /> Remove photo
-                                  </button>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </>
+                        <button
+                          className="tp-slot-menu"
+                          style={{ transform: "none" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const b = e.currentTarget.getBoundingClientRect();
+                            setMenu((cur) =>
+                              cur?.slotId === slot.id ? null : { slotId: slot.id, x: b.right, y: b.bottom + 6, top: b.top }
+                            );
+                          }}
+                          aria-label="Slot options"
+                        >
+                          <MoreOutlined />
+                        </button>
                       )}
                     </div>
                   );
@@ -3760,6 +3830,94 @@ function TemplateEditorInner() {
           </div>
         </footer>
       </section>
+
+      {/* ── Slot ⋮ menu (portal → never clipped by or hidden behind panels) ── */}
+      {menu && menuSlot && !previewMode &&
+        createPortal(
+          <>
+            <div
+              className="tp-slot-menu-backdrop"
+              style={{ zIndex: 100000 }}
+              onClick={() => setMenu(null)}
+              onContextMenu={(e) => { e.preventDefault(); setMenu(null); }}
+            />
+            <div
+              ref={menuRef}
+              className="tp-slot-dropdown"
+              style={{
+                position: "fixed",
+                right: "auto",
+                bottom: "auto",
+                transform: "none",
+                zIndex: 100001,
+                width: MENU_W,
+                maxHeight: "calc(100vh - 16px)",
+                overflowY: "auto",
+                left: menu.left ?? Math.max(8, menu.x - MENU_W),
+                top: menu.fixedTop ?? menu.y,
+                visibility: menu.left === undefined ? "hidden" : "visible",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button onClick={() => { openSlotUpload(menuSlot.id); setMenu(null); }}>
+                <UploadOutlined /> {menuSlot.image ? "Replace photo" : "Add photo"}
+              </button>
+              {menuSlot.image && (
+                <>
+                  <button
+                    onClick={() => {
+                      setSelectedSlotId(menuSlot.id);
+                      setRightTab("photos");
+                      setMenu(null);
+                    }}
+                  >
+                    <EditOutlined /> Edit photo…
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedSlotId(menuSlot.id);
+                      setRepositionId(menuSlot.id);
+                      setMenu(null);
+                    }}
+                  >
+                    <AimOutlined /> Reposition focus
+                  </button>
+                  <button onClick={() => { smartFocusSlot(menuSlot.id); setMenu(null); }}>
+                    <ThunderboltOutlined /> Auto focus
+                  </button>
+                  <button onClick={() => rotateSlot(menuSlot.id)}>
+                    <RotateRightOutlined /> Rotate 90°
+                  </button>
+                  <button onClick={() => flipSlot(menuSlot.id)}>
+                    <SwapOutlined /> Flip horizontal
+                  </button>
+                  <div className="tp-slot-size-control">
+                    <div>
+                      <span>Photo size</span>
+                      <strong>{Math.round((menuSlot.scale ?? 1) * 100)}%</strong>
+                    </div>
+                    <input
+                      type="range" min={60} max={150} value={Math.round((menuSlot.scale ?? 1) * 100)}
+                      onChange={(e) => patchSlot(menuSlot.id, { scale: Number(e.target.value) / 100 }, "scale")}
+                      aria-label="Photo size"
+                    />
+                  </div>
+                </>
+              )}
+              {(layoutMeta.style === "collage" || layoutMeta.style === "polaroid") && (
+                <button onClick={() => { bringToFront(menuSlot.id); setMenu(null); }}>
+                  <VerticalAlignTopOutlined /> Bring to front
+                </button>
+              )}
+              {menuSlot.image && (
+                <button className="danger" onClick={() => { removeSlotImage(menuSlot.id); setMenu(null); }}>
+                  <CloseOutlined /> Remove photo
+                </button>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
 
       {/* ── Settings modal ── */}
       {settingsOpen && (

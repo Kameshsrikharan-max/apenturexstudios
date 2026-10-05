@@ -1,0 +1,240 @@
+/* ==========================================================================
+   Shared motion styles — count-up numbers, staggered entry, payment celebration
+   Import from PaymentPage.tsx and Transactionpage.tsx
+   ========================================================================== */
+
+:root {
+  --mo-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Keeps digits from jittering while counting */
+.mo-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Staggered row entry ----------
+   Usage: className="mo-row-enter" style={{ "--i": index }}
+   "backwards" fill (not "both") so hover/transform styles work after it ends. */
+@keyframes moRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.mo-row-enter {
+  animation: moRowIn 480ms var(--mo-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+
+/* Highlight flash on a freshly recorded row */
+@keyframes moRowFlash {
+  0% {
+    background-color: rgba(74, 222, 128, 0.28);
+    box-shadow: inset 3px 0 0 #4ade80;
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+}
+.mo-row-flash > td {
+  animation: moRowFlash 1800ms ease-out 500ms backwards;
+}
+
+/* ---------- Staggered children (stat cards, summary cards, chips) ---------- */
+@keyframes moFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.mo-stagger > * {
+  animation: moFadeUp 560ms var(--mo-ease) backwards;
+}
+.mo-stagger > *:nth-child(1) { animation-delay: 40ms; }
+.mo-stagger > *:nth-child(2) { animation-delay: 110ms; }
+.mo-stagger > *:nth-child(3) { animation-delay: 180ms; }
+.mo-stagger > *:nth-child(4) { animation-delay: 250ms; }
+.mo-stagger > *:nth-child(5) { animation-delay: 320ms; }
+.mo-stagger > *:nth-child(6) { animation-delay: 390ms; }
+
+/* ---------- Stat card pulse when its value changes ----------
+   Uses a pseudo-element so it never fights the card's own entry animation. */
+.pp-stat-card {
+  position: relative;
+}
+@keyframes moRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(56, 189, 248, 0);
+    opacity: 0;
+  }
+}
+.mo-pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: moRing 760ms ease-out;
+}
+
+/* ---------- Payment celebration: coin drop + ripples ---------- */
+.mo-celebrate {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Ripples spread from where the coins land */
+.mo-ripple-origin {
+  position: absolute;
+  left: 50%;
+  top: 60vh;
+  width: 0;
+  height: 0;
+}
+@keyframes moRipple {
+  0% {
+    transform: scale(0.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(4.2);
+    opacity: 0;
+  }
+}
+.mo-ripple {
+  position: absolute;
+  left: -60px;
+  top: -60px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid rgba(56, 213, 255, 0.85);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.45), inset 0 0 18px rgba(74, 222, 128, 0.25);
+  opacity: 0;
+  animation: moRipple 1500ms cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+  animation-delay: calc(700ms + var(--r, 0) * 170ms);
+}
+
+/* Coins: fall with gravity, bounce once, fade into the ripple */
+@keyframes moCoinDrop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12vh, 0) rotateY(0deg) rotateZ(var(--tilt));
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  8% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 1;
+    transform: translate3d(var(--dx), 60vh, 0) rotateY(calc(var(--spin) * 0.8)) rotateZ(0deg);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  76% {
+    opacity: 1;
+    transform: translate3d(var(--dx), 54vh, 0) rotateY(var(--spin));
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+  }
+  88% {
+    opacity: 1;
+    transform: translate3d(var(--dx), 60vh, 0) rotateY(calc(var(--spin) + 90deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), 61vh, 0) rotateY(calc(var(--spin) + 90deg)) scale(0.4);
+  }
+}
+.mo-coin {
+  position: absolute;
+  top: 0;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  margin-left: calc(var(--size) / -2);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: calc(var(--size) * 0.55);
+  line-height: 1;
+  color: #7c4a03;
+  background: radial-gradient(circle at 32% 28%, #fff4b8, #fbbf24 45%, #d97706 100%);
+  border: 2px solid rgba(180, 83, 9, 0.65);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35), inset 0 -3px 5px rgba(180, 83, 9, 0.4);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: moCoinDrop var(--dur, 1400ms) linear var(--delay, 0ms) forwards;
+}
+
+/* "+₹X received" chip */
+@keyframes moChip {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(0.8);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.05);
+  }
+  24% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.98);
+  }
+}
+.mo-chip {
+  position: absolute;
+  left: 50%;
+  top: calc(60vh + 52px);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #4ade80;
+  background: rgba(9, 20, 37, 0.96);
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 22px rgba(74, 222, 128, 0.2);
+  white-space: nowrap;
+  animation: moChip 2100ms var(--mo-ease) 750ms both;
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .mo-row-enter,
+  .mo-stagger > *,
+  .mo-row-flash > td,
+  .mo-pulse::after,
+  .mo-chip {
+    animation: none !important;
+  }
+  .mo-coin,
+  .mo-ripple {
+    display: none;
+  }
+}

@@ -119,37 +119,27 @@ html[data-axs-theme]::-webkit-scrollbar-thumb:active {
   background-clip: padding-box;
 }
 
-html[data-axs-theme]::-webkit-scrollbar-corner {
-  background: transparent;
-}
+html[data-axs-theme]::-webkit-scrollbar-corner {background: transparent;}
 
 /* Page scrollbar — up / down arrow buttons */
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical {display: block;width: 14px;height: 18px;background-color: var(--sb-btn-bg);background-repeat: no-repeat;background-position: center;background-size: 11px 11px;border-left: 1px solid var(--sb-track-edge);
 }
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:decrement {
-  background-image: var(--sb-arrow-up);
-  border-bottom: 1px solid var(--sb-track-edge);
-}
+  background-image: var(--sb-arrow-up);border-bottom: 1px solid var(--sb-track-edge);}
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:increment {
-  background-image: var(--sb-arrow-down);
-  border-top: 1px solid var(--sb-track-edge);
-}
+  background-image: var(--sb-arrow-down);border-top: 1px solid var(--sb-track-edge);}
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
-  background-color: var(--sb-btn-bg-hover);
-  background-image: var(--sb-arrow-up-hover);
-}
+  background-color: var(--sb-btn-bg-hover);background-image: var(--sb-arrow-up-hover);}
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:increment:hover {
   background-color: var(--sb-btn-bg-hover);
-  background-image: var(--sb-arrow-down-hover);
-}
+  background-image: var(--sb-arrow-down-hover);}
 
 html[data-axs-theme]::-webkit-scrollbar-button:single-button:vertical:active {
-  background-color: var(--sb-btn-bg-active);
-}
+  background-color: var(--sb-btn-bg-active);}
 
 /* ---------- Inner scrollbars: tables, sidebar, dropdowns, modals, textareas ---------- */
 

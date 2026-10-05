@@ -1,12 +1,13 @@
-import { JSX, useEffect, useMemo, useRef, useState } from "react";
+import { JSX, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,FileTextOutlined,BookOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,FileTextOutlined,BookOutlined,FullscreenOutlined,FullscreenExitOutlined,DisconnectOutlined,ReloadOutlined,ThunderboltOutlined,CheckOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
-import {getStoredNotifications,NOTIFICATIONS_UPDATED_EVENT,} from "../../utils/notificationStore";
+import { getStoredNotifications, NOTIFICATIONS_UPDATED_EVENT } from "../../utils/notificationStore";
 import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
 import { fetchPendingRegistrationsApi } from "../../redux/api/registrationApprovalApi";
 import { canAccessSection, SectionKey } from "../../config/rolePermissions";
 import { useAssignmentNotifications } from "../UI/useAssignmentNotifications";
+import LanguageSwitcher from "../UI/LanguageSwitcher";
 import "./Navbar.css";
 
 type NavbarUser = {
@@ -24,9 +25,33 @@ type NavbarProps = {
   onLogout?: () => void;
 };
 
+type NotificationSource = "backend" | "generic" | "calendar";
+
+type UpcomingItem = {
+  id: string;
+  date: string;
+  title: string;
+  time?: string;
+  description?: string;
+  _source: NotificationSource;
+  _read?: boolean;
+};
+
+type PaletteItem = {
+  id: string;
+  label: string;
+  group: string;
+  icon: JSX.Element;
+  hint?: string;
+  keywords?: string;
+  path?: string;
+  run: () => void;
+};
+
+type ResultItem = PaletteItem & { indices?: number[] };
+
 const DEFAULT_ROLE = "Studio Admin";
 const DEFAULT_EMAIL = "admin@apenturexstudios.com";
-
 
 const PENDING_DELETE_POLL_INTERVAL = 30000;
 
@@ -81,27 +106,80 @@ const normalizeEvent = (event: any, date: string, index: number) => {
   };
 };
 
-const findBestPageMatch = (spoken: string, pages: typeof BASE_PAGES) => {
+/**
+ * Fuzzy matcher: substring match scores highest, otherwise an ordered
+ * subsequence match (only for queries of 2+ chars). Returns the matched
+ * character indices so the UI can highlight them.
+ */
+const fuzzyMatch = (query: string, text: string): { score: number; indices: number[] } | null => {
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return null;
+
+  const at = t.indexOf(q);
+  if (at !== -1) {
+    const indices = Array.from({ length: q.length }, (_, i) => at + i);
+    const score = 100 - at + (at === 0 ? 20 : 0) + (t.length === q.length ? 50 : 0);
+    return { score, indices };
+  }
+
+  if (q.replace(/\s/g, "").length < 2) return null;
+
+  const indices: number[] = [];
+  let cursor = 0;
+  for (const ch of q) {
+    if (ch === " ") continue;
+    const found = t.indexOf(ch, cursor);
+    if (found === -1) return null;
+    indices.push(found);
+    cursor = found + 1;
+  }
+
+  return { score: 40 - (indices[indices.length - 1] - indices[0]), indices };
+};
+
+const findBestMatch = (spoken: string, items: PaletteItem[]) => {
   const query = spoken.trim().toLowerCase();
   if (!query) return null;
 
-  const exact = pages.find((page) => page.label.toLowerCase() === query);
+  const exact = items.find((item) => item.label.toLowerCase() === query);
   if (exact) return exact;
 
-  const contains = pages.find(
-    (page) =>
-      query.includes(page.label.toLowerCase()) || page.label.toLowerCase().includes(query)
+  const contains = items.find(
+    (item) =>
+      query.includes(item.label.toLowerCase()) ||
+      item.label.toLowerCase().includes(query) ||
+      (item.keywords ? item.keywords.toLowerCase().split(/\s+/).some((word) => word.length > 3 && query.includes(word)) : false)
   );
   if (contains) return contains;
 
-  const wordOverlap = pages.find((page) =>
-    page.label
-      .toLowerCase()
-      .split(/\s+/)
-      .some((word) => query.includes(word))
+  return (
+    items.find((item) =>
+      item.label
+        .toLowerCase()
+        .split(/\s+/)
+        .some((word) => word.length > 2 && query.includes(word))
+    ) || null
   );
+};
 
-  return wordOverlap || null;
+const Highlight = ({ text, indices }: { text: string; indices?: number[] }) => {
+  if (!indices || indices.length === 0) return <>{text}</>;
+  const marked = new Set(indices);
+
+  return (
+    <>
+      {text.split("").map((char, index) =>
+        marked.has(index) ? (
+          <mark key={index} className="command-mark">
+            {char}
+          </mark>
+        ) : (
+          <span key={index}>{char}</span>
+        )
+      )}
+    </>
+  );
 };
 
 function Navbar({
@@ -150,9 +228,8 @@ function Navbar({
   const [events, setEvents] = useState(getSavedEvents);
   const [genericNotifications, setGenericNotifications] = useState(getStoredNotifications);
 
-  // --- Backend-driven assignment notifications (the ones TeamAssignmentPage
-  // actually POSTs to /studio/notifications). Previously nothing in the app
-  // ever read these back — this hook is the fix for that gap. ---
+  // Backend-driven assignment notifications (the ones TeamAssignmentPage
+  // actually POSTs to /studio/notifications).
   const {
     notifications: backendNotifications,
     refresh: refreshBackendNotifications,
@@ -162,11 +239,13 @@ function Navbar({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [upcomingEventsOpen, setUpcomingEventsOpen] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const paletteInputRef = useRef(null);
+  const paletteInputRef = useRef<HTMLInputElement | null>(null);
+  const lastFocusRef = useRef<HTMLElement | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const pendingApprovalsRef = useRef<HTMLDivElement | null>(null);
@@ -174,10 +253,18 @@ function Navbar({
   const [isListening, setIsListening] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const recognitionRef = useRef<any>(null);
+  const voiceItemsRef = useRef<PaletteItem[]>([]);
 
   const [pendingDeleteUsers, setPendingDeleteUsers] = useState<any[]>([]);
   const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
   const [pendingApprovalsOpen, setPendingApprovalsOpen] = useState(false);
+
+  const [now, setNow] = useState(dayjs());
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   const pendingApprovalsTotal = pendingDeleteUsers.length + pendingRegistrations.length;
 
@@ -195,22 +282,20 @@ function Navbar({
     return list;
   }, [miniMonth]);
 
-  const upcomingEvents = useMemo(() => {
-    // Backend assignment notifications first — these are the ones a
-    // photographer needs to see (event assignments). Not date-filtered:
-    // filtering these the same way as calendar/generic entries was part of
-    // why assignments silently disappeared (timezone/date-key mismatches).
-    const fromBackend = backendNotifications.map((n) => ({
+  const upcomingEvents = useMemo<UpcomingItem[]>(() => {
+    // Backend assignment notifications first — not date-filtered, since
+    // filtering them like calendar entries made assignments silently vanish.
+    const fromBackend: UpcomingItem[] = backendNotifications.map((n: any) => ({
       id: n.id,
       date: n.date,
       title: n.title,
       time: n.time || "",
       description: n.description,
-      _source: "backend" as const,
+      _source: "backend",
       _read: n.read,
     }));
 
-    const fromCalendar = Object.entries(events)
+    const fromCalendar: UpcomingItem[] = Object.entries(events)
       .filter(([date]) => {
         const eventDate = dayjs(date);
         return eventDate.isSame(dayjs(), "day") || eventDate.isAfter(dayjs(), "day");
@@ -224,12 +309,12 @@ function Navbar({
         }));
       });
 
-    const fromGeneric = genericNotifications
-      .filter((item) => {
+    const fromGeneric: UpcomingItem[] = genericNotifications
+      .filter((item: any) => {
         const itemDate = dayjs(item.date);
         return itemDate.isSame(dayjs(), "day") || itemDate.isAfter(dayjs(), "day");
       })
-      .map((item) => ({
+      .map((item: any) => ({
         id: item.id,
         date: item.date,
         title: item.title,
@@ -241,11 +326,12 @@ function Navbar({
     return [...fromBackend, ...fromGeneric, ...fromCalendar];
   }, [events, genericNotifications, backendNotifications]);
 
-  const filteredPages = useMemo(() => {
-    const query = paletteQuery.trim().toLowerCase();
-    if (!query) return PAGES;
-    return PAGES.filter((page) => page.label.toLowerCase().includes(query));
-  }, [paletteQuery, PAGES]);
+  const unreadItems = useMemo(
+    () => upcomingEvents.filter((item) => item._source === "backend" && item._read === false),
+    [upcomingEvents]
+  );
+  const unreadCount = unreadItems.length;
+  const visibleNotifications = notifFilter === "unread" ? unreadItems : upcomingEvents;
 
   const refreshEvents = () => {
     setEvents(getSavedEvents());
@@ -277,10 +363,15 @@ function Navbar({
 
   const openUpcomingEvents = () => {
     refreshEvents();
+    setNotifFilter("all");
     setUpcomingEventsOpen(true);
     setMiniCalendarOpen(false);
     setUserMenuOpen(false);
     setPendingApprovalsOpen(false);
+  };
+
+  const markAllNotificationsRead = () => {
+    unreadItems.forEach((item) => markBackendNotificationRead(item.id));
   };
 
   const openFullCalendar = () => {
@@ -333,6 +424,14 @@ function Navbar({
     navigate("/", { replace: true });
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
   const openPalette = () => {
     setPaletteQuery("");
     setActiveIndex(0);
@@ -351,18 +450,140 @@ function Navbar({
     setVoiceStatus("");
   };
 
-  const goToPage = (path) => {
-    closePalette();
-    navigate(path);
-  };
-
-  const openNotificationDetail = (eventId: string, source?: "backend" | "generic" | "calendar") => {
+  const openNotificationDetail = (eventId: string, source?: NotificationSource) => {
     setUpcomingEventsOpen(false);
     if (source === "backend") {
       markBackendNotificationRead(eventId);
     }
     navigate(`/notification/${eventId}`);
   };
+
+  /* ---------------- Command palette data ---------------- */
+
+  const pageItems: PaletteItem[] = PAGES.map((page) => ({
+    id: `page:${page.path}`,
+    label: page.label,
+    group: page.group,
+    icon: page.icon,
+    path: page.path,
+    run: () => navigate(page.path),
+  }));
+
+  const actionItems: PaletteItem[] = [
+    {
+      id: "action:theme",
+      label: darkMode ? "Switch to light mode" : "Switch to dark mode",
+      group: "Actions",
+      icon: darkMode ? <SunOutlined /> : <MoonOutlined />,
+      keywords: "theme dark light mode appearance toggle",
+      run: onToggleTheme,
+    },
+    {
+      id: "action:calendar",
+      label: "Open full calendar",
+      group: "Actions",
+      icon: <CalendarOutlined />,
+      keywords: "calendar schedule month",
+      run: openFullCalendar,
+    },
+    {
+      id: "action:notifications",
+      label: "View notifications",
+      group: "Actions",
+      icon: <BellOutlined />,
+      keywords: "alerts assignments inbox bell",
+      run: openUpcomingEvents,
+    },
+    {
+      id: "action:refresh",
+      label: "Refresh notifications",
+      group: "Actions",
+      icon: <ReloadOutlined />,
+      keywords: "reload sync update",
+      run: refreshEvents,
+    },
+    {
+      id: "action:tour",
+      label: "Start studio tour",
+      group: "Actions",
+      icon: <CompassOutlined />,
+      keywords: "guide help walkthrough onboarding",
+      run: startTour,
+    },
+    {
+      id: "action:fullscreen",
+      label: isFullscreen ? "Exit fullscreen" : "Enter fullscreen",
+      group: "Actions",
+      icon: isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />,
+      keywords: "full screen maximize",
+      run: toggleFullscreen,
+    },
+    {
+      id: "action:profile",
+      label: "Open profile",
+      group: "Account",
+      icon: <ProfileOutlined />,
+      keywords: "account me user",
+      run: openProfileModal,
+    },
+    {
+      id: "action:notification-settings",
+      label: "Notification settings",
+      group: "Account",
+      icon: <SettingOutlined />,
+      keywords: "preferences alerts",
+      run: openNotificationSettings,
+    },
+    {
+      id: "action:logout",
+      label: "Log out",
+      group: "Account",
+      icon: <LogoutOutlined />,
+      keywords: "sign out exit",
+      run: handleLogout,
+    },
+  ];
+
+  voiceItemsRef.current = [...pageItems, ...actionItems];
+
+  const paletteQueryTrimmed = paletteQuery.trim();
+
+  const results: ResultItem[] = (() => {
+    if (!paletteQueryTrimmed) {
+      return [...pageItems, ...actionItems];
+    }
+
+    const notificationItems: PaletteItem[] = upcomingEvents.slice(0, 25).map((event) => ({
+      id: `notif:${event._source}:${event.id}`,
+      label: event.title,
+      group: "Notifications",
+      icon: <BellOutlined />,
+      hint: `${dayjs(event.date).format("DD MMM")}${event.time ? ` · ${event.time}` : ""}`,
+      run: () => openNotificationDetail(event.id, event._source),
+    }));
+
+    const scored: Array<{ item: ResultItem; score: number; order: number }> = [];
+
+    [...pageItems, ...actionItems, ...notificationItems].forEach((item, order) => {
+      const match = fuzzyMatch(paletteQueryTrimmed, item.label);
+
+      if (match) {
+        scored.push({ item: { ...item, indices: match.indices }, score: match.score, order });
+      } else if (item.keywords?.toLowerCase().includes(paletteQueryTrimmed.toLowerCase())) {
+        scored.push({ item, score: 30, order });
+      }
+    });
+
+    scored.sort((a, b) => b.score - a.score || a.order - b.order);
+    return scored.map((entry) => entry.item);
+  })();
+
+  const runItem = (item: PaletteItem) => {
+    closePalette();
+    item.run();
+  };
+
+  /* ---------------- Voice search ---------------- */
 
   const startVoiceSearch = () => {
     const SpeechRecognitionCtor =
@@ -390,13 +611,13 @@ function Navbar({
       setPaletteQuery(transcript);
 
       if (isFinal) {
-        const match = findBestPageMatch(transcript, PAGES);
+        const match = findBestMatch(transcript, voiceItemsRef.current);
 
         if (match) {
-          setVoiceStatus(`Heard "${transcript.trim()}" — opening ${match.label}…`);
-          goToPage(match.path);
+          setVoiceStatus(`Heard "${transcript.trim()}" — ${match.label}…`);
+          runItem(match);
         } else {
-          setVoiceStatus(`Heard "${transcript.trim()}" — no matching page found.`);
+          setVoiceStatus(`Heard "${transcript.trim()}" — no matching page or action found.`);
         }
       }
     };
@@ -426,6 +647,8 @@ function Navbar({
       startVoiceSearch();
     }
   };
+
+  /* ---------------- Effects ---------------- */
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -473,7 +696,7 @@ function Navbar({
         const users = await fetchPendingDeleteRequestsApi();
         if (!cancelled) setPendingDeleteUsers(users || []);
       } catch {
-
+        // ignore polling errors
       }
     };
 
@@ -486,7 +709,6 @@ function Navbar({
     };
   }, [user?.role]);
 
-  
   useEffect(() => {
     if (user?.role !== "super_admin") {
       setPendingRegistrations([]);
@@ -500,7 +722,7 @@ function Navbar({
         const registrations = await fetchPendingRegistrationsApi();
         if (!cancelled) setPendingRegistrations(registrations || []);
       } catch {
-    
+        // ignore polling errors
       }
     };
 
@@ -513,8 +735,9 @@ function Navbar({
     };
   }, [user?.role]);
 
+  // Global shortcuts: Ctrl/Cmd + K toggles the palette, "/" opens it, Esc closes things.
   useEffect(() => {
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
 
       if (isShortcut) {
@@ -529,18 +752,44 @@ function Navbar({
         return;
       }
 
-      if (event.key === "Escape" && paletteOpen) {
-        closePalette();
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && !paletteOpen) {
+        const target = event.target as HTMLElement | null;
+        const tag = target?.tagName;
+        const isTyping =
+          tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable;
+
+        if (!isTyping) {
+          event.preventDefault();
+          openPalette();
+        }
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (paletteOpen) {
+          closePalette();
+        } else if (upcomingEventsOpen) {
+          setUpcomingEventsOpen(false);
+        } else {
+          setMiniCalendarOpen(false);
+          setUserMenuOpen(false);
+          setPendingApprovalsOpen(false);
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [paletteOpen]);
+  }, [paletteOpen, upcomingEventsOpen]);
 
+  // Focus the input on open, restore focus to whatever opened the palette on close.
   useEffect(() => {
-    if (paletteOpen && paletteInputRef.current) {
-      paletteInputRef.current.focus();
+    if (paletteOpen) {
+      lastFocusRef.current = document.activeElement as HTMLElement | null;
+      paletteInputRef.current?.focus();
+    } else {
+      lastFocusRef.current?.focus?.();
+      lastFocusRef.current = null;
     }
   }, [paletteOpen]);
 
@@ -548,32 +797,117 @@ function Navbar({
     setActiveIndex(0);
   }, [paletteQuery]);
 
-  
+  // Keep the highlighted result visible while arrowing through the list.
+  useEffect(() => {
+    if (!paletteOpen) return;
+    document.getElementById(`cmd-opt-${activeIndex}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, paletteOpen]);
+
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop?.();
     };
   }, []);
 
-  const handlePaletteKeyDown = (event) => {
+  // Live clock
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(dayjs()), 30000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  // Online / offline indicator
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      refreshBackendNotifications();
+    };
+    const goOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Fullscreen state
+  useEffect(() => {
+    const handleChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
+  }, []);
+
+  // Compact navbar once the page scrolls
+  useEffect(() => {
+    let ticking = false;
+
+    const update = () => {
+      const next = window.scrollY > 8;
+      setScrolled((previous) => (previous === next ? previous : next));
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(update);
+      }
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const handlePaletteKeyDown = (event: ReactKeyboardEvent) => {
+    const total = Math.max(results.length, 1);
+
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((current) => (current + 1) % Math.max(filteredPages.length, 1));
+      setActiveIndex((current) => (current + 1) % total);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((current) =>
-        (current - 1 + filteredPages.length) % Math.max(filteredPages.length, 1)
-      );
+      setActiveIndex((current) => (current - 1 + total) % total);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setActiveIndex(total - 1);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const selected = filteredPages[activeIndex];
-      if (selected) goToPage(selected.path);
+      const selected = results[activeIndex];
+      if (selected) runItem(selected);
+    }
+  };
+
+  // Keep Tab focus inside the palette (input, mic, close).
+  const handlePaletteTrap = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+
+    const focusable = event.currentTarget.querySelectorAll<HTMLElement>("[data-trap]");
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   };
 
   return (
     <>
-      <header className={`top-navbar ${darkMode ? "navbar-dark" : "navbar-light"}`}>
+      <header
+        className={`top-navbar ${darkMode ? "navbar-dark" : "navbar-light"} ${
+          scrolled ? "is-scrolled" : ""
+        }`}
+      >
         <div className="navbar-left">
           <button
             type="button"
@@ -603,14 +937,30 @@ function Navbar({
             onClick={openPalette}
             data-tour-id="nav-menu"
             aria-label="Search or jump to a page"
+            aria-haspopup="dialog"
+            aria-keyshortcuts="Control+K"
           >
             <SearchOutlined className="command-trigger-icon" />
             <span className="command-trigger-text">Search or jump to…</span>
-            <span className="command-trigger-kbd">⌘K</span>
+            <span className="command-trigger-kbd" aria-hidden="true">Ctrl K</span>
           </button>
         </div>
 
         <div className="navbar-actions">
+          {!isOnline && (
+            <span className="nav-offline" role="status">
+              <DisconnectOutlined />
+              <span className="nav-offline-text">Offline</span>
+            </span>
+          )}
+
+          <time className="nav-clock" dateTime={now.toISOString()}>
+            <strong>{now.format("hh:mm A")}</strong>
+            <small>{now.format("ddd, DD MMM")}</small>
+          </time>
+
+          <LanguageSwitcher />
+
           <button
             type="button"
             className="nav-icon-button tour-button"
@@ -639,6 +989,7 @@ function Navbar({
               className={`nav-icon-button ${miniCalendarOpen ? "active" : ""}`}
               onClick={toggleMiniCalendar}
               aria-label="Open calendar"
+              aria-expanded={miniCalendarOpen}
               data-tour-id="nav-calendar"
             >
               <CalendarOutlined />
@@ -651,6 +1002,7 @@ function Navbar({
                   <button
                     type="button"
                     className="mini-calendar-nav"
+                    aria-label="Previous month"
                     onClick={() => setMiniMonth((current) => current.subtract(1, "month"))}
                   >
                     <LeftOutlined />
@@ -664,6 +1016,7 @@ function Navbar({
                   <button
                     type="button"
                     className="mini-calendar-nav"
+                    aria-label="Next month"
                     onClick={() => setMiniMonth((current) => current.add(1, "month"))}
                   >
                     <RightOutlined />
@@ -725,6 +1078,7 @@ function Navbar({
                 className={`nav-icon-button ${pendingApprovalsOpen ? "active" : ""}`}
                 onClick={togglePendingApprovals}
                 aria-label="Pending approvals"
+                aria-expanded={pendingApprovalsOpen}
                 data-tour-id="nav-pending-approvals"
               >
                 <ExclamationCircleOutlined />
@@ -818,9 +1172,15 @@ function Navbar({
 
           <button
             type="button"
-            className="nav-icon-button notification-button"
+            className={`nav-icon-button notification-button ${unreadCount > 0 ? "has-unread" : ""}`}
             onClick={openUpcomingEvents}
-            aria-label="Open notifications"
+            aria-label={
+              upcomingEvents.length > 0
+                ? `Open notifications, ${upcomingEvents.length} total${
+                    unreadCount > 0 ? `, ${unreadCount} unread` : ""
+                  }`
+                : "Open notifications"
+            }
             data-tour-id="nav-notifications"
           >
             <BellOutlined />
@@ -836,6 +1196,17 @@ function Navbar({
                 ? `${upcomingEvents.length} Notification${upcomingEvents.length === 1 ? "" : "s"}`
                 : "Notifications"}
             </span>
+          </button>
+
+          <button
+            type="button"
+            className="nav-icon-button nav-fullscreen"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            aria-pressed={isFullscreen}
+          >
+            {isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+            <span className="nav-tooltip">{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
           </button>
 
           <button
@@ -859,6 +1230,8 @@ function Navbar({
                 setPendingApprovalsOpen(false);
               }}
               aria-label="Open profile menu"
+              aria-expanded={userMenuOpen}
+              aria-haspopup="menu"
             >
               <span className="nav-user-avatar">{displayName.charAt(0)}</span>
 
@@ -872,18 +1245,18 @@ function Navbar({
             </button>
 
             {userMenuOpen && (
-              <div className="nav-user-dropdown">
-                <button type="button" onClick={openProfileModal}>
+              <div className="nav-user-dropdown" role="menu">
+                <button type="button" role="menuitem" onClick={openProfileModal}>
                   <ProfileOutlined />
                   Profile
                 </button>
 
-                <button type="button" onClick={openNotificationSettings}>
+                <button type="button" role="menuitem" onClick={openNotificationSettings}>
                   <SettingOutlined />
                   Notification Settings
                 </button>
 
-                <button type="button" className="logout-option" onClick={handleLogout}>
+                <button type="button" role="menuitem" className="logout-option" onClick={handleLogout}>
                   <LogoutOutlined />
                   Logout
                 </button>
@@ -895,21 +1268,35 @@ function Navbar({
 
       {paletteOpen && (
         <div className="command-overlay" onClick={closePalette}>
-          <div className="command-palette" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="command-palette"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handlePaletteTrap}
+          >
             <div className="command-input-row">
               <SearchOutlined className="command-input-icon" />
               <input
                 ref={paletteInputRef}
+                data-trap
                 type="text"
                 className="command-input"
-                placeholder="Search pages, or tap the mic and say a page name…"
+                placeholder="Search pages, actions, notifications — or tap the mic…"
                 value={paletteQuery}
                 onChange={(event) => setPaletteQuery(event.target.value)}
                 onKeyDown={handlePaletteKeyDown}
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="cmd-listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={results[activeIndex] ? `cmd-opt-${activeIndex}` : undefined}
               />
 
               <button
                 type="button"
+                data-trap
                 className={`command-mic-button ${isListening ? "listening" : ""}`}
                 onClick={handleMicClick}
                 aria-label={isListening ? "Stop voice search" : "Start voice search"}
@@ -917,45 +1304,62 @@ function Navbar({
                 {isListening ? <AudioMutedOutlined /> : <AudioOutlined />}
               </button>
 
-              <button type="button" className="command-close" onClick={closePalette}>
+              <button type="button" data-trap className="command-close" onClick={closePalette} aria-label="Close search">
                 <CloseOutlined />
               </button>
             </div>
 
-            {voiceStatus && <div className="command-voice-status">{voiceStatus}</div>}
+            <div className="command-voice-status" role="status" aria-live="polite" hidden={!voiceStatus}>
+              {voiceStatus}
+            </div>
 
-            <div className="command-results">
-              {filteredPages.length > 0 ? (
-                filteredPages.map((page, index) => {
-                  const isActive = location.pathname === page.path;
+            <div className="command-results" id="cmd-listbox" role="listbox" aria-label="Results">
+              {results.length > 0 ? (
+                results.map((item, index) => {
+                  const isActive = Boolean(item.path) && location.pathname === item.path;
                   const isHighlighted = index === activeIndex;
+                  const showGroup = !paletteQueryTrimmed && item.group !== results[index - 1]?.group;
 
                   return (
-                    <button
-                      type="button"
-                      key={page.path}
-                      className={`command-item ${isHighlighted ? "highlighted" : ""} ${
-                        isActive ? "current" : ""
-                      }`}
-                      onMouseEnter={() => setActiveIndex(index)}
-                      onClick={() => goToPage(page.path)}
-                    >
-                      <span className="command-item-icon">{page.icon}</span>
-
-                      <span className="command-item-text">
-                        <strong>{page.label}</strong>
-                        <small>{page.group}</small>
-                      </span>
-
-                      {isActive && <span className="command-item-current">Current</span>}
-                      {isHighlighted && !isActive && (
-                        <EnterOutlined className="command-item-enter" />
+                    <div key={item.id} className="command-row">
+                      {showGroup && (
+                        <div className="command-group-label" role="presentation">
+                          {item.group === "Actions" && <ThunderboltOutlined />}
+                          {item.group}
+                        </div>
                       )}
-                    </button>
+
+                      <button
+                        type="button"
+                        id={`cmd-opt-${index}`}
+                        role="option"
+                        aria-selected={isHighlighted}
+                        tabIndex={-1}
+                        className={`command-item ${isHighlighted ? "highlighted" : ""} ${
+                          isActive ? "current" : ""
+                        }`}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => runItem(item)}
+                      >
+                        <span className="command-item-icon">{item.icon}</span>
+
+                        <span className="command-item-text">
+                          <strong>
+                            <Highlight text={item.label} indices={item.indices} />
+                          </strong>
+                          <small>{paletteQueryTrimmed ? `${item.group}${item.hint ? ` · ${item.hint}` : ""}` : item.hint || item.group}</small>
+                        </span>
+
+                        {isActive && <span className="command-item-current">Current</span>}
+                        {isHighlighted && !isActive && (
+                          <EnterOutlined className="command-item-enter" />
+                        )}
+                      </button>
+                    </div>
                   );
                 })
               ) : (
-                <div className="command-empty">No pages match "{paletteQuery}".</div>
+                <div className="command-empty">No results for "{paletteQuery}".</div>
               )}
             </div>
 
@@ -968,6 +1372,9 @@ function Navbar({
               </span>
               <span>
                 <span className="command-key">esc</span> close
+              </span>
+              <span className="command-footer-end">
+                <span className="command-key">Ctrl K</span> toggle
               </span>
             </div>
           </div>
@@ -983,7 +1390,7 @@ function Navbar({
             <div className="nav-modal-head">
               <h3>Profile</h3>
 
-              <button type="button" onClick={() => setProfileModalOpen(false)}>
+              <button type="button" onClick={() => setProfileModalOpen(false)} aria-label="Close profile">
                 <CloseOutlined />
               </button>
             </div>
@@ -1023,21 +1430,58 @@ function Navbar({
           className="nav-modal-overlay"
           onMouseDown={() => setUpcomingEventsOpen(false)}
         >
-          <div className="nav-modal" onMouseDown={(event) => event.stopPropagation()}>
+          <div
+            className="nav-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notif-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="nav-modal-head">
-              <h3>Notification</h3>
+              <h3 id="notif-modal-title">Notifications</h3>
 
-              <button type="button" onClick={() => setUpcomingEventsOpen(false)}>
+              <button type="button" onClick={() => setUpcomingEventsOpen(false)} aria-label="Close notifications">
                 <CloseOutlined />
               </button>
             </div>
 
-            {upcomingEvents.length > 0 ? (
+            {upcomingEvents.length > 0 && (
+              <div className="notif-toolbar">
+                <div className="notif-tabs" role="tablist" aria-label="Notification filter">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={notifFilter === "all"}
+                    className={`notif-tab ${notifFilter === "all" ? "active" : ""}`}
+                    onClick={() => setNotifFilter("all")}
+                  >
+                    All <span>{upcomingEvents.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={notifFilter === "unread"}
+                    className={`notif-tab ${notifFilter === "unread" ? "active" : ""}`}
+                    onClick={() => setNotifFilter("unread")}
+                  >
+                    Unread <span>{unreadCount}</span>
+                  </button>
+                </div>
+
+                {unreadCount > 0 && (
+                  <button type="button" className="notif-markall" onClick={markAllNotificationsRead}>
+                    <CheckOutlined /> Mark all read
+                  </button>
+                )}
+              </div>
+            )}
+
+            {visibleNotifications.length > 0 ? (
               <div className="upcoming-events-list">
-                {upcomingEvents.map((event: any) => (
+                {visibleNotifications.map((event) => (
                   <div
                     className={`upcoming-event-card ${event._source === "backend" && event._read === false ? "is-unread" : ""}`}
-                    key={event.id}
+                    key={`${event._source}-${event.id}`}
                     role="button"
                     tabIndex={0}
                     onClick={() => openNotificationDetail(event.id, event._source)}
@@ -1067,9 +1511,13 @@ function Navbar({
               </div>
             ) : (
               <div className="empty-events">
-                <CalendarOutlined />
-                <h4>No upcoming events</h4>
-                <p>Your calendar events will appear here.</p>
+                {notifFilter === "unread" ? <CheckOutlined /> : <CalendarOutlined />}
+                <h4>{notifFilter === "unread" ? "You're all caught up" : "No upcoming events"}</h4>
+                <p>
+                  {notifFilter === "unread"
+                    ? "New assignments will show up here."
+                    : "Your calendar events will appear here."}
+                </p>
               </div>
             )}
           </div>

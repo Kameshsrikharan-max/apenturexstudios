@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Tooltip,Popover,Select,DatePicker,Empty,Badge,message,Dropdown,} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
 import {SearchOutlined,ReloadOutlined,FilterOutlined,EyeOutlined,DownloadOutlined,MoreOutlined,WalletOutlined,CheckCircleOutlined,ClockCircleOutlined,RollbackOutlined,CalendarOutlined,CreditCardOutlined,MobileOutlined,BankOutlined,SwapOutlined,CloseOutlined,ExportOutlined,DollarCircleOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
+import AnimatedAmount from "../../../components/UI/AnimatedNumber";
 import rootReducer from "../../../redux/rootReducer";
 import {fetchTransactionsRequest,refundTransactionRequest,exportTransactionsRequest,resetTransactionError,} from "../../../redux/actions/transactionActions";
 import type {StoredTransaction,TransactionStatus,PaymentMethod,} from "../../../redux/types/transactiontypes";
 import { TRANSACTIONS_UPDATED_EVENT } from "../../../utils/transactionStore";
 import { scanAndNotifyPaymentsDue } from "../../../components/UI/notificationTriggers";
 import "./Transactionpage.css";
+import "../../../components/UI/motion.css";
 
 type RootState = ReturnType<typeof rootReducer>;
 
@@ -67,6 +69,9 @@ const formatDisplayDate = (raw: string): string => {
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Stagger delay (ms) for a table row's count-up, matching the 55ms CSS stagger.
+const rowCountDelay = (index: number) => Math.min(index, 12) * 55 + 150;
 
 interface CustomModalProps {
   open: boolean;
@@ -397,7 +402,11 @@ const TransactionPage = () => {
       key: "totalAmount",
       width: 110,
       align: "right",
-      render: (value: number) => <span className="tx-soft-cell">{formatINR(value)}</span>,
+      render: (value: number, _record, index) => (
+        <span className="tx-soft-cell">
+          <AnimatedAmount value={value} format={formatINR} duration={800} delay={rowCountDelay(index)} />
+        </span>
+      ),
     },
     {
       title: "Amount Paid",
@@ -405,7 +414,11 @@ const TransactionPage = () => {
       key: "amountPaid",
       width: 110,
       align: "right",
-      render: (value: number) => <span className="tx-cell-paid">{formatINR(value)}</span>,
+      render: (value: number, _record, index) => (
+        <span className="tx-cell-paid">
+          <AnimatedAmount value={value} format={formatINR} duration={800} delay={rowCountDelay(index)} />
+        </span>
+      ),
     },
     {
       title: "Balance",
@@ -413,9 +426,11 @@ const TransactionPage = () => {
       key: "balanceAmount",
       width: 100,
       align: "right",
-      render: (value: number) =>
+      render: (value: number, _record, index) =>
         value > 0 ? (
-          <span className="tx-cell-balance">{formatINR(value)}</span>
+          <span className="tx-cell-balance">
+            <AnimatedAmount value={value} format={formatINR} duration={800} delay={rowCountDelay(index)} />
+          </span>
         ) : (
           <span className="tx-soft-cell tx-muted">—</span>
         ),
@@ -464,14 +479,16 @@ const TransactionPage = () => {
                     </Text>
                   </div>
 
-                  <div className="tx-summary-grid">
+                  <div className="tx-summary-grid mo-stagger">
                     <div className="tx-summary-card tx-summary-total">
                       <span className="tx-summary-icon">
                         <WalletOutlined />
                       </span>
                       <div>
                         <small>Total Payments</small>
-                        <strong>{formatINR(totals.total)}</strong>
+                        <strong>
+                          <AnimatedAmount value={totals.total} format={formatINR} duration={1100} />
+                        </strong>
                       </div>
                     </div>
                     <div className="tx-summary-card tx-summary-success">
@@ -480,7 +497,9 @@ const TransactionPage = () => {
                       </span>
                       <div>
                         <small>Successful</small>
-                        <strong>{formatINR(totals.successful)}</strong>
+                        <strong>
+                          <AnimatedAmount value={totals.successful} format={formatINR} duration={1100} />
+                        </strong>
                       </div>
                     </div>
                     <div className="tx-summary-card tx-summary-pending">
@@ -489,7 +508,9 @@ const TransactionPage = () => {
                       </span>
                       <div>
                         <small>Pending</small>
-                        <strong>{formatINR(totals.pending)}</strong>
+                        <strong>
+                          <AnimatedAmount value={totals.pending} format={formatINR} duration={1100} />
+                        </strong>
                       </div>
                     </div>
                     <div className="tx-summary-card tx-summary-refund">
@@ -498,13 +519,15 @@ const TransactionPage = () => {
                       </span>
                       <div>
                         <small>Refunded</small>
-                        <strong>{formatINR(totals.refunded)}</strong>
+                        <strong>
+                          <AnimatedAmount value={totals.refunded} format={formatINR} duration={1100} />
+                        </strong>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="smart-filter-row">
+                <div className="smart-filter-row mo-stagger">
                   {statusOptions.map((status) => (
                     <Tooltip title={status} key={status}>
                       <button
@@ -576,6 +599,10 @@ const TransactionPage = () => {
                     rowKey="id"
                     tableLayout="fixed"
                     loading={isLoading}
+                    onRow={(_record, index) => ({
+                      className: "mo-row-enter",
+                      style: { "--i": Math.min(index ?? 0, 12) } as CSSProperties,
+                    })}
                     locale={{
                       emptyText: (
                         <Empty
@@ -612,7 +639,7 @@ const TransactionPage = () => {
                 <Title level={3}>{viewTransaction.eventName}</Title>
               </div>
 
-              <div className="tx-view-grid">
+              <div className="tx-view-grid mo-stagger">
                 <div className="tx-view-item">
                   <small>Client</small>
                   <strong>{viewTransaction.clientName}</strong>
@@ -633,15 +660,21 @@ const TransactionPage = () => {
                 </div>
                 <div className="tx-view-item">
                   <small>Total Amount</small>
-                  <strong>{formatINR(viewTransaction.totalAmount)}</strong>
+                  <strong>
+                    <AnimatedAmount value={viewTransaction.totalAmount} format={formatINR} duration={800} />
+                  </strong>
                 </div>
                 <div className="tx-view-item">
                   <small>Amount Paid</small>
-                  <strong className="tx-cell-paid">{formatINR(viewTransaction.amountPaid)}</strong>
+                  <strong className="tx-cell-paid">
+                    <AnimatedAmount value={viewTransaction.amountPaid} format={formatINR} duration={800} delay={80} />
+                  </strong>
                 </div>
                 <div className="tx-view-item tx-view-item-full">
                   <small>Balance Amount</small>
-                  <strong className="tx-cell-balance">{formatINR(viewTransaction.balanceAmount)}</strong>
+                  <strong className="tx-cell-balance">
+                    <AnimatedAmount value={viewTransaction.balanceAmount} format={formatINR} duration={800} delay={160} />
+                  </strong>
                 </div>
               </div>
 

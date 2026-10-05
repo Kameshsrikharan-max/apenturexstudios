@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useId } from "react";
+import { useState, useCallback, useEffect, useRef, useId, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -11,6 +11,9 @@ import {
   DownOutlined,
 } from "@ant-design/icons";
 import "./PaymentPage.css";
+import "../../../components/UI/motion.css";
+import AnimatedAmount from "../../../components/UI/AnimatedNumber";
+import PaymentCelebration from "../../../components/UI/PaymentCelebration";
 import {
   upsertTransaction,
   type PaymentMethod,
@@ -89,6 +92,13 @@ function stripCommas(value) {
   return String(value).replace(/,/g, "");
 }
 
+// ─── Motion helper: staggered row entry (+ optional "just added" flash) ───
+
+const rowMotion = (index: number, flash = false) => ({
+  className: `mo-row-enter${flash ? " mo-row-flash" : ""}`,
+  style: { "--i": Math.min(index, 12) } as CSSProperties,
+});
+
 // ─── Shared UI atoms ───
 
 function EmptyState({ message, action }: { message: string; action?: React.ReactNode }) {
@@ -101,11 +111,41 @@ function EmptyState({ message, action }: { message: string; action?: React.React
   );
 }
 
-function StatCard({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+// Pass `amount` (number) for a count-up value, or `value` (string) for static text.
+function StatCard({
+  label,
+  value,
+  amount,
+  color,
+  sub,
+}: {
+  label: string;
+  value?: string;
+  amount?: number;
+  color?: string;
+  sub?: string;
+}) {
+  const [pulse, setPulse] = useState(false);
+  const prevAmount = useRef<number | undefined>(amount);
+
+  // Ring pulse whenever the number changes after first render (e.g. payment recorded)
+  useEffect(() => {
+    if (amount === undefined) return;
+    if (prevAmount.current !== undefined && prevAmount.current !== amount) {
+      prevAmount.current = amount;
+      setPulse(true);
+      const timer = window.setTimeout(() => setPulse(false), 800);
+      return () => window.clearTimeout(timer);
+    }
+    prevAmount.current = amount;
+  }, [amount]);
+
   return (
-    <div className="pp-stat-card">
+    <div className={`pp-stat-card${pulse ? " mo-pulse" : ""}`}>
       <span className="pp-stat-label">{label}</span>
-      <span className={`pp-stat-val ${color || ""}`}>{value}</span>
+      <span className={`pp-stat-val ${color || ""}`}>
+        {amount !== undefined ? <AnimatedAmount value={amount} /> : value}
+      </span>
       {sub && <span className="pp-stat-sub">{sub}</span>}
     </div>
   );
@@ -579,7 +619,7 @@ function RecordPaymentModal({
 }
 
 
-function FinancialOverviewTab({ payments, expenses, eventAmount }) {
+function FinancialOverviewTab({ payments, expenses, eventAmount, highlightId }) {
   const totalReceived = payments
     .filter(p => p.status === "Received")
     .reduce((s, p) => s + Number(stripCommas(String(p.amount))), 0);
@@ -589,24 +629,24 @@ function FinancialOverviewTab({ payments, expenses, eventAmount }) {
 
   return (
     <div className="pp-tab-content">
-      <div className="pp-stat-row">
+      <div className="pp-stat-row mo-stagger">
         <StatCard
           label="EVENT AMOUNT"
-          value={`₹${eventAmount.toLocaleString("en-IN")}`}
+          amount={eventAmount}
         />
         <StatCard
           label="TOTAL RECEIVED"
-          value={`₹${totalReceived.toLocaleString("en-IN")}`}
+          amount={totalReceived}
           color="pp-green"
         />
         <StatCard
           label="BALANCE DUE"
-          value={`₹${balanceDue.toLocaleString("en-IN")}`}
+          amount={balanceDue}
           color={balanceDue > 0 ? "pp-red" : "pp-green"}
         />
         <StatCard
           label="AMOUNT REMAINING"
-          value={`₹${amountRemaining.toLocaleString("en-IN")}`}
+          amount={amountRemaining}
           color={amountRemaining >= 0 ? "pp-green" : "pp-red"}
           sub="Received minus expenses"
         />
@@ -632,11 +672,17 @@ function FinancialOverviewTab({ payments, expenses, eventAmount }) {
                 </tr>
               </thead>
               <tbody>
-                {payments.map(p => (
-                  <tr key={p.id}>
+                {payments.map((p, i) => (
+                  <tr key={p.id} {...rowMotion(i, p.id === highlightId)}>
                     <td>{p.description || "Payment"}</td>
                     <td>
-                      <strong>₹{Number(stripCommas(String(p.amount))).toLocaleString("en-IN")}</strong>
+                      <strong>
+                        <AnimatedAmount
+                          value={Number(stripCommas(String(p.amount)))}
+                          duration={750}
+                          delay={Math.min(i, 12) * 55 + 120}
+                        />
+                      </strong>
                     </td>
                     <td>{p.date}</td>
                     <td>
@@ -694,6 +740,7 @@ function CustomerPaymentsTab({
   onEditPayment,
   onDeletePayment,
   eventAmount,
+  highlightId,
 }) {
   const [showModal,    setShowModal]    = useState(false);
   const [editTarget,   setEditTarget]   = useState(null);
@@ -734,19 +781,19 @@ function CustomerPaymentsTab({
   return (
     <div className="pp-tab-content">
       {/* Stats — update only after a payment is recorded */}
-      <div className="pp-stat-row pp-stat-row-3">
+      <div className="pp-stat-row pp-stat-row-3 mo-stagger">
         <StatCard
           label="EVENT AMOUNT"
-          value={`₹${eventAmount.toLocaleString("en-IN")}`}
+          amount={eventAmount}
         />
         <StatCard
           label="TOTAL RECEIVED"
-          value={`₹${totalReceived.toLocaleString("en-IN")}`}
+          amount={totalReceived}
           color="pp-green"
         />
         <StatCard
           label="BALANCE DUE"
-          value={`₹${balance.toLocaleString("en-IN")}`}
+          amount={balance}
           color={balance > 0 ? "pp-red" : "pp-green"}
         />
       </div>
@@ -789,10 +836,16 @@ function CustomerPaymentsTab({
                 </tr>
               </thead>
               <tbody>
-                {payments.map(p => (
-                  <tr key={p.id}>
+                {payments.map((p, i) => (
+                  <tr key={p.id} {...rowMotion(i, p.id === highlightId)}>
                     <td>
-                      <strong>₹{Number(stripCommas(String(p.amount))).toLocaleString("en-IN")}</strong>
+                      <strong>
+                        <AnimatedAmount
+                          value={Number(stripCommas(String(p.amount)))}
+                          duration={750}
+                          delay={Math.min(i, 12) * 55 + 120}
+                        />
+                      </strong>
                     </td>
                     <td>{p.method || "—"}</td>
                     <td>{p.date}</td>
@@ -872,10 +925,10 @@ function CustomerPaymentsTab({
 function ExpensesPayoutsTab() {
   return (
     <div className="pp-tab-content">
-      <div className="pp-stat-row pp-stat-row-3">
-        <StatCard label="TOTAL PAYABLE" value="₹0" />
-        <StatCard label="TOTAL PAID"    value="₹0" color="pp-green" />
-        <StatCard label="ALL CLEARED"   value="₹0" color="pp-green" />
+      <div className="pp-stat-row pp-stat-row-3 mo-stagger">
+        <StatCard label="TOTAL PAYABLE" amount={0} />
+        <StatCard label="TOTAL PAID"    amount={0} color="pp-green" />
+        <StatCard label="ALL CLEARED"   amount={0} color="pp-green" />
       </div>
 
       <div className="pp-section">
@@ -937,6 +990,15 @@ export default function PaymentPage() {
 
   const [payments, setPaymentsState] = useState(() => loadPayments(event));
 
+  // ── Motion state: coin-drop celebration + "just added" row highlight ──
+  const [celebration, setCelebration] = useState<{ key: number; amount: number } | null>(null);
+  const [highlightId, setHighlightId] = useState<number | string | null>(null);
+  const highlightTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(highlightTimer.current), []);
+
+  const handleCelebrationDone = useCallback(() => setCelebration(null), []);
+
   const setPayments = useCallback((updater) => {
     setPaymentsState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
@@ -947,6 +1009,15 @@ export default function PaymentPage() {
 
   const handleAddPayment = useCallback((payment) => {
     setPayments(prev => [...prev, payment]);
+
+    // Coin drop + ripple + row flash for the newly recorded payment
+    setCelebration({
+      key: Date.now(),
+      amount: Number(stripCommas(String(payment.amount))),
+    });
+    setHighlightId(payment.id);
+    window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setHighlightId(null), 2600);
   }, [setPayments]);
 
   const handleEditPayment = useCallback((updated) => {
@@ -1083,7 +1154,7 @@ export default function PaymentPage() {
                   <p>
                     Track customer payments, photographer payouts, and event expenses.
                     {eventAmount > 0 && (
-                      <> Event total: <strong>₹{eventAmount.toLocaleString("en-IN")}</strong></>
+                      <> Event total: <strong><AnimatedAmount value={eventAmount} /></strong></>
                     )}
                     {eventAmount === 0 && !event && (
                       <> (No event amount found — go back and fill in Event Details.)</>
@@ -1120,6 +1191,7 @@ export default function PaymentPage() {
                   payments={payments}
                   expenses={[]}
                   eventAmount={eventAmount}
+                  highlightId={highlightId}
                 />
               )}
               {activeTab === 1 && (
@@ -1129,6 +1201,7 @@ export default function PaymentPage() {
                   onEditPayment={handleEditPayment}
                   onDeletePayment={handleDeletePayment}
                   eventAmount={eventAmount}
+                  highlightId={highlightId}
                 />
               )}
               {activeTab === 2 && <ExpensesPayoutsTab />}
@@ -1155,6 +1228,15 @@ export default function PaymentPage() {
           </div>
         </div>
       </section>
+
+      {/* Coin-drop + ripple when a payment is recorded */}
+      {celebration && (
+        <PaymentCelebration
+          key={celebration.key}
+          amount={celebration.amount}
+          onDone={handleCelebrationDone}
+        />
+      )}
     </main>
   );
 }
