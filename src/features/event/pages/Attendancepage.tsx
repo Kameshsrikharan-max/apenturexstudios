@@ -21,6 +21,15 @@ const ATTENDANCE_KEY = "eventAttendance";
 const EVENT_KEY      = "currentEvent";
 
 
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+
 function getCurrentEventId() {
   try {
     const raw = sessionStorage.getItem(EVENT_KEY);
@@ -83,7 +92,58 @@ function saveMembers(members) {
 }
 
 
-function TeamAttendanceView({ members, onRecord, onView, onRefresh }) {
+/* ── Animated check mark (stroke draws itself on mount) ── */
+function AnimatedCheck({ size = 18, stroke = 2.8, animate = true, className = "" }) {
+  return (
+    <svg
+      className={`ap-check-svg ${animate ? "ap-check-draw" : ""} ${className}`}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        pathLength={1}
+      />
+    </svg>
+  );
+}
+
+
+/* ── Status badge: Pending → Checked In morph ── */
+function StatusBadge({ status, animate }) {
+  const [shown, setShown] = useState(animate ? "Pending" : status);
+
+  useEffect(() => {
+    if (!animate) { setShown(status); return; }
+    const t = setTimeout(() => setShown(status), 450);
+    return () => clearTimeout(t);
+  }, [status, animate]);
+
+  const checked = shown === "Checked In";
+
+  return (
+    <span
+      className={`ap-badge ap-badge-morph ${checked ? "ap-confirmed" : "ap-pending"} ${animate ? "ap-badge-anim" : ""}`}
+    >
+      <span key={`${shown}-icon`} className={`ap-badge-icon ${animate ? "ap-morph-in" : ""}`}>
+        {checked ? <AnimatedCheck size={13} stroke={3.2} animate={animate} /> : <ClockCircleOutlined />}
+      </span>
+      <span key={`${shown}-label`} className={`ap-badge-label ${animate ? "ap-morph-in" : ""}`}>
+        {checked ? "Checked In" : "Pending"}
+      </span>
+    </span>
+  );
+}
+
+
+function TeamAttendanceView({ members, onRecord, onView, onRefresh, justCheckedId }) {
   const checkedIn = members.filter((m) => m.status === "Checked In").length;
 
   return (
@@ -133,49 +193,58 @@ function TeamAttendanceView({ members, onRecord, onView, onRefresh }) {
                 </tr>
               </thead>
               <tbody>
-                {members.map((m) => (
-                  <tr key={m.id} className={m.status === "Checked In" ? "ap-row-checked" : ""}>
-                    <td>
-                      <div className="ap-member-name-cell">
-                        <div className="ap-avatar">
-                          {m.name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
+                {members.map((m) => {
+                  const fresh = m.id === justCheckedId;
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`${m.status === "Checked In" ? "ap-row-checked" : ""} ${fresh ? "ap-row-pulse" : ""}`}
+                    >
+                      <td>
+                        <div className="ap-member-name-cell">
+                          <div className={`ap-avatar-wrap ${fresh ? "ap-pulsing" : ""}`}>
+                            {fresh && (
+                              <>
+                                <span className="ap-pulse-ring" />
+                                <span className="ap-pulse-ring" />
+                                <span className="ap-pulse-ring" />
+                              </>
+                            )}
+                            <div className="ap-avatar">
+                              {m.name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
+                            </div>
+                          </div>
+                          <span>{m.name}</span>
                         </div>
-                        <span>{m.name}</span>
-                      </div>
-                    </td>
-                    <td className="ap-id-cell">{m.id}</td>
-                    <td>{m.role}</td>
-                    <td>
-                      {(m.services || []).map((s) => (
-                        <span key={s} className="ap-service-tag">{s}</span>
-                      ))}
-                    </td>
-                    <td>{m.mobile || "–"}</td>
-                    <td>
-                      {m.status === "Checked In" ? (
-                        <span className="ap-badge ap-confirmed">
-                          <CheckCircleOutlined /> Checked In
-                        </span>
-                      ) : (
-                        <span className="ap-badge ap-pending">
-                          <ClockCircleOutlined /> Pending
-                        </span>
-                      )}
-                    </td>
-                    <td>{m.checkInTime || "–"}</td>
-                    <td>
-                      {m.status === "Checked In" ? (
-                        <button className="ap-outline-btn" onClick={() => onView(m)}>
-                          <EyeOutlined /> View
-                        </button>
-                      ) : (
-                        <button className="ap-primary-btn" onClick={() => onRecord(m)}>
-                          Record Attendance
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="ap-id-cell">{m.id}</td>
+                      <td>{m.role}</td>
+                      <td>
+                        {(m.services || []).map((s) => (
+                          <span key={s} className="ap-service-tag">{s}</span>
+                        ))}
+                      </td>
+                      <td>{m.mobile || "–"}</td>
+                      <td>
+                        <StatusBadge status={m.status} animate={fresh} />
+                      </td>
+                      <td>
+                        <span className={fresh ? "ap-fade-in-late" : ""}>{m.checkInTime || "–"}</span>
+                      </td>
+                      <td>
+                        {m.status === "Checked In" ? (
+                          <button className={`ap-outline-btn ${fresh ? "ap-fade-in-late" : ""}`} onClick={() => onView(m)}>
+                            <EyeOutlined /> View
+                          </button>
+                        ) : (
+                          <button className="ap-primary-btn" onClick={() => onRecord(m)}>
+                            Record Attendance
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -191,9 +260,14 @@ function CheckInView({ member, onBack, onComplete }) {
   const [location,   setLocation]   = useState(member.location || null);
   const [locLoading, setLocLoading] = useState(false);
   const [photoSaved, setPhotoSaved] = useState(!!member.photo);
-  const fileRef = useRef(null);
+  const [completing, setCompleting] = useState(false);
+  const [doneTime,   setDoneTime]   = useState("");
+  const fileRef  = useRef(null);
+  const timerRef = useRef(null);
 
   const canComplete = photoSaved && location;
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -223,8 +297,14 @@ function CheckInView({ member, onBack, onComplete }) {
   };
 
   const handleComplete = () => {
+    if (completing) return;
     const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    onComplete({ ...member, photo, location, status: "Checked In", checkInTime: time });
+    setDoneTime(time);
+    setCompleting(true);
+    timerRef.current = setTimeout(
+      () => onComplete({ ...member, photo, location, status: "Checked In", checkInTime: time }),
+      prefersReducedMotion() ? 500 : 1700
+    );
   };
 
   return (
@@ -234,7 +314,7 @@ function CheckInView({ member, onBack, onComplete }) {
           <h2>Attendance Check-In</h2>
           <p>Complete the steps below to check in <strong>{member.name}</strong>.</p>
         </div>
-        <button className="ap-outline-btn ap-back-inline" onClick={onBack}>
+        <button className="ap-outline-btn ap-back-inline" onClick={onBack} disabled={completing}>
           <ArrowLeftOutlined /> Return to Team Attendance
         </button>
       </div>
@@ -258,7 +338,9 @@ function CheckInView({ member, onBack, onComplete }) {
           </div>
           <div className="ap-member-field">
             <span className="ap-field-label">Check-In Status</span>
-            {member.status === "Checked In" ? (
+            {completing ? (
+              <StatusBadge status="Checked In" animate />
+            ) : member.status === "Checked In" ? (
               <span className="ap-badge ap-confirmed"><CheckCircleOutlined /> Checked In</span>
             ) : (
               <span className="ap-badge ap-pending"><ClockCircleOutlined /> Pending</span>
@@ -285,7 +367,7 @@ function CheckInView({ member, onBack, onComplete }) {
                     </div>
                   ) : (
                     <>
-                      <div className="ap-success-box"><CheckCircleOutlined /> Photo uploaded successfully</div>
+                      <div className="ap-success-box"><AnimatedCheck size={16} /> Photo uploaded successfully</div>
                       <button className="ap-outline-btn" onClick={handleClearPhoto}>Retake Photo</button>
                     </>
                   )}
@@ -311,7 +393,7 @@ function CheckInView({ member, onBack, onComplete }) {
               <h4>Verify Your Location</h4>
               {location ? (
                 <div className="ap-success-box ap-location-box">
-                  <CheckCircleOutlined className="ap-loc-check" />
+                  <AnimatedCheck size={22} className="ap-loc-check" />
                   <div><strong>Location Confirmed</strong><p>Lat: {location.lat}, Lng: {location.lng}</p></div>
                 </div>
               ) : (
@@ -332,13 +414,36 @@ function CheckInView({ member, onBack, onComplete }) {
               )}
               <button
                 className={`ap-complete-btn ${canComplete ? "ap-complete-active" : ""}`}
-                disabled={!canComplete}
+                disabled={!canComplete || completing}
                 onClick={handleComplete}
               >
                 Complete Check-In
               </button>
             </div>
           </div>
+
+          {completing && (
+            <div className="ap-completing" role="status" aria-live="polite">
+              <div className="ap-pulse-stage">
+                <span className="ap-pulse-ring" />
+                <span className="ap-pulse-ring" />
+                <span className="ap-pulse-ring" />
+                <svg
+                  className="ap-check-svg ap-check-draw ap-big-check"
+                  width="84"
+                  height="84"
+                  viewBox="0 0 72 72"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle cx="36" cy="36" r="32" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" pathLength={1} />
+                  <path d="M22 37l10 10 18-20" stroke="#4ade80" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" pathLength={1} />
+                </svg>
+              </div>
+              <h3>Checked In</h3>
+              <p>{member.name} · {doneTime}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -417,6 +522,7 @@ export default function AttendancePage() {
   const [subView,         setSubView]         = useState("list");
   const [selectedMember,  setSelectedMember]  = useState(null);
   const [loadedEventId,   setLoadedEventId]   = useState(null);
+  const [justCheckedId,   setJustCheckedId]   = useState(null);
 
   /* ─── Core refresh logic ─── */
   const refreshMembers = useCallback(() => {
@@ -480,6 +586,14 @@ export default function AttendancePage() {
     if (members.length > 0) saveMembers(members);
   }, [members]);
 
+
+  // Clear the "just checked in" highlight once the pulse has played out.
+  useEffect(() => {
+    if (!justCheckedId) return;
+    const t = setTimeout(() => setJustCheckedId(null), 3200);
+    return () => clearTimeout(t);
+  }, [justCheckedId]);
+
   
   const handleRecord = (m) => { setSelectedMember(m); setSubView("checkin"); };
   const handleView   = (m) => { setSelectedMember(m); setSubView("view"); };
@@ -489,6 +603,7 @@ export default function AttendancePage() {
     setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
     setSelectedMember(null);
     setSubView("list");
+    setJustCheckedId(updated.id);
   };
 
   return (
@@ -545,6 +660,7 @@ export default function AttendancePage() {
                 onRecord={handleRecord}
                 onView={handleView}
                 onRefresh={refreshMembers}
+                justCheckedId={justCheckedId}
               />
             )}
             {subView === "checkin" && selectedMember && (

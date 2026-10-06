@@ -3,18 +3,9 @@
 .cism-header {display: flex;align-items: center;gap: 12px;margin-bottom: 16px;}
 .cism-header-icon {width: 40px;height: 40px;border-radius: 12px;background: linear-gradient(135deg, #3b82f6, #38d5ff);color: #fff !important;display: flex;align-items: center;justify-content: center;font-size: 18px;flex-shrink: 0;}
 
-.cism-header h3 {
-  margin: 0 !important;
-  font-size: 17px !important;
-  font-weight: 700 !important;
-  color: #0f172a !important;
-}
+.cism-header h3 {margin: 0 !important;font-size: 17px !important;font-weight: 700 !important;color: #0f172a !important;}
 
-.cism-header p {
-  margin: 2px 0 0 !important;
-  font-size: 13px !important;
-  color: #64748b !important;
-}
+.cism-header p {margin: 2px 0 0 !important;font-size: 13px !important;color: #64748b !important;}
 
 /* ---- Window status strip ---- */
 .cism-window-strip {display: flex;align-items: center;gap: 8px;padding: 10px 14px;border-radius: 12px;font-size: 13px;margin-bottom: 16px;}

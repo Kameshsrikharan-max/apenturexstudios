@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, Variants } from "framer-motion";
 import {
   CheckOutlined,
@@ -19,6 +19,13 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import jsPDF from "jspdf";
 import "./SubscriptionPage.css";
+import { subscriptionApi, ApiError } from "./subscriptionApi";
+import type {
+  CheckoutSession,
+  ConfirmResponse,
+  MeResponse,
+  ServerSubscription,
+} from "./subscriptionApi";
 
 // ---------- Types ----------
 
@@ -36,6 +43,7 @@ export interface SubscriptionPlan {
 
 export interface PaidReceipt {
   transactionId: string;
+  invoiceNo?: string;
   plan: SubscriptionPlan;
   amount: number;
   currencySymbol: string;
@@ -44,13 +52,20 @@ export interface PaidReceipt {
   userEmail?: string;
 }
 
-export type SubscriptionStatus = "active" | "cancelled";
+export type SubscriptionStatus = "active" | "cancelled" | "expired";
 
-type CheckoutStage = "review" | "scanning" | "verifying" | "success";
-type EmailStatus = "idle" | "sending" | "sent" | "error";
+type CheckoutStage = "review" | "scanning" | "verifying" | "success" | "failed";
+type EmailStatus = "idle" | "sending" | "sent" | "error" | "skipped";
+
+type ConfirmState =
+  | { status: "idle" }
+  | { status: "pending" }
+  | { status: "ok"; data: ConfirmResponse }
+  | { status: "error"; message: string; code?: string };
 
 interface SubscriptionPageProps {
   user?: { name?: string; email?: string } & Record<string, any>;
+  /** Fallback plans, used only if the backend can't be reached. */
   plans?: SubscriptionPlan[];
   plansPerPage?: number;
   onBack?: () => void;
@@ -58,11 +73,11 @@ interface SubscriptionPageProps {
   onSubscribe?: (plan: SubscriptionPlan) => void;
   onContactSales?: () => void;
   onPaymentSuccess?: (receipt: PaidReceipt) => void;
+  /** Optional override. By default the backend resends the receipt email. */
   onSendReceiptEmail?: (receipt: PaidReceipt) => Promise<void>;
-  /** Fired when the user confirms cancellation of their active subscription. */
   onCancelSubscription?: (receipt: PaidReceipt) => void;
-  /** Fired when the user reactivates a previously cancelled subscription. */
   onReactivateSubscription?: (receipt: PaidReceipt) => void;
+  /** No longer used: the UPI id now comes from the backend (.env UPI_VPA). */
   merchantVpa?: string;
   merchantName?: string;
 }
@@ -87,13 +102,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     description: "Professional photography delivery tools for your business.",
     price: 499,
     billingCycle: "monthly",
-
-    features: [
-      "Up to 2 team members",
-      "10 GB storage",
-      "5 active events",
-      "Email support",
-    ],
+    features: ["Up to 2 team members", "10 GB storage", "5 active events", "Email support"],
   },
   {
     id: "pro-p4p",
@@ -103,12 +112,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     billingCycle: "monthly",
     highlighted: true,
     status: "recommended",
-    features: [
-      "Up to 5 team members",
-      "50 GB storage",
-      "20 active events",
-      "Priority support",
-    ],
+    features: ["Up to 5 team members", "50 GB storage", "20 active events", "Priority support"],
   },
   {
     id: "business-p4p",
@@ -116,12 +120,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     description: "For studios managing multiple photographers.",
     price: 1499,
     billingCycle: "monthly",
-    features: [
-      "Up to 10 team members",
-      "200 GB storage",
-      "Unlimited events",
-      "Priority support",
-    ],
+    features: ["Up to 10 team members", "200 GB storage", "Unlimited events", "Priority support"],
   },
   {
     id: "elite-p4p",
@@ -129,12 +128,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     description: "Premium tools with client-facing galleries.",
     price: 1999,
     billingCycle: "monthly",
-    features: [
-      "Up to 15 team members",
-      "500 GB storage",
-      "Unlimited events",
-      "Client gallery branding",
-    ],
+    features: ["Up to 15 team members", "500 GB storage", "Unlimited events", "Client gallery branding"],
   },
   {
     id: "studio-p4p",
@@ -142,12 +136,7 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     description: "Full studio suite with automation.",
     price: 2499,
     billingCycle: "monthly",
-    features: [
-      "Up to 25 team members",
-      "1 TB storage",
-      "Unlimited events",
-      "Workflow automation",
-    ],
+    features: ["Up to 25 team members", "1 TB storage", "Unlimited events", "Workflow automation"],
   },
   {
     id: "agency-p4p",
@@ -155,33 +144,14 @@ const DEFAULT_PLANS: SubscriptionPlan[] = [
     description: "Multi-brand support for photography agencies.",
     price: 3499,
     billingCycle: "monthly",
-    features: [
-      "Unlimited team members",
-      "5 TB storage",
-      "Unlimited events",
-      "Dedicated account manager",
-    ],
+    features: ["Unlimited team members", "5 TB storage", "Unlimited events", "Dedicated account manager"],
   },
 ];
 
 // ---------- Small utils ----------
 
-const generateTransactionId = () => {
-  const stamp = Date.now().toString(36).toUpperCase();
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `AXS-${stamp}-${rand}`;
-};
-
-const buildUpiString = (
-  vpa: string,
-  merchant: string,
-  amount: number,
-  note: string,
-  txnId: string
-) =>
-  `upi://pay?pa=${encodeURIComponent(vpa)}&pn=${encodeURIComponent(
-    merchant
-  )}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}&tr=${txnId}`;
+const errMsg = (e: unknown, fallback: string) =>
+  e instanceof Error && e.message ? e.message : fallback;
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -203,18 +173,17 @@ const formatDate = (iso: string) => {
   });
 };
 
-/** Adds one billing cycle (month or year) to an ISO timestamp. */
-const addCycle = (iso: string, cycle: "monthly" | "yearly") => {
-  const d = new Date(iso);
-  if (cycle === "monthly") d.setMonth(d.getMonth() + 1);
-  else d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString();
-};
-
 const daysBetween = (fromMs: number, toMs: number) =>
   Math.round((toMs - fromMs) / 86_400_000);
 
-// ---------- Subscription persistence (localStorage, matches the rest of AXS Studio) ----------
+const dangerBannerStyle = {
+  borderColor: "rgba(251, 113, 133, 0.36)",
+  background: "rgba(251, 113, 133, 0.14)",
+  ["--sky" as any]: "var(--danger)",
+} as React.CSSProperties;
+
+// ---------- Local mirror (so other parts of AXS can still listen for changes) ----------
+// The backend is the source of truth; this is only a cache for other components.
 
 const SUBSCRIPTION_STORAGE_KEY = "axs_subscription_v1";
 const SUBSCRIPTION_UPDATED_EVENT = "axsSubscriptionUpdated";
@@ -229,26 +198,12 @@ interface StoredSubscriptionState {
   cycleEnd: string;
 }
 
-/** Reads the persisted subscription, if any. Never throws. */
-const loadStoredSubscription = (): StoredSubscriptionState | null => {
-  try {
-    const raw = window.localStorage.getItem(SUBSCRIPTION_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredSubscriptionState;
-    if (!parsed || !parsed.receipt) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-/** Writes the subscription and notifies the rest of the app (same-tab reactivity). */
 const persistSubscription = (state: StoredSubscriptionState) => {
   try {
     window.localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, JSON.stringify(state));
     window.dispatchEvent(new CustomEvent(SUBSCRIPTION_UPDATED_EVENT, { detail: state }));
   } catch {
-    // Storage disabled/full — subscription still works for this session.
+    // Storage disabled/full: the page still works from server state.
   }
 };
 
@@ -359,19 +314,19 @@ const CycleRing: React.FC<{
   status: SubscriptionStatus;
 }> = ({ startISO, endISO, status }) => {
   const reduceMotion = useReducedMotion();
+  const ended = status !== "active";
   const now = Date.now();
   const start = new Date(startISO).getTime();
   const end = new Date(endISO).getTime();
   const span = Math.max(1, end - start);
-  const progress =
-    status === "cancelled" ? 1 : Math.min(1, Math.max(0, (now - start) / span));
+  const progress = ended ? 1 : Math.min(1, Math.max(0, (now - start) / span));
   const offset = CYCLE_CIRCUMFERENCE * (1 - progress);
   const daysLeft = Math.max(0, daysBetween(now, end));
 
   return (
     <svg
       viewBox="0 0 180 180"
-      className={`cycle-ring${status === "cancelled" ? " cycle-ring--cancelled" : ""}`}
+      className={`cycle-ring${ended ? " cycle-ring--cancelled" : ""}`}
       aria-hidden="true"
     >
       <circle cx="90" cy="90" r={CYCLE_RADIUS} className="cycle-ring__track" />
@@ -387,10 +342,10 @@ const CycleRing: React.FC<{
         }}
       />
       <text x="90" y="86" textAnchor="middle" className="cycle-ring__value">
-        {status === "cancelled" ? "\u2014" : daysLeft}
+        {ended ? "\u2014" : daysLeft}
       </text>
       <text x="90" y="107" textAnchor="middle" className="cycle-ring__label">
-        {status === "cancelled" ? "access ends" : daysLeft === 1 ? "day left" : "days left"}
+        {ended ? "access ends" : daysLeft === 1 ? "day left" : "days left"}
       </text>
     </svg>
   );
@@ -496,13 +451,13 @@ const PlanRail: React.FC<{
             }`}
             onClick={() => onSelect(i)}
           >
-            {active && (
+            {active ? (
               <motion.span
                 className="sub-rail__highlight"
                 layoutId="railHighlight"
                 transition={{ type: "spring", stiffness: 480, damping: 38 }}
               />
-            )}
+            ) : null}
             <span className="sub-rail__marker">
               <span className="sub-rail__marker-dot" />
             </span>
@@ -516,12 +471,12 @@ const PlanRail: React.FC<{
                 </span>
               </span>
             </span>
-            {plan.status && (
+            {plan.status ? (
               <span
                 className={`sub-rail__flag sub-rail__flag--${plan.status}`}
                 aria-hidden="true"
               />
-            )}
+            ) : null}
           </button>
         );
       })}
@@ -541,11 +496,13 @@ const PlanDetail: React.FC<{
   plan: SubscriptionPlan;
   index: number;
   total: number;
+  busy: boolean;
   onCheckout: (plan: SubscriptionPlan) => void;
-}> = ({ plan, index, total, onCheckout }) => {
+}> = ({ plan, index, total, busy, onCheckout }) => {
   const symbol = plan.currencySymbol ?? "\u20b9";
   const animatedPrice = useCountUp(plan.price);
   const reduceMotion = useReducedMotion();
+  const isCurrent = plan.status === "current";
 
   const handleSpotlight = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -609,13 +566,11 @@ const PlanDetail: React.FC<{
         <div className="sub-detail__footer">
           <button
             type="button"
-            className={
-              plan.status === "current" ? "sub-btn-outline sub-btn-full" : "sub-btn-primary sub-btn-full"
-            }
+            className={isCurrent ? "sub-btn-outline sub-btn-full" : "sub-btn-primary sub-btn-full"}
             onClick={() => onCheckout(plan)}
-            disabled={plan.status === "current"}
+            disabled={isCurrent || busy}
           >
-            {plan.status === "current" ? "Current Plan" : "Subscribe Now"}
+            {isCurrent ? "Current Plan" : busy ? "Preparing checkout\u2026" : "Subscribe Now"}
           </button>
         </div>
       </motion.div>
@@ -623,72 +578,104 @@ const PlanDetail: React.FC<{
   );
 };
 
-// ---------- Payment modal: QR review -> scanning -> verifying -> success ----------
+// ---------- Payment modal: QR review -> scanning -> verifying -> success / failed ----------
 
 const PaymentModal: React.FC<{
   plan: SubscriptionPlan;
-  transactionId: string;
-  merchantVpa: string;
-  merchantName: string;
-  userName?: string;
-  userEmail?: string;
+  session: CheckoutSession;
   onClose: () => void;
-  onComplete: (receipt: PaidReceipt) => void;
-}> = ({ plan, transactionId, merchantVpa, merchantName, userName, userEmail, onClose, onComplete }) => {
+  onComplete: (data: ConfirmResponse) => void;
+}> = ({ plan, session, onClose, onComplete }) => {
   const [stage, setStage] = useState<CheckoutStage>("review");
+  const [confirm, setConfirm] = useState<ConfirmState>({ status: "idle" });
+  const [verifyElapsed, setVerifyElapsed] = useState(false);
+  const completedRef = useRef(false);
   const reduceMotion = useReducedMotion();
-  const symbol = plan.currencySymbol ?? "\u20b9";
-  const upiString = buildUpiString(
-    merchantVpa,
-    merchantName,
-    plan.price,
-    `${plan.name} Subscription`,
-    transactionId
-  );
+  const symbol = session.currencySymbol;
 
   const verifyProgress = useCountUp(100, 1100, stage === "verifying");
 
-  // Escape key closes only while it's safe to abandon the payment.
+  const finish = useCallback(
+    (data: ConfirmResponse) => {
+      if (completedRef.current) return;
+      completedRef.current = true;
+      onComplete(data);
+    },
+    [onComplete]
+  );
+
+  const canClose = stage === "review" || stage === "success" || stage === "failed";
+
+  // Closing after the payment already succeeded must still record it.
+  const handleClose = useCallback(() => {
+    if (stage === "success" && confirm.status === "ok") finish(confirm.data);
+    else onClose();
+  }, [stage, confirm, finish, onClose]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && (stage === "review" || stage === "success")) onClose();
+      if (e.key === "Escape" && canClose) handleClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [stage, onClose]);
+  }, [canClose, handleClose]);
 
+  // QR tap: start the server confirmation while the scan animation plays.
   const handleQrActivate = useCallback(() => {
     if (stage !== "review") return;
+    setConfirm({ status: "pending" });
+    setVerifyElapsed(false);
     setStage("scanning");
-  }, [stage]);
+    subscriptionApi
+      .confirmPayment(session.txnId)
+      .then((data) => setConfirm({ status: "ok", data }))
+      .catch((err) =>
+        setConfirm({
+          status: "error",
+          message: errMsg(err, "Payment verification failed. Please try again."),
+          code: err instanceof ApiError ? err.code : undefined,
+        })
+      );
+  }, [stage, session.txnId]);
 
-  // Scanning -> verifying -> success timed sequence.
+  // scanning -> verifying (animation timing)
   useEffect(() => {
     if (stage === "scanning") {
       const t = setTimeout(() => setStage("verifying"), 1500);
       return () => clearTimeout(t);
     }
     if (stage === "verifying") {
-      const t = setTimeout(() => setStage("success"), 1300);
+      const t = setTimeout(() => setVerifyElapsed(true), 1300);
       return () => clearTimeout(t);
     }
-    if (stage === "success") {
-      const t = setTimeout(() => {
-        onComplete({
-          transactionId,
-          plan,
-          amount: plan.price,
-          currencySymbol: symbol,
-          paidAt: new Date().toISOString(),
-          userName,
-          userEmail,
-        });
-      }, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [stage, onComplete, transactionId, plan, symbol, userName, userEmail]);
+  }, [stage]);
 
-  const canClose = stage === "review" || stage === "success";
+  // verifying -> success / failed, only once the server has answered.
+  useEffect(() => {
+    if (stage !== "verifying" || !verifyElapsed) return;
+    if (confirm.status === "ok") setStage("success");
+    else if (confirm.status === "error") setStage("failed");
+  }, [stage, verifyElapsed, confirm]);
+
+  useEffect(() => {
+    if (stage === "success" && confirm.status === "ok") {
+      const data = confirm.data;
+      const t = setTimeout(() => finish(data), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [stage, confirm, finish]);
+
+  const handleRetry = () => {
+    setConfirm({ status: "idle" });
+    setVerifyElapsed(false);
+    setStage("review");
+  };
+
+  const errorMessage = confirm.status === "error" ? confirm.message : "";
+  const retryable = !(
+    confirm.status === "error" &&
+    (confirm.code === "CHECKOUT_EXPIRED" || confirm.code === "PAYMENT_NOT_PENDING")
+  );
 
   return (
     <motion.div
@@ -698,7 +685,7 @@ const PaymentModal: React.FC<{
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && canClose) onClose();
+        if (e.target === e.currentTarget && canClose) handleClose();
       }}
     >
       <motion.div
@@ -711,24 +698,24 @@ const PaymentModal: React.FC<{
         exit={reduceMotion ? undefined : { opacity: 0, y: 16, scale: 0.97 }}
         transition={{ type: "spring", stiffness: 340, damping: 30 }}
       >
-        {canClose && (
-          <button type="button" className="pay-modal__close" onClick={onClose} aria-label="Close payment dialog">
+        {canClose ? (
+          <button type="button" className="pay-modal__close" onClick={handleClose} aria-label="Close payment dialog">
             <CloseOutlined />
           </button>
-        )}
+        ) : null}
 
         <div className="pay-modal__head">
           <span className="pay-modal__eyebrow">Secure Checkout</span>
           <h3 className="pay-modal__plan-name">{plan.name}</h3>
           <div className="pay-amount">
             <span className="pay-amount__symbol">{symbol}</span>
-            <span className="pay-amount__value">{plan.price.toLocaleString("en-IN")}</span>
+            <span className="pay-amount__value">{session.amount.toLocaleString("en-IN")}</span>
             <span className="pay-amount__cycle">/ {plan.billingCycle}</span>
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          {(stage === "review" || stage === "scanning") && (
+          {stage === "review" || stage === "scanning" ? (
             <motion.div
               key="qr-stage"
               className="pay-stage"
@@ -755,9 +742,9 @@ const PaymentModal: React.FC<{
                 <span className="pay-qr__corner pay-qr__corner--bl" />
                 <span className="pay-qr__corner pay-qr__corner--br" />
                 <div className="pay-qr__frame">
-                  <QRCodeSVG value={upiString} size={168} level="M" includeMargin={false} />
+                  <QRCodeSVG value={session.upiString} size={168} level="M" includeMargin={false} />
                 </div>
-                {stage === "scanning" && <span className="pay-qr__laser" aria-hidden="true" />}
+                {stage === "scanning" ? <span className="pay-qr__laser" aria-hidden="true" /> : null}
               </div>
 
               <p className="pay-qr__hint">
@@ -766,12 +753,12 @@ const PaymentModal: React.FC<{
                   : "Confirming your scan\u2026"}
               </p>
               <p className="pay-qr__txn">
-                Ref ID <span>{transactionId}</span>
+                Ref ID <span>{session.txnId}</span>
               </p>
             </motion.div>
-          )}
+          ) : null}
 
-          {stage === "verifying" && (
+          {stage === "verifying" ? (
             <motion.div
               key="verify-stage"
               className="pay-stage"
@@ -797,12 +784,12 @@ const PaymentModal: React.FC<{
                 <span className="pay-verify__pct">{verifyProgress}%</span>
               </div>
               <p className="pay-verify__label">
-                <LoadingOutlined spin /> Verifying payment securely\u2026
+                <LoadingOutlined spin /> Verifying payment securely{"\u2026"}
               </p>
             </motion.div>
-          )}
+          ) : null}
 
-          {stage === "success" && (
+          {stage === "success" ? (
             <motion.div
               key="success-stage"
               className="pay-stage"
@@ -817,20 +804,45 @@ const PaymentModal: React.FC<{
                 <span className="pay-success__ring pay-success__ring--3" aria-hidden="true" />
                 <svg viewBox="0 0 80 80" className="pay-success__check" aria-hidden="true">
                   <circle cx="40" cy="40" r="36" className="pay-success__circle" />
-                  <path
-                    d="M24 41 L35 52 L57 28"
-                    className="pay-success__tick"
-                    pathLength={1}
-                  />
+                  <path d="M24 41 L35 52 L57 28" className="pay-success__tick" pathLength={1} />
                 </svg>
               </div>
               <p className="pay-success__title">Payment Successful</p>
               <p className="pay-success__sub">
                 {symbol}
-                {plan.price.toLocaleString("en-IN")} paid for {plan.name}
+                {session.amount.toLocaleString("en-IN")} paid for {plan.name}
               </p>
             </motion.div>
-          )}
+          ) : null}
+
+          {stage === "failed" ? (
+            <motion.div
+              key="failed-stage"
+              className="pay-stage"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div style={{ color: "var(--danger)", fontSize: 44, marginBottom: 10 }} aria-hidden="true">
+                <ExclamationCircleOutlined />
+              </div>
+              <p className="pay-success__title">Payment not confirmed</p>
+              <p className="pay-success__sub" style={{ maxWidth: 300 }}>
+                {errorMessage}
+              </p>
+              <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                {retryable ? (
+                  <button type="button" className="sub-btn-primary sub-btn-full" onClick={handleRetry}>
+                    <RedoOutlined /> Try again
+                  </button>
+                ) : null}
+                <button type="button" className="sub-btn-outline sub-btn-full" onClick={onClose}>
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
         </AnimatePresence>
       </motion.div>
     </motion.div>
@@ -862,18 +874,19 @@ const AutoRenewToggle: React.FC<{
 const CancelSubscriptionModal: React.FC<{
   plan: SubscriptionPlan;
   accessUntil: string;
+  busy: boolean;
   onClose: () => void;
   onConfirm: () => void;
-}> = ({ plan, accessUntil, onClose, onConfirm }) => {
+}> = ({ plan, accessUntil, busy, onClose, onConfirm }) => {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !busy) onClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   return (
     <motion.div
@@ -883,7 +896,7 @@ const CancelSubscriptionModal: React.FC<{
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !busy) onClose();
       }}
     >
       <motion.div
@@ -896,7 +909,7 @@ const CancelSubscriptionModal: React.FC<{
         exit={reduceMotion ? undefined : { opacity: 0, y: 14, scale: 0.97 }}
         transition={{ type: "spring", stiffness: 340, damping: 30 }}
       >
-        <button type="button" className="pay-modal__close" onClick={onClose} aria-label="Close dialog">
+        <button type="button" className="pay-modal__close" onClick={onClose} disabled={busy} aria-label="Close dialog">
           <CloseOutlined />
         </button>
 
@@ -905,17 +918,16 @@ const CancelSubscriptionModal: React.FC<{
         </div>
         <h3 className="cancel-modal__title">Cancel {plan.name}?</h3>
         <p className="cancel-modal__body">
-          You&apos;ll keep full access to every feature until{" "}
-          <strong>{formatDate(accessUntil)}</strong>. After that, auto-renewal stops
-          and your studio drops back to the free tier.
+          You&apos;ll keep full access to every feature until <strong>{formatDate(accessUntil)}</strong>. After
+          that, auto-renewal stops and your studio drops back to the free tier.
         </p>
 
         <div className="cancel-modal__actions">
-          <button type="button" className="sub-btn-outline sub-btn-full" onClick={onClose}>
+          <button type="button" className="sub-btn-outline sub-btn-full" onClick={onClose} disabled={busy}>
             Keep Subscription
           </button>
-          <button type="button" className="cancel-modal__confirm sub-btn-full" onClick={onConfirm}>
-            Cancel Subscription
+          <button type="button" className="cancel-modal__confirm sub-btn-full" onClick={onConfirm} disabled={busy}>
+            {busy ? "Cancelling\u2026" : "Cancel Subscription"}
           </button>
         </div>
       </motion.div>
@@ -961,7 +973,19 @@ const ManageSubscriptionView: React.FC<{
   onContactSales,
 }) => {
   const symbol = latestReceipt.currencySymbol;
+  const isActive = status === "active";
   const isCancelled = status === "cancelled";
+  const isExpired = status === "expired";
+  const statusLabel = isActive ? "Active Plan" : isCancelled ? "Cancelled" : "Expired";
+  const chipLabel = isActive ? "Paid" : isCancelled ? "Cancelled" : "Expired";
+
+  const heroNote = isExpired
+    ? `Your plan ended on ${formatDate(cycleEnd)}. Renew to restore access.`
+    : isCancelled
+    ? `Access remains open until ${formatDate(cycleEnd)}.`
+    : autoRenewal
+    ? `Renews automatically on ${formatDate(cycleEnd)}.`
+    : `Auto-renewal is off \u2014 access ends ${formatDate(cycleEnd)}.`;
 
   return (
     <motion.div
@@ -974,9 +998,9 @@ const ManageSubscriptionView: React.FC<{
         <span className="manage-pill manage-pill--premium">
           <SafetyCertificateOutlined /> Premium Subscription
         </span>
-        <span className={`manage-pill manage-pill--status${isCancelled ? " is-cancelled" : " is-active"}`}>
+        <span className={`manage-pill manage-pill--status${isActive ? " is-active" : " is-cancelled"}`}>
           <span className="manage-pill__dot" />
-          {isCancelled ? "Cancelled" : "Active Plan"}
+          {statusLabel}
         </span>
       </div>
 
@@ -991,13 +1015,7 @@ const ManageSubscriptionView: React.FC<{
             </span>
             <span className="manage-hero__cycle">/ {plan.billingCycle}</span>
           </div>
-          <p className="manage-hero__note">
-            {isCancelled
-              ? `Access remains open until ${formatDate(cycleEnd)}.`
-              : autoRenewal
-              ? `Renews automatically on ${formatDate(cycleEnd)}.`
-              : `Auto-renewal is off \u2014 access ends ${formatDate(cycleEnd)}.`}
-          </p>
+          <p className="manage-hero__note">{heroNote}</p>
         </div>
         <CycleRing startISO={cycleStart} endISO={cycleEnd} status={status} />
       </div>
@@ -1029,9 +1047,7 @@ const ManageSubscriptionView: React.FC<{
           </span>
           <div className="manage-tile__body">
             <p className="manage-tile__label">Payment Status</p>
-            <span className={`manage-status-chip${isCancelled ? " is-cancelled" : " is-paid"}`}>
-              {isCancelled ? "Cancelled" : "Paid"}
-            </span>
+            <span className={`manage-status-chip${isActive ? " is-paid" : " is-cancelled"}`}>{chipLabel}</span>
           </div>
         </div>
 
@@ -1042,7 +1058,7 @@ const ManageSubscriptionView: React.FC<{
           <div className="manage-tile__body">
             <p className="manage-tile__label">Duration</p>
             <p className="manage-tile__value">
-              {formatDate(cycleStart)} \u2013 {formatDate(cycleEnd)}
+              {formatDate(cycleStart)} {"\u2013"} {formatDate(cycleEnd)}
             </p>
           </div>
         </div>
@@ -1053,13 +1069,9 @@ const ManageSubscriptionView: React.FC<{
           </span>
           <div className="manage-tile__body">
             <p className="manage-tile__label">Auto Renewal</p>
-            <p className="manage-tile__value">{autoRenewal && !isCancelled ? "On" : "Off"}</p>
+            <p className="manage-tile__value">{autoRenewal && isActive ? "On" : "Off"}</p>
           </div>
-          <AutoRenewToggle
-            checked={autoRenewal && !isCancelled}
-            disabled={isCancelled}
-            onChange={onToggleAutoRenewal}
-          />
+          <AutoRenewToggle checked={autoRenewal && isActive} disabled={!isActive} onChange={onToggleAutoRenewal} />
         </div>
       </div>
 
@@ -1077,37 +1089,45 @@ const ManageSubscriptionView: React.FC<{
 
       <div className="manage-email-status">
         <MailOutlined />
-        {emailStatus === "sending" && (
-          <span>Sending receipt{latestReceipt.userEmail ? ` to ${latestReceipt.userEmail}` : ""}\u2026</span>
-        )}
-        {emailStatus === "sent" && (
+        {emailStatus === "sending" ? (
+          <span>Sending receipt{latestReceipt.userEmail ? ` to ${latestReceipt.userEmail}` : ""}{"\u2026"}</span>
+        ) : null}
+        {emailStatus === "sent" ? (
           <span>Receipt sent{latestReceipt.userEmail ? ` to ${latestReceipt.userEmail}` : ""}</span>
-        )}
-        {emailStatus === "error" && <span>Couldn&apos;t send the email automatically.</span>}
-        {emailStatus === "idle" && <span>Preparing your receipt email\u2026</span>}
-        {(emailStatus === "sent" || emailStatus === "error") && (
+        ) : null}
+        {emailStatus === "error" ? <span>Couldn&apos;t send the email automatically.</span> : null}
+        {emailStatus === "skipped" ? <span>No email address is saved on your account.</span> : null}
+        {emailStatus === "idle" ? <span>Receipt not sent yet.</span> : null}
+        {emailStatus === "sent" || emailStatus === "error" ? (
           <button type="button" className="receipt-card__resend" onClick={onResendEmail}>
             <RedoOutlined /> Resend
           </button>
-        )}
+        ) : null}
       </div>
 
       <div className="manage-actions">
         <button type="button" className="sub-btn-primary" onClick={() => onDownloadReceipt(latestReceipt)}>
           <DownloadOutlined /> Download Receipt
         </button>
+        {isActive ? (
+          <button type="button" className="manage-cancel-btn" onClick={onRequestCancel}>
+            Cancel Subscription
+          </button>
+        ) : null}
         {isCancelled ? (
           <button type="button" className="sub-btn-outline" onClick={onReactivate}>
             <UndoOutlined /> Reactivate
           </button>
+        ) : null}
+        {isExpired ? (
+          <button type="button" className="sub-btn-outline" onClick={onBack}>
+            <RedoOutlined /> Renew Plan
+          </button>
         ) : (
-          <button type="button" className="manage-cancel-btn" onClick={onRequestCancel}>
-            Cancel Subscription
+          <button type="button" className="sub-btn-outline" onClick={onBack}>
+            Back to Plans
           </button>
         )}
-        <button type="button" className="sub-btn-outline" onClick={onBack}>
-          Back to Plans
-        </button>
       </div>
 
       <section className="manage-history">
@@ -1133,7 +1153,7 @@ const ManageSubscriptionView: React.FC<{
             <tbody>
               {history.map((r) => (
                 <tr key={r.transactionId}>
-                  <td>INV-{r.transactionId.slice(-8)}</td>
+                  <td>{r.invoiceNo || `INV-${r.transactionId.slice(-8)}`}</td>
                   <td>{r.plan.name}</td>
                   <td>{formatDate(r.paidAt)}</td>
                   <td>
@@ -1163,13 +1183,10 @@ const ManageSubscriptionView: React.FC<{
       <section className="sub-contact">
         <div className="sub-contact__radar" aria-hidden="true" />
         <div className="sub-contact__glow" />
-        <h2 className="sub-contact__title">
-          Need a tailored solution for your photography enterprise?
-        </h2>
+        <h2 className="sub-contact__title">Need a tailored solution for your photography enterprise?</h2>
         <p className="sub-contact__subtitle">
-          Get in touch with our studio team for custom storage capacity exceeding
-          10 TB, multi-brand dashboard support, custom routing, and unified
-          billing.
+          Get in touch with our studio team for custom storage capacity exceeding 10 TB, multi-brand dashboard
+          support, custom routing, and unified billing.
         </p>
 
         <button type="button" className="sub-btn-primary sub-contact__btn" onClick={onContactSales}>
@@ -1183,7 +1200,6 @@ const ManageSubscriptionView: React.FC<{
 // ---------- Main component ----------
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
-  user,
   plans = DEFAULT_PLANS,
   onBack,
   onSubscribe,
@@ -1192,39 +1208,119 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
   onSendReceiptEmail,
   onCancelSubscription,
   onReactivateSubscription,
-  merchantVpa = "axsstudio@okhdfcbank",
   merchantName = "AXS Studio",
 }) => {
-  const initialIndex = Math.max(
-    0,
-    plans.findIndex((p) => p.status === "current" || p.status === "recommended")
-  );
-  const [selectedIndex, setSelectedIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
-  const selectedPlan = plans[selectedIndex] ?? plans[0];
+  // Loading / errors
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
+  // Plans (server first, props as offline fallback)
+  const [serverPlans, setServerPlans] = useState<SubscriptionPlan[] | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Checkout
   const [checkoutPlan, setCheckoutPlan] = useState<SubscriptionPlan | null>(null);
-  const [checkoutTxnId, setCheckoutTxnId] = useState<string>("");
+  const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
-  // Rehydrate any existing subscription from localStorage exactly once, on
-  // first mount, so refreshing the page or navigating away and back doesn't
-  // reset an already-paid plan back to "no plan chosen".
-  const [initialSub] = useState<StoredSubscriptionState | null>(() => loadStoredSubscription());
-
-  const [flowStage, setFlowStage] = useState<"browsing" | "paid">(initialSub?.flowStage ?? "browsing");
-  const [receipt, setReceipt] = useState<PaidReceipt | null>(initialSub?.receipt ?? null);
-  const [emailStatus, setEmailStatus] = useState<EmailStatus>(initialSub?.receipt ? "sent" : "idle");
-
-  // Subscription lifecycle state — driven entirely by the plan that was paid for.
-  const [subStatus, setSubStatus] = useState<SubscriptionStatus>(initialSub?.subStatus ?? "active");
-  const [autoRenewal, setAutoRenewal] = useState(initialSub?.autoRenewal ?? true);
-  const [paymentHistory, setPaymentHistory] = useState<PaidReceipt[]>(initialSub?.paymentHistory ?? []);
-  const [cycleStart, setCycleStart] = useState<string>(initialSub?.cycleStart ?? "");
-  const [cycleEnd, setCycleEnd] = useState<string>(initialSub?.cycleEnd ?? "");
+  // Subscription state (all hydrated from the backend)
+  const [flowStage, setFlowStage] = useState<"browsing" | "paid">("browsing");
+  const [receipt, setReceipt] = useState<PaidReceipt | null>(null);
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>("idle");
+  const [subStatus, setSubStatus] = useState<SubscriptionStatus>("active");
+  const [subPlanId, setSubPlanId] = useState<string | null>(null);
+  const [autoRenewal, setAutoRenewal] = useState(true);
+  const [paymentHistory, setPaymentHistory] = useState<PaidReceipt[]>([]);
+  const [cycleStart, setCycleStart] = useState<string>("");
+  const [cycleEnd, setCycleEnd] = useState<string>("");
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
-  // Keep localStorage (and any other part of the app listening for
-  // SUBSCRIPTION_UPDATED_EVENT) in sync with the live subscription state.
+  const initialisedRef = useRef(false);
+
+  const applySub = useCallback((s: ServerSubscription | null) => {
+    if (s) {
+      setSubStatus(s.status);
+      setSubPlanId(s.planId);
+      setAutoRenewal(s.autoRenewal);
+      setCycleStart(s.cycleStart);
+      setCycleEnd(s.cycleEnd);
+    } else {
+      setSubStatus("active");
+      setSubPlanId(null);
+      setCycleStart("");
+      setCycleEnd("");
+    }
+  }, []);
+
+  const applyMe = useCallback(
+    (me: MeResponse, firstLoad: boolean) => {
+      setReceipt(me.receipt);
+      setPaymentHistory(me.history);
+      applySub(me.subscription);
+      setEmailStatus(me.receipt ? "sent" : "idle");
+      if (firstLoad) {
+        setFlowStage(me.subscription && me.subscription.status !== "expired" ? "paid" : "browsing");
+      }
+    },
+    [applySub]
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    const [plansRes, meRes] = await Promise.allSettled([subscriptionApi.getPlans(), subscriptionApi.getMe()]);
+
+    if (plansRes.status === "fulfilled" && plansRes.value.length > 0) {
+      setServerPlans(plansRes.value);
+    } else if (plansRes.status === "rejected") {
+      setLoadError(errMsg(plansRes.reason, "Couldn't load plans from the server."));
+    }
+
+    if (meRes.status === "fulfilled") {
+      applyMe(meRes.value, !initialisedRef.current);
+    } else {
+      setLoadError((prev) => prev ?? errMsg(meRes.reason, "Couldn't load your subscription."));
+    }
+
+    initialisedRef.current = true;
+    setLoading(false);
+  }, [applyMe]);
+
   useEffect(() => {
+    load();
+  }, [load]);
+
+  // Plans shown in the UI: "current" is derived from the live subscription.
+  const basePlans = serverPlans ?? plans;
+  const viewPlans = useMemo<SubscriptionPlan[]>(
+    () =>
+      basePlans.map((p) => {
+        const isCurrent = subPlanId === p.id && subStatus === "active";
+        const next: SubscriptionPlan = {
+          ...p,
+          status: isCurrent ? "current" : p.status === "current" ? undefined : p.status,
+        };
+        return next;
+      }),
+    [basePlans, subPlanId, subStatus]
+  );
+
+  // Select the current (or recommended) plan once loading finishes.
+  useEffect(() => {
+    if (loading) return;
+    const cur = viewPlans.findIndex((p) => p.status === "current");
+    const rec = viewPlans.findIndex((p) => p.status === "recommended");
+    setSelectedIndex(cur >= 0 ? cur : rec >= 0 ? rec : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const selectedPlan = viewPlans[selectedIndex] ?? viewPlans[0];
+
+  // Mirror to localStorage for other parts of the app (after the first server load).
+  useEffect(() => {
+    if (loading) return;
     if (!receipt) {
       clearStoredSubscription();
       return;
@@ -1238,7 +1334,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       cycleStart,
       cycleEnd,
     });
-  }, [flowStage, receipt, paymentHistory, subStatus, autoRenewal, cycleStart, cycleEnd]);
+  }, [loading, flowStage, receipt, paymentHistory, subStatus, autoRenewal, cycleStart, cycleEnd]);
 
   // Lock background scroll while any modal is open.
   useEffect(() => {
@@ -1250,58 +1346,63 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
     };
   }, [checkoutPlan, showCancelModal]);
 
+  // ---------- Actions ----------
+
   const openCheckout = useCallback(
-    (plan: SubscriptionPlan) => {
-      onSubscribe?.(plan);
-      setCheckoutTxnId(generateTransactionId());
-      setCheckoutPlan(plan);
+    async (plan: SubscriptionPlan) => {
+      if (checkoutBusy) return;
+      setActionError(null);
+      setCheckoutBusy(true);
+      try {
+        onSubscribe?.(plan);
+        const session = await subscriptionApi.createCheckout(plan.id);
+        setCheckoutSession(session);
+        setCheckoutPlan(plan);
+      } catch (err) {
+        setActionError(errMsg(err, "Couldn't start checkout. Please try again."));
+      } finally {
+        setCheckoutBusy(false);
+      }
     },
-    [onSubscribe]
+    [checkoutBusy, onSubscribe]
   );
 
   const closeCheckout = useCallback(() => {
     setCheckoutPlan(null);
+    setCheckoutSession(null);
   }, []);
 
+  const handlePaymentComplete = useCallback(
+    (data: ConfirmResponse) => {
+      const r: PaidReceipt = data.receipt;
+      setReceipt(r);
+      setPaymentHistory((prev) => [r, ...prev.filter((x) => x.transactionId !== r.transactionId)]);
+      applySub(data.subscription);
+      setEmailStatus(data.emailStatus);
+      setCheckoutPlan(null);
+      setCheckoutSession(null);
+      setFlowStage("paid");
+      onPaymentSuccess?.(r);
+    },
+    [applySub, onPaymentSuccess]
+  );
+
   const dispatchReceiptEmail = useCallback(
-    async (paidReceipt: PaidReceipt) => {
+    async (r: PaidReceipt) => {
       setEmailStatus("sending");
       try {
         if (onSendReceiptEmail) {
-          await onSendReceiptEmail(paidReceipt);
+          await onSendReceiptEmail(r);
+          setEmailStatus("sent");
         } else {
-          // Demo fallback so the flow completes during development.
-          // Replace by wiring onSendReceiptEmail to a POST on your
-          // axs-api-node backend that reuses mailer.js, e.g.:
-          //   POST http://localhost:4000/send-receipt-email
-          //   body: { to: paidReceipt.userEmail, receipt: paidReceipt }
-          await new Promise((resolve) => setTimeout(resolve, 1300));
+          const res = await subscriptionApi.resendReceipt(r.transactionId);
+          setEmailStatus(res.emailStatus);
         }
-        setEmailStatus("sent");
-      } catch (err) {
+      } catch {
         setEmailStatus("error");
       }
     },
     [onSendReceiptEmail]
-  );
-
-  // The plan just paid for immediately becomes the new subscription: cycle
-  // dates, auto-renewal, and status are all (re)computed from it here, and
-  // the receipt is prepended to the running payment history.
-  const handlePaymentComplete = useCallback(
-    (paidReceipt: PaidReceipt) => {
-      setReceipt(paidReceipt);
-      setPaymentHistory((prev) => [paidReceipt, ...prev]);
-      setCycleStart(paidReceipt.paidAt);
-      setCycleEnd(addCycle(paidReceipt.paidAt, paidReceipt.plan.billingCycle));
-      setSubStatus("active");
-      setAutoRenewal(true);
-      setCheckoutPlan(null);
-      setFlowStage("paid");
-      onPaymentSuccess?.(paidReceipt);
-      dispatchReceiptEmail(paidReceipt);
-    },
-    [onPaymentSuccess, dispatchReceiptEmail]
   );
 
   const handleBackToPlans = useCallback(() => {
@@ -1311,25 +1412,47 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
   const requestCancel = useCallback(() => setShowCancelModal(true), []);
   const closeCancelModal = useCallback(() => setShowCancelModal(false), []);
 
-  const confirmCancel = useCallback(() => {
-    setSubStatus("cancelled");
-    setAutoRenewal(false);
-    setShowCancelModal(false);
-    if (receipt) onCancelSubscription?.(receipt);
-  }, [receipt, onCancelSubscription]);
+  const confirmCancel = useCallback(async () => {
+    setCancelBusy(true);
+    try {
+      const res = await subscriptionApi.cancel();
+      applySub(res.subscription);
+      setShowCancelModal(false);
+      if (receipt) onCancelSubscription?.(receipt);
+    } catch (err) {
+      setShowCancelModal(false);
+      setActionError(errMsg(err, "Couldn't cancel the subscription. Please try again."));
+    } finally {
+      setCancelBusy(false);
+    }
+  }, [applySub, receipt, onCancelSubscription]);
 
-  const reactivate = useCallback(() => {
-    setSubStatus("active");
-    setAutoRenewal(true);
-    setCycleEnd((prevEnd) => {
-      const now = Date.now();
-      if (receipt && new Date(prevEnd).getTime() < now) {
-        return addCycle(new Date().toISOString(), receipt.plan.billingCycle);
+  const reactivate = useCallback(async () => {
+    setActionError(null);
+    try {
+      const res = await subscriptionApi.reactivate();
+      applySub(res.subscription);
+      if (receipt) onReactivateSubscription?.(receipt);
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "PAYMENT_REQUIRED") setSubStatus("expired");
+      setActionError(errMsg(err, "Couldn't reactivate the subscription."));
+    }
+  }, [applySub, receipt, onReactivateSubscription]);
+
+  const toggleAutoRenewal = useCallback(
+    async (next: boolean) => {
+      const prev = autoRenewal;
+      setAutoRenewal(next);
+      try {
+        const res = await subscriptionApi.setAutoRenewal(next);
+        applySub(res.subscription);
+      } catch (err) {
+        setAutoRenewal(prev);
+        setActionError(errMsg(err, "Couldn't update auto-renewal."));
       }
-      return prevEnd;
-    });
-    if (receipt) onReactivateSubscription?.(receipt);
-  }, [receipt, onReactivateSubscription]);
+    },
+    [autoRenewal, applySub]
+  );
 
   const generateReceiptPdf = useCallback((r: PaidReceipt) => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -1355,6 +1478,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
       y += 24;
     };
 
+    if (r.invoiceNo) line("Invoice No.", r.invoiceNo);
     line("Transaction ID", r.transactionId);
     line("Plan", r.plan.name);
     line("Billing Cycle", r.plan.billingCycle);
@@ -1387,6 +1511,15 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
     doc.save(`AXS-Studio-Receipt-${r.transactionId}.pdf`);
   }, []);
 
+  const headerSubtitle =
+    flowStage === "paid"
+      ? subStatus === "cancelled"
+        ? "Subscription Cancelled"
+        : subStatus === "expired"
+        ? "Subscription Expired"
+        : "Subscription Active"
+      : "Premium Access";
+
   return (
     <div className="sub-page">
       <div className="sub-stage">
@@ -1395,136 +1528,147 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
 
         {/* Header */}
         <div className="sub-header">
-          {onBack && flowStage === "browsing" && (
+          {onBack && flowStage === "browsing" ? (
             <button type="button" className="sub-back" onClick={onBack}>
               <LeftOutlined /> Back
             </button>
-          )}
-          {flowStage === "paid" && (
+          ) : null}
+          {flowStage === "paid" ? (
             <button type="button" className="sub-back" onClick={handleBackToPlans}>
               <LeftOutlined /> Plans
             </button>
-          )}
+          ) : null}
 
           <div className="sub-title-wrap">
             <div className="sub-title-icon">
               <OrbitMark size={30} />
             </div>
             <div>
-              <p className="sub-subtitle">
-                {flowStage === "paid"
-                  ? subStatus === "cancelled"
-                    ? "Subscription Cancelled"
-                    : "Subscription Active"
-                  : "Premium Access"}
-              </p>
+              <p className="sub-subtitle">{headerSubtitle}</p>
               <h1 className="sub-heading">
                 {flowStage === "paid"
                   ? "Manage your studio subscription"
                   : "Choose the perfect plan for your studio"}
               </h1>
-              {flowStage === "browsing" && (
+              {flowStage === "browsing" && selectedPlan ? (
                 <p className="sub-readout">
-                  {plans.length} tiers available \u00b7 viewing{" "}
+                  {viewPlans.length} tiers available {"\u00b7"} viewing{" "}
                   <span className="sub-readout__accent">{selectedPlan.name}</span>
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {flowStage === "browsing" && receipt && (
+          {flowStage === "browsing" && receipt ? (
             <button type="button" className="sub-manage-link" onClick={() => setFlowStage("paid")}>
               <SafetyCertificateOutlined /> Manage Subscription
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Body */}
         <div className="sub-body">
-          {flowStage === "browsing" ? (
+          {loadError ? (
+            <div className="manage-email-status" role="alert" style={dangerBannerStyle}>
+              <ExclamationCircleOutlined />
+              <span>{loadError}</span>
+              <button type="button" className="receipt-card__resend" onClick={load}>
+                <RedoOutlined /> Retry
+              </button>
+            </div>
+          ) : null}
+
+          {actionError ? (
+            <div className="manage-email-status" role="alert" style={dangerBannerStyle}>
+              <ExclamationCircleOutlined />
+              <span>{actionError}</span>
+              <button type="button" className="receipt-card__resend" onClick={() => setActionError(null)}>
+                Dismiss
+              </button>
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div className="manage-email-status">
+              <LoadingOutlined spin />
+              <span>Loading your subscription{"\u2026"}</span>
+            </div>
+          ) : flowStage === "browsing" ? (
             <>
               <div className="sub-console">
-                <PlanRail plans={plans} selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
+                <PlanRail plans={viewPlans} selectedIndex={selectedIndex} onSelect={setSelectedIndex} />
                 <div className="sub-detail">
-                  <PlanDetail
-                    plan={selectedPlan}
-                    index={selectedIndex}
-                    total={plans.length}
-                    onCheckout={openCheckout}
-                  />
+                  {selectedPlan ? (
+                    <PlanDetail
+                      plan={selectedPlan}
+                      index={selectedIndex}
+                      total={viewPlans.length}
+                      busy={checkoutBusy}
+                      onCheckout={openCheckout}
+                    />
+                  ) : null}
                 </div>
               </div>
 
               <section className="sub-contact">
                 <div className="sub-contact__radar" aria-hidden="true" />
                 <div className="sub-contact__glow" />
-                <h2 className="sub-contact__title">
-                  Need a tailored solution for your photography enterprise?
-                </h2>
+                <h2 className="sub-contact__title">Need a tailored solution for your photography enterprise?</h2>
                 <p className="sub-contact__subtitle">
-                  Get in touch with our studio team for custom storage capacity exceeding
-                  10 TB, multi-brand dashboard support, custom routing, and unified
-                  billing.
+                  Get in touch with our studio team for custom storage capacity exceeding 10 TB, multi-brand
+                  dashboard support, custom routing, and unified billing.
                 </p>
 
-                <button
-                  type="button"
-                  className="sub-btn-primary sub-contact__btn"
-                  onClick={onContactSales}
-                >
+                <button type="button" className="sub-btn-primary sub-contact__btn" onClick={onContactSales}>
                   <PhoneOutlined /> Contact Sales
                 </button>
               </section>
             </>
-          ) : (
-            receipt && (
-              <ManageSubscriptionView
-                plan={receipt.plan}
-                latestReceipt={receipt}
-                history={paymentHistory}
-                status={subStatus}
-                autoRenewal={autoRenewal}
-                cycleStart={cycleStart}
-                cycleEnd={cycleEnd}
-                emailStatus={emailStatus}
-                merchantName={merchantName}
-                onToggleAutoRenewal={setAutoRenewal}
-                onRequestCancel={requestCancel}
-                onReactivate={reactivate}
-                onResendEmail={() => dispatchReceiptEmail(receipt)}
-                onDownloadReceipt={generateReceiptPdf}
-                onBack={handleBackToPlans}
-                onContactSales={onContactSales}
-              />
-            )
-          )}
+          ) : receipt ? (
+            <ManageSubscriptionView
+              plan={receipt.plan}
+              latestReceipt={receipt}
+              history={paymentHistory}
+              status={subStatus}
+              autoRenewal={autoRenewal}
+              cycleStart={cycleStart}
+              cycleEnd={cycleEnd}
+              emailStatus={emailStatus}
+              merchantName={merchantName}
+              onToggleAutoRenewal={toggleAutoRenewal}
+              onRequestCancel={requestCancel}
+              onReactivate={reactivate}
+              onResendEmail={() => dispatchReceiptEmail(receipt)}
+              onDownloadReceipt={generateReceiptPdf}
+              onBack={handleBackToPlans}
+              onContactSales={onContactSales}
+            />
+          ) : null}
         </div>
       </div>
 
       <AnimatePresence>
-        {checkoutPlan && (
+        {checkoutPlan && checkoutSession ? (
           <PaymentModal
+            key={checkoutSession.txnId}
             plan={checkoutPlan}
-            transactionId={checkoutTxnId}
-            merchantVpa={merchantVpa}
-            merchantName={merchantName}
-            userName={user?.name}
-            userEmail={user?.email}
+            session={checkoutSession}
             onClose={closeCheckout}
             onComplete={handlePaymentComplete}
           />
-        )}
+        ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
-        {showCancelModal && receipt && (
+        {showCancelModal && receipt ? (
           <CancelSubscriptionModal
             plan={receipt.plan}
             accessUntil={cycleEnd}
+            busy={cancelBusy}
             onClose={closeCancelModal}
             onConfirm={confirmCancel}
           />
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Layout, Table, DatePicker, Switch, Tooltip, ConfigProvider, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -45,6 +45,13 @@ interface InvoiceRow extends StoredInvoice {
   txn: StoredTransaction;
 }
 
+interface BatchProgress {
+  done: number;
+  total: number;
+  current: string;
+  phase: "preparing" | "printing";
+}
+
 // ---- Studio letterhead + payment details -----------------------------
 // Replace these with the studio's real details (or wire up to a settings
 // page later) — kept as constants so the invoice always renders correctly
@@ -63,6 +70,12 @@ const DEFAULT_NOTE =
   "Payment is due within 7 days of the invoice date. Late payments may attract additional charges. For any queries about this invoice, reach out using the contact details above.";
 
 const NOTES_STORAGE_KEY = "axs_invoice_notes_v1";
+
+// Timings (ms) — keep in sync with the CSS animation durations
+const PAPER_FEED_MS = 800; // .inv-invoice-sheet feed-in
+const SCAN_SWEEP_MS = 650; // .is-feeding sweep before window.print()
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const formatINR = (v: number) => `₹ ${v.toLocaleString("en-IN")}`;
 
@@ -102,6 +115,9 @@ export default function AutoInvoicePage() {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [printBatchRows, setPrintBatchRows] = useState<InvoiceRow[] | null>(null);
   const [notesMap, setNotesMap] = useState<Record<string, string>>(() => loadNotes());
+  const [isFeeding, setIsFeeding] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  const batchCancelRef = useRef(false);
 
   useEffect(() => {
     dispatch(fetchTransactionsRequest());
@@ -121,6 +137,7 @@ export default function AutoInvoicePage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        batchCancelRef.current = true;
         setPreviewRow(null);
         setPrintBatchRows(null);
       }
@@ -212,9 +229,21 @@ export default function AutoInvoicePage() {
     message.success(`Invoice ${row.invoiceNumber} marked as sent`);
   };
 
+  // Table printer icon: open the preview (paper feeds out of the slot),
+  // then print once the paper has landed.
   const handlePrint = (row: InvoiceRow) => {
     setPreviewRow(row);
-    setTimeout(() => window.print(), 200);
+    setTimeout(() => window.print(), PAPER_FEED_MS + 100);
+  };
+
+  // Footer print button: scan-head sweep across the sheet, then print.
+  const printWithFeed = () => {
+    if (isFeeding) return;
+    setIsFeeding(true);
+    setTimeout(() => {
+      window.print();
+      setIsFeeding(false);
+    }, SCAN_SWEEP_MS);
   };
 
   const handleCopySummary = (row: InvoiceRow) => {
@@ -250,14 +279,53 @@ export default function AutoInvoicePage() {
     setSelectedKeys([]);
   };
 
-  const handleBulkPrint = () => {
-    if (selectedRows.length === 0) return;
-    setPrintBatchRows(selectedRows);
-    setTimeout(() => {
-      window.print();
-      setPrintBatchRows(null);
-    }, 250);
+  const cancelBatchPrint = () => {
+    batchCancelRef.current = true;
   };
+
+  const handleBulkPrint = async () => {
+    if (selectedRows.length === 0 || batchProgress) return;
+
+    const batch = [...selectedRows];
+    batchCancelRef.current = false;
+    const step = Math.min(260, Math.max(90, Math.round(1800 / batch.length)));
+
+    // Phase 1 — walk through each invoice so the progress bar reads as real work
+    for (let i = 0; i < batch.length; i++) {
+      if (batchCancelRef.current) {
+        setBatchProgress(null);
+        message.info("Batch print cancelled");
+        return;
+      }
+      setBatchProgress({
+        done: i,
+        total: batch.length,
+        current: batch[i].invoiceNumber,
+        phase: "preparing",
+      });
+      await sleep(step);
+    }
+
+    if (batchCancelRef.current) {
+      setBatchProgress(null);
+      message.info("Batch print cancelled");
+      return;
+    }
+
+    // Phase 2 — mount the print sheets, give the DOM a beat, hand off to the printer
+    setBatchProgress({ done: batch.length, total: batch.length, current: "", phase: "printing" });
+    setPrintBatchRows(batch);
+    await sleep(450);
+    window.print();
+    setPrintBatchRows(null);
+    setBatchProgress(null);
+  };
+
+  const batchPct = batchProgress
+    ? batchProgress.phase === "printing"
+      ? 100
+      : Math.round(((batchProgress.done + 0.5) / batchProgress.total) * 100)
+    : 0;
 
   const collectionRingStyle = {
     background: `conic-gradient(var(--inv-green) ${collectionStats.pct * 3.6}deg, rgba(255,255,255,0.06) 0deg)`,
@@ -380,9 +448,18 @@ export default function AutoInvoicePage() {
     const note = notesMap[row.transactionId] ?? DEFAULT_NOTE;
     const showQr = row.status !== "Paid";
 
+    const sheetClass = [
+      "inv-invoice-sheet",
+      !interactive && "inv-invoice-sheet--batch",
+      row.status === "Paid" && "inv-invoice-sheet--paid",
+      interactive && isFeeding && "is-feeding",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
     return (
       <div
-        className={`inv-invoice-sheet ${!interactive ? "inv-invoice-sheet--batch" : ""}`}
+        className={sheetClass}
         key={row.transactionId}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -546,7 +623,12 @@ export default function AutoInvoicePage() {
               >
                 <SendOutlined /> Mark Sent
               </button>
-              <button type="button" className="inv-primary-button" onClick={() => window.print()}>
+              <button
+                type="button"
+                className="inv-primary-button"
+                onClick={printWithFeed}
+                disabled={isFeeding}
+              >
                 <PrinterOutlined /> Print / Save PDF
               </button>
             </div>
@@ -588,9 +670,7 @@ export default function AutoInvoicePage() {
                   </div>
                 </div>
 
-                {/* ---- Command Deck: Collections + Status mix + Needs attention,
-                    now leading the page so the money story reads before the
-                    invoice table does. ---- */}
+                {/* ---- Command Deck: Collections + Status mix + Needs attention ---- */}
                 <div className="inv-command-deck">
                   <div className="inv-deck-card inv-collection-card">
                     <span className="inv-deck-glow" aria-hidden="true" />
@@ -746,10 +826,20 @@ export default function AutoInvoicePage() {
                   <div className="inv-bulk-bar">
                     <span>{selectedKeys.length} selected</span>
                     <div className="inv-bulk-actions">
-                      <button type="button" className="inv-secondary-button" onClick={handleBulkSend}>
+                      <button
+                        type="button"
+                        className="inv-secondary-button"
+                        onClick={handleBulkSend}
+                        disabled={!!batchProgress}
+                      >
                         <SendOutlined /> Send selected
                       </button>
-                      <button type="button" className="inv-secondary-button" onClick={handleBulkPrint}>
+                      <button
+                        type="button"
+                        className="inv-secondary-button"
+                        onClick={handleBulkPrint}
+                        disabled={!!batchProgress}
+                      >
                         <PrinterOutlined /> Print selected
                       </button>
                       <button
@@ -757,6 +847,7 @@ export default function AutoInvoicePage() {
                         className="inv-icon-btn"
                         onClick={() => setSelectedKeys([])}
                         aria-label="Clear selection"
+                        disabled={!!batchProgress}
                       >
                         <CloseOutlined />
                       </button>
@@ -804,13 +895,65 @@ export default function AutoInvoicePage() {
 
       {previewRow && (
         <div className="inv-panel-overlay" onMouseDown={() => setPreviewRow(null)}>
-          {renderInvoiceSheet(previewRow, true)}
+          {/* Stage = printer slot + paper. The sheet slides out from under the slot. */}
+          <div className="inv-paper-stage" onMouseDown={(e) => e.stopPropagation()}>
+            <span className="inv-printer-slot no-print" aria-hidden="true" />
+            {renderInvoiceSheet(previewRow, true)}
+          </div>
         </div>
       )}
 
       {printBatchRows ? (
         <div className="inv-print-batch">
           {printBatchRows.map((row) => renderInvoiceSheet(row, false))}
+        </div>
+      ) : null}
+
+      {batchProgress ? (
+        <div className="inv-batch-progress no-print" role="status" aria-live="polite">
+          <div className="inv-batch-head">
+            <span className="inv-batch-sheets" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <div className="inv-batch-title">
+              <strong>
+                {batchProgress.phase === "printing"
+                  ? "Sending to printer…"
+                  : `Preparing invoice ${Math.min(batchProgress.done + 1, batchProgress.total)} of ${batchProgress.total}`}
+              </strong>
+              <small>
+                {batchProgress.phase === "printing"
+                  ? `${batchProgress.total} invoice(s) ready`
+                  : batchProgress.current}
+              </small>
+            </div>
+            <button
+              type="button"
+              className="inv-icon-btn"
+              onClick={cancelBatchPrint}
+              disabled={batchProgress.phase === "printing"}
+              aria-label="Cancel batch print"
+            >
+              <CloseOutlined />
+            </button>
+          </div>
+          <div
+            className="inv-batch-track"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={batchPct}
+          >
+            <div className="inv-batch-fill" style={{ width: `${batchPct}%` }} />
+          </div>
+          <div className="inv-batch-foot">
+            <span>{batchPct}%</span>
+            <span>
+              {batchProgress.done}/{batchProgress.total}
+            </span>
+          </div>
         </div>
       ) : null}
     </ConfigProvider>
