@@ -5,9 +5,6 @@ import "./CheckInStatusBadge.css";
 
 interface Props {
   status?: EventCheckInStatus;
-  /** Only the "awaiting" state animates, and only when this is true — a
-   *  pending check-in for an event three weeks out isn't urgent, so it
-   *  shouldn't visually compete with one happening today. */
   isToday?: boolean;
 }
 
@@ -50,10 +47,6 @@ function ProgressRing({ fraction, spin }: { fraction: number; spin?: boolean }) 
   );
 }
 
-/**
- * Renders nothing if the event has no assigned photographers (nothing to
- * report) or status hasn't loaded yet — caller doesn't need to guard for that.
- */
 export default function CheckInStatusBadge({ status, isToday }: Props) {
   if (!status || status.totalPhotographers === 0) return null;
 

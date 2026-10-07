@@ -58,10 +58,7 @@
 /* ---------- Progress Bar ---------- */
 .tap-progress-bar {position: relative;height: 5px;background: rgba(255,255,255,0.06);border-radius: 3px;margin-bottom: 20px;overflow: visible;}
 
-.tap-progress-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(
+.tap-progress-fill {height: 100%;border-radius: 3px;background: linear-gradient(
     
   90deg, var(--cyan), var(--mint));box-shadow: 0 0 10px rgba(56,213,255,0.45);transition: width 0.4s ease;}
 .tap-progress-pct {position: absolute;right: 0;top: -18px;font-size: 11px;color: var(--cyan);font-weight: 900;letter-spacing: 0.06em;}

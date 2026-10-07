@@ -7,9 +7,6 @@ const META_KEY = "axsNotificationMeta";
 const SIMULATED_LATENCY_MS = 300;
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
-// Backend-sourced notification ids (from /studio/notifications) are prefixed
-// with this so update/delete calls know to hit the real API instead of
-// treating the id as a local calendar-event or axsNotifications entry.
 const BACKEND_ID_PREFIX = "backend-";
 
 const authHeaders = () => {
@@ -135,10 +132,6 @@ const flattenEvents = (events: Record<string, any>): NotificationEvent[] => {
   });
 };
 
-// Maps a raw backend notification doc (from GET /studio/notifications) onto
-// the NotificationEvent shape this page/its categoryConfig expects. Ids are
-// prefixed so update/delete calls below can route them back to the backend
-// instead of treating them as local calendar/axsNotifications entries.
 const normalizeBackendNotification = (raw: any): NotificationEvent => {
   const rawId = raw._id || raw.id;
   return {
@@ -154,10 +147,6 @@ const normalizeBackendNotification = (raw: any): NotificationEvent => {
     isActionable: Boolean(raw.isActionable),
     extraDetails: raw.extraDetails || [],
     notifCategory: raw.notifCategory,
-    // Passed straight through — this is the eventName/role/venue/assignedBy
-    // shape TeamAssignmentPage's pushEventAssignmentNotification sends, and
-    // what notificationCategoryConfig's eventAssignment.getPayloadFields
-    // expects to read.
     payload: raw.payload || undefined,
   } as NotificationEvent;
 };
@@ -178,7 +167,7 @@ const fetchBackendNotifications = async (): Promise<{ events: NotificationEvent[
     });
     return { events, readMap };
   } catch {
-    // Bell/list just falls back to local-only sources if the backend call fails.
+
     return { events: [], readMap: {} };
   }
 };
@@ -203,9 +192,6 @@ export const fetchNotificationDataApi = async (): Promise<{
 
     const metaMap = getAllMeta();
 
-    // Seed local meta for backend items the user hasn't opened via this page
-    // yet, so "Read"/"Unread" reflects the backend's own read state on first
-    // load instead of always defaulting to unread.
     let metaChanged = false;
     Object.entries(readMap).forEach(([id, read]) => {
       if (!metaMap[id]) {
@@ -233,9 +219,7 @@ export const updateNotificationMetaApi = async (
     all[id] = next;
     persistMeta(all);
 
-    // Keep the backend's own read flag in sync too, so the Navbar bell
-    // (which reads straight from the backend via useAssignmentNotifications)
-    // agrees with what this page shows.
+
     if (id.startsWith(BACKEND_ID_PREFIX) && patch.read !== undefined) {
       const realId = id.slice(BACKEND_ID_PREFIX.length);
       try {
@@ -244,7 +228,7 @@ export const updateNotificationMetaApi = async (
           headers: authHeaders(),
         });
       } catch {
-        // Local meta update still stands even if the backend sync fails.
+        
       }
     }
 
@@ -265,7 +249,7 @@ export const deleteNotificationApi = async (id: string, date: string): Promise<s
           headers: authHeaders(),
         });
       } catch {
-        // Fall through — local meta entry (if any) is still cleaned up below.
+      
       }
       const all = getAllMeta();
       if (all[id]) {

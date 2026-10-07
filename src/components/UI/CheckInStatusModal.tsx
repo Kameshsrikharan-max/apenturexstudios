@@ -1,20 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Image, Button, Tag, message, Tooltip } from "antd";
-import {
-  CheckCircleFilled,
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  MailOutlined,
-  SendOutlined,
-  UserOutlined,
-  RadarChartOutlined,
-} from "@ant-design/icons";
-import {
-  fetchCheckInStatusForEvent,
-  resendCheckInEmail,
-  EventCheckInStatus,
-  CheckInStatusEntry,
-} from "../../utils/checkinStatusApi";
+import {CheckCircleFilled,ClockCircleOutlined,EnvironmentOutlined,MailOutlined,SendOutlined,UserOutlined,RadarChartOutlined,} from "@ant-design/icons";
+import {fetchCheckInStatusForEvent,resendCheckInEmail,EventCheckInStatus,CheckInStatusEntry,} from "../../utils/checkinStatusApi";
 import "./CheckInStatusModal.css";
 
 interface VenueLocation {
@@ -32,8 +19,6 @@ interface Props {
 
 const WINDOW_MS = 60 * 60 * 1000;
 
-// Haversine — straight-line distance in meters between two lat/lng points.
-// Used to flag a check-in that's suspiciously far from the pinned venue.
 function distanceMeters(a: VenueLocation, b: VenueLocation): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;

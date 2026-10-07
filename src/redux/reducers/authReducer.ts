@@ -87,9 +87,6 @@ const authReducer = (state = initialState, action: any) => {
         needsSignup: false,
         signupEmail: null,
         signupToken: null,
-        // registerRole intentionally survives this reset — RegisterPage's
-        // "Change role" back-nav dispatches resetOtpState, and the role
-        // picker re-selecting overwrites registerRole anyway via SET_REGISTER_ROLE.
       };
 
     case SET_REGISTER_ROLE:

@@ -43,8 +43,8 @@ type Member = {
   email: string;
   mobile: string;
   city: string;
-  role: string; // account role: Studio Photographer / Freelance Photographer
-  photoAccountStatus: string; // Active/Inactive/Pending from Users API
+  role: string;
+  photoAccountStatus: string; 
 };
 
 type AssignedMember = Member & {
@@ -77,10 +77,7 @@ function Avatar({ name, size = 36 }: { name: string; size?: number }) {
   );
 }
 
-/* ---------- Availability: fetched from the backend (studio/availability),
-   which is the same collection AvailabilityPage writes to. This is what
-   makes "only available photographers can be assigned" actually correct
-   across different admin/photographer browsers. ---------- */
+/* ---------- Availability ---------- */
 
 type AvailabilityResult = {
   email: string;
@@ -121,13 +118,7 @@ const formatReason = (reason: AvailabilityResult["reason"]): string => {
   return reason.note ? `${label} — ${reason.note}` : label;
 };
 
-/* ---------- Backend sync ----------
-   Persists the assigned team to the actual event document via
-   PATCH /studio/events/:id/assign-team. That endpoint (event.controller.js
-   assignTeam) both writes assignedMembersList and creates an
-   "Event Assignment" notification for anyone newly added — so calling it
-   is what makes the photographer's event list AND their notifications
-   pick this up. */
+/* ---------- Backend sync ----------  */
 async function syncAssignedTeam(
   eventId: string | undefined,
   team: AssignedMember[]
@@ -174,9 +165,6 @@ type TeamAssignmentPageProps = {
   onNext?: (assignedList: AssignedMember[]) => void;
 };
 
-// Normalizes whatever shape a member arrives in (either the backend's saved
-// assignedMembersList — {userId, name, email, ...} — or a plain Member
-// picked from the photographer list) into a full AssignedMember.
 function toAssignedMember(raw: any): AssignedMember {
   return {
     id: String(raw.id ?? raw.userId ?? ""),
@@ -279,11 +267,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
     toastTimer.current = setTimeout(() => setToast(null), 4500);
   };
 
-  // If the event prop / sessionStorage event arrives (or changes) after
-  // first paint — e.g. EventPage sets `assignEvent` a tick after mount, or
-  // the standalone route resolves sessionStorage asynchronously via the
-  // effect above — re-run the restore once so we don't get stuck showing
-  // an empty table for an event that already has assignments.
   useEffect(() => {
     if (teamRestored) return;
     const savedOnEvent = eventProp?.assignedMembersList || event?.assignedMembersList;
@@ -291,8 +274,6 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       setAssignedTeam(savedOnEvent.map(toAssignedMember));
       setTeamRestored(true);
     } else if (event) {
-      // We have an event but it has no saved team — nothing more to
-      // restore, stop re-checking.
       setTeamRestored(true);
     }
   }, [event, eventProp, teamRestored]);
@@ -430,8 +411,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       onNext(assignedTeam);
       return;
     }
-    // Wizard flow (standalone route, no onNext prop) continues on to the
-    // Equipment Checklist step rather than jumping straight to Payment.
+
     navigate("/events/create/equipment-checklist", { state: { eventId } });
   };
 
@@ -452,7 +432,7 @@ export default function TeamAssignmentPage({ user, event: eventProp, onPrevious,
       const matchesAvail = !showAvailOnly || isAvailableOn(m.email);
       return matchesSearch && matchesCity && matchesAvail;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [roleFiltered, search, cityFilter, showAvailOnly, availabilityMap]);
 
   const isAssigned = (id: string) => !!assignedTeam.find(a => a.id === id);

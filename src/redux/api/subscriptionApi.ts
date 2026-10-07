@@ -1,14 +1,12 @@
-// Talks to axs-api-node  ->  /subscription/*
-// Put this file in the SAME folder as SubscriptionPage.tsx
 
 // ---------- Config ----------
 const env = (import.meta as any).env || {};
 const BASE: string = String(
   env.VITE_API_URL || env.VITE_API_BASE_URL || "http://localhost:4000"
 ).replace(/\/+$/, "");
-const PREFIX = "/subscription"; // server.js mounts routes at "/", so there is no /api prefix
+const PREFIX = "/subscription"; 
 
-// EDIT HERE if your login stores the token under a different key.
+
 const TOKEN_KEYS = ["token", "axs_token", "authToken", "accessToken"];
 
 const getToken = (): string | null => {
@@ -25,12 +23,12 @@ const getToken = (): string | null => {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed.token === "string") return parsed.token;
         } catch {
-          /* not JSON */
+          
         }
       }
     }
   } catch {
-    /* storage blocked */
+    
   }
   return null;
 };

@@ -7,9 +7,9 @@ import type { ColumnsType } from "antd/es/table";
 import {
   AppstoreOutlined, ArrowRightOutlined, BarsOutlined, CalendarOutlined, CheckCircleOutlined,
   ClockCircleOutlined, CloseCircleOutlined, CloseOutlined, DownloadOutlined, EnvironmentOutlined,
-  EyeOutlined, FilterOutlined, HistoryOutlined, HourglassOutlined, IdcardOutlined, PieChartOutlined,
-  PlayCircleOutlined, ProjectOutlined, ReloadOutlined, SearchOutlined, SwapOutlined,
-  ThunderboltOutlined, TrophyFilled, UndoOutlined, UsergroupAddOutlined,
+  EyeOutlined, FilterOutlined, HistoryOutlined, IdcardOutlined, PieChartOutlined,
+  PlayCircleOutlined, ProjectOutlined, ReloadOutlined, SearchOutlined, ThunderboltOutlined,
+  TrophyFilled, UndoOutlined, UsergroupAddOutlined,
 } from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import "./ReviewPage.css";
@@ -56,11 +56,11 @@ interface SnackbarState { id: string; message: string; historyId: string }
 
 interface PaletteAction { id: string; label: string; icon: React.ReactNode; run: () => void }
 
-const SKILL_AXES: { key: keyof Skills; label: string; color: string }[] = [
-  { key: "tech", label: "Tech", color: "#38bdf8" },
-  { key: "comms", label: "Comms", color: "#a78bfa" },
-  { key: "culture", label: "Culture", color: "#f472b6" },
-  { key: "exp", label: "Experience", color: "#fbbf24" },
+const SKILL_AXES: { key: keyof Skills; label: string; short: string; color: string }[] = [
+  { key: "tech", label: "Tech", short: "Tech", color: "#38bdf8" },
+  { key: "comms", label: "Comms", short: "Comms", color: "#a78bfa" },
+  { key: "culture", label: "Culture", short: "Culture", color: "#f472b6" },
+  { key: "exp", label: "Experience", short: "Exp", color: "#fbbf24" },
 ];
 
 const statusMetaMap: Record<Status, { color: string; glow: string; label: string }> = {
@@ -84,9 +84,12 @@ const timeAgo = (dateStr: string) => {
 
 const isNew = (d: string) => ageDays(d) < 3;
 
+const scoreOf = (s: Skills) => Math.round((s.tech + s.comms + s.culture + s.exp) / 4);
+const scoreColor = (n: number) => (n >= 80 ? "#22c55e" : n >= 60 ? "#f59e0b" : "#ef4444");
+
 const exportCSV = (data: ReferralRecord[], filename: string) => {
-  const headers = ["Name", "Role", "City", "Status", "Submitted"];
-  const rows = data.map((r) => [r.applicant, r.role, r.location, r.status, r.submitted]);
+  const headers = ["Name", "Role", "City", "Status", "Score", "Submitted"];
+  const rows = data.map((r) => [r.applicant, r.role, r.location, r.status, scoreOf(r.skills), r.submitted]);
   const csv = [headers, ...rows].map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
   const a = document.createElement("a");
@@ -131,7 +134,7 @@ const Stat = ({ icon, cls, label, value }: { icon: React.ReactNode; cls?: string
 };
 
 /* -------------------------------------------------------------------------- */
-/*  Skill bars                                                                 */
+/*  Skill bars, radar, score chip                                              */
 /* -------------------------------------------------------------------------- */
 
 const SkillBars = ({ skills }: { skills: Skills }) => (
@@ -145,73 +148,57 @@ const SkillBars = ({ skills }: { skills: Skills }) => (
   </div>
 );
 
-/* -------------------------------------------------------------------------- */
-/*  Compare view — head to head                                                */
-/* -------------------------------------------------------------------------- */
-
-const compareColors = ["#38bdf8", "#f472b6"];
-
-const CompareView = ({ records }: { records: ReferralRecord[] }) => {
-  if (records.length < 2) return <Empty description="Pick two candidates to compare" />;
-  const [a, b] = records;
-  const wins = [0, 0];
-  SKILL_AXES.forEach((ax) => {
-    if (a.skills[ax.key] > b.skills[ax.key]) wins[0] += 1;
-    else if (b.skills[ax.key] > a.skills[ax.key]) wins[1] += 1;
-  });
-  const facts: { label: string; icon: React.ReactNode; va: string; vb: string }[] = [
-    { label: "Role", icon: <IdcardOutlined />, va: a.role, vb: b.role },
-    { label: "City", icon: <EnvironmentOutlined />, va: a.location, vb: b.location },
-    { label: "Submitted", icon: <CalendarOutlined />, va: timeAgo(a.submitted), vb: timeAgo(b.submitted) },
-  ];
-
+const Radar = ({ skills, size = 190 }: { skills: Skills; size?: number }) => {
+  const c = size / 2;
+  const R = size / 2 - 32;
+  const angles = [-90, 0, 90, 180];
+  const pt = (i: number, f: number): [number, number] => {
+    const a = (angles[i] * Math.PI) / 180;
+    return [c + Math.cos(a) * R * f, c + Math.sin(a) * R * f];
+  };
+  const ring = (f: number) => SKILL_AXES.map((_, i) => pt(i, f).join(",")).join(" ");
+  const data = SKILL_AXES.map((a, i) => pt(i, skills[a.key] / 100).join(",")).join(" ");
+  const sc = scoreOf(skills);
   return (
-    <div className="cmp">
-      <div className="cmp-head">
-        {records.map((r, i) => (
-          <div key={r.key} className="cmp-card" style={{ "--cc": compareColors[i] } as React.CSSProperties}>
-            {wins[i] > wins[1 - i] && <span className="cmp-lead"><TrophyFilled /> Leads</span>}
-            <Avatar src={r.avatar} size={72} className="cmp-avatar" />
-            <h4>{r.applicant}</h4>
-            <p className="role-text">{r.role}</p>
-            <span className={`status-pill ${r.status.toLowerCase()}`}><span className="status-dot-mark" />{r.status}</span>
-          </div>
-        ))}
-        <div className="cmp-vs">VS</div>
-      </div>
-
-      <h5 className="cmp-title">Skills</h5>
-      <div className="cmp-skills">
-        {SKILL_AXES.map((ax) => {
-          const va = a.skills[ax.key];
-          const vb = b.skills[ax.key];
+    <div className="radar-wrap">
+      <svg viewBox={`0 0 ${size} ${size}`} className="radar" role="img" aria-label={`Skill radar, match score ${sc}`}>
+        <defs>
+          <linearGradient id="radarFill" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#f472b6" stopOpacity="0.45" />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75, 1].map((f) => <polygon key={f} points={ring(f)} className="radar-ring" />)}
+        {SKILL_AXES.map((_, i) => {
+          const [x, y] = pt(i, 1);
+          return <line key={i} x1={c} y1={c} x2={x} y2={y} className="radar-axis" />;
+        })}
+        <polygon points={data} className="radar-poly" fill="url(#radarFill)" stroke="#7dd3fc" strokeWidth="2" strokeLinejoin="round" />
+        {SKILL_AXES.map((a, i) => {
+          const [x, y] = pt(i, skills[a.key] / 100);
+          return <circle key={a.key} cx={x} cy={y} r="3.6" fill={a.color} className="radar-dot" />;
+        })}
+        {SKILL_AXES.map((a, i) => {
+          const [x, y] = pt(i, 1.28);
           return (
-            <div key={ax.key} className="cmp-skill-row">
-              <div className="cmp-skill-label">{ax.label}</div>
-              <div className="cmp-track">
-                <div className="cmp-half left">
-                  <i className={va > vb ? "win" : ""} style={{ width: `${va}%`, "--c": compareColors[0] } as React.CSSProperties} />
-                </div>
-                <div className="cmp-half right">
-                  <i className={vb > va ? "win" : ""} style={{ width: `${vb}%`, "--c": compareColors[1] } as React.CSSProperties} />
-                </div>
-              </div>
-            </div>
+            <text key={a.key} x={x} y={y} textAnchor="middle" dominantBaseline="central" className="radar-label">
+              {a.short} {skills[a.key]}
+            </text>
           );
         })}
-      </div>
-
-      <h5 className="cmp-title">Details</h5>
-      <div className="cmp-facts">
-        {facts.map((f) => (
-          <div key={f.label} className="cmp-fact">
-            <strong style={{ color: compareColors[0] }}>{f.va}</strong>
-            <span>{f.icon}{f.label}</span>
-            <strong style={{ color: compareColors[1] }}>{f.vb}</strong>
-          </div>
-        ))}
-      </div>
+      </svg>
     </div>
+  );
+};
+
+const ScoreChip = ({ skills }: { skills: Skills }) => {
+  const s = scoreOf(skills);
+  return (
+    <Tooltip title="Match score — average of all four skills">
+      <span className="score-chip" style={{ "--sc": scoreColor(s) } as React.CSSProperties}>
+        <ThunderboltOutlined />{s}
+      </span>
+    </Tooltip>
   );
 };
 
@@ -290,8 +277,11 @@ const TriageMode = ({ queue, onDecide, onClose }: TriageProps) => {
               <img src={current.avatar} alt="" draggable={false} onError={(e) => { e.currentTarget.src = fallbackImage; }} />
               <h2>{current.applicant}</h2>
               <p className="role-text">{current.role} · {current.location}</p>
-              <SkillBars skills={current.skills} />
-              <span className="tri-wait">Waiting {ageDays(current.submitted)}d</span>
+              <Radar skills={current.skills} size={200} />
+              <div className="tri-meta">
+                <ScoreChip skills={current.skills} />
+                <span className="tri-wait">Waiting {ageDays(current.submitted)}d</span>
+              </div>
             </div>
           </div>
           <div className="tri-actions">
@@ -319,11 +309,9 @@ interface ReviewProfileOverlayProps {
   referral: ReferralRecord;
   onClose: () => void;
   onStatusChange: (key: string, status: Status) => void;
-  onCompareToggle: (key: string) => void;
-  isComparing: boolean;
 }
 
-const ReviewProfileOverlay = ({ referral, onClose, onStatusChange, onCompareToggle, isComparing }: ReviewProfileOverlayProps) => {
+const ReviewProfileOverlay = ({ referral, onClose, onStatusChange }: ReviewProfileOverlayProps) => {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   useEffect(() => {
@@ -381,11 +369,12 @@ const ReviewProfileOverlay = ({ referral, onClose, onStatusChange, onCompareTogg
               <span className="rvo-status-badge" style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow } as React.CSSProperties}>
                 {statusIconMap[referral.status]}{statusMeta.label}
               </span>
+              <ScoreChip skills={referral.skills} />
             </div>
           </div>
 
           <div className="rvo-skills-wrap">
-            <SkillBars skills={referral.skills} />
+            <Radar skills={referral.skills} />
           </div>
 
           <div className="rvo-info-grid">
@@ -400,16 +389,13 @@ const ReviewProfileOverlay = ({ referral, onClose, onStatusChange, onCompareTogg
             ))}
           </div>
 
-          <div className="rvo-action-row">
-            <Button className={`rvo-compare-btn ${isComparing ? "active" : ""}`} icon={<SwapOutlined />} onClick={() => onCompareToggle(referral.key)}>
-              {isComparing ? "Comparing" : "Compare"}
-            </Button>
-            {referral.status !== "Pending" && (
+          {referral.status !== "Pending" && (
+            <div className="rvo-action-row">
               <Button icon={<ClockCircleOutlined />} onClick={() => { onStatusChange(referral.key, "Pending"); onClose(); }}>
                 Reopen
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {referral.status === "Pending" && (
             <div className="rvo-action-row">
@@ -445,8 +431,6 @@ const ReviewPage = () => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
-  const [compareKeys, setCompareKeys] = useState<string[]>([]);
-  const [compareOpen, setCompareOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [paletteActiveIndex, setPaletteActiveIndex] = useState(0);
@@ -484,6 +468,10 @@ const ReviewPage = () => {
   const rejectedCount = referralsData.filter((i) => i.status === "Rejected").length;
   const triageQueue = useMemo(
     () => referralsData.filter((r) => r.status === "Pending").sort((a, b) => ageDays(b.submitted) - ageDays(a.submitted)),
+    [referralsData]
+  );
+  const topPending = useMemo(
+    () => referralsData.filter((r) => r.status === "Pending").sort((a, b) => scoreOf(b.skills) - scoreOf(a.skills))[0] || null,
     [referralsData]
   );
   const longestWaiting = triageQueue.length ? triageQueue[0] : null;
@@ -574,15 +562,15 @@ const ReviewPage = () => {
     setSelectedRowKeys([]);
   };
 
-  const toggleCompare = (key: string) => {
-    setCompareKeys((prev) => {
-      if (prev.includes(key)) return prev.filter((k) => k !== key);
-      if (prev.length < 2) return [...prev, key];
-      return [prev[1], key];
-    });
-  };
-
   const getStatusClass = (status: string) => (status === "Approved" ? "approved" : status === "Rejected" ? "rejected" : "pending");
+
+  /* ------------------------------ hero spotlight ------------------------------ */
+
+  const handleHeroMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--mx", `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty("--my", `${e.clientY - rect.top}px`);
+  };
 
   /* -------------------------- command palette -------------------------- */
 
@@ -611,6 +599,8 @@ const ReviewPage = () => {
     const act = (id: string, label: string, icon: React.ReactNode, fn: () => void): PaletteAction => ({ id, label, icon, run: () => { fn(); close(); } });
     return [
       act("triage", "Start triage mode", <PlayCircleOutlined />, () => setTriageOpen(true)),
+      act("open-top", "Open top-scoring pending candidate", <TrophyFilled />, () => { if (topPending) setSelectedReferral(topPending); }),
+      act("approve-strong", "Approve pending with score 80+", <ThunderboltOutlined />, () => handleBulkStatusChange(referralsData.filter((r) => r.status === "Pending" && scoreOf(r.skills) >= 80).map((r) => r.key), "Approved")),
       act("approve-pending", "Approve all pending", <CheckCircleOutlined />, () => handleBulkStatusChange(referralsData.filter((r) => r.status === "Pending").map((r) => r.key), "Approved")),
       act("export-all", "Export current view as CSV", <DownloadOutlined />, () => exportCSV(filteredData, "referrals.csv")),
       act("filter-pending", "Filter: Pending only", <FilterOutlined />, () => setStatusFilter("pending")),
@@ -624,7 +614,7 @@ const ReviewPage = () => {
       act("toggle-insights", showInsights ? "Hide insights panel" : "Show insights panel", <PieChartOutlined />, () => setShowInsights((v) => !v)),
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [referralsData, filteredData, showInsights]);
+  }, [referralsData, filteredData, showInsights, topPending]);
 
   const candidateMatches = useMemo(() => {
     if (!paletteQuery.trim()) return [];
@@ -664,9 +654,6 @@ const ReviewPage = () => {
     <div className="review-row-actions-overlay">
       <Tooltip title="View">
         <Button type="text" icon={<EyeOutlined />} className="review-action-btn view" onClick={(e) => { e.stopPropagation(); setSelectedReferral(record); }} />
-      </Tooltip>
-      <Tooltip title={compareKeys.includes(record.key) ? "Remove from compare" : "Add to compare"}>
-        <Button type="text" icon={<SwapOutlined />} className={`review-action-btn compare ${compareKeys.includes(record.key) ? "active" : ""}`} onClick={(e) => { e.stopPropagation(); toggleCompare(record.key); }} />
       </Tooltip>
       {record.status === "Pending" && (
         <>
@@ -713,8 +700,6 @@ const ReviewPage = () => {
 
   const rowSelection = { selectedRowKeys, onChange: (keys: React.Key[]) => setSelectedRowKeys(keys), columnWidth: 40 };
 
-  const compareRecords = compareKeys.map((k) => referralsData.find((r) => r.key === k)).filter(Boolean) as ReferralRecord[];
-
   return (
     <ConfigProvider theme={{ token: { colorPrimary: "#38bdf8", borderRadius: 14, colorText: "#f8fafc", colorTextSecondary: "#94a3b8" } }}>
       <Layout className="dashboard-page dashboard-dark review-page">
@@ -731,7 +716,7 @@ const ReviewPage = () => {
             <Content className="dashboard-content review-content">
               <div className="review-page-scroll">
                 <div className="review-page-inner">
-                  <div className="review-hero">
+                  <div className="review-hero" onMouseMove={handleHeroMove}>
                     <div>
                       <Text className="hero-kicker">Live</Text>
                       <Title level={1}>Reviews</Title>
@@ -744,11 +729,6 @@ const ReviewPage = () => {
                           <small>{pendingCount ? `${pendingCount} waiting · oldest ${oldestPending}d` : "All caught up"}</small>
                         </span>
                       </button>
-                      <Tooltip title="Open command palette">
-                        <button className="cmdk-hint" onClick={() => setPaletteOpen(true)}>
-                          <ThunderboltOutlined /> <span>⌘K</span>
-                        </button>
-                      </Tooltip>
                     </div>
                   </div>
 
@@ -785,17 +765,6 @@ const ReviewPage = () => {
                         </div>
                       </Card>
 
-                      {longestWaiting && (
-                        <Card className="insight-card spotlight-card" onClick={() => setSelectedReferral(longestWaiting)}>
-                          <h4><HourglassOutlined /> Longest waiting</h4>
-                          <div className="spotlight-body">
-                            <Avatar src={longestWaiting.avatar} size={48} className="avatar-ring" />
-                            <div><strong>{longestWaiting.applicant}</strong><p>{longestWaiting.role} · {oldestPending}d</p></div>
-                          </div>
-                          <SkillBars skills={longestWaiting.skills} />
-                        </Card>
-                      )}
-
                       <Card className="insight-card">
                         <h4>Last 7 days</h4>
                         <div className="spark">
@@ -817,7 +786,7 @@ const ReviewPage = () => {
                     <Space size="middle" wrap>
                       <Input
                         ref={searchInputRef}
-                        placeholder="Search... (press /)"
+                        placeholder="Search…  / to focus · Ctrl K for commands"
                         prefix={<SearchOutlined />}
                         className="dashboard-search review-search"
                         value={searchTerm}
@@ -913,6 +882,7 @@ const ReviewPage = () => {
                                   <strong>{r.applicant}{isNew(r.submitted) && <Tag className="new-tag">NEW</Tag>}</strong>
                                   <small>{r.role} · {r.location}</small>
                                 </div>
+                                <ScoreChip skills={r.skills} />
                               </div>
                             ))}
                           </div>
@@ -925,7 +895,10 @@ const ReviewPage = () => {
                         <Card key={item.key} className={`talent-card talent-card-${getStatusClass(item.status)}`} hoverable style={{ "--delay": `${index * 90}ms` } as React.CSSProperties}>
                           <div className="talent-top">
                             <Avatar src={item.avatar} size={58} className="avatar-ring" />
-                            <span className={`status-pill ${getStatusClass(item.status)}`}><span className="status-dot-mark" />{item.status}</span>
+                            <div className="talent-badges">
+                              <span className={`status-pill ${getStatusClass(item.status)}`}><span className="status-dot-mark" />{item.status}</span>
+                              <ScoreChip skills={item.skills} />
+                            </div>
                           </div>
                           <h4>{item.applicant}{isNew(item.submitted) && <Tag className="new-tag">NEW</Tag>}</h4>
                           <p className="role-text">{item.role}</p>
@@ -936,9 +909,6 @@ const ReviewPage = () => {
                           </div>
                           <div className="card-actions">
                             <Tooltip title="View"><Button icon={<EyeOutlined />} className="action-btn icon-action" onClick={() => setSelectedReferral(item)} /></Tooltip>
-                            <Tooltip title="Compare">
-                              <Button icon={<SwapOutlined />} className={`action-btn icon-action ${compareKeys.includes(item.key) ? "filter-active" : ""}`} onClick={() => toggleCompare(item.key)} />
-                            </Tooltip>
                             {item.status === "Pending" && (
                               <>
                                 <Tooltip title="Approve"><Button type="primary" icon={<CheckCircleOutlined />} className="approve-btn icon-action" onClick={() => handleStatusChange(item.key, "Approved")} /></Tooltip>
@@ -961,24 +931,11 @@ const ReviewPage = () => {
             referral={selectedReferral}
             onClose={() => setSelectedReferral(null)}
             onStatusChange={handleStatusChange}
-            onCompareToggle={toggleCompare}
-            isComparing={compareKeys.includes(selectedReferral.key)}
           />
         )}
 
         {triageOpen && (
           <TriageMode queue={triageQueue} onDecide={handleStatusChange} onClose={() => setTriageOpen(false)} />
-        )}
-
-        {compareKeys.length > 0 && (
-          <div className="compare-bar">
-            <div className="compare-bar-avatars">
-              {compareRecords.map((r) => <Avatar key={r.key} src={r.avatar} size={30} className="compare-avatar" />)}
-            </div>
-            <span className="compare-bar-label">{compareKeys.length} of 2 selected</span>
-            <Button size="small" type="primary" disabled={compareKeys.length < 2} onClick={() => setCompareOpen(true)}>Compare</Button>
-            <Button size="small" type="text" className="compare-bar-close" icon={<CloseOutlined />} onClick={() => setCompareKeys([])} />
-          </div>
         )}
 
         <Drawer title="Activity" open={activityOpen} onClose={() => setActivityOpen(false)} rootClassName="review-drawer" width={400}>
@@ -1018,10 +975,6 @@ const ReviewPage = () => {
               })}
             </div>
           )}
-        </Drawer>
-
-        <Drawer title="Head to head" open={compareOpen} onClose={() => setCompareOpen(false)} rootClassName="review-drawer" width={560}>
-          <CompareView records={compareRecords} />
         </Drawer>
 
         {paletteOpen && (

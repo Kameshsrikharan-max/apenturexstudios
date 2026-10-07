@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
-  Avatar, Badge, Button, Card, Col, ConfigProvider, Drawer, Empty, Input,
-  message, Modal, Progress, Row, Segmented, Space, Statistic, Table, Tag,
+  Avatar, Button, Card, Col, ConfigProvider, Input,
+  message, Modal, Progress, Row, Segmented, Space, Statistic, Tag,
   Tooltip, Typography,
 } from "antd";
 import {
-  ArrowRightOutlined, CalendarOutlined, CameraOutlined, CheckCircleOutlined,
-  CloseOutlined, ClockCircleOutlined, CopyOutlined, DeleteOutlined,
-  DollarOutlined, EnvironmentOutlined, EyeOutlined,
-  FireOutlined, FlagOutlined, HourglassOutlined,
-  PhoneOutlined, PictureOutlined, PlusOutlined, QuestionCircleOutlined,
-  ReloadOutlined, RiseOutlined, RocketOutlined,
+  ArrowRightOutlined, BarsOutlined, CalendarOutlined, CameraOutlined, CheckCircleOutlined,
+  CloseOutlined, ClockCircleOutlined, CopyOutlined, DeleteOutlined, DownOutlined,
+  DollarOutlined, DownloadOutlined, EnvironmentOutlined, EyeOutlined,
+  FireOutlined, FlagOutlined, HourglassOutlined, LeftOutlined,
+  PictureOutlined, PlusOutlined, QuestionCircleOutlined,
+  ReloadOutlined, RightOutlined, RiseOutlined, RocketOutlined,
   SafetyCertificateOutlined, SearchOutlined, SunOutlined, TeamOutlined,
   ThunderboltFilled, UsergroupAddOutlined, UserOutlined, VideoCameraOutlined,
   BulbOutlined, CompassOutlined, WarningOutlined, BellOutlined,
@@ -37,8 +37,6 @@ const THEME_COLOR = "#38BDF8";
 const STUDIO_LAT = 13.0827;
 const STUDIO_LON = 80.2707;
 const STUDIO_LABEL = "Chennai";
-
-const EVENTS_LIST_LIMIT = 5;
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || "/api";
 
@@ -119,6 +117,19 @@ const parseEventDateTime = (dateStr: string, timeStr?: string) => {
   if (dateOnly.isValid()) return dateOnly;
 
   return dayjs(dateStr);
+};
+
+// Shared by the search spotlight and the Events showcase.
+const matchesDateFilter = (event: ParsedStudioEvent, filter: string, now: Date) => {
+  if (filter === "All") return true;
+
+  const diffDays = event.dateObj.startOf("day").diff(dayjs(now).startOf("day"), "day");
+
+  if (filter === "Today") return diffDays === 0;
+  if (filter === "Week") return diffDays >= 0 && diffDays <= 7;
+  if (filter === "Month") return diffDays >= 0 && diffDays <= 30;
+
+  return true;
 };
 
 // Converts free-form budget strings ("INR 1.8L", "INR 95K", "INR 18,000") to a plain number.
@@ -1715,29 +1726,133 @@ const SearchSpotlight = ({ anchorRef, visible, hits }: SearchSpotlightProps) => 
 };
 
 // ---------------------------------------------------------------------------
-// Event sidebar — cover hero, live stage stepper, budget-share ring, and
-// quick actions (view / copy / advance stage). Used by the Events table and the
-// Light Timeline — Pipeline Board cards open PipelineEventPanel instead.
+// Shoot Showcase — replaces the old events table + drawer.
+//   • Reel      → cinematic film-strip of tilting shoot cards
+//   • Timeline  → day-by-day rail with light-quality dots
+//   • Calendar  → month heat-map; tap a day to see its shoots
+// Every shoot expands IN PLACE (no drawer): stage stepper, budget share,
+// directions, add-to-calendar, copy summary, delete.
+// The stage chips + ribbon on top double as a pipeline-value filter.
 // ---------------------------------------------------------------------------
 
-interface EventSidebarProps {
-  event: ParsedStudioEvent | null;
-  totalBudget: number;
-  onClose: () => void;
-  onViewFull: (id: string) => void;
-  onAdvanceStage: (eventId: string, stage: PipelineStage) => void;
+type ShowcaseView = "Reel" | "Timeline" | "Calendar";
+type StageFilter = "All" | PipelineStage;
+
+const STAGE_COLOR: Record<PipelineStage, string> = {
+  Proposal: "#a78bfa",
+  Booked: "#38bdf8",
+  Live: "#22c55e",
+  Done: "#94a3b8",
+};
+
+interface DetailActions {
+  onMove: (eventId: string, stage: PipelineStage) => void;
+  onOpen: (eventId: string) => void;
+  onDelete: (eventId: string, eventName: string) => void;
 }
 
-const EventSidebar = ({ event, totalBudget, onClose, onViewFull, onAdvanceStage }: EventSidebarProps) => {
-  const budgetValue = event ? parseBudgetToNumber(event.budget) : 0;
-  const budgetShare = event && totalBudget > 0 ? Math.round((budgetValue / totalBudget) * 100) : 0;
-  const currentStage = event ? normalizeStage(event.pipeline) : "Proposal";
-  const currentStageIndex = PIPELINE_STAGES.indexOf(currentStage);
+const hashString = (value: string) => {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) | 0;
+  return Math.abs(h);
+};
 
-  const handleCopySummary = async () => {
-    if (!event) return;
-    const summary = `${event.name}\n${event.type} · ${event.date} at ${event.time}\n${event.city}\nCustomer: ${event.customer}\nBudget: ${event.budget}\nStage: ${currentStage}`;
+// Cover art: the event photo if there is one, otherwise a generated gradient
+// whose hue comes from the shoot type — so each kind of shoot has its own look.
+const coverBackground = (event: StudioEvent) => {
+  if (event.image) {
+    return `linear-gradient(180deg, rgba(2,6,23,0.05), rgba(2,6,23,0.9)), url("${event.image}") center / cover no-repeat`;
+  }
+  const hue = hashString(event.type || event.name) % 360;
+  return (
+    `linear-gradient(180deg, rgba(2,6,23,0), rgba(2,6,23,0.82)), ` +
+    `radial-gradient(circle at 22% 18%, hsla(${hue}, 85%, 58%, 0.85), transparent 58%), ` +
+    `linear-gradient(135deg, hsl(${(hue + 50) % 360}, 70%, 30%), hsl(${(hue + 130) % 360}, 70%, 16%))`
+  );
+};
 
+type EtaTone = "soon" | "later" | "live" | "past";
+
+const etaInfo = (d: dayjs.Dayjs, now: Date): { text: string; tone: EtaTone } => {
+  const diff = d.valueOf() - now.valueOf();
+  if (diff > 0) {
+    const days = Math.floor(diff / DAY_MS);
+    const hours = Math.floor((diff % DAY_MS) / HOUR_MS);
+    if (days >= 1) return { text: `in ${days}d ${hours}h`, tone: "later" };
+    return { text: `in ${fmtDuration(diff)}`, tone: "soon" };
+  }
+  if (diff > -3 * HOUR_MS) return { text: "Happening now", tone: "live" };
+  return { text: "Wrapped", tone: "past" };
+};
+
+// The sun windows are computed for today; shift an event's time onto today's
+// date (sun times move only by minutes across days) to estimate its light.
+const lightForEvent = (ms: number, w: LightWindows | null) => {
+  if (!w || Number.isNaN(ms)) return null;
+  const shift = Math.round((w.noon - ms) / DAY_MS);
+  return lightQuality(ms + shift * DAY_MS, w);
+};
+
+const downloadIcs = (event: ParsedStudioEvent) => {
+  const stamp = (d: dayjs.Dayjs) => d.toDate().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const esc = (s: string) => s.replace(/([,;])/g, "\\$1").replace(/\n/g, "\\n");
+  const start = event.dateObj;
+  const end = start.add(3, "hour");
+
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//AXS//Studio//EN",
+    "BEGIN:VEVENT",
+    `UID:${event.id}@axs-studio`,
+    `DTSTAMP:${stamp(dayjs())}`,
+    `DTSTART:${stamp(start)}`,
+    `DTEND:${stamp(end)}`,
+    `SUMMARY:${esc(event.name)}`,
+    `LOCATION:${esc([event.address, event.city].filter(Boolean).join(", "))}`,
+    `DESCRIPTION:${esc(`${event.type} - Customer: ${event.customer} - Budget: ${event.budget}`)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${event.name.replace(/[^\w]+/g, "-")}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const openDirections = (event: ParsedStudioEvent) => {
+  const query = event.location
+    ? `${event.location.lat},${event.location.lng}`
+    : [event.address, event.city].filter(Boolean).join(", ");
+  window.open(
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+};
+
+// ---- Expanded details (shared by all three views) ----
+
+interface ShootDetailsProps extends DetailActions {
+  event: ParsedStudioEvent;
+  totalBudget: number;
+  onClose: () => void;
+}
+
+const ShootDetails = ({ event, totalBudget, onMove, onOpen, onDelete, onClose }: ShootDetailsProps) => {
+  const budgetValue = parseBudgetToNumber(event.budget);
+  const share = totalBudget > 0 ? Math.min(100, Math.round((budgetValue / totalBudget) * 100)) : 0;
+  const stage = normalizeStage(event.pipeline);
+  const stageIndex = PIPELINE_STAGES.indexOf(stage);
+
+  const handleCopy = async () => {
+    const summary = `${event.name}\n${event.type} · ${event.date} at ${event.time}\n${event.city}\nCustomer: ${event.customer}\nBudget: ${event.budget}\nStage: ${stage}`;
     try {
       await navigator.clipboard.writeText(summary);
       message.success("Event summary copied to clipboard");
@@ -1747,151 +1862,606 @@ const EventSidebar = ({ event, totalBudget, onClose, onViewFull, onAdvanceStage 
   };
 
   return (
-    <Drawer
-      title={null}
-      open={Boolean(event)}
-      onClose={onClose}
-      size="default"
-      closable={false}
-      className="event-sidebar-drawer"
-      styles={{ body: { padding: 0 } }}
+    <motion.div
+      className="sd-wrap"
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      {event ? (
-        <div className="sidebar-shell">
-          <button className="sidebar-close" onClick={onClose} aria-label="Close">
-            <CloseOutlined />
-          </button>
-
-          <div
-            className="sidebar-cover"
-            style={event.image ? { backgroundImage: `url(${event.image})` } : undefined}
-          >
-            <div className="sidebar-cover-overlay" />
-
-            <div className="sidebar-cover-content">
-              <Tag color={statusTagColor[event.status] || "default"} className="sidebar-status-tag">
-                {event.status}
-              </Tag>
-
-              <Title level={3} className="sidebar-title">{event.name}</Title>
-              <Text className="sidebar-subtitle">{event.type} · {event.customer}</Text>
+      <div className="sd-inner">
+        <div className="sd-grid">
+          <div className="sd-cell">
+            <UserOutlined />
+            <div>
+              <span>Customer</span>
+              <strong>{event.customer || "—"}</strong>
             </div>
           </div>
-
-          <div className="sidebar-body">
-            <div className="sidebar-meta-grid">
-              <div className="sidebar-meta-chip">
-                <CalendarOutlined />
-                <div>
-                  <span>Date</span>
-                  <strong>{event.date}</strong>
-                </div>
-              </div>
-              <div className="sidebar-meta-chip">
-                <ClockCircleOutlined />
-                <div>
-                  <span>Time</span>
-                  <strong>{event.time}</strong>
-                </div>
-              </div>
-              <div className="sidebar-meta-chip">
-                <EnvironmentOutlined />
-                <div>
-                  <span>City</span>
-                  <strong>{event.city}</strong>
-                </div>
-              </div>
-              <div className="sidebar-meta-chip">
-                <TeamOutlined />
-                <div>
-                  <span>Team</span>
-                  <strong>{event.members}</strong>
-                </div>
-              </div>
+          <div className="sd-cell">
+            <TeamOutlined />
+            <div>
+              <span>Crew</span>
+              <strong>{event.members} {event.members === 1 ? "member" : "members"}</strong>
             </div>
-
-            <div className="sidebar-section">
-              <Text strong className="sidebar-section-title">Pipeline stage</Text>
-
-              <div className="sidebar-stepper">
-                {PIPELINE_STAGES.map((stage, index) => (
-                  <button
-                    key={stage}
-                    className={
-                      index === currentStageIndex
-                        ? "sidebar-step sidebar-step-current"
-                        : index < currentStageIndex
-                        ? "sidebar-step sidebar-step-done"
-                        : "sidebar-step"
-                    }
-                    onClick={() => onAdvanceStage(event.id, stage)}
-                  >
-                    <span className="sidebar-step-dot" />
-                    <span className="sidebar-step-label">{stage}</span>
-                  </button>
-                ))}
-                <div className="sidebar-stepper-track">
-                  <div
-                    className="sidebar-stepper-fill"
-                    style={{ width: `${(currentStageIndex / (PIPELINE_STAGES.length - 1)) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="sidebar-section sidebar-budget-row">
-              <Progress
-                type="circle"
-                percent={budgetShare}
-                size={92}
-                strokeColor={{ "0%": "#38bdf8", "100%": "#a78bfa" }}
-                railColor="rgba(255,255,255,0.08)"
-                format={() => (
-                  <div className="sidebar-budget-ring-label">
-                    <strong>{budgetShare}%</strong>
-                    <span>of pipeline</span>
-                  </div>
-                )}
-              />
-
-              <div className="sidebar-budget-details">
-                <Text type="secondary" style={{ fontSize: 12 }}>Shoot budget</Text>
-                <Title level={3} className="sidebar-budget-value">{formatCompactINR(budgetValue)}</Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Share of total booked pipeline value across all shoots
-                </Text>
-              </div>
-            </div>
-
-            <div className="sidebar-actions">
-              <Button type="primary" block icon={<ArrowRightOutlined />} onClick={() => onViewFull(event.id)}>
-                View Full Details
-              </Button>
-
-              <Space.Compact block>
-                <Tooltip title="Copy a text summary">
-                  <Button icon={<CopyOutlined />} onClick={handleCopySummary} block>
-                    Copy Summary
-                  </Button>
-                </Tooltip>
-              </Space.Compact>
-
-              <div className="sidebar-contact-row">
-                <Avatar icon={<UserOutlined />} className="sidebar-contact-avatar" />
-                <div>
-                  <Text strong style={{ color: "#f8fafc" }}>{event.customer}</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>Client contact</Text>
-                </div>
-                <Tooltip title="No phone on file">
-                  <Button shape="circle" icon={<PhoneOutlined />} disabled />
-                </Tooltip>
-              </div>
+          </div>
+          <div className="sd-cell sd-cell-wide">
+            <EnvironmentOutlined />
+            <div>
+              <span>Location</span>
+              <strong>{[event.address, event.city].filter(Boolean).join(", ") || "—"}</strong>
             </div>
           </div>
         </div>
+
+        <div className="sd-block">
+          <div className="sd-block-head">
+            <Text strong className="sd-block-title">Pipeline stage</Text>
+            <Tag color={statusTagColor[event.status] || "default"} style={{ margin: 0 }}>{event.status}</Tag>
+          </div>
+
+          <div className="sd-stepper">
+            <div className="sd-stepper-track">
+              <div className="sd-stepper-fill" style={{ width: `${(stageIndex / (PIPELINE_STAGES.length - 1)) * 100}%` }} />
+            </div>
+            {PIPELINE_STAGES.map((s, index) => (
+              <button
+                key={s}
+                type="button"
+                className={
+                  index === stageIndex
+                    ? "sd-step sd-step-current"
+                    : index < stageIndex
+                    ? "sd-step sd-step-done"
+                    : "sd-step"
+                }
+                onClick={() => onMove(event.id, s)}
+              >
+                <i style={{ ["--sc-c" as string]: STAGE_COLOR[s] }} />
+                <span>{s}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="sd-budget">
+          <Progress
+            type="circle"
+            percent={share}
+            size={76}
+            strokeColor={{ "0%": "#38bdf8", "100%": "#a78bfa" }}
+            railColor="rgba(255,255,255,0.08)"
+            format={() => <span className="sd-ring-label">{share}%</span>}
+          />
+          <div className="sd-budget-text">
+            <span>Shoot budget</span>
+            <strong>{formatCompactINR(budgetValue)}</strong>
+            <em>{share}% of the total pipeline value</em>
+          </div>
+        </div>
+
+        <div className="sd-actions">
+          <Button type="primary" icon={<ArrowRightOutlined />} onClick={() => onOpen(event.id)}>
+            Full details
+          </Button>
+          <Tooltip title="Copy a text summary">
+            <Button icon={<CopyOutlined />} onClick={handleCopy}>Copy</Button>
+          </Tooltip>
+          <Tooltip title="Download an .ics calendar entry">
+            <Button icon={<DownloadOutlined />} onClick={() => downloadIcs(event)}>Calendar</Button>
+          </Tooltip>
+          <Tooltip title="Open in Google Maps">
+            <Button icon={<EnvironmentOutlined />} onClick={() => openDirections(event)}>Directions</Button>
+          </Tooltip>
+          <Button danger icon={<DeleteOutlined />} onClick={() => onDelete(event.id, event.name)}>Delete</Button>
+          <Button type="text" icon={<CloseOutlined />} onClick={onClose} aria-label="Collapse" />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ---- Reel card ----
+
+interface ShootItemProps extends DetailActions {
+  event: ParsedStudioEvent;
+  now: Date;
+  windows: LightWindows | null;
+  totalBudget: number;
+  open: boolean;
+  onToggle: () => void;
+}
+
+const ReelCard = ({ event, now, windows, totalBudget, open, onToggle, onMove, onOpen, onDelete }: ShootItemProps) => {
+  const stage = normalizeStage(event.pipeline);
+  const color = STAGE_COLOR[stage];
+  const eta = etaInfo(event.dateObj, now);
+  const light = lightForEvent(event.dateObj.valueOf(), windows);
+  const value = parseBudgetToNumber(event.budget);
+  const share = totalBudget > 0 ? Math.min(100, Math.round((value / totalBudget) * 100)) : 0;
+
+  const handleMove = (e: React.MouseEvent<HTMLElement>) => {
+    if (open) return;
+    const el = e.currentTarget;
+    const b = el.getBoundingClientRect();
+    const px = (e.clientX - b.left) / b.width;
+    const py = (e.clientY - b.top) / b.height;
+    el.style.setProperty("--rx", `${((0.5 - py) * 7).toFixed(2)}deg`);
+    el.style.setProperty("--ry", `${((px - 0.5) * 9).toFixed(2)}deg`);
+    el.style.setProperty("--gx", `${(px * 100).toFixed(1)}%`);
+    el.style.setProperty("--gy", `${(py * 100).toFixed(1)}%`);
+  };
+
+  const handleLeave = (e: React.MouseEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    el.style.setProperty("--rx", "0deg");
+    el.style.setProperty("--ry", "0deg");
+  };
+
+  return (
+    <article
+      id={`shoot-${event.id}`}
+      className={`reel-card${open ? " reel-card-open" : ""}${eta.tone === "past" ? " reel-card-past" : ""}`}
+      style={{ ["--sc-c" as string]: color } as React.CSSProperties}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+    >
+      <div className="reel-perf" />
+
+      <div
+        className="reel-hit"
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+      >
+        <div className="reel-cover" style={{ background: coverBackground(event) }}>
+          <CameraOutlined className="reel-watermark" />
+
+          <div className="reel-date">
+            <em>{event.dateObj.format("ddd")}</em>
+            <strong>{event.dateObj.format("D")}</strong>
+            <span>{event.dateObj.format("MMM")}</span>
+          </div>
+
+          <span className="reel-stage">{stage}</span>
+
+          <div className="reel-title">
+            <h4 title={event.name}>{event.name}</h4>
+            <p>{event.type} · {event.customer}</p>
+          </div>
+        </div>
+
+        <div className="reel-meta">
+          <div className="reel-chips">
+            <span className="reel-chip"><ClockCircleOutlined /> {event.time}</span>
+            <span className="reel-chip"><EnvironmentOutlined /> {event.city}</span>
+            {light ? (
+              <span className="reel-chip" style={{ color: light.color }}>
+                <i className="reel-chip-dot" style={{ background: light.color }} /> {light.label}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="reel-foot">
+            <span className={`reel-eta reel-eta-${eta.tone}`}>{eta.text}</span>
+            <span className="reel-budget">{event.budget}</span>
+          </div>
+
+          <div className="reel-share" title={`${share}% of pipeline value`}>
+            <i style={{ width: `${Math.max(4, share)}%` }} />
+          </div>
+
+          <span className="reel-hint">{open ? "Click to collapse" : "Click to open"}</span>
+        </div>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <ShootDetails
+            event={event}
+            totalBudget={totalBudget}
+            onMove={onMove}
+            onOpen={onOpen}
+            onDelete={onDelete}
+            onClose={onToggle}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <div className="reel-perf" />
+    </article>
+  );
+};
+
+// ---- Timeline row (also used for the Calendar's day list) ----
+
+const TimelineRow = ({ event, now, windows, totalBudget, open, onToggle, onMove, onOpen, onDelete }: ShootItemProps) => {
+  const stage = normalizeStage(event.pipeline);
+  const color = STAGE_COLOR[stage];
+  const eta = etaInfo(event.dateObj, now);
+  const light = lightForEvent(event.dateObj.valueOf(), windows);
+
+  return (
+    <div
+      id={`shoot-${event.id}`}
+      className={`tl-row${open ? " tl-row-open" : ""}${eta.tone === "past" ? " tl-row-past" : ""}`}
+      style={{ ["--sc-c" as string]: color } as React.CSSProperties}
+    >
+      <div className="tl-time">
+        <strong>{event.time}</strong>
+        <span className={`reel-eta reel-eta-${eta.tone}`}>{eta.text}</span>
+      </div>
+
+      <div className="tl-rail">
+        <i style={{ background: light?.color ?? color }} title={light?.label} />
+      </div>
+
+      <div className="tl-card">
+        <button type="button" className="tl-card-head" onClick={onToggle} aria-expanded={open}>
+          <span className="tl-card-main">
+            <strong>{event.name}</strong>
+            <em>{event.type} · {event.customer} · {event.city}</em>
+          </span>
+          <span className="tl-card-tags">
+            {light ? <span className="tl-light" style={{ color: light.color }}>{light.label}</span> : null}
+            <span className="tl-stage">{stage}</span>
+            <span className="tl-budget">{event.budget}</span>
+          </span>
+          <DownOutlined className="tl-caret" />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {open ? (
+            <ShootDetails
+              event={event}
+              totalBudget={totalBudget}
+              onMove={onMove}
+              onOpen={onOpen}
+              onDelete={onDelete}
+              onClose={onToggle}
+            />
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+// ---- Showcase container ----
+
+interface ShowcaseProps extends DetailActions {
+  events: ParsedStudioEvent[]; // search-filtered, any date
+  dateFilter: string;
+  now: Date;
+  windows: LightWindows | null;
+  totalBudget: number;
+  expandedId: string | null;
+  onExpand: (id: string | null) => void;
+  onAddNew: () => void;
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const ShootShowcase = ({
+  events, dateFilter, now, windows, totalBudget, expandedId, onExpand, onMove, onOpen, onDelete, onAddNew,
+}: ShowcaseProps) => {
+  const [view, setView] = useState<ShowcaseView>("Reel");
+  const [stageFilter, setStageFilter] = useState<StageFilter>("All");
+  const [calMonth, setCalMonth] = useState(() => dayjs().startOf("month"));
+  const [selectedDay, setSelectedDay] = useState(() => dayjs().format("YYYY-MM-DD"));
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const internalToggle = useRef(false);
+
+  const dayKey = dayjs(now).format("YYYY-MM-DD");
+
+  // Calendar ignores the Today/Week/Month filter (it has its own month nav).
+  const scoped = useMemo(
+    () => (view === "Calendar" ? events : events.filter((e) => matchesDateFilter(e, dateFilter, now))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [events, view, dateFilter, dayKey]
+  );
+
+  const stats = useMemo(
+    () =>
+      PIPELINE_STAGES.map((stage) => {
+        const list = scoped.filter((e) => normalizeStage(e.pipeline) === stage);
+        return { stage, count: list.length, value: list.reduce((sum, e) => sum + parseBudgetToNumber(e.budget), 0) };
+      }),
+    [scoped]
+  );
+
+  const totalValue = stats.reduce((sum, s) => sum + s.value, 0);
+
+  const staged = useMemo(
+    () => (stageFilter === "All" ? scoped : scoped.filter((e) => normalizeStage(e.pipeline) === stageFilter)),
+    [scoped, stageFilter]
+  );
+
+  const chrono = useMemo(
+    () => [...staged].sort((a, b) => (a.dateObj.valueOf() || 0) - (b.dateObj.valueOf() || 0)),
+    [staged]
+  );
+
+  // Reel order: what's coming first (soonest → latest), then wrapped shoots.
+  const reelList = useMemo(() => {
+    const cutoff = Date.now() - 3 * HOUR_MS;
+    const ahead = chrono.filter((e) => e.dateObj.isValid() && e.dateObj.valueOf() >= cutoff);
+    const behind = chrono.filter((e) => !(e.dateObj.isValid() && e.dateObj.valueOf() >= cutoff)).reverse();
+    return [...ahead, ...behind];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chrono, dayKey]);
+
+  const timelineGroups = useMemo(() => {
+    const map = new Map<string, ParsedStudioEvent[]>();
+    chrono.forEach((e) => {
+      const key = e.dateObj.isValid() ? e.dateObj.format("YYYY-MM-DD") : "unknown";
+      map.set(key, [...(map.get(key) || []), e]);
+    });
+    return Array.from(map.entries()).map(([key, list]) => {
+      const d = dayjs(key);
+      let label = d.isValid() ? d.format("ddd, MMM D") : "Date unknown";
+      if (key === dayKey) label = "Today";
+      else if (key === dayjs(dayKey).add(1, "day").format("YYYY-MM-DD")) label = "Tomorrow";
+      else if (key === dayjs(dayKey).subtract(1, "day").format("YYYY-MM-DD")) label = "Yesterday";
+      const value = list.reduce((sum, e) => sum + parseBudgetToNumber(e.budget), 0);
+      return { key, label, list, value, isToday: key === dayKey };
+    });
+  }, [chrono, dayKey]);
+
+  const byDay = useMemo(() => {
+    const map: Record<string, ParsedStudioEvent[]> = {};
+    chrono.forEach((e) => {
+      if (!e.dateObj.isValid()) return;
+      const key = e.dateObj.format("YYYY-MM-DD");
+      (map[key] = map[key] || []).push(e);
+    });
+    return map;
+  }, [chrono]);
+
+  // When a shoot is focused from elsewhere (search, palette, bell, timeline),
+  // make sure it is visible, then scroll it into view.
+  useEffect(() => {
+    if (!expandedId) return;
+    const ev = events.find((e) => e.id === expandedId);
+    if (!ev) return;
+
+    const stage = normalizeStage(ev.pipeline);
+    setStageFilter((current) => (current === "All" || current === stage ? current : "All"));
+
+    if (ev.dateObj.isValid()) {
+      setCalMonth(ev.dateObj.startOf("month"));
+      setSelectedDay(ev.dateObj.format("YYYY-MM-DD"));
+    }
+
+    const block: ScrollLogicalPosition = internalToggle.current ? "nearest" : "center";
+    const id = window.setTimeout(() => {
+      document.getElementById(`shoot-${expandedId}`)?.scrollIntoView({ behavior: "smooth", block, inline: "center" });
+      internalToggle.current = false;
+    }, 380);
+
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedId]);
+
+  // Esc collapses the open shoot
+  useEffect(() => {
+    if (!expandedId) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onExpand(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [expandedId, onExpand]);
+
+  const toggle = (id: string) => {
+    internalToggle.current = true;
+    onExpand(expandedId === id ? null : id);
+  };
+
+  const itemProps = (event: ParsedStudioEvent): ShootItemProps => ({
+    event,
+    now,
+    windows,
+    totalBudget,
+    open: expandedId === event.id,
+    onToggle: () => toggle(event.id),
+    onMove,
+    onOpen,
+    onDelete,
+  });
+
+  const scrollStrip = (dir: -1 | 1) => stripRef.current?.scrollBy({ left: dir * 330, behavior: "smooth" });
+
+  // ---- Calendar grid ----
+  const gridStart = calMonth.startOf("month").startOf("week");
+  const cells = Array.from({ length: 42 }, (_, i) => gridStart.add(i, "day"));
+  const maxPerDay = Math.max(1, ...Object.values(byDay).map((list) => list.length));
+  const selectedList = byDay[selectedDay] || [];
+
+  const emptyReel = (
+    <div className="sc-empty">
+      <CameraOutlined />
+      <strong>No shoots in this reel</strong>
+      <span>Try another stage or range — or roll a new one.</span>
+      <Button type="primary" icon={<PlusOutlined />} onClick={onAddNew}>New shoot</Button>
+    </div>
+  );
+
+  return (
+    <div className="sc-root">
+      <div className="sc-head">
+        <Segmented
+          value={view}
+          onChange={(v) => setView(v as ShowcaseView)}
+          options={[
+            { label: "Reel", value: "Reel", icon: <PictureOutlined /> },
+            { label: "Timeline", value: "Timeline", icon: <BarsOutlined /> },
+            { label: "Calendar", value: "Calendar", icon: <CalendarOutlined /> },
+          ]}
+        />
+
+        <span className="sc-summary">
+          <strong>{staged.length}</strong> {staged.length === 1 ? "shoot" : "shoots"} · <strong>{formatCompactINR(totalValue)}</strong> in view
+        </span>
+      </div>
+
+      <div className="sc-chips">
+        <button
+          type="button"
+          className={stageFilter === "All" ? "sc-chip sc-chip-active" : "sc-chip"}
+          onClick={() => setStageFilter("All")}
+        >
+          All <em>{scoped.length}</em>
+        </button>
+        {stats.map((s) => (
+          <button
+            key={s.stage}
+            type="button"
+            className={stageFilter === s.stage ? "sc-chip sc-chip-active" : "sc-chip"}
+            style={{ ["--sc-c" as string]: STAGE_COLOR[s.stage] } as React.CSSProperties}
+            onClick={() => setStageFilter((current) => (current === s.stage ? "All" : s.stage))}
+          >
+            <i /> {s.stage} <em>{s.count} · {formatCompactINR(s.value)}</em>
+          </button>
+        ))}
+      </div>
+
+      <div className="sc-ribbon" aria-hidden="true">
+        {stats.map((s) => (
+          <button
+            key={s.stage}
+            type="button"
+            tabIndex={-1}
+            className={stageFilter === s.stage ? "sc-ribbon-seg sc-ribbon-seg-active" : "sc-ribbon-seg"}
+            style={{
+              ["--sc-c" as string]: STAGE_COLOR[s.stage],
+              flexGrow: Math.max(s.value, totalValue * 0.03, 1),
+            } as React.CSSProperties}
+            title={`${s.stage}: ${formatCompactINR(s.value)}`}
+            onClick={() => setStageFilter((current) => (current === s.stage ? "All" : s.stage))}
+          />
+        ))}
+      </div>
+
+      {view === "Reel" ? (
+        reelList.length ? (
+          <div className="reel-wrap">
+            <button type="button" className="reel-arrow reel-arrow-left" onClick={() => scrollStrip(-1)} aria-label="Scroll left">
+              <LeftOutlined />
+            </button>
+            <div className="reel-strip" ref={stripRef}>
+              {reelList.map((event) => (
+                <ReelCard key={event.id} {...itemProps(event)} />
+              ))}
+            </div>
+            <button type="button" className="reel-arrow reel-arrow-right" onClick={() => scrollStrip(1)} aria-label="Scroll right">
+              <RightOutlined />
+            </button>
+          </div>
+        ) : (
+          emptyReel
+        )
       ) : null}
-    </Drawer>
+
+      {view === "Timeline" ? (
+        timelineGroups.length ? (
+          <div className="tl-wrap">
+            {timelineGroups.map((group) => (
+              <section key={group.key} className="tl-group">
+                <header className={group.isToday ? "tl-group-head tl-group-head-today" : "tl-group-head"}>
+                  <strong>{group.label}</strong>
+                  <span>{group.list.length} {group.list.length === 1 ? "shoot" : "shoots"} · {formatCompactINR(group.value)}</span>
+                </header>
+                {group.list.map((event) => (
+                  <TimelineRow key={event.id} {...itemProps(event)} />
+                ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          emptyReel
+        )
+      ) : null}
+
+      {view === "Calendar" ? (
+        <div className="cal-wrap">
+          <div className="cal-head">
+            <Button size="small" icon={<LeftOutlined />} onClick={() => setCalMonth((m) => m.subtract(1, "month"))} aria-label="Previous month" />
+            <strong>{calMonth.format("MMMM YYYY")}</strong>
+            <Button size="small" icon={<RightOutlined />} onClick={() => setCalMonth((m) => m.add(1, "month"))} aria-label="Next month" />
+            <Button
+              size="small"
+              onClick={() => {
+                setCalMonth(dayjs().startOf("month"));
+                setSelectedDay(dayjs().format("YYYY-MM-DD"));
+              }}
+            >
+              Today
+            </Button>
+          </div>
+
+          <div className="cal-grid">
+            {WEEKDAYS.map((d) => (
+              <span key={d} className="cal-weekday">{d}</span>
+            ))}
+
+            {cells.map((cell) => {
+              const key = cell.format("YYYY-MM-DD");
+              const list = byDay[key] || [];
+              const inMonth = cell.month() === calMonth.month();
+              const heat = list.length ? 0.1 + (list.length / maxPerDay) * 0.32 : 0;
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={
+                    "cal-cell" +
+                    (inMonth ? "" : " cal-cell-dim") +
+                    (key === dayKey ? " cal-cell-today" : "") +
+                    (key === selectedDay ? " cal-cell-selected" : "")
+                  }
+                  style={list.length ? { background: `rgba(56,189,248,${heat.toFixed(2)})` } : undefined}
+                  onClick={() => setSelectedDay(key)}
+                  aria-label={`${cell.format("MMMM D")}, ${list.length} ${list.length === 1 ? "shoot" : "shoots"}`}
+                >
+                  <span className="cal-num">{cell.date()}</span>
+                  <span className="cal-dots">
+                    {list.slice(0, 3).map((e) => (
+                      <i key={e.id} style={{ background: STAGE_COLOR[normalizeStage(e.pipeline)] }} />
+                    ))}
+                    {list.length > 3 ? <b>+{list.length - 3}</b> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="cal-day">
+            <header className="tl-group-head">
+              <strong>{dayjs(selectedDay).format("dddd, MMM D")}</strong>
+              <span>{selectedList.length} {selectedList.length === 1 ? "shoot" : "shoots"}</span>
+            </header>
+
+            {selectedList.length ? (
+              selectedList.map((event) => <TimelineRow key={event.id} {...itemProps(event)} />)
+            ) : (
+              <div className="light-empty cal-day-empty">
+                Nothing booked on this day.{" "}
+                <Button type="link" size="small" onClick={onAddNew}>Plan a shoot</Button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 };
 
@@ -1915,7 +2485,7 @@ const DashboardPage = () => {
   const [searchText, setSearchText] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [dateFilter, setDateFilter] = useState("All");
-  const [selectedEvent, setSelectedEvent] = useState<ParsedStudioEvent | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [pipelineEvent, setPipelineEvent] = useState<ParsedStudioEvent | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -2017,16 +2587,7 @@ const DashboardPage = () => {
     [events]
   );
 
-  // Keep the currently open sidebar event in sync when its pipeline stage changes
-  useEffect(() => {
-    if (!selectedEvent) return;
-    const refreshed = eventsWithDate.find((event) => event.id === selectedEvent.id);
-    if (refreshed && refreshed.pipeline !== selectedEvent.pipeline) {
-      setSelectedEvent(refreshed);
-    }
-  }, [eventsWithDate, selectedEvent]);
-
-  // Keep the Pipeline Board's own side panel in sync the same way
+  // Keep the Pipeline Board's own side panel in sync when its stage changes
   useEffect(() => {
     if (!pipelineEvent) return;
     const refreshed = eventsWithDate.find((event) => event.id === pipelineEvent.id);
@@ -2034,6 +2595,14 @@ const DashboardPage = () => {
       setPipelineEvent(refreshed);
     }
   }, [eventsWithDate, pipelineEvent]);
+
+  // Search, bell, command palette and the Light Timeline no longer open a
+  // drawer — they open that shoot inside the Events showcase instead.
+  const focusEvent = useCallback((event: { id: string }) => {
+    setSearchText("");
+    setDateFilter("All");
+    setExpandedEventId(event.id);
+  }, []);
 
   const pulseItems = useMemo(() => {
     const todayItems = todaysEvents.map(
@@ -2068,12 +2637,12 @@ const DashboardPage = () => {
             when,
             eta: upcoming ? `in ${fmtDuration(diff)}` : "Started",
             upcoming,
-            onSelect: () => setSelectedEvent(event),
+            onSelect: () => focusEvent(event),
           };
         });
 
     return [...build(todaysEvents, "Today"), ...build(tomorrowsEvents, "Tomorrow")];
-  }, [todaysEvents, tomorrowsEvents, currentTime]);
+  }, [todaysEvents, tomorrowsEvents, currentTime, focusEvent]);
 
   const metricCards = useMemo(
     () => [
@@ -2153,32 +2722,21 @@ const DashboardPage = () => {
     );
   }, [searchText, userData]);
 
-  const filteredEvents = useMemo(() => {
+  // Search only (any date) — feeds the Events showcase, which applies its own date logic.
+  const searchedEvents = useMemo(() => {
     const value = searchText.trim().toLowerCase();
+    if (!value) return eventsWithDate;
 
-    return eventsWithDate.filter((event) => {
-      const matchesSearch =
-        !value ||
-        [event.id, event.name, event.type, event.city, event.customer, event.status, event.pipeline].some(
-          (field) => String(field).toLowerCase().includes(value)
-        );
+    return eventsWithDate.filter((event) =>
+      [event.id, event.name, event.type, event.city, event.customer, event.status, event.pipeline].some(
+        (field) => String(field).toLowerCase().includes(value)
+      )
+    );
+  }, [searchText, eventsWithDate]);
 
-      if (!matchesSearch) return false;
-      if (dateFilter === "All") return true;
-
-      const diffDays = event.dateObj.startOf("day").diff(dayjs(currentTime).startOf("day"), "day");
-
-      if (dateFilter === "Today") return diffDays === 0;
-      if (dateFilter === "Week") return diffDays >= 0 && diffDays <= 7;
-      if (dateFilter === "Month") return diffDays >= 0 && diffDays <= 30;
-
-      return true;
-    });
-  }, [searchText, dateFilter, eventsWithDate, currentTime]);
-
-  const displayedEvents = useMemo(
-    () => filteredEvents.slice(0, EVENTS_LIST_LIMIT),
-    [filteredEvents]
+  const filteredEvents = useMemo(
+    () => searchedEvents.filter((event) => matchesDateFilter(event, dateFilter, currentTime)),
+    [searchedEvents, dateFilter, currentTime]
   );
 
   // ---- Navigation handlers ----
@@ -2202,7 +2760,7 @@ const DashboardPage = () => {
       subtitle: `${event.date} · ${event.city}`,
       icon: <CameraOutlined />,
       onSelect: () => {
-        setSelectedEvent(event);
+        focusEvent(event);
         setSearchFocused(false);
       },
     }));
@@ -2221,9 +2779,9 @@ const DashboardPage = () => {
 
     return [...eventHits, ...userHits];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filteredEvents, filteredUsers]);
+  }, [searchText, filteredEvents, filteredUsers, focusEvent]);
 
-  // ---- Pipeline stage move (drag & drop / sidebar stepper / panel rail) ----
+  // ---- Pipeline stage move (drag & drop / stepper / panel rail) ----
   const handleMovePipeline = async (eventId: string, stage: PipelineStage) => {
     const { ok, message: errMsg } = await patchEventOnServer(eventId, { pipeline: stage });
     if (!ok) {
@@ -2248,76 +2806,13 @@ const DashboardPage = () => {
           message.error(errMsg || "Failed to delete event.");
           return;
         }
-        if (selectedEvent?.id === eventId) setSelectedEvent(null);
+        if (expandedEventId === eventId) setExpandedEventId(null);
         if (pipelineEvent?.id === eventId) setPipelineEvent(null);
         dispatch(getEvents());
         message.success("Event deleted");
       },
     });
   };
-
-  const eventColumns = [
-    {
-      title: "Shoot",
-      dataIndex: "name",
-      key: "name",
-      render: (text: string, record: ParsedStudioEvent) => (
-        <Space>
-          <CameraOutlined style={{ color: THEME_COLOR }} />
-          <div>
-            <Text strong>{text}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.type}
-            </Text>
-          </div>
-        </Space>
-      ),
-    },
-    {
-      title: "Date",
-      dataIndex: "date",
-      key: "date",
-      render: (date: string, record: ParsedStudioEvent) => (
-        <Space>
-          <CalendarOutlined style={{ color: THEME_COLOR }} />
-          <div>
-            <Text>{date}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.time}
-            </Text>
-          </div>
-        </Space>
-      ),
-    },
-    { title: "City", dataIndex: "city", key: "city" },
-    {
-      title: "Stage",
-      dataIndex: "pipeline",
-      key: "pipeline",
-      render: (pipeline: string) => <Tag>{pipeline}</Tag>,
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => {
-        const isLive = status === "LIVE";
-
-        return (
-          <Badge
-            status={isLive ? "processing" : status === "DONE" ? "success" : "warning"}
-            text={
-              <Tag color={statusTagColor[status] || "default"} style={{ margin: 0 }}>
-                {status}
-              </Tag>
-            }
-          />
-        );
-      },
-    },
-  ];
 
   const speedDialActions: SpeedDialAction[] = [
     { key: "create", label: "New Event", icon: <PlusOutlined />, run: goToCreateEvent },
@@ -2349,7 +2844,7 @@ const DashboardPage = () => {
       label: event.name,
       hint: `${event.date} · ${event.city} · ${normalizeStage(event.pipeline)}`,
       icon: <CameraOutlined />,
-      run: () => setSelectedEvent(event),
+      run: () => focusEvent(event),
     })),
   ];
 
@@ -2367,10 +2862,6 @@ const DashboardPage = () => {
         },
         components: {
           Card: { borderRadiusLG: 16 },
-          Table: {
-            headerBg: "#242428",
-            rowHoverBg: "rgba(56,189,248,0.08)",
-          },
         },
       }}
     >
@@ -2635,7 +3126,7 @@ const DashboardPage = () => {
               todaysEvents={todaysEvents}
               tomorrowsEvents={tomorrowsEvents}
               now={currentTime}
-              onSelect={setSelectedEvent}
+              onSelect={focusEvent}
             />
           </Col>
         </Row>
@@ -2656,39 +3147,26 @@ const DashboardPage = () => {
           }
           className="dashboard-panel events-panel"
         >
-          <Table
-            columns={eventColumns}
-            dataSource={displayedEvents}
-            rowKey="id"
-            pagination={false}
-            scroll={{ x: 900 }}
-            onRow={(record) => ({
-              onClick: () => setSelectedEvent(record),
-              style: { cursor: "pointer" },
-            })}
-            locale={{
-              emptyText: (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No matching events" />
-              ),
-            }}
+          <ShootShowcase
+            events={searchedEvents}
+            dateFilter={dateFilter}
+            now={currentTime}
+            windows={weather.windows}
+            totalBudget={totalBudget}
+            expandedId={expandedEventId}
+            onExpand={setExpandedEventId}
+            onMove={handleMovePipeline}
+            onOpen={(id) => goToEventPage(id)}
+            onDelete={handleDeleteEvent}
+            onAddNew={goToCreateEvent}
           />
 
-          {filteredEvents.length > EVENTS_LIST_LIMIT ? (
-            <div className="events-view-more">
-              <Button type="link" onClick={() => goToEventPage()}>
-                View all {filteredEvents.length} events <ArrowRightOutlined />
-              </Button>
-            </div>
-          ) : null}
+          <div className="events-view-more">
+            <Button type="link" onClick={() => goToEventPage()}>
+              Open the Events page <ArrowRightOutlined />
+            </Button>
+          </div>
         </Card>
-
-        <EventSidebar
-          event={selectedEvent}
-          totalBudget={totalBudget}
-          onClose={() => setSelectedEvent(null)}
-          onViewFull={(id) => goToEventPage(id)}
-          onAdvanceStage={handleMovePipeline}
-        />
 
         <PipelineEventPanel
           event={pipelineEvent}
@@ -2722,6 +3200,10 @@ const DashboardPage = () => {
             <div className="shortcut-row">
               <span>Show shortcuts</span>
               <Tag>?</Tag>
+            </div>
+            <div className="shortcut-row">
+              <span>Open / collapse a shoot</span>
+              <Tag>Click / Esc</Tag>
             </div>
             <div className="shortcut-row">
               <span>Move the sun on Light Timeline</span>
