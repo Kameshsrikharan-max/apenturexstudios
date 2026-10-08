@@ -94,8 +94,7 @@ export default function MediaLibraryPage() {
     localStorage.setItem("persistent_albums", JSON.stringify(albums));
   }, [albums]);
 
-  // Freeze current height right before the tab/album/view actually changes,
-  // then measure the new content and animate smoothly toward it.
+  
   useLayoutEffect(() => {
     const node = contentWrapperRef.current;
     if (!node) return;
@@ -117,7 +116,7 @@ export default function MediaLibraryPage() {
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
       if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [activeFolder, selectedAlbumId, viewMode, mediaList, albums, search, filterLikedOnly]);
 
   const switchFolder = (key: string) => {

@@ -2,24 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Layout, Table, DatePicker, Switch, Tooltip, ConfigProvider, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { QRCodeSVG } from "qrcode.react"; // already a project dependency (used in EventQRModal)
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  FileTextOutlined,
-  SendOutlined,
-  PrinterOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  EditOutlined,
-  CloseOutlined,
-  ThunderboltOutlined,
-  CopyOutlined,
-  CameraOutlined,
-  RiseOutlined,
-  WalletOutlined,
-} from "@ant-design/icons";
+import { QRCodeSVG } from "qrcode.react";
+import {SearchOutlined,ReloadOutlined,FileTextOutlined,SendOutlined,PrinterOutlined,CheckCircleOutlined,ClockCircleOutlined,ExclamationCircleOutlined,EditOutlined,CloseOutlined,ThunderboltOutlined,CopyOutlined,CameraOutlined,RiseOutlined,WalletOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import Sidebar from "../../../components/UI/Sidebar";
 import rootReducer from "../../../redux/rootReducer";
@@ -53,9 +37,6 @@ interface BatchProgress {
 }
 
 // ---- Studio letterhead + payment details -----------------------------
-// Replace these with the studio's real details (or wire up to a settings
-// page later) — kept as constants so the invoice always renders correctly
-// even before that exists.
 const STUDIO = {
   name: "Apenturexstudios",
   tagline: "Photography & Films",
@@ -72,8 +53,8 @@ const DEFAULT_NOTE =
 const NOTES_STORAGE_KEY = "axs_invoice_notes_v1";
 
 // Timings (ms) — keep in sync with the CSS animation durations
-const PAPER_FEED_MS = 800; // .inv-invoice-sheet feed-in
-const SCAN_SWEEP_MS = 650; // .is-feeding sweep before window.print()
+const PAPER_FEED_MS = 800;
+const SCAN_SWEEP_MS = 650; 
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 

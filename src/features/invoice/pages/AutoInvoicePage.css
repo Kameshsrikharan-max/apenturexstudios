@@ -316,7 +316,7 @@
   body * { visibility: hidden; }
   .inv-invoice-sheet, .inv-invoice-sheet * { visibility: visible; }
 
-  /* kill every screen animation so the printout is the settled state */
+  
   .inv-invoice-sheet,
   .inv-invoice-sheet *,
   .inv-invoice-sheet::after,

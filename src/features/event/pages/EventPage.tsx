@@ -1,8 +1,51 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Avatar,Badge,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,notification,} from "antd";
-import {AppstoreOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FilterOutlined,MessageOutlined,PlusOutlined,QrcodeOutlined,RadarChartOutlined,ReloadOutlined,SearchOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,ToolOutlined,UnorderedListOutlined,
+import {
+  Avatar,
+  Badge,
+  Button,
+  ConfigProvider,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Pagination,
+  Popover,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+  notification,
+} from "antd";
+import type { InputRef } from "antd";
+import {
+  AppstoreOutlined,
+  BellOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CopyOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  FieldTimeOutlined,
+  FilterOutlined,
+  MessageOutlined,
+  PlusOutlined,
+  QrcodeOutlined,
+  RadarChartOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  StarFilled,
+  StarOutlined,
+  TableOutlined,
+  TeamOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
@@ -38,6 +81,24 @@ const eventTypes = [
   "Family",
   "Birthday",
   "Engagement",
+];
+
+type ViewMode = "table" | "cards" | "timeline";
+type RangeFilter = "any" | "today" | "week" | "upcoming";
+type SortMode = "default" | "soonest" | "latest" | "name";
+
+const rangeOptions: { key: RangeFilter; label: string }[] = [
+  { key: "any", label: "Any time" },
+  { key: "today", label: "Today" },
+  { key: "week", label: "Next 7 days" },
+  { key: "upcoming", label: "Upcoming" },
+];
+
+const sortOptions: { value: SortMode; label: string }[] = [
+  { value: "default", label: "Smart order" },
+  { value: "soonest", label: "Soonest first" },
+  { value: "latest", label: "Latest first" },
+  { value: "name", label: "Name A-Z" },
 ];
 
 const statusMeta: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
@@ -109,6 +170,50 @@ const isEventToday = (event: any): boolean => {
     eventDate.getMonth() === now.getMonth() &&
     eventDate.getDate() === now.getDate()
   );
+};
+
+/* ---------- Calendar-day helpers (NEW) ---------- */
+const startOfDay = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+// Whole calendar days between today and the event (0 = today, negative = past).
+const dayDiff = (event: any): number | null => {
+  const d = parseEventDateTime(event);
+  if (!d) return null;
+  return Math.round((startOfDay(d) - startOfDay(new Date())) / 86400000);
+};
+
+const relativeLabel = (event: any): { text: string; tone: string } => {
+  const days = dayDiff(event);
+  if (days === null) return { text: "", tone: "none" };
+  if (days === 0) return { text: "Today", tone: "today" };
+  if (days === 1) return { text: "Tomorrow", tone: "soon" };
+  if (days > 1 && days <= 7) return { text: `In ${days}d`, tone: "soon" };
+  if (days > 7) return { text: `In ${days}d`, tone: "future" };
+  if (days === -1) return { text: "Yesterday", tone: "past" };
+  return { text: `${Math.abs(days)}d ago`, tone: "past" };
+};
+
+const matchesRange = (event: any, range: RangeFilter): boolean => {
+  if (range === "any") return true;
+  const days = dayDiff(event);
+  if (days === null) return false;
+  if (range === "today") return days === 0;
+  if (range === "week") return days >= 0 && days <= 7;
+  return days >= 0; // upcoming
+};
+
+/* ---------- Starred events (NEW, client-side) ---------- */
+const STAR_KEY = "ax.events.starred.v1";
+
+const loadStarred = (): string[] => {
+  try {
+    const raw = localStorage.getItem(STAR_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 /* ---------- Unread message tracking (client-side) ----------
@@ -201,6 +306,168 @@ const isEventAssignedToUser = (event: any, user: any): boolean => {
   });
 };
 
+/* ============================================================
+   NEW: small animated building blocks
+   ============================================================ */
+
+// Eases a number from its previous value to the new target.
+function useCountUp(target: number, duration = 900) {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const start = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = Math.round(from + (target - from) * eased);
+      fromRef.current = next;
+      setValue(next);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return value;
+}
+
+const AnimatedNumber = ({ value }: { value: number }) => <>{useCountUp(value)}</>;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Live ticking countdown to the next upcoming event. Owns its own 1s timer
+// so the rest of the page never re-renders every second.
+const NextUpCard = ({ event, onOpen }: { event: any; onOpen: () => void }) => {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const target = parseEventDateTime(event)?.getTime() ?? 0;
+  const diff = Math.max(target - now, 0);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  const WINDOW_MS = 7 * 86400000;
+  const progress = 1 - Math.min(diff / WINDOW_MS, 1);
+  const RADIUS = 31;
+  const CIRC = 2 * Math.PI * RADIUS;
+  const urgent = diff > 0 && diff <= 2 * 3600000;
+
+  return (
+    <button
+      type="button"
+      className={`event-nextup ${urgent ? "urgent" : ""}`}
+      onClick={onOpen}
+      title="Open next event"
+    >
+      <span className="event-nextup-ring">
+        <svg viewBox="0 0 76 76" width="76" height="76" aria-hidden="true">
+          <defs>
+            <linearGradient id="nextupGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#a78bfa" />
+            </linearGradient>
+          </defs>
+          <circle cx="38" cy="38" r={RADIUS} className="event-nextup-track" />
+          <circle
+            cx="38"
+            cy="38"
+            r={RADIUS}
+            className="event-nextup-progress"
+            strokeDasharray={CIRC}
+            strokeDashoffset={CIRC * (1 - progress)}
+          />
+        </svg>
+        <span className="event-nextup-days">
+          <b>{diff > 0 ? days : 0}</b>
+          <small>days</small>
+        </span>
+      </span>
+      <span className="event-nextup-copy">
+        <small>
+          <RocketIcon /> Next up
+        </small>
+        <strong>{event.name}</strong>
+        <span className="event-nextup-clock">
+          {diff > 0 ? `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}` : "Starting now"}
+        </span>
+      </span>
+    </button>
+  );
+};
+
+// Tiny inline icon so we don't depend on an icon that may not exist in older icon packs.
+const RocketIcon = () => (
+  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden="true">
+    <path d="M8 0l2 5h5l-4 3.4L12.5 14 8 10.8 3.5 14 5 8.4 1 5h5z" />
+  </svg>
+);
+
+// Card with a cursor-driven 3D tilt and a moving light sheen. Uses direct
+// style mutation (no state) so mouse movement never triggers a re-render.
+const TiltCard = ({
+  index,
+  onClick,
+  children,
+}: {
+  index: number;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) => {
+  const ref = useRef<HTMLElement>(null);
+
+  const handleMove = (e: React.MouseEvent<HTMLElement>) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    el.style.setProperty("--ry", `${(px - 0.5) * 10}deg`);
+    el.style.setProperty("--rx", `${(0.5 - py) * 10}deg`);
+    el.style.setProperty("--mx", `${px * 100}%`);
+    el.style.setProperty("--my", `${py * 100}%`);
+  };
+
+  const handleLeave = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty("--ry", "0deg");
+    el.style.setProperty("--rx", "0deg");
+  };
+
+  return (
+    <article
+      ref={ref}
+      className="event-card"
+      style={{ "--i": index } as React.CSSProperties}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      onClick={onClick}
+    >
+      {children}
+      <span className="event-card-shine" aria-hidden="true" />
+    </article>
+  );
+};
+
+const SkeletonGrid = ({ count = 6 }: { count?: number }) => (
+  <div className="event-skeleton-grid" aria-hidden="true">
+    {Array.from({ length: count }).map((_, i) => (
+      <div className="event-skeleton-card" key={i} style={{ "--i": i } as React.CSSProperties} />
+    ))}
+  </div>
+);
+
 export default function EventPage({ user }: { user?: any } = {}) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -213,11 +480,11 @@ export default function EventPage({ user }: { user?: any } = {}) {
   // Single source of truth now: Redux, populated from GET /studio/events.
   // No more localStorage ("ax.events.v1") — that copy never updated on a
   // photographer's own browser when an admin assigned them elsewhere.
-const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
+  const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("All");
-  const [viewMode, setViewMode] = useState("table");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [filterOpen, setFilterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [viewEvent, setViewEvent] = useState<any>(null);
@@ -227,6 +494,15 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [tablePage, setTablePage] = useState(1);
   const [cardPage, setCardPage] = useState(1);
+
+  // --- NEW: smart filters / sorting / stars ---
+  const [rangeFilter, setRangeFilter] = useState<RangeFilter>("any");
+  const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [starredOnly, setStarredOnly] = useState(false);
+  const [starred, setStarred] = useState<string[]>(loadStarred);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const searchRef = useRef<InputRef>(null);
+  const panelRef = useRef<HTMLElement>(null);
 
   // --- Venue location pin state ---
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -257,6 +533,20 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
   const isAssignedOnlyRole = Boolean(user?.role) && ASSIGNED_ONLY_ROLES.includes(user.role);
 
+  const starredSet = useMemo(() => new Set(starred), [starred]);
+
+  const toggleStar = (id: string) => {
+    setStarred((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try {
+        localStorage.setItem(STAR_KEY, JSON.stringify(next));
+      } catch {
+        // storage unavailable — stars just won't persist across reloads.
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     dispatch(getEvents());
   }, [dispatch]);
@@ -264,7 +554,7 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
   useEffect(() => {
     setTablePage(1);
     setCardPage(1);
-  }, [activeStatus, searchTerm, events.length]);
+  }, [activeStatus, searchTerm, events.length, rangeFilter, sortMode, starredOnly]);
 
   useEffect(() => {
     if (!events.length) return;
@@ -380,23 +670,95 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
     [scopedEvents]
   );
 
+  // Hero stat strip numbers.
+  const todayCount = useMemo(
+    () => scopedEvents.filter((e) => isEventToday(e)).length,
+    [scopedEvents]
+  );
+  const totalUnread = useMemo(
+    () => Object.values(unreadCounts).reduce((sum, n) => sum + n, 0),
+    [unreadCounts]
+  );
+
+  // The soonest not-yet-finished event in the future — feeds the countdown card.
+  const nextEvent = useMemo(() => {
+    const nowTs = Date.now();
+    let best: any = null;
+    let bestTs = Infinity;
+    scopedEvents.forEach((e) => {
+      if (e.status === "DONE") return;
+      const ts = parseEventDateTime(e)?.getTime();
+      if (ts === undefined || ts <= nowTs) return;
+      if (ts < bestTs) {
+        best = e;
+        bestTs = ts;
+      }
+    });
+    return best;
+  }, [scopedEvents]);
+
   const filteredEvents = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
-    return scopedEvents.filter((e) => {
+    const list = scopedEvents.filter((e) => {
       const matchStatus = activeStatus === "All" || e.status === activeStatus;
       const matchSearch =
         !term ||
         Object.values(e).some((v) => String(v).toLowerCase().includes(term));
+      const matchRange = matchesRange(e, rangeFilter);
+      const matchStar = !starredOnly || starredSet.has(e.id);
 
-      return matchStatus && matchSearch;
+      return matchStatus && matchSearch && matchRange && matchStar;
     });
-  }, [activeStatus, scopedEvents, searchTerm]);
+
+    const ts = (e: any) => parseEventDateTime(e)?.getTime() ?? 0;
+    if (sortMode === "soonest") list.sort((a, b) => ts(a) - ts(b));
+    else if (sortMode === "latest") list.sort((a, b) => ts(b) - ts(a));
+    else if (sortMode === "name")
+      list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    // Starred events always float to the top (stable partition).
+    return [
+      ...list.filter((e) => starredSet.has(e.id)),
+      ...list.filter((e) => !starredSet.has(e.id)),
+    ];
+  }, [activeStatus, scopedEvents, searchTerm, rangeFilter, starredOnly, starredSet, sortMode]);
 
   const pagedCardEvents = useMemo(
     () => filteredEvents.slice((cardPage - 1) * PAGE_SIZE, cardPage * PAGE_SIZE),
     [filteredEvents, cardPage]
   );
+
+  // Timeline view: group events by calendar date, oldest -> newest.
+  const timelineGroups = useMemo(() => {
+    const map = new Map<string, any[]>();
+    filteredEvents.forEach((e) => {
+      const key = e.date || "Unscheduled";
+      map.set(key, [...(map.get(key) || []), e]);
+    });
+    return Array.from(map.entries())
+      .map(([date, items]) => ({
+        date,
+        items,
+        ts: parseEventDateTime(items[0])?.getTime() ?? Infinity,
+      }))
+      .sort((a, b) => a.ts - b.ts);
+  }, [filteredEvents]);
+
+  const hasActiveFilters =
+    activeStatus !== "All" ||
+    rangeFilter !== "any" ||
+    starredOnly ||
+    sortMode !== "default" ||
+    searchTerm.trim() !== "";
+
+  const resetFilters = () => {
+    setActiveStatus("All");
+    setRangeFilter("any");
+    setStarredOnly(false);
+    setSortMode("default");
+    setSearchTerm("");
+  };
 
   const highlightText = (value: any) => {
     if (!searchTerm.trim()) return value;
@@ -453,6 +815,78 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
     }, 650);
   };
 
+  // NEW: keyboard shortcuts — Ctrl/Cmd+K or "/" focus search, 1/2/3 switch
+  // view, R refresh. Ignored while typing or while any modal/panel is open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing =
+        !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+
+      if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (
+        viewEvent ||
+        createOpen ||
+        qrEvent ||
+        chatEvent ||
+        checklistEvent ||
+        checkinModalEvent ||
+        showLocationPicker ||
+        assignEvent
+      )
+        return;
+
+      switch (e.key) {
+        case "/":
+          e.preventDefault();
+          searchRef.current?.focus();
+          break;
+        case "1":
+          setViewMode("table");
+          break;
+        case "2":
+          setViewMode("cards");
+          break;
+        case "3":
+          setViewMode("timeline");
+          break;
+        case "r":
+        case "R":
+          handleRefresh();
+          break;
+        default:
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    viewEvent,
+    createOpen,
+    qrEvent,
+    chatEvent,
+    checklistEvent,
+    checkinModalEvent,
+    showLocationPicker,
+    assignEvent,
+  ]);
+
+  // NEW: cursor spotlight on the main panel (direct style mutation, no re-render).
+  const handlePanelMove = (e: React.MouseEvent<HTMLElement>) => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--px", `${e.clientX - rect.left}px`);
+    el.style.setProperty("--py", `${e.clientY - rect.top}px`);
+  };
+
   const copyEventToClipboard = async (event: any) => {
     const text = [
       `Event: ${event.name}`,
@@ -471,6 +905,8 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
     try {
       await navigator.clipboard.writeText(text);
       message.success("Event copied to clipboard");
+      setCopiedId(event.id);
+      setTimeout(() => setCopiedId((cur) => (cur === event.id ? null : cur)), 1400);
     } catch {
       message.error("Clipboard permission is not available");
     }
@@ -547,12 +983,37 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
 
     return (
       <Tag
-        className="event-status-tag"
+        className={`event-status-tag ${status === "LIVE" ? "is-live" : ""}`}
         style={{ "--tag-color": meta.color, "--tag-bg": meta.bg } as React.CSSProperties}
       >
-        {meta.icon}
+        {status === "LIVE" ? <span className="event-live-dot" /> : meta.icon}
         {status}
       </Tag>
+    );
+  };
+
+  const renderRelChip = (event: any) => {
+    const rel = relativeLabel(event);
+    if (!rel.text) return null;
+    return <em className={`event-rel ${rel.tone}`}>{rel.text}</em>;
+  };
+
+  const renderStar = (event: any) => {
+    const on = starredSet.has(event.id);
+    return (
+      <Tooltip title={on ? "Remove star" : "Star this event"}>
+        <button
+          type="button"
+          aria-label={on ? "Remove star" : "Star this event"}
+          className={`event-star ${on ? "on" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleStar(event.id);
+          }}
+        >
+          {on ? <StarFilled /> : <StarOutlined />}
+        </button>
+      </Tooltip>
     );
   };
 
@@ -654,8 +1115,8 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
       <Tooltip title="Copy to clipboard">
         <Button
           type="text"
-          icon={<CopyOutlined />}
-          className="event-action-btn copy"
+          icon={copiedId === record.id ? <CheckCircleOutlined /> : <CopyOutlined />}
+          className={`event-action-btn copy ${copiedId === record.id ? "copied" : ""}`}
           onClick={(e) => {
             e.stopPropagation();
             copyEventToClipboard(record);
@@ -666,6 +1127,12 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
   );
 
   const columns = [
+    {
+      title: "",
+      key: "star",
+      width: 48,
+      render: (_: any, record: any) => renderStar(record),
+    },
     {
       title: "Event Name",
       dataIndex: "name",
@@ -694,7 +1161,12 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
       key: "date",
       sorter: (a: any, b: any) => a.date.localeCompare(b.date),
       width: 100,
-      render: (t: any) => <span className="event-soft-cell">{highlightText(t)}</span>,
+      render: (t: any, record: any) => (
+        <span className="event-soft-cell event-date-cell">
+          {highlightText(t)}
+          {renderRelChip(record)}
+        </span>
+      ),
     },
     {
       title: "Time",
@@ -777,12 +1249,28 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
     );
   }
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = String(user?.name || user?.fullName || user?.firstName || "")
+    .trim()
+    .split(" ")[0];
+
+  const showSkeleton = reduxLoading && events.length === 0;
+
   return (
     <ConfigProvider
       theme={{ token: { colorPrimary: "#3b82f6", borderRadius: 8 } }}
     >
       <main className="event-page">
         <section className="event-hero">
+          {/* NEW: aperture ring + drifting bokeh lights */}
+          <span className="event-hero-aperture" aria-hidden="true" />
+          <span className="event-bokeh b1" aria-hidden="true" />
+          <span className="event-bokeh b2" aria-hidden="true" />
+          <span className="event-bokeh b3" aria-hidden="true" />
+          <span className="event-bokeh b4" aria-hidden="true" />
+          <span className="event-bokeh b5" aria-hidden="true" />
+
           <div className="event-hero-copy">
             <span className="event-hero-pill">
               <CalendarOutlined />
@@ -793,6 +1281,11 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
               Plan bookings, customers, city, stage and assigned members in one
               transparent workspace.
             </Text>
+            <span className="event-hero-greeting">
+              {greeting}
+              {firstName ? `, ${firstName}` : ""} - you have{" "}
+              <b>{todayCount}</b> shoot{todayCount === 1 ? "" : "s"} today.
+            </span>
             {canCreateEvents && (
               <div className="event-hero-actions">
                 <Button
@@ -805,9 +1298,49 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                 </Button>
               </div>
             )}
+
+            {/* NEW: animated stat strip — tiles double as quick filters */}
+            <div className="event-stats">
+              <button type="button" className="event-stat" onClick={resetFilters}>
+                <AppstoreOutlined />
+                <b>
+                  <AnimatedNumber value={counts.All} />
+                </b>
+                <span>Total</span>
+              </button>
+              <button
+                type="button"
+                className="event-stat live"
+                onClick={() => setActiveStatus("LIVE")}
+              >
+                <ThunderboltOutlined />
+                <b>
+                  <AnimatedNumber value={counts.LIVE || 0} />
+                </b>
+                <span>Live now</span>
+              </button>
+              <button
+                type="button"
+                className="event-stat today"
+                onClick={() => setRangeFilter("today")}
+              >
+                <CalendarOutlined />
+                <b>
+                  <AnimatedNumber value={todayCount} />
+                </b>
+                <span>Today</span>
+              </button>
+              <div className={`event-stat unread ${totalUnread ? "has-unread" : ""}`}>
+                <BellOutlined />
+                <b>
+                  <AnimatedNumber value={totalUnread} />
+                </b>
+                <span>Unread</span>
+              </div>
+            </div>
           </div>
 
-          <div className="event-hero-art" aria-hidden="true">
+          <div className="event-hero-art" aria-hidden={nextEvent ? undefined : "true"}>
             {heroArtPhotos.map((src, i) => (
               <img
                 key={src}
@@ -818,17 +1351,22 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
             ))}
             <span className="event-hero-orbit orbit-one" />
             <span className="event-hero-orbit orbit-two" />
+            {nextEvent ? (
+              <NextUpCard event={nextEvent} onOpen={() => setViewEvent(nextEvent)} />
+            ) : null}
           </div>
         </section>
 
-        <section className="event-panel">
+        <section className="event-panel" ref={panelRef} onMouseMove={handlePanelMove}>
           <div className="event-toolbar">
             <Space size={10} wrap>
               <Input
+                ref={searchRef}
                 allowClear
                 className="event-search"
                 placeholder="Search events..."
                 prefix={<SearchOutlined />}
+                suffix={searchTerm ? null : <kbd className="event-kbd">/</kbd>}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -849,7 +1387,7 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                 </Tooltip>
               </Popover>
 
-              <Tooltip title="Refresh">
+              <Tooltip title="Refresh (R)">
                 <Button
                   type="text"
                   icon={<ReloadOutlined spin={isLoading || reduxLoading} />}
@@ -858,8 +1396,9 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                 />
               </Tooltip>
 
-              <div className="event-view-toggle">
-                <Tooltip title="Table view">
+              <div className="event-view-toggle" data-mode={viewMode}>
+                <span className="event-view-thumb" aria-hidden="true" />
+                <Tooltip title="Table view (1)">
                   <button
                     type="button"
                     className={viewMode === "table" ? "active" : ""}
@@ -868,13 +1407,22 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                     <TableOutlined />
                   </button>
                 </Tooltip>
-                <Tooltip title="Card view">
+                <Tooltip title="Card view (2)">
                   <button
                     type="button"
                     className={viewMode === "cards" ? "active" : ""}
                     onClick={() => setViewMode("cards")}
                   >
                     <UnorderedListOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title="Timeline view (3)">
+                  <button
+                    type="button"
+                    className={viewMode === "timeline" ? "active" : ""}
+                    onClick={() => setViewMode("timeline")}
+                  >
+                    <FieldTimeOutlined />
                   </button>
                 </Tooltip>
               </div>
@@ -911,6 +1459,45 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                 </button>
               </Tooltip>
             ))}
+
+            <span className="event-chip-divider" aria-hidden="true" />
+
+            {rangeOptions.map((opt) => (
+              <button
+                type="button"
+                key={opt.key}
+                className={`event-range-chip ${rangeFilter === opt.key ? "active" : ""}`}
+                onClick={() => setRangeFilter(opt.key)}
+              >
+                {opt.label}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              className={`event-range-chip star ${starredOnly ? "active" : ""}`}
+              onClick={() => setStarredOnly((v) => !v)}
+            >
+              {starredOnly ? <StarFilled /> : <StarOutlined />}
+              Starred
+              {starred.length ? <b>{starred.length}</b> : null}
+            </button>
+
+            {hasActiveFilters ? (
+              <button type="button" className="event-reset-chip" onClick={resetFilters}>
+                Reset
+              </button>
+            ) : null}
+
+            <Select
+              size="small"
+              value={sortMode}
+              onChange={(v) => setSortMode(v)}
+              options={sortOptions}
+              className="event-sort-select"
+              suffixIcon={<SearchOutlined style={{ display: "none" }} />}
+              popupMatchSelectWidth={false}
+            />
           </div>
 
           {viewMode === "table" ? (
@@ -919,9 +1506,12 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
               dataSource={filteredEvents}
               rowKey="id"
               className="event-table"
+              loading={showSkeleton}
               scroll={{ x: 1260 }}
               rowClassName={(record) =>
-                activeRowId === record.id ? "event-row-active" : ""
+                `${activeRowId === record.id ? "event-row-active" : ""} ${
+                  starredSet.has(record.id) ? "event-row-starred" : ""
+                }`
               }
               onRow={(record) => ({
                 onMouseEnter: () => setActiveRowId(record.id),
@@ -947,14 +1537,21 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                 ),
               }}
             />
-          ) : (
+          ) : viewMode === "cards" ? (
             <>
+              {showSkeleton ? <SkeletonGrid /> : null}
               <div className="event-card-grid">
-                {pagedCardEvents.map((event) => (
-                  <article className="event-card" key={event.id}>
+                {pagedCardEvents.map((event, index) => (
+                  <TiltCard key={event.id} index={index} onClick={() => setViewEvent(event)}>
                     <img src={event.image} alt={event.name} />
                     <div className="event-card-body">
-                      <span>{event.type}</span>
+                      <div className="event-card-top">
+                        <span className="event-card-type">{event.type}</span>
+                        <div className="event-card-top-right">
+                          {renderRelChip(event)}
+                          {renderStar(event)}
+                        </div>
+                      </div>
                       <h3>{event.name}</h3>
                       <p>
                         <CalendarOutlined /> {event.date} at {event.time}
@@ -962,7 +1559,7 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                       <p>
                         <EnvironmentOutlined /> {event.city}
                       </p>
-                      <div className="event-card-footer">
+                      <div className="event-card-footer" onClick={(e) => e.stopPropagation()}>
                         <CheckInStatusBadge status={checkinStatusMap[event.id]} isToday={isEventToday(event)} />
                         {renderStatus(event.status)}
                         <Space size={4}>
@@ -1021,16 +1618,17 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                           <Tooltip title="Copy to clipboard">
                             <Button
                               type="text"
-                              icon={<CopyOutlined />}
+                              icon={copiedId === event.id ? <CheckCircleOutlined /> : <CopyOutlined />}
+                              className={copiedId === event.id ? "copied" : ""}
                               onClick={() => copyEventToClipboard(event)}
                             />
                           </Tooltip>
                         </Space>
                       </div>
                     </div>
-                  </article>
+                  </TiltCard>
                 ))}
-                {filteredEvents.length === 0 ? (
+                {filteredEvents.length === 0 && !showSkeleton ? (
                   <Empty
                     description="No matching events"
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -1048,6 +1646,65 @@ const events: any[] = Array.isArray(reduxEvents) ? reduxEvents : [];
                   />
                 </div>
               ) : null}
+            </>
+          ) : (
+            <>
+              {showSkeleton ? <SkeletonGrid count={4} /> : null}
+              {filteredEvents.length === 0 && !showSkeleton ? (
+                <div className="event-timeline-empty">
+                  <Empty
+                    description="No matching events"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                </div>
+              ) : (
+                <div className="event-timeline">
+                  {timelineGroups.map((group, gi) => {
+                    const first = group.items[0];
+                    const today = isEventToday(first);
+                    return (
+                      <section
+                        className="event-tl-group"
+                        key={group.date}
+                        style={{ "--i": gi } as React.CSSProperties}
+                      >
+                        <span className={`event-tl-node ${today ? "today" : ""}`} />
+                        <header className="event-tl-date">
+                          <strong>{group.date}</strong>
+                          {renderRelChip(first)}
+                          <small>
+                            {group.items.length} event{group.items.length === 1 ? "" : "s"}
+                          </small>
+                        </header>
+                        <div className="event-tl-items">
+                          {group.items.map((e) => (
+                            <button
+                              type="button"
+                              className="event-tl-item"
+                              key={e.id}
+                              onClick={() => setViewEvent(e)}
+                            >
+                              <span className="event-tl-time">{e.time || "--"}</span>
+                              <span className="event-tl-main">
+                                <strong>
+                                  {starredSet.has(e.id) ? (
+                                    <StarFilled className="event-tl-star" />
+                                  ) : null}
+                                  {highlightText(e.name)}
+                                </strong>
+                                <small>
+                                  {e.type} - {e.city}
+                                </small>
+                              </span>
+                              {renderStatus(e.status)}
+                            </button>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </section>

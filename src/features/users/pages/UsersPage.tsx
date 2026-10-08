@@ -1,7 +1,74 @@
-import { useState, useMemo, useCallback, useEffect, type ReactNode } from "react";
-import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,} from "antd";
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactNode,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import {
+  Layout,
+  Typography,
+  Table,
+  Input,
+  Button,
+  Space,
+  ConfigProvider,
+  Tag,
+  Avatar,
+  Tabs,
+  Tooltip,
+  Popover,
+  Form,
+  Select,
+  message,
+  Empty,
+  Badge,
+  Pagination,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,UserOutlined,CopyOutlined,ArrowLeftOutlined,RedoOutlined,UndoOutlined,CheckOutlined,} from "@ant-design/icons";
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  UserAddOutlined,
+  FilterOutlined,
+  EyeOutlined,
+  EditOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  SendOutlined,
+  UserSwitchOutlined,
+  EnvironmentOutlined,
+  CalendarOutlined,
+  SaveOutlined,
+  TeamOutlined,
+  LinkOutlined,
+  CameraOutlined,
+  AppstoreOutlined,
+  GoogleOutlined,
+  ClockCircleOutlined,
+  StarOutlined,
+  CloseOutlined,
+  StarFilled,
+  RobotOutlined,
+  LoadingOutlined,
+  BulbOutlined,
+  UserOutlined,
+  CopyOutlined,
+  ArrowLeftOutlined,
+  RedoOutlined,
+  UndoOutlined,
+  CheckOutlined,
+  DownloadOutlined,
+  ThunderboltOutlined,
+  UnorderedListOutlined,
+  IdcardOutlined,
+  ClearOutlined,
+} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
@@ -13,7 +80,6 @@ import {
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-
 /*  Types */
 
 type UserStatus = "Active" | "Inactive" | "Pending";
@@ -21,6 +87,7 @@ type SignupType = "Registered" | "Google" | "Invited";
 type TabKey = "all" | "referrals" | "photographers";
 type FilterKey = "All" | UserStatus | SignupType;
 type DatePeriod = "today" | "week" | "month" | "year";
+type ViewMode = "table" | "cards";
 type InviteRole = "Studio Admin" | "Studio Manager" | "Freelance Photographer" | "Studio Photographer";
 
 interface UserRecord {
@@ -108,6 +175,9 @@ const ROLE_TO_BACKEND_ROLE: Record<InviteRole, "studio_manager" | "studio_photog
 const fallbackImage =
   "https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=900&q=80";
 
+const PAGE_SIZE = 10;
+const CARD_PAGE_SIZE = 12;
+
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -140,11 +210,26 @@ const filterIconMap: Record<string, ReactNode> = {
   Invited: <SendOutlined />,
 };
 
+const statusColorMap: Record<UserStatus, string> = {
+  Active: "#22c55e",
+  Inactive: "#ef4444",
+  Pending: "#f59e0b",
+};
+
 const inviteRoleMeta: Record<InviteRole, { color: string; icon: ReactNode }> = {
   "Studio Admin": { color: "#3b82f6", icon: <TeamOutlined /> },
   "Studio Manager": { color: "#a78bfa", icon: <UserSwitchOutlined /> },
   "Freelance Photographer": { color: "#f59e0b", icon: <CameraOutlined /> },
   "Studio Photographer": { color: "#22c55e", icon: <CameraOutlined /> },
+};
+
+const roleColor = (role: string): string =>
+  (inviteRoleMeta as Record<string, { color: string }>)[role]?.color ?? "#38bdf8";
+
+const taglineByTab: Record<TabKey, string> = {
+  all: "Your whole studio crew — roles, invites and profiles on one live board.",
+  referrals: "People who arrived through a referral link will gather here.",
+  photographers: "Freelance photographers, their shoot counts and availability at a glance.",
 };
 
 const tabItems: { key: TabKey; label: ReactNode }[] = [
@@ -220,9 +305,68 @@ const galleryPhotos: GalleryPhoto[] = [
   { id: 20, title: "Fashion Frame", category: "Portraits", image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1400" },
 ];
 
+/*  Motion hooks / helpers (new)                                              */
+
+/** Eased count-up that animates from the previous value to the new one. */
+const useCountUp = (target: number, duration = 900): number => {
+  const [val, setVal] = useState<number>(0);
+  const prev = useRef<number>(0);
+
+  useEffect(() => {
+    const from = prev.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min((t - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(from + (target - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else prev.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return val;
+};
+
+/** Types text out character by character; restarts whenever `text` changes. */
+const useTypewriter = (text: string, speed = 18): string => {
+  const [out, setOut] = useState<string>("");
+  useEffect(() => {
+    let i = 0;
+    setOut("");
+    const t = setInterval(() => {
+      i += 1;
+      setOut(text.slice(0, i));
+      if (i >= text.length) clearInterval(t);
+    }, speed);
+    return () => clearInterval(t);
+  }, [text, speed]);
+  return out;
+};
+
+const AnimatedNumber = ({ value }: { value: number }) => <>{useCountUp(value)}</>;
+
+/** 3D tilt + moving glare. Writes CSS vars (--rx --ry --gx --gy) the stylesheet reads. */
+const handleTilt = (e: ReactMouseEvent<HTMLElement>) => {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  el.style.setProperty("--rx", `${((0.5 - y) * 10).toFixed(2)}deg`);
+  el.style.setProperty("--ry", `${((x - 0.5) * 12).toFixed(2)}deg`);
+  el.style.setProperty("--gx", `${(x * 100).toFixed(1)}%`);
+  el.style.setProperty("--gy", `${(y * 100).toFixed(1)}%`);
+};
+
+const resetTilt = (e: ReactMouseEvent<HTMLElement>) => {
+  const el = e.currentTarget;
+  el.style.setProperty("--rx", "0deg");
+  el.style.setProperty("--ry", "0deg");
+};
 
 /*  CustomModal                                                                */
-
 
 interface CustomModalProps {
   open: boolean;
@@ -259,9 +403,366 @@ const CustomModal = ({ open, onClose, width = 620, children }: CustomModalProps)
   );
 };
 
+/*  Confetti (new) — fires when an invite is sent                             */
+
+const CONFETTI_COLORS = ["#3b82f6", "#38bdf8", "#22c55e", "#f59e0b", "#f472b6", "#a78bfa"];
+
+const Confetti = () => {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 56 }, (_, i) => ({
+        id: i,
+        x: 20 + Math.random() * 60,
+        dx: (Math.random() - 0.5) * 70,
+        r: Math.random() * 900 - 450,
+        d: 1.6 + Math.random() * 1.3,
+        delay: Math.random() * 0.25,
+        c: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        w: 6 + Math.random() * 7,
+      })),
+    []
+  );
+
+  return (
+    <div className="uc-confetti" aria-hidden="true">
+      {pieces.map((p) => (
+        <span
+          key={p.id}
+          className="uc-confetti-piece"
+          style={
+            {
+              "--x": `${p.x}%`,
+              "--dx": `${p.dx}vw`,
+              "--r": `${p.r}deg`,
+              "--d": `${p.d}s`,
+              "--dl": `${p.delay}s`,
+              "--c": p.c,
+              "--w": `${p.w}px`,
+            } as CSSProperties
+          }
+        />
+      ))}
+    </div>
+  );
+};
+
+/*  CommandPalette (new) — Ctrl/Cmd + K                                       */
+
+interface PaletteAction {
+  id: string;
+  label: string;
+  hint: string;
+  icon: ReactNode;
+  run: () => void;
+}
+
+interface PaletteItem {
+  key: string;
+  group: "Actions" | "People";
+  label: string;
+  hint: string;
+  icon: ReactNode;
+  run: () => void;
+}
+
+interface CommandPaletteProps {
+  open: boolean;
+  onClose: () => void;
+  actions: PaletteAction[];
+  users: UserRecord[];
+  onPickUser: (u: UserRecord) => void;
+}
+
+const PaletteInner = ({ onClose, actions, users, onPickUser }: Omit<CommandPaletteProps, "open">) => {
+  const [q, setQ] = useState<string>("");
+  const [cursor, setCursor] = useState<number>(0);
+
+  const items = useMemo<PaletteItem[]>(() => {
+    const term = q.trim().toLowerCase();
+
+    const actionItems: PaletteItem[] = actions
+      .filter((a) => !term || a.label.toLowerCase().includes(term) || a.hint.toLowerCase().includes(term))
+      .map((a) => ({ key: a.id, group: "Actions", label: a.label, hint: a.hint, icon: a.icon, run: a.run }));
+
+    const pool = term
+      ? users.filter((u) =>
+          [u.name, u.email, u.role, u.phone].some((v) => String(v ?? "").toLowerCase().includes(term))
+        )
+      : users;
+
+    const peopleItems: PaletteItem[] = pool.slice(0, term ? 6 : 3).map((u) => ({
+      key: `u-${u.id}`,
+      group: "People",
+      label: u.name,
+      hint: `${u.role} · ${u.email}`,
+      icon: (
+        <Avatar size={24} src={u.image}>
+          {u.name.charAt(0)}
+        </Avatar>
+      ),
+      run: () => onPickUser(u),
+    }));
+
+    return [...actionItems, ...peopleItems];
+  }, [q, actions, users, onPickUser]);
+
+  const exec = (item: PaletteItem | undefined) => {
+    if (!item) return;
+    onClose();
+    item.run();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      onClose();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (items.length) setCursor((c) => (c + 1) % items.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (items.length) setCursor((c) => (c - 1 + items.length) % items.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      exec(items[cursor]);
+    }
+  };
+
+  let lastGroup = "";
+
+  return (
+    <div className="cp-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="cp-panel" role="dialog" aria-label="Command palette" onKeyDown={onKeyDown}>
+        <div className="cp-input-row">
+          <SearchOutlined />
+          <input
+            autoFocus
+            className="cp-input"
+            placeholder="Search people or run a command…"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setCursor(0);
+            }}
+          />
+          <kbd>Esc</kbd>
+        </div>
+
+        <div className="cp-list">
+          {items.length === 0 && <div className="cp-empty">Nothing matches “{q}”. Try a name, role or email.</div>}
+          {items.map((item, i) => {
+            const showGroup = item.group !== lastGroup;
+            lastGroup = item.group;
+            return (
+              <div key={item.key}>
+                {showGroup && <div className="cp-group">{item.group}</div>}
+                <button
+                  type="button"
+                  className={`cp-item ${i === cursor ? "active" : ""}`}
+                  style={{ "--i": i } as CSSProperties}
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => exec(item)}
+                >
+                  <span className="cp-item-icon">{item.icon}</span>
+                  <span className="cp-item-text">
+                    <strong>{item.label}</strong>
+                    <small>{item.hint}</small>
+                  </span>
+                  {i === cursor && <kbd>Enter</kbd>}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CommandPalette = ({ open, ...rest }: CommandPaletteProps) =>
+  open ? <PaletteInner onClose={rest.onClose} actions={rest.actions} users={rest.users} onPickUser={rest.onPickUser} /> : null;
+
+/*  StatsStrip + RoleBar (new) — live counters that double as filters         */
+
+interface StatsStripProps {
+  users: UserRecord[];
+  activeFilter: FilterKey;
+  onPick: (f: FilterKey) => void;
+}
+
+const StatsStrip = ({ users, activeFilter, onPick }: StatsStripProps) => {
+  const total = users.length;
+  const count = (s: UserStatus) => users.filter((u) => u.status === s).length;
+
+  const stats: { key: FilterKey; label: string; icon: ReactNode; color: string; value: number }[] = [
+    { key: "All", label: "Total people", icon: <TeamOutlined />, color: "#3b82f6", value: total },
+    { key: "Active", label: "Active", icon: <CheckCircleOutlined />, color: statusColorMap.Active, value: count("Active") },
+    { key: "Pending", label: "Awaiting invite", icon: <ClockCircleOutlined />, color: statusColorMap.Pending, value: count("Pending") },
+    { key: "Inactive", label: "Inactive", icon: <CloseCircleOutlined />, color: statusColorMap.Inactive, value: count("Inactive") },
+  ];
+
+  return (
+    <>
+      {stats.map((s, i) => {
+        const share = total ? Math.round((s.value / total) * 100) : 0;
+        const isActive = activeFilter === s.key;
+        return (
+          <button
+            key={s.key}
+            type="button"
+            className={`uc-stat ${isActive ? "active" : ""}`}
+            style={{ "--sc": s.color, "--i": i } as CSSProperties}
+            onClick={() => onPick(isActive ? "All" : s.key)}
+            aria-pressed={isActive}
+          >
+            <span className="uc-stat-icon">{s.icon}</span>
+            <span className="uc-stat-body">
+              <b>
+                <AnimatedNumber value={s.value} />
+              </b>
+              <small>{s.label}</small>
+            </span>
+            <span className="uc-stat-share">{share}%</span>
+            <span className="uc-stat-bar">
+              <i style={{ width: `${share}%` }} />
+            </span>
+          </button>
+        );
+      })}
+    </>
+  );
+};
+
+const RoleBar = ({ users }: { users: UserRecord[] }) => {
+  const segments = useMemo(() => {
+    const map = new Map<string, number>();
+    users.forEach((u) => map.set(u.role, (map.get(u.role) || 0) + 1));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [users]);
+
+  if (!users.length) return null;
+
+  return (
+    <div className="uc-rolebar">
+      <div className="uc-rolebar-track">
+        {segments.map(([role, n]) => (
+          <Tooltip key={role} title={`${role}: ${n}`}>
+            <i
+              className="uc-rolebar-seg"
+              style={{ width: `${(n / users.length) * 100}%`, background: roleColor(role) } as CSSProperties}
+            />
+          </Tooltip>
+        ))}
+      </div>
+      <div className="uc-rolebar-legend">
+        {segments.map(([role, n]) => (
+          <span key={role}>
+            <i style={{ background: roleColor(role) }} />
+            {role} <b>{n}</b>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/*  UserCard (new) — card view with 3D tilt                                   */
+
+interface UserCardProps {
+  record: UserRecord;
+  index: number;
+  isNew: boolean;
+  highlight: (v: string | number) => ReactNode;
+  onView: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const UserCard = ({ record, index, isNew, highlight, onView, onEdit, onDelete }: UserCardProps) => (
+  <article
+    className={`uc-card ${isNew ? "is-new" : ""}`}
+    style={
+      {
+        "--i": index,
+        "--rc": roleColor(record.role),
+        "--sc": statusColorMap[record.status],
+      } as CSSProperties
+    }
+    onMouseMove={handleTilt}
+    onMouseLeave={resetTilt}
+  >
+    <div className="uc-card-glow" />
+    <div className="uc-card-banner">
+      <img
+        src={record.image || fallbackImage}
+        alt=""
+        onError={(e) => {
+          e.currentTarget.src = fallbackImage;
+        }}
+      />
+    </div>
+
+    <div className="uc-card-avatar">
+      <Avatar size={72} src={record.image}>
+        {record.name.charAt(0)}
+      </Avatar>
+      <span className="uc-card-ring" />
+    </div>
+
+    <button type="button" className="uc-card-name" onClick={onView}>
+      {highlight(record.name)}
+    </button>
+    <span className="uc-card-role">{record.role}</span>
+
+    <div className="uc-card-lines">
+      <span title={record.email}>
+        <MailOutlined /> {highlight(record.email)}
+      </span>
+      <span>
+        <PhoneOutlined /> {highlight(record.phone)}
+      </span>
+      <span>
+        <EnvironmentOutlined /> {record.studio || "Wave Studios"}
+      </span>
+    </div>
+
+    <div className="uc-card-footer">
+      <div className="uc-card-tags">
+        <Tooltip title={`Status: ${record.status}`}>
+          <Tag className={`status-dot status-${record.status.toLowerCase()} icon-only`}>
+            {filterIconMap[record.status]}
+          </Tag>
+        </Tooltip>
+        <Tooltip title={`Signup: ${record.signupType}`}>
+          <Tag className={`${record.signupType === "Invited" ? "signup-dot invited" : "signup-dot"} icon-only`}>
+            {filterIconMap[record.signupType] || <UserSwitchOutlined />}
+          </Tag>
+        </Tooltip>
+      </div>
+      <div className="uc-card-actions">
+        <Tooltip title="View profile">
+          <Button type="text" icon={<EyeOutlined />} className="user-action-btn view" onClick={onView} />
+        </Tooltip>
+        <Tooltip title="Edit profile">
+          <Button type="text" icon={<EditOutlined />} className="user-action-btn edit" onClick={onEdit} />
+        </Tooltip>
+        <Tooltip title="Delete profile">
+          <DeleteButton itemName={record.name} onDelete={onDelete} className="user-action-btn delete" />
+        </Tooltip>
+      </div>
+    </div>
+  </article>
+);
+
+const CardSkeletons = () => (
+  <div className="uc-grid">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} className="uc-card uc-skeleton" style={{ "--i": i } as CSSProperties} />
+    ))}
+  </div>
+);
 
 /*  AILightbox                                                                 */
-
 
 interface AILightboxProps {
   photos: GalleryPhoto[];
@@ -450,7 +951,6 @@ const AILightbox = ({ photos, initialIdx, onClose, onStar, starredIds }: AILight
   );
 };
 
-
 /*  UserViewOverlay                                                            */
 
 interface UserViewOverlayProps {
@@ -463,7 +963,10 @@ interface InfoItem {
   label: string;
   value: string | number;
   accent: string;
+  copy?: boolean;
 }
+
+const RING_CIRCUMFERENCE = 2 * Math.PI * 22;
 
 const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
   const [starredIds, setStarredIds] = useState<number[]>(() => loadLS<number[]>("axsStarredPhotos", []));
@@ -492,6 +995,19 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
     const rest = base.filter((p) => !starredIds.includes(p.id));
     return [...starred, ...rest];
   }, [activeFilter, starredIds]);
+
+  const completeness = useMemo(() => {
+    const checks = [
+      user.email,
+      user.phone,
+      user.image,
+      user.location,
+      user.notes,
+      user.studio,
+      user.shoots !== undefined,
+    ];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  }, [user]);
 
   const openLb = (photo: GalleryPhoto) => {
     const idx = filteredPhotos.findIndex((p) => p.id === photo.id);
@@ -534,8 +1050,8 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
   const signupMeta = signupMetaMap[user.signupType] || { color: "#94a3b8", label: user.signupType };
 
   const infoItems: InfoItem[] = [
-    { icon: <MailOutlined />, label: "Email", value: user.email, accent: "#38bdf8" },
-    { icon: <PhoneOutlined />, label: "Phone", value: user.phone, accent: "#34d399" },
+    { icon: <MailOutlined />, label: "Email", value: user.email, accent: "#38bdf8", copy: true },
+    { icon: <PhoneOutlined />, label: "Phone", value: user.phone, accent: "#34d399", copy: true },
     { icon: <CameraOutlined />, label: "Role", value: user.role, accent: "#f59e0b" },
     { icon: <EnvironmentOutlined />, label: "Location", value: user.location || "Wave Studios", accent: "#a78bfa" },
     { icon: <CalendarOutlined />, label: "Joined", value: user.created, accent: "#fb923c" },
@@ -545,6 +1061,12 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
       : []),
     { icon: <EditOutlined />, label: "Notes", value: user.notes || "—", accent: "#94a3b8" },
   ];
+
+  const copyValue = (item: InfoItem) => {
+    if (!item.copy) return;
+    navigator.clipboard?.writeText(String(item.value));
+    message.success(`${item.label} copied`);
+  };
 
   return (
     <>
@@ -573,7 +1095,7 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
                   "--d": `${4 + Math.random() * 10}s`,
                   "--s": `${2 + Math.random() * 5}px`,
                   "--o": `${0.15 + Math.random() * 0.45}`,
-                } as React.CSSProperties
+                } as CSSProperties
               }
             />
           ))}
@@ -592,7 +1114,7 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
         <div className="uvo-panel">
           <aside className="uvo-drawer">
             <div className="uvo-profile-visual">
-              <div className="uvo-avatar-glow" style={{ "--gcolor": statusMeta.glow } as React.CSSProperties} />
+              <div className="uvo-avatar-glow" style={{ "--gcolor": statusMeta.glow } as CSSProperties} />
 
               <div className="uvo-avatar-shell">
                 {user.image ? (
@@ -615,9 +1137,9 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
                 ) : (
                   <div className="uvo-profile-fallback">{user.name.charAt(0)}</div>
                 )}
-                <div className="uvo-ring uvo-ring-1" style={{ "--rc": statusMeta.color } as React.CSSProperties} />
-                <div className="uvo-ring uvo-ring-2" style={{ "--rc": statusMeta.color } as React.CSSProperties} />
-                <div className="uvo-ring uvo-ring-3" style={{ "--rc": statusMeta.color } as React.CSSProperties} />
+                <div className="uvo-ring uvo-ring-1" style={{ "--rc": statusMeta.color } as CSSProperties} />
+                <div className="uvo-ring uvo-ring-2" style={{ "--rc": statusMeta.color } as CSSProperties} />
+                <div className="uvo-ring uvo-ring-3" style={{ "--rc": statusMeta.color } as CSSProperties} />
               </div>
 
               <h1 className="uvo-name">{user.name}</h1>
@@ -627,27 +1149,54 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
                 <Tooltip title={`Status: ${statusMeta.label}`}>
                   <span
                     className="uvo-status-badge icon-only"
-                    style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow } as React.CSSProperties}
+                    style={{ "--bc": statusMeta.color, "--bg": statusMeta.glow } as CSSProperties}
                   >
                     {filterIconMap[user.status]}
                   </span>
                 </Tooltip>
                 <Tooltip title={`Signup: ${signupMeta.label}`}>
-                  <span className="uvo-signup-badge icon-only" style={{ "--bc": signupMeta.color } as React.CSSProperties}>
+                  <span className="uvo-signup-badge icon-only" style={{ "--bc": signupMeta.color } as CSSProperties}>
                     {filterIconMap[user.signupType] || <UserSwitchOutlined />}
+                  </span>
+                </Tooltip>
+                <Tooltip title="Profile completeness">
+                  <span className="uvo-complete" style={{ "--rc": statusMeta.color } as CSSProperties}>
+                    <svg viewBox="0 0 52 52" width="38" height="38" aria-hidden="true">
+                      <circle className="uvo-complete-track" cx="26" cy="26" r="22" />
+                      <circle
+                        className="uvo-complete-bar"
+                        cx="26"
+                        cy="26"
+                        r="22"
+                        style={{ "--off": RING_CIRCUMFERENCE * (1 - completeness / 100) } as CSSProperties}
+                      />
+                    </svg>
+                    <b>
+                      <AnimatedNumber value={completeness} />
+                    </b>
                   </span>
                 </Tooltip>
               </div>
             </div>
 
             <div className="uvo-info-grid">
-              {infoItems.map(({ icon, label, value, accent }) => (
-                <div key={label} className="uvo-info-card" style={{ "--acc": accent } as React.CSSProperties}>
-                  <div className="uvo-info-icon">{icon}</div>
+              {infoItems.map((item) => (
+                <div
+                  key={item.label}
+                  className={`uvo-info-card ${item.copy ? "copyable" : ""}`}
+                  style={{ "--acc": item.accent } as CSSProperties}
+                  role={item.copy ? "button" : undefined}
+                  tabIndex={item.copy ? 0 : undefined}
+                  title={item.copy ? `Click to copy ${item.label.toLowerCase()}` : undefined}
+                  onClick={() => copyValue(item)}
+                  onKeyDown={(e) => e.key === "Enter" && copyValue(item)}
+                >
+                  <div className="uvo-info-icon">{item.icon}</div>
                   <div className="uvo-info-text">
-                    <small>{label}</small>
-                    <strong title={String(value)}>{value}</strong>
+                    <small>{item.label}</small>
+                    <strong title={String(item.value)}>{item.value}</strong>
                   </div>
+                  {item.copy && <CopyOutlined className="uvo-info-copy" />}
                 </div>
               ))}
             </div>
@@ -676,14 +1225,14 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
               </div>
             </div>
 
-            <div className="uvo-mosaic">
+            <div className="uvo-mosaic" key={activeFilter}>
               {filteredPhotos.map((photo, i) => {
                 const isStarred = starredIds.includes(photo.id);
                 return (
                   <button
                     key={photo.id}
                     className={`uvo-mosaic-tile ${isStarred ? "is-starred" : ""}`}
-                    style={{ "--delay": `${i * 0.04}s` } as React.CSSProperties}
+                    style={{ "--delay": `${i * 0.04}s` } as CSSProperties}
                     onClick={() => openLb(photo)}
                   >
                     <img
@@ -733,9 +1282,7 @@ const UserViewOverlay = ({ user, onClose }: UserViewOverlayProps) => {
   );
 };
 
-
 /*  UsersPage                                                                  */
-
 
 const UsersPage = ({ user: _user }: UsersPageProps) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -754,7 +1301,11 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const PAGE_SIZE = 10;
+  // New UI state
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadLS<ViewMode>("axsUsersViewMode", "table"));
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
+  const [newRowId, setNewRowId] = useState<string | null>(null);
+  const [confettiOn, setConfettiOn] = useState<boolean>(false);
 
   const [editForm] = Form.useForm<EditFormValues>();
   const [inviteForm] = Form.useForm<InviteFormValues>();
@@ -778,6 +1329,8 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
 
   // Referrals aren't backed by the API yet.
   const referralsData = useMemo<UserRecord[]>(() => [], []);
+
+  const tagline = useTypewriter(taglineByTab[activeTab]);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -805,6 +1358,22 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
   useEffect(() => {
     if (editUser) editForm.setFieldsValue(editUser as unknown as EditFormValues);
   }, [editUser, editForm]);
+
+  useEffect(() => {
+    saveLS<ViewMode>("axsUsersViewMode", viewMode);
+  }, [viewMode]);
+
+  // Ctrl / Cmd + K opens the command palette (ignored while a profile overlay is open)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (!viewUser) setPaletteOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [viewUser]);
 
   // "photographers" tab = Freelance Photographer role specifically
   // (Studio Manager / Studio Photographer live only in the "all" tab).
@@ -884,6 +1453,11 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
     });
   }, [currentData, searchTerm, activeFilter, appliedFilters]);
 
+  const pagedCards = useMemo<UserRecord[]>(
+    () => filteredData.slice((currentPage - 1) * CARD_PAGE_SIZE, currentPage * CARD_PAGE_SIZE),
+    [filteredData, currentPage]
+  );
+
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchTerm, activeFilter, appliedFilters]);
@@ -905,6 +1479,46 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
 
   const handleRefresh = () => {
     fetchUsers().then(() => message.success("Refreshed"));
+  };
+
+  const changeView = (mode: ViewMode) => {
+    if (mode === viewMode) return;
+    setViewMode(mode);
+    setCurrentPage(1);
+  };
+
+  const handleExport = () => {
+    if (!filteredData.length) {
+      message.info("Nothing to export with the current filters.");
+      return;
+    }
+    const header = ["Name", "Email", "Phone", "Studio", "Role", "Status", "Signup", "Created"];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = filteredData.map((u) =>
+      [u.name, u.email, u.phone, u.studio, u.role, u.status, u.signupType, u.created].map(esc).join(",")
+    );
+    const blob = new Blob([[header.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `users-${activeTab}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success(`Exported ${filteredData.length} user${filteredData.length > 1 ? "s" : ""}`);
+  };
+
+  const handleClearEverything = () => {
+    resetAdvancedFilters();
+    setActiveFilter("All");
+    setSearchTerm("");
+  };
+
+  // Spotlight that follows the cursor across the main panel
+  const handlePanelMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    el.style.setProperty("--my", `${e.clientY - r.top}px`);
   };
 
   const handleEditSave = (values: EditFormValues) => {
@@ -1022,6 +1636,12 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
       setSentInviteUser(newUser);
       setInviteSent(true);
       message.success(body.message || "Invite sent");
+
+      // Celebrate + flash the new row/card
+      setConfettiOn(true);
+      setNewRowId(id);
+      setTimeout(() => setConfettiOn(false), 3000);
+      setTimeout(() => setNewRowId((cur) => (cur === id ? null : cur)), 4500);
     } catch (err: any) {
       message.error(err.message || "Failed to send invite.");
     }
@@ -1068,6 +1688,33 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
     setInviteOpen(false);
     handleResetInviteForm();
   };
+
+  const paletteActions: PaletteAction[] = [
+    { id: "invite", label: "Invite a user", hint: "Send an invite link", icon: <UserAddOutlined />, run: () => setInviteOpen(true) },
+    {
+      id: "view",
+      label: viewMode === "table" ? "Switch to card view" : "Switch to table view",
+      hint: "Change how people are shown",
+      icon: viewMode === "table" ? <IdcardOutlined /> : <UnorderedListOutlined />,
+      run: () => changeView(viewMode === "table" ? "cards" : "table"),
+    },
+    { id: "export", label: "Export to CSV", hint: "Download the current list", icon: <DownloadOutlined />, run: handleExport },
+    { id: "refresh", label: "Refresh users", hint: "Reload from the server", icon: <ReloadOutlined />, run: handleRefresh },
+    { id: "clear", label: "Clear all filters", hint: "Reset search and filters", icon: <ClearOutlined />, run: handleClearEverything },
+    {
+      id: "photographers",
+      label: "Show photographers",
+      hint: "Jump to the photographers tab",
+      icon: <CameraOutlined />,
+      run: () => {
+        setActiveTab("photographers");
+        setSearchTerm("");
+        setActiveFilter("All");
+        setSelectedRowKeys([]);
+        resetAdvancedFilters();
+      },
+    },
+  ];
 
   const renderStatusTag = (status: UserStatus) => (
     <Tooltip title={`Status: ${status}`}>
@@ -1281,16 +1928,22 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                 <Title level={2}>Users</Title>
               </div>
 
-              <div className="table-wrapper animated-panel user-panel-container">
+              <div className="table-wrapper animated-panel user-panel-container" onMouseMove={handlePanelMove}>
+                <div className="uc-spotlight" aria-hidden="true" />
+                <div className="uc-aurora" aria-hidden="true">
+                  <span className="uc-aurora-blob a" />
+                  <span className="uc-aurora-blob b" />
+                </div>
+
                 <div className="user-hero-strip">
                   <div>
                     <span className="hero-mini-pill">
                       <TeamOutlined /> Studio People Board
                     </span>
                     <Title level={2}>Users</Title>
-                    <Text>
-                      Manage users, referrals and photographers with clean rows, icon headers, smart filters and
-                      visual profile details.
+                    <Text className="uc-tagline" aria-label={taglineByTab[activeTab]}>
+                      {tagline}
+                      <span className="uc-caret" aria-hidden="true" />
                     </Text>
                   </div>
                   {activeTab === "photographers" && (
@@ -1308,6 +1961,11 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="uc-insights">
+                  <StatsStrip users={currentData} activeFilter={activeFilter} onPick={setActiveFilter} />
+                  <RoleBar users={currentData} />
                 </div>
 
                 <Tabs
@@ -1371,10 +2029,49 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                           className="icon-btn-glass"
                         />
                       </Tooltip>
+
+                      <div className="view-toggle" data-view={viewMode} role="group" aria-label="View mode">
+                        <span className="view-toggle-thumb" />
+                        <Tooltip title="Table view">
+                          <button
+                            type="button"
+                            className={viewMode === "table" ? "active" : ""}
+                            onClick={() => changeView("table")}
+                            aria-label="Table view"
+                          >
+                            <UnorderedListOutlined />
+                          </button>
+                        </Tooltip>
+                        <Tooltip title="Card view">
+                          <button
+                            type="button"
+                            className={viewMode === "cards" ? "active" : ""}
+                            onClick={() => changeView("cards")}
+                            aria-label="Card view"
+                          >
+                            <IdcardOutlined />
+                          </button>
+                        </Tooltip>
+                      </div>
+
+                      <Tooltip title="Export current list as CSV">
+                        <Button
+                          type="text"
+                          icon={<DownloadOutlined />}
+                          onClick={handleExport}
+                          className="icon-btn-glass"
+                        />
+                      </Tooltip>
+                      <Tooltip title="Command palette">
+                        <Button type="text" className="icon-btn-glass uc-palette-btn" onClick={() => setPaletteOpen(true)}>
+                          <ThunderboltOutlined />
+                          <kbd>Ctrl K</kbd>
+                        </Button>
+                      </Tooltip>
                     </Space>
 
                     <Space wrap>
-                      {activeTab === "photographers" && selectedRowKeys.length > 0 && (
+                      {activeTab === "photographers" && selectedRowKeys.length > 0 && viewMode === "table" && (
                         <div className="bulk-action-bar">
                           <b>{selectedRowKeys.length}</b>
                           <Tooltip title="Mark active">
@@ -1423,33 +2120,78 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                     </Space>
                   </div>
 
-                  <Table<UserRecord>
-                    columns={columns}
-                    dataSource={filteredData}
-                    className="user-table-custom"
-                    rowKey="id"
-                    tableLayout="fixed"
-                    loading={isLoading}
-                    rowClassName={(record) => (activeRowId === record.id ? "user-row-active" : "")}
-                    onRow={(record) => ({
-                      onMouseEnter: () => setActiveRowId(record.id),
-                      onMouseLeave: () => setActiveRowId((current) => (current === record.id ? null : current)),
-                      onTouchStart: () => setActiveRowId((current) => (current === record.id ? null : record.id)),
-                    })}
-                    rowSelection={
-                      activeTab === "photographers" ? { selectedRowKeys, onChange: setSelectedRowKeys } : undefined
-                    }
-                    locale={{ emptyText: <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                    pagination={{
-                      current: currentPage,
-                      pageSize: PAGE_SIZE,
-                      total: filteredData.length,
-                      onChange: (page) => setCurrentPage(page),
-                      showSizeChanger: false,
-                      hideOnSinglePage: false,
-                      className: "user-table-pagination",
-                    }}
-                  />
+                  {viewMode === "cards" ? (
+                    <div className="uc-cards-wrap">
+                      {isLoading && allUsers.length === 0 ? (
+                        <CardSkeletons />
+                      ) : filteredData.length === 0 ? (
+                        <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                      ) : (
+                        <div className="uc-grid" key={`${activeTab}-${activeFilter}-${currentPage}`}>
+                          {pagedCards.map((record, i) => (
+                            <UserCard
+                              key={record.id}
+                              record={record}
+                              index={i}
+                              isNew={record.id === newRowId}
+                              highlight={highlightText}
+                              onView={() => setViewUser(record)}
+                              onEdit={() => setEditUser(record)}
+                              onDelete={() => handleDeleteUser(record)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {filteredData.length > CARD_PAGE_SIZE && (
+                        <div className="user-table-custom uc-pager">
+                          <Pagination
+                            current={currentPage}
+                            pageSize={CARD_PAGE_SIZE}
+                            total={filteredData.length}
+                            onChange={(page) => setCurrentPage(page)}
+                            showSizeChanger={false}
+                            className="user-table-pagination"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Table<UserRecord>
+                      key={activeTab}
+                      columns={columns}
+                      dataSource={filteredData}
+                      className="user-table-custom"
+                      rowKey="id"
+                      tableLayout="fixed"
+                      loading={isLoading}
+                      rowClassName={(record) =>
+                        [
+                          activeRowId === record.id ? "user-row-active" : "",
+                          newRowId === record.id ? "user-row-new" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
+                      }
+                      onRow={(record) => ({
+                        onMouseEnter: () => setActiveRowId(record.id),
+                        onMouseLeave: () => setActiveRowId((current) => (current === record.id ? null : current)),
+                        onTouchStart: () => setActiveRowId((current) => (current === record.id ? null : record.id)),
+                      })}
+                      rowSelection={
+                        activeTab === "photographers" ? { selectedRowKeys, onChange: setSelectedRowKeys } : undefined
+                      }
+                      locale={{ emptyText: <Empty description="No matching users" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                      pagination={{
+                        current: currentPage,
+                        pageSize: PAGE_SIZE,
+                        total: filteredData.length,
+                        onChange: (page) => setCurrentPage(page),
+                        showSizeChanger: false,
+                        hideOnSinglePage: false,
+                        className: "user-table-pagination",
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </Content>
@@ -1457,6 +2199,16 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
         </div>
 
         {viewUser && <UserViewOverlay user={viewUser} onClose={() => setViewUser(null)} />}
+
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          actions={paletteActions}
+          users={allUsers}
+          onPickUser={setViewUser}
+        />
+
+        {confettiOn && <Confetti />}
 
         <CustomModal open={!!editUser} onClose={() => setEditUser(null)} width={660}>
           {editUser && (
@@ -1562,7 +2314,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
               <aside className="invite-preview-pane">
                 <div
                   className="invite-preview-card"
-                  style={{ "--pc": (watchRole && inviteRoleMeta[watchRole]?.color) || "#3b82f6" } as React.CSSProperties}
+                  style={{ "--pc": (watchRole && inviteRoleMeta[watchRole]?.color) || "#3b82f6" } as CSSProperties}
+                  onMouseMove={handleTilt}
+                  onMouseLeave={resetTilt}
                 >
                   <div className="invite-preview-avatar-wrap">
                     <div className="invite-preview-avatar-glow" />
@@ -1578,7 +2332,7 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                   </h4>
 
                   {watchRole && (
-                    <span className="invite-preview-role-pill" style={{ "--pc": inviteRoleMeta[watchRole].color } as React.CSSProperties}>
+                    <span className="invite-preview-role-pill" style={{ "--pc": inviteRoleMeta[watchRole].color } as CSSProperties}>
                       {inviteRoleMeta[watchRole].icon} {watchRole}
                     </span>
                   )}
@@ -1658,7 +2412,7 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                         options={(Object.keys(inviteRoleMeta) as InviteRole[]).map((r) => ({
                           value: r,
                           label: (
-                            <span className="invite-role-option" style={{ "--rc": inviteRoleMeta[r].color } as React.CSSProperties}>
+                            <span className="invite-role-option" style={{ "--rc": inviteRoleMeta[r].color } as CSSProperties}>
                               <span className="invite-role-option-icon">{inviteRoleMeta[r].icon}</span>
                               {r}
                             </span>

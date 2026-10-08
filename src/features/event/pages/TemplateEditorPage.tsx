@@ -54,6 +54,14 @@ export interface PhotoAdjust {
 export interface Slot {
   id: string;
   image: string | null;
+  /**
+   * Layout-rect index this slot occupies (position / size / tilt on the page).
+   * Undefined = the slot's own array index. Swapping two slots swaps this value, so the WHOLE slot
+   * (its box, not just its photo) moves to the other place.
+   */
+  ri?: number;
+  /** Free-form box (percent of the page). When set it overrides the layout rect, so the slot can sit anywhere, at any size and angle. */
+  box?: Rect;
   fileName?: string;
   caption?: string;
   rotateExtra?: number;
@@ -254,6 +262,11 @@ export const LAYOUTS: LayoutMeta[] = [
 export const layoutMap = new Map(LAYOUTS.map((l) => [l.id, l]));
 export const getLayout = (id: LayoutId) => layoutMap.get(id) ?? LAYOUTS[0];
 
+/** Which layout rect a slot currently occupies (its own index unless it has been swapped). */
+export const rectIndexOf = (sl: Slot, i: number) => sl.ri ?? i;
+export const rectFor = (meta: LayoutMeta, sl: Slot, i: number): Rect =>
+  sl.box ?? meta.rects[rectIndexOf(sl, i)] ?? meta.rects[meta.rects.length - 1];
+
 /* ───────────────────────────── Constants ───────────────────────────── */
 
 const CANVAS_W = 2540;
@@ -340,6 +353,10 @@ const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: "P", label: "Preview mode" },
   { keys: "F", label: "Focus mode" },
   { keys: "Ctrl + Scroll", label: "Zoom canvas" },
+  { keys: "Drag ✥ handle on a slot", label: "Move the slot anywhere on the page" },
+  { keys: "Drag ◢ handle on a slot", label: "Resize the slot (Alt = no snapping)" },
+  { keys: "Drag slot onto slot", label: "Swap the two slots" },
+  { keys: "Shift Del", label: "Delete the selected slot" },
   { keys: "Double-click photo", label: "Reposition focus" },
   { keys: "Double-click text", label: "Edit text" },
   { keys: "Esc", label: "Clear selection / close" },
@@ -410,7 +427,7 @@ function fromSnapshot(s: LibrarySheetSnapshot): Sheet {
   const layout = (layoutMap.has(s.layout as LayoutId) ? s.layout : "full") as LayoutId;
   const slots = (s.slots ?? []).map((sl) => ({ ...sl })) as Slot[];
   const need = getLayout(layout).rects.length;
-  while (slots.length < need) slots.push(makeSlot());
+  if (!slots.length) while (slots.length < need) slots.push(makeSlot());
   return {
     id: s.id || `sheet_${uid()}`,
     name: s.name || "Page",
@@ -431,7 +448,10 @@ function reflowSheet(s: Sheet, layoutId: LayoutId, compact = false): Sheet {
   const meta = getLayout(layoutId);
   const src = compact ? [...s.slots.filter((x) => x.image), ...s.slots.filter((x) => !x.image)] : s.slots;
   const needed = meta.rects.length;
-  const newSlots: Slot[] = Array.from({ length: needed }, (_, i) => (src[i] ? { ...src[i] } : makeSlot()));
+  // a new layout starts with a clean position map (ri cleared), so slot i sits in rect i again
+  const newSlots: Slot[] = Array.from({ length: needed }, (_, i) =>
+    src[i] ? { ...src[i], ri: undefined, box: undefined } : makeSlot()
+  );
   if (meta.captions) {
     newSlots.forEach((sl, i) => {
       if (!sl.caption) {
@@ -800,7 +820,7 @@ function SheetMini({ sheet }: { sheet: Sheet }) {
   return (
     <span className="tp-mini" style={{ background: sheet.bgImage ? `url(${sheet.bgImage}) center/cover` : sheet.bgColor }}>
       {sheet.slots.map((sl, i) => {
-        const r = meta.rects[i] ?? meta.rects[meta.rects.length - 1];
+        const r = rectFor(meta, sl, i);
         return (
           <span
             key={sl.id}
@@ -973,6 +993,10 @@ function TemplateEditorInner() {
   const repoDrag = useRef<{
     id: string; sx: number; sy: number; fx: number; fy: number;
     iw: number; ih: number; rot: number; flip: boolean;
+  } | null>(null);
+
+  const slotBoxDrag = useRef<{
+    id: string; sheetId: string; mode: "move" | "resize"; sx: number; sy: number; cw: number; ch: number; start: Rect;
   } | null>(null);
 
   /* Toast */
@@ -1522,8 +1546,34 @@ function TemplateEditorInner() {
 
   const handleSlotDragStart = (slotId: string) => setDragSlotId(slotId);
 
+  /**
+   * Dropping a slot onto another slot swaps the WHOLE slot: both slots trade their layout box
+   * (position, size, tilt, stacking), and each keeps its own photo + all its edits (zoom, filter,
+   * frame, caption…). So the box itself moves, not only the picture inside it.
+   */
+  const swapSlots = (sheetId: string, aId: string, bId: string) => {
+    commitSheets((prev) =>
+      prev.map((s) => {
+        if (s.id !== sheetId) return s;
+        const a = s.slots.findIndex((sl) => sl.id === aId);
+        const b = s.slots.findIndex((sl) => sl.id === bId);
+        if (a === -1 || b === -1 || a === b) return s;
+        const slots = [...s.slots];
+        const ra = rectIndexOf(slots[a], a);
+        const rb = rectIndexOf(slots[b], b);
+        const boxA = slots[a].box;
+        const boxB = slots[b].box;
+        slots[a] = { ...slots[a], ri: rb, box: boxB };
+        slots[b] = { ...slots[b], ri: ra, box: boxA };
+        return { ...s, slots };
+      })
+    );
+    showToast("Slots swapped");
+  };
+
   const handleSlotDrop = (targetSlotId: string, e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOverSlotId(null);
     if (!activeSheet) return;
 
@@ -1542,19 +1592,11 @@ function TemplateEditorInner() {
       return;
     }
 
-    if (!dragSlotId || dragSlotId === targetSlotId) return;
-    commitSheets((prev) =>
-      prev.map((s) => {
-        if (s.id !== activeSheet.id) return s;
-        const slots = [...s.slots];
-        const fromIdx = slots.findIndex((sl) => sl.id === dragSlotId);
-        const toIdx = slots.findIndex((sl) => sl.id === targetSlotId);
-        if (fromIdx === -1 || toIdx === -1) return s;
-        const [moved] = slots.splice(fromIdx, 1);
-        slots.splice(toIdx, 0, moved);
-        return { ...s, slots };
-      })
-    );
+    if (!dragSlotId || dragSlotId === targetSlotId) {
+      setDragSlotId(null);
+      return;
+    }
+    swapSlots(activeSheet.id, dragSlotId, targetSlotId);
     setDragSlotId(null);
   };
 
@@ -1590,7 +1632,7 @@ function TemplateEditorInner() {
     e.stopPropagation();
     const el = e.currentTarget as HTMLElement;
     const idx = activeSheet.slots.findIndex((s) => s.id === slot.id);
-    const rect = layoutMeta.rects[idx] ?? layoutMeta.rects[layoutMeta.rects.length - 1];
+    const rect = rectFor(layoutMeta, slot, idx);
     const q = quarterOf(slot);
     const swap = q === 90 || q === 270;
     const w = el.offsetWidth;
@@ -1602,6 +1644,129 @@ function TemplateEditorInner() {
     };
     window.addEventListener("pointermove", onRepoMove);
     window.addEventListener("pointerup", onRepoUp);
+  };
+
+  /* ── Free slot arrangement: move / resize any slot anywhere on the page ── */
+  const SNAP_PCT = 1.5;
+  const snapAxis = (pos: number, size: number, cands: number[]) => {
+    let best: { delta: number; cand: number } | null = null;
+    for (const edge of [pos, pos + size / 2, pos + size]) {
+      for (const c of cands) {
+        const d = c - edge;
+        if (Math.abs(d) < SNAP_PCT && (!best || Math.abs(d) < Math.abs(best.delta))) best = { delta: d, cand: c };
+      }
+    }
+    return best as { delta: number; cand: number } | null;
+  };
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
+  const onSlotBoxMove = (e: PointerEvent) => {
+    const d = slotBoxDrag.current;
+    if (!d) return;
+    const dx = ((e.clientX - d.sx) / d.cw) * 100;
+    const dy = ((e.clientY - d.sy) / d.ch) * 100;
+    const sheet = sheetsRef.current.find((x) => x.id === d.sheetId);
+    const meta = getLayout(sheet?.layout ?? "full");
+    const others = (sheet?.slots ?? [])
+      .map((sl, i) => ({ sl, i }))
+      .filter((o) => o.sl.id !== d.id)
+      .map((o) => rectFor(meta, o.sl, o.i));
+    const xs = [0, 50, 100, ...others.flatMap((r) => [r.left, r.left + r.width / 2, r.left + r.width])];
+    const ys = [0, 50, 100, ...others.flatMap((r) => [r.top, r.top + r.height / 2, r.top + r.height])];
+    const s0 = d.start;
+    let sv = false;
+    let sh = false;
+    let { left, top, width, height } = s0;
+    if (d.mode === "move") {
+      left = s0.left + dx;
+      top = s0.top + dy;
+      const hx = e.altKey ? null : snapAxis(left, s0.width, xs);
+      const hy = e.altKey ? null : snapAxis(top, s0.height, ys);
+      if (hx) { left += hx.delta; sv = hx.cand === 50; }
+      if (hy) { top += hy.delta; sh = hy.cand === 50; }
+      left = clamp(left, 0, 100 - s0.width);
+      top = clamp(top, 0, 100 - s0.height);
+    } else {
+      width = s0.width + dx;
+      height = s0.height + dy;
+      const hx = e.altKey ? null : snapAxis(s0.left + width, 0, xs);
+      const hy = e.altKey ? null : snapAxis(s0.top + height, 0, ys);
+      if (hx) width += hx.delta;
+      if (hy) height += hy.delta;
+      width = clamp(width, 8, 100 - s0.left);
+      height = clamp(height, 8, 100 - s0.top);
+    }
+    setSnap((cur) => (cur.v === sv && cur.h === sh ? cur : { v: sv, h: sh }));
+    patchSlot(d.id, { box: { ...s0, left: r2(left), top: r2(top), width: r2(width), height: r2(height) } }, "box");
+  };
+  const onSlotBoxUp = () => {
+    slotBoxDrag.current = null;
+    setSnap({ v: false, h: false });
+    window.removeEventListener("pointermove", onSlotBoxMove);
+    window.removeEventListener("pointerup", onSlotBoxUp);
+  };
+  const onSlotBoxDown = (e: React.PointerEvent, slot: Slot, i: number, mode: "move" | "resize") => {
+    if (previewMode || !canvasRef.current || !activeSheet) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedSlotId(slot.id);
+    setRepositionId(null);
+    setMenu(null);
+    const cr = canvasRef.current.getBoundingClientRect();
+    slotBoxDrag.current = {
+      id: slot.id, sheetId: activeSheet.id, mode, sx: e.clientX, sy: e.clientY,
+      cw: Math.max(1, cr.width), ch: Math.max(1, cr.height), start: { ...rectFor(layoutMeta, slot, i) },
+    };
+    window.addEventListener("pointermove", onSlotBoxMove);
+    window.addEventListener("pointerup", onSlotBoxUp);
+  };
+
+  const resetSlotPositions = () => {
+    if (!activeSheet) return;
+    commitSheets((prev) =>
+      prev.map((s) =>
+        s.id !== activeSheet.id ? s : { ...s, slots: s.slots.map((sl) => ({ ...sl, ri: undefined, box: undefined })) }
+      )
+    );
+    showToast("Slot positions reset");
+  };
+
+  /** Removes a slot from the page. The remaining slots are pinned to their current boxes so nothing jumps. */
+  const deleteSlot = (slotId: string) => {
+    if (!activeSheet) return;
+    commitSheets((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeSheet.id) return s;
+        if (!s.slots.some((sl) => sl.id === slotId)) return s;
+        const slots = s.slots
+          .map((sl, i) => ({ sl, i }))
+          .filter((o) => o.sl.id !== slotId)
+          .map((o) => ({ ...o.sl, ri: rectIndexOf(o.sl, o.i) }));
+        return { ...s, slots };
+      })
+    );
+    setMenu(null);
+    setSelectedSlotId((cur) => (cur === slotId ? null : cur));
+    setRepositionId((cur) => (cur === slotId ? null : cur));
+    showToast("Slot deleted — Ctrl Z to undo");
+  };
+
+  /** Adds a new empty slot in the middle of the page (move / resize it afterwards). */
+  const addSlot = () => {
+    if (!activeSheet) return;
+    const slot: Slot = { ...makeSlot(), box: { top: 30, left: 30, width: 40, height: 40, z: 6 } };
+    commitSheets((prev) => prev.map((s) => (s.id !== activeSheet.id ? s : { ...s, slots: [...s.slots, slot] })));
+    setSelectedSlotId(slot.id);
+    showToast("Slot added — drag ✥ to move, ◢ to resize");
+  };
+
+  const slotAngle = (sl: Slot) => {
+    const i = activeSheet.slots.findIndex((x) => x.id === sl.id);
+    return rectFor(layoutMeta, sl, i).rotate ?? 0;
+  };
+  const setSlotAngle = (sl: Slot, angle: number) => {
+    const i = activeSheet.slots.findIndex((x) => x.id === sl.id);
+    patchSlot(sl.id, (cur) => ({ box: { ...rectFor(layoutMeta, cur, i), rotate: angle } }), "angle");
   };
 
   /* ── Photo tray ── */
@@ -2088,11 +2253,14 @@ function TemplateEditorInner() {
       const radius = (sheet.radius ?? settings.radius) * k;
       const ordered = sheet.slots
         .map((sl, i) => ({ sl, i }))
-        .sort((a, b) => (a.sl.front ? 50 : meta.rects[a.i]?.z ?? 1) - (b.sl.front ? 50 : meta.rects[b.i]?.z ?? 1));
+        .sort(
+          (a, b) =>
+            (a.sl.front ? 50 : rectFor(meta, a.sl, a.i).z ?? 1) - (b.sl.front ? 50 : rectFor(meta, b.sl, b.i).z ?? 1)
+        );
 
       for (const { sl, i } of ordered) {
         if (!sl.image) continue;
-        const r = meta.rects[i] ?? meta.rects[meta.rects.length - 1];
+        const r = rectFor(meta, sl, i);
         const x = (r.left / 100) * W + gap;
         const y = (r.top / 100) * H + gap;
         const w = (r.width / 100) * W - gap * 2;
@@ -2272,6 +2440,9 @@ function TemplateEditorInner() {
     { id: "dup", group: "Page", label: "Duplicate current page", hint: "Ctrl D", run: () => activeSheet && duplicateSheet(activeSheet.id) },
     { id: "del", group: "Page", label: "Delete current page", run: () => activeSheet && deleteSheet(activeSheet.id) },
     { id: "magic", group: "Page", label: "Magic layout — fit layout to this page's photos", run: magicLayout },
+    { id: "addslot", group: "Page", label: "Add a slot to this page", run: addSlot },
+    { id: "delslot", group: "Page", label: "Delete the selected slot", run: () => { if (selectedSlotId) deleteSlot(selectedSlotId); else showToast("Select a slot first"); } },
+    { id: "resetslots", group: "Page", label: "Reset slot positions on this page", run: resetSlotPositions },
     { id: "smartlayout", group: "Page", label: "Smart layout — pick by photo orientation", run: smartLayoutThisPage },
     { id: "copystyle", group: "Page", label: "Copy page style", run: copyPageStyle },
     { id: "pastestyle", group: "Page", label: "Paste page style", run: () => pastePageStyle(false) },
@@ -2319,7 +2490,7 @@ function TemplateEditorInner() {
   const kb = useRef<Record<string, any>>({});
   kb.current = {
     handleUndo, handleRedo, handleSave, selectedTextId, editingTextId, selectedSlotId, selectedSlot,
-    deleteTextElement, removeSlotImage, nudgeText, duplicateTextElement, duplicateSheet, goSheet,
+    deleteTextElement, removeSlotImage, deleteSlot, nudgeText, duplicateTextElement, duplicateSheet, goSheet,
     activeSheet, reviewOpen, cmdOpen,
   };
   useEffect(() => {
@@ -2381,6 +2552,11 @@ function TemplateEditorInner() {
         e.preventDefault();
         if (k.selectedTextId) k.duplicateTextElement(k.selectedTextId);
         else if (k.activeSheet) k.duplicateSheet(k.activeSheet.id);
+        return;
+      }
+      if (e.shiftKey && e.key === "Delete" && k.selectedSlotId && !k.selectedTextId && !k.editingTextId) {
+        e.preventDefault();
+        k.deleteSlot(k.selectedSlotId);
         return;
       }
       if ((e.key === "Delete" || e.key === "Backspace") && !k.editingTextId) {
@@ -2660,7 +2836,7 @@ function TemplateEditorInner() {
         {meta.decorative === "timeline" && <div className="ab-timeline-line" />}
 
         {sheet.slots.map((slot, i) => {
-          const rect = meta.rects[i] ?? meta.rects[meta.rects.length - 1];
+          const rect = rectFor(meta, slot, i);
           // only the layout's own card rotation here — the photo's rotation is handled inside <SlotImage>
           const transform = rect.rotate ? `rotate(${rect.rotate}deg)` : undefined;
           return (
@@ -2685,7 +2861,7 @@ function TemplateEditorInner() {
                   </div>
                 )}
               </div>
-              {meta.decorative === "timeline" && <span className="ab-timeline-step">{i + 1}</span>}
+              {meta.decorative === "timeline" && <span className="ab-timeline-step">{rectIndexOf(slot, i) + 1}</span>}
               {meta.captions && <div className="ab-slot-caption">{slot.caption}</div>}
             </div>
           );
@@ -2961,8 +3137,10 @@ function TemplateEditorInner() {
                   key={slot.id}
                   className={`tp-slot-row ${selectedSlotId === slot.id ? "active" : ""}`}
                   draggable
-                  onClick={() => slot.image && setSelectedSlotId(slot.id)}
+                  title="Click to select · drag onto another slot to swap"
+                  onClick={() => setSelectedSlotId(slot.id)}
                   onDragStart={() => handleSlotDragStart(slot.id)}
+                  onDragEnd={() => { setDragSlotId(null); setDragOverSlotId(null); }}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => handleSlotDrop(slot.id, e)}
                 >
@@ -2971,6 +3149,13 @@ function TemplateEditorInner() {
                     {layoutMeta.captionStyle === "before-after" ? slot.caption ?? `Slot ${i + 1}` : `Slot ${i + 1}`}
                   </span>
                   {slot.image && <span className="tp-slot-dot" />}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteSlot(slot.id); }}
+                    aria-label="Delete slot" title="Delete slot"
+                    style={{ border: "none", background: "transparent", color: "var(--tp-danger)", cursor: "pointer", display: "grid", placeItems: "center", padding: 0, fontSize: 12 }}
+                  >
+                    <DeleteOutlined />
+                  </button>
                 </div>
               ))}
             </div>
@@ -3167,7 +3352,7 @@ function TemplateEditorInner() {
                 {layoutMeta.decorative === "timeline" && <div className="tp-timeline-line" />}
 
                 {activeSheet.slots.map((slot, i) => {
-                  const rect = layoutMeta.rects[i] ?? layoutMeta.rects[layoutMeta.rects.length - 1];
+                  const rect = rectFor(layoutMeta, slot, i);
                   const isRepo = repositionId === slot.id;
                   const radiusPx = layoutMeta.style === "polaroid" ? 2 : pageRadius;
                   const pos = rectStyle(rect, pageGap, 0);
@@ -3177,6 +3362,7 @@ function TemplateEditorInner() {
                      *  1. .tp-slot-pos  — fixed position box, NEVER rotated. Holds the ⋮ button so it always stays upright.
                      *  2. .tp-slot      — the visual card (frame, polaroid, collage tilt). Photo rotation happens
                      *                     INSIDE it (see <SlotImage>), clipped to the card, so neighbours are never disturbed.
+                     * The box a slot sits in comes from rectFor(), so swapping two slots moves the whole box.
                      */
                     <div
                       key={slot.id}
@@ -3198,6 +3384,14 @@ function TemplateEditorInner() {
                           borderRadius: radiusPx,
                           transform: rect.rotate ? `rotate(${rect.rotate}deg)` : undefined,
                         }}
+                        draggable={!previewMode && !isRepo}
+                        onDragStart={(e) => {
+                          if (previewMode || isRepo) { e.preventDefault(); return; }
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", slot.id);
+                          handleSlotDragStart(slot.id);
+                        }}
+                        onDragEnd={() => { setDragSlotId(null); setDragOverSlotId(null); }}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!slot.image) openSlotUpload(slot.id);
@@ -3229,7 +3423,7 @@ function TemplateEditorInner() {
                           )}
                         </div>
 
-                        {layoutMeta.decorative === "timeline" && <span className="tp-timeline-step">{i + 1}</span>}
+                        {layoutMeta.decorative === "timeline" && <span className="tp-timeline-step">{rectIndexOf(slot, i) + 1}</span>}
 
                         {layoutMeta.captions && (
                           <div
@@ -3257,6 +3451,35 @@ function TemplateEditorInner() {
                         >
                           <MoreOutlined />
                         </button>
+                      )}
+
+                      {!previewMode && (
+                        <>
+                          <span
+                            title="Drag to move this slot anywhere (hold Alt to skip snapping)"
+                            onPointerDown={(e) => onSlotBoxDown(e, slot, i, "move")}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: "absolute", top: 8, left: 8, width: 24, height: 24, borderRadius: 6,
+                              background: "rgba(56,213,255,0.92)", color: "#06111f", display: "grid", placeItems: "center",
+                              cursor: "move", zIndex: 41, touchAction: "none", fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                            }}
+                          >
+                            <DragOutlined />
+                          </span>
+                          <span
+                            title="Drag to resize this slot"
+                            onPointerDown={(e) => onSlotBoxDown(e, slot, i, "resize")}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: "absolute", bottom: 8, right: 8, width: 24, height: 24, borderRadius: 6,
+                              background: "rgba(74,222,128,0.95)", color: "#06111f", display: "grid", placeItems: "center",
+                              cursor: "nwse-resize", zIndex: 41, touchAction: "none", fontSize: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                            }}
+                          >
+                            ◢
+                          </span>
+                        </>
                       )}
                     </div>
                   );
@@ -3378,6 +3601,12 @@ function TemplateEditorInner() {
                 <button className="tp-magic-btn" onClick={magicLayout} title="Cycle layouts that fit this page's photo count">
                   <ThunderboltOutlined /> Magic layout
                 </button>
+                <button className="tp-tool-btn wide" style={{ marginTop: 6 }} onClick={resetSlotPositions} title="Put every slot back where the layout places it">
+                  <AimOutlined /> Reset slot positions
+                </button>
+                <button className="tp-tool-btn wide" style={{ marginTop: 6 }} onClick={addSlot} title="Add an empty slot to this page">
+                  <PlusOutlined /> Add slot
+                </button>
 
                 <div className="tp-props-label">Choose a layout</div>
                 <div className="tp-layout-grid">
@@ -3461,7 +3690,7 @@ function TemplateEditorInner() {
                   <div className="tp-meta-row"><span>Layout</span><span>{layoutMeta.label}</span></div>
                   <div className="tp-meta-row"><span>Slots</span><span>{activeSheet.slots.length}</span></div>
                   <div className="tp-meta-row"><span>Version</span><span>v{ctx.versionNum}</span></div>
-                  <div className="tp-meta-hint">Double-click a sheet name to rename it. Ctrl+scroll to zoom.</div>
+                  <div className="tp-meta-hint">Double-click a sheet name to rename it. Ctrl+scroll to zoom. Use the blue ✥ handle on a slot to move it anywhere and the green ◢ handle to resize it; drag a slot onto another to swap.</div>
                 </div>
               </div>
             )}
@@ -3904,16 +4133,33 @@ function TemplateEditorInner() {
                   </div>
                 </>
               )}
-              {(layoutMeta.style === "collage" || layoutMeta.style === "polaroid") && (
-                <button onClick={() => { bringToFront(menuSlot.id); setMenu(null); }}>
-                  <VerticalAlignTopOutlined /> Bring to front
+              <div className="tp-slot-size-control">
+                <div>
+                  <span>Slot angle</span>
+                  <strong>{slotAngle(menuSlot)}°</strong>
+                </div>
+                <input
+                  type="range" min={-45} max={45} step={0.5} value={slotAngle(menuSlot)}
+                  onChange={(e) => setSlotAngle(menuSlot, Number(e.target.value))}
+                  aria-label="Slot angle"
+                />
+              </div>
+              {(menuSlot.box || menuSlot.ri !== undefined) && (
+                <button onClick={() => { patchSlot(menuSlot.id, { box: undefined, ri: undefined }); setMenu(null); }}>
+                  <AimOutlined /> Reset slot position
                 </button>
               )}
+              <button onClick={() => { bringToFront(menuSlot.id); setMenu(null); }}>
+                <VerticalAlignTopOutlined /> Bring to front
+              </button>
               {menuSlot.image && (
                 <button className="danger" onClick={() => { removeSlotImage(menuSlot.id); setMenu(null); }}>
                   <CloseOutlined /> Remove photo
                 </button>
               )}
+              <button className="danger" onClick={() => deleteSlot(menuSlot.id)}>
+                <DeleteOutlined /> Delete slot
+              </button>
             </div>
           </>,
           document.body
