@@ -33,6 +33,7 @@ import {
   EnvironmentOutlined,
   FieldTimeOutlined,
   FilterOutlined,
+  GlobalOutlined,
   MessageOutlined,
   PlusOutlined,
   QrcodeOutlined,
@@ -49,6 +50,7 @@ import {
 } from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
+import EventMapView from "./EventMapView";
 import { getEvents } from "../../../redux/actions/eventActions";
 import { fetchEventMessagesRequest } from "../../../redux/actions/messageActions";
 import LocationPickerModal, { LocationData } from "./LocationPickerModal";
@@ -83,7 +85,7 @@ const eventTypes = [
   "Engagement",
 ];
 
-type ViewMode = "table" | "cards" | "timeline";
+type ViewMode = "table" | "cards" | "timeline" | "map";
 type RangeFilter = "any" | "today" | "week" | "upcoming";
 type SortMode = "default" | "soonest" | "latest" | "name";
 
@@ -815,7 +817,7 @@ export default function EventPage({ user }: { user?: any } = {}) {
     }, 650);
   };
 
-  // NEW: keyboard shortcuts — Ctrl/Cmd+K or "/" focus search, 1/2/3 switch
+  // NEW: keyboard shortcuts — Ctrl/Cmd+K or "/" focus search, 1/2/3/4 switch
   // view, R refresh. Ignored while typing or while any modal/panel is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -855,6 +857,9 @@ export default function EventPage({ user }: { user?: any } = {}) {
           break;
         case "3":
           setViewMode("timeline");
+          break;
+        case "4":
+          setViewMode("map");
           break;
         case "r":
         case "R":
@@ -1425,6 +1430,15 @@ export default function EventPage({ user }: { user?: any } = {}) {
                     <FieldTimeOutlined />
                   </button>
                 </Tooltip>
+                <Tooltip title="Map view (4)">
+                  <button
+                    type="button"
+                    className={viewMode === "map" ? "active" : ""}
+                    onClick={() => setViewMode("map")}
+                  >
+                    <GlobalOutlined />
+                  </button>
+                </Tooltip>
               </div>
             </Space>
 
@@ -1647,7 +1661,7 @@ export default function EventPage({ user }: { user?: any } = {}) {
                 </div>
               ) : null}
             </>
-          ) : (
+          ) : viewMode === "timeline" ? (
             <>
               {showSkeleton ? <SkeletonGrid count={4} /> : null}
               {filteredEvents.length === 0 && !showSkeleton ? (
@@ -1706,6 +1720,13 @@ export default function EventPage({ user }: { user?: any } = {}) {
                 </div>
               )}
             </>
+          ) : (
+            <EventMapView
+              events={filteredEvents}
+              starredIds={starredSet}
+              onOpenEvent={setViewEvent}
+              onPinVenue={openLocationPicker}
+            />
           )}
         </section>
 
