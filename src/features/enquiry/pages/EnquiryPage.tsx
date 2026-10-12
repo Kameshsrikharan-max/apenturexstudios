@@ -1,59 +1,114 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Modal,message,Descriptions,Select,Form,Divider,Timeline,Tooltip,Empty,Avatar,} from "antd";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import dayjs from "dayjs";
+import type { Dayjs } from "dayjs";
+import {
+  Layout,
+  Table,
+  Input,
+  Button,
+  ConfigProvider,
+  message,
+  Select,
+  Form,
+  Tooltip,
+  Empty,
+  Avatar,
+  Dropdown,
+  DatePicker,
+  theme,
+} from "antd";
+import type { InputRef } from "antd";
 import type { ColumnsType } from "antd/es/table";
-
-import {SearchOutlined,ReloadOutlined,PlusOutlined,EyeOutlined,EditOutlined,UserOutlined,PhoneOutlined,ClockCircleOutlined,FileTextOutlined,CalendarOutlined,EnvironmentOutlined,CheckCircleOutlined,ThunderboltOutlined,CameraOutlined,} from "@ant-design/icons";
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EyeOutlined,
+  EditOutlined,
+  UserOutlined,
+  PhoneOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  CalendarOutlined,
+  EnvironmentOutlined,
+  CheckCircleOutlined,
+  CameraOutlined,
+  CloseOutlined,
+  DownloadOutlined,
+  UnorderedListOutlined,
+  AppstoreOutlined,
+  WhatsAppOutlined,
+  SendOutlined,
+  DownOutlined,
+  ThunderboltOutlined,
+} from "@ant-design/icons";
 
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./EnquiryPage.css";
 
 const { Header, Content } = Layout;
-const { Title, Text } = Typography;
 
-/*  Types  */
-
+/* ───────────────────────────── Types ───────────────────────────── */
 
 type EnquiryStatus = "DRAFT" | "NEW" | "FOLLOWUP" | "CONFIRMED" | "CANCELLED";
+type ViewMode = "table" | "board";
+
+interface TimelineEntry {
+  text: string;
+  at: string; // ISO datetime
+}
 
 interface EnquiryRecord {
   id: string;
   enquiryName: string;
   customerName: string;
   phone: string;
-  eventDate: string;
+  eventDate: string; // ISO date YYYY-MM-DD
   status: EnquiryStatus;
   city: string;
   createdBy: string;
-  createdAt: string;
+  createdAt: string; // ISO date
   image?: string;
   notes?: string;
-  timeline: string[];
+  timeline: TimelineEntry[];
 }
 
 interface EnquiryFormValues {
   enquiryName: string;
   customerName: string;
   phone: string;
-  eventDate: string;
+  eventDate: Dayjs;
   status: EnquiryStatus;
   city: string;
   image?: string;
   notes?: string;
 }
 
+/* ──────────────────────────── Constants ─────────────────────────── */
 
-/*  Constants  */
 const imageFallback =
   "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=900&q=80";
 
-const statusColors: Record<EnquiryStatus, string> = {
-  DRAFT: "default",
-  NEW: "blue",
-  FOLLOWUP: "gold",
-  CONFIRMED: "green",
-  CANCELLED: "red",
+const STATUS_ORDER: EnquiryStatus[] = ["DRAFT", "NEW", "FOLLOWUP", "CONFIRMED", "CANCELLED"];
+const STATUS_FLOW: EnquiryStatus[] = ["DRAFT", "NEW", "FOLLOWUP", "CONFIRMED"];
+
+const STATUS_LABEL: Record<EnquiryStatus, string> = {
+  DRAFT: "Draft",
+  NEW: "New",
+  FOLLOWUP: "Follow-up",
+  CONFIRMED: "Confirmed",
+  CANCELLED: "Cancelled",
 };
+
+const DATE_FMT = "MMM DD, YYYY";
+
+const inDays = (n: number) => dayjs().add(n, "day").format("YYYY-MM-DD");
+const agoLog = (text: string, daysAgo: number, hour = 11): TimelineEntry => ({
+  text,
+  at: dayjs().subtract(daysAgo, "day").hour(hour).minute(0).toISOString(),
+});
 
 const initialEnquiries: EnquiryRecord[] = [
   {
@@ -61,94 +116,288 @@ const initialEnquiries: EnquiryRecord[] = [
     enquiryName: "Brand - Wedding",
     customerName: "Apsi",
     phone: "9597846525",
-    eventDate: "May 31, 2026",
+    eventDate: inDays(5),
     status: "DRAFT",
     city: "Coimbatore",
     createdBy: "super admin",
-    createdAt: "May 04, 2026",
+    createdAt: inDays(-8),
     image:
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80",
     notes: "Client is interested in premium wedding coverage with candid team.",
-    timeline: ["Enquiry created", "Budget discussed", "Awaiting follow-up"],
+    timeline: [
+      agoLog("Enquiry created", 8),
+      agoLog("Budget discussed", 4, 15),
+      agoLog("Awaiting follow-up", 1, 10),
+    ],
   },
   {
     id: "2",
     enquiryName: "John - Wedding",
-    customerName: "Apsi",
+    customerName: "John",
     phone: "6560235894",
-    eventDate: "May 07, 2026",
-    status: "DRAFT",
+    eventDate: inDays(21),
+    status: "NEW",
     city: "Chennai",
     createdBy: "super admin",
-    createdAt: "Apr 29, 2026",
+    createdAt: inDays(-12),
     image:
       "https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=900&q=80",
     notes: "Needs album, traditional photography, and candid event coverage.",
-    timeline: ["Enquiry created", "Package shared", "Waiting for confirmation"],
+    timeline: [
+      agoLog("Enquiry created", 12),
+      agoLog("Package shared", 6, 16),
+      agoLog("Waiting for confirmation", 2),
+    ],
   },
   {
     id: "3",
     enquiryName: "Priya - Engagement",
     customerName: "Priya",
     phone: "9845012458",
-    eventDate: "Jun 12, 2026",
+    eventDate: inDays(48),
     status: "FOLLOWUP",
     city: "Bangalore",
     createdBy: "super admin",
-    createdAt: "May 05, 2026",
+    createdAt: inDays(-6),
     image:
       "https://images.unsplash.com/photo-1529634597503-139d3726fed5?auto=format&fit=crop&w=900&q=80",
     notes: "Highly interested. Wants cinematic teaser and couple portraits.",
-    timeline: ["Enquiry created", "Call completed", "Follow-up scheduled"],
+    timeline: [
+      agoLog("Enquiry created", 6),
+      agoLog("Call completed", 3, 14),
+      agoLog("Follow-up scheduled", 1, 17),
+    ],
+  },
+  {
+    id: "4",
+    enquiryName: "Meera - Baby Shoot",
+    customerName: "Meera",
+    phone: "9791234567",
+    eventDate: inDays(-3),
+    status: "CONFIRMED",
+    city: "Coimbatore",
+    createdBy: "super admin",
+    createdAt: inDays(-20),
+    image:
+      "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=900&q=80",
+    notes: "Studio session with props. Advance paid.",
+    timeline: [agoLog("Enquiry created", 20), agoLog("Advance received", 15, 12), agoLog("Marked as Confirmed", 14)],
   },
 ];
 
+/* ──────────────────────────── Helpers ───────────────────────────── */
 
-interface EnquiryFormModalProps {
-  open: boolean;
-  width?: number;
-  children: ReactNode;
+const fmtDate = (iso: string) => dayjs(iso).format(DATE_FMT);
+const daysUntil = (iso: string) => dayjs(iso).startOf("day").diff(dayjs().startOf("day"), "day");
+
+const countdownLabel = (d: number) => {
+  if (d < 0) return `${Math.abs(d)}d ago`;
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  return `in ${d}d`;
+};
+
+const initials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+const hueOf = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+};
+
+const useCountUp = (target: number, ms = 700) => {
+  const [value, setValue] = useState(0);
+  const prev = useRef(0);
+
+  useEffect(() => {
+    const from = prev.current;
+    const start = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / ms, 1);
+      setValue(Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else prev.current = target;
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+
+  return value;
+};
+
+/* ─────────────────────── Small presentational bits ─────────────────────── */
+
+const CountChip = ({ iso }: { iso: string }) => {
+  const d = daysUntil(iso);
+  const tone = d < 0 ? "past" : d <= 7 ? "soon" : "later";
+  return <span className={`eq-count ${tone}`}>{countdownLabel(d)}</span>;
+};
+
+const NameAvatar = ({ name, size = 34 }: { name: string; size?: number }) => (
+  <span
+    className="eq-initials"
+    style={{
+      width: size,
+      height: size,
+      fontSize: size * 0.38,
+      background: `linear-gradient(135deg, hsl(${hueOf(name)} 70% 52%), hsl(${(hueOf(name) + 40) % 360} 70% 38%))`,
+    }}
+  >
+    {initials(name) || "?"}
+  </span>
+);
+
+interface StatCardProps {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  suffix?: string;
+  tone: string;
+  active?: boolean;
+  onClick: () => void;
 }
 
-const EnquiryFormModal = ({ open, width = 680, children }: EnquiryFormModalProps) => {
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  if (!open) return null;
-
+const StatCard = ({ icon, label, value, suffix, tone, active, onClick }: StatCardProps) => {
+  const shown = useCountUp(value);
   return (
-    <div className="enquiry-cm-backdrop">
-      <div className="enquiry-cm-panel" style={{ maxWidth: width }}>
-        {children}
-      </div>
-    </div>
+    <button
+      type="button"
+      className={`eq-stat ${tone} ${active ? "is-active" : ""}`}
+      onClick={onClick}
+      aria-pressed={!!active}
+    >
+      <span className="eq-stat-icon">{icon}</span>
+      <strong>
+        {shown}
+        {suffix}
+      </strong>
+      <span className="eq-stat-label">{label}</span>
+    </button>
   );
 };
 
+/* ───────────────────────────── Modal shell ───────────────────────────── */
 
-/*  EnquiryPage  */
+interface GlassModalProps {
+  open: boolean;
+  width?: number;
+  dismissible?: boolean;
+  onClose?: () => void;
+  children: ReactNode;
+}
+
+const GlassModal = ({ open, width = 680, dismissible = true, onClose, children }: GlassModalProps) => {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dismissible) onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, dismissible, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="eq-backdrop"
+      onMouseDown={(e) => {
+        if (dismissible && e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      <div className="eq-panel" style={{ maxWidth: width }} role="dialog" aria-modal="true">
+        <div className="eq-panel-scroll">{children}</div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+/* ───────────────────────────── EnquiryPage ───────────────────────────── */
 
 const EnquiryPage = () => {
   const [enquiriesData, setEnquiriesData] = useState<EnquiryRecord[]>(initialEnquiries);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | EnquiryStatus>("ALL");
-  const [cityFilter, setCityFilter] = useState<string>("ALL");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [cityFilter, setCityFilter] = useState("ALL");
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
-  const [viewEnquiry, setViewEnquiry] = useState<EnquiryRecord | null>(null);
-  const [journeyEnquiry, setJourneyEnquiry] = useState<EnquiryRecord | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [journeyId, setJourneyId] = useState<string | null>(null);
   const [editEnquiry, setEditEnquiry] = useState<EnquiryRecord | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
-  const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<EnquiryStatus | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
   const [form] = Form.useForm<EnquiryFormValues>();
+  const searchRef = useRef<InputRef>(null);
+
+  const viewEnquiry = useMemo(
+    () => enquiriesData.find((e) => e.id === viewId) ?? null,
+    [enquiriesData, viewId]
+  );
+  const journeyEnquiry = useMemo(
+    () => enquiriesData.find((e) => e.id === journeyId) ?? null,
+    [enquiriesData, journeyId]
+  );
+
+  const formOpen = !!editEnquiry || isCreateOpen;
+
+  /* Keyboard shortcuts: "/" focuses search, "n" creates a new enquiry */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key.toLowerCase() === "n" && !viewId && !journeyId && !formOpen) {
+        e.preventDefault();
+        openCreateModal();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewId, journeyId, formOpen]);
+
+  /* Fill the form whenever the create / edit modal opens */
+  useEffect(() => {
+    if (editEnquiry) {
+      form.setFieldsValue({
+        enquiryName: editEnquiry.enquiryName,
+        customerName: editEnquiry.customerName,
+        phone: editEnquiry.phone,
+        eventDate: dayjs(editEnquiry.eventDate),
+        status: editEnquiry.status,
+        city: editEnquiry.city,
+        image: editEnquiry.image,
+        notes: editEnquiry.notes,
+      });
+    } else if (isCreateOpen) {
+      form.resetFields();
+      form.setFieldsValue({ status: "DRAFT" });
+    }
+  }, [editEnquiry, isCreateOpen, form]);
 
   const cities = useMemo(
-    () => ["ALL", ...new Set(enquiriesData.map((item) => item.city))],
+    () => ["ALL", ...Array.from(new Set(enquiriesData.map((item) => item.city)))],
     [enquiriesData]
   );
 
@@ -156,34 +405,34 @@ const EnquiryPage = () => {
     const term = searchTerm.toLowerCase().trim();
 
     return enquiriesData.filter((enq) => {
-      const matchesSearch = Object.values(enq).some((val) =>
-        String(val).toLowerCase().includes(term)
-      );
+      const haystack = [enq.enquiryName, enq.customerName, enq.phone, enq.city, enq.status, enq.notes ?? ""]
+        .join(" ")
+        .toLowerCase();
 
       return (
-        matchesSearch &&
+        haystack.includes(term) &&
         (statusFilter === "ALL" || enq.status === statusFilter) &&
         (cityFilter === "ALL" || enq.city === cityFilter)
       );
     });
   }, [enquiriesData, searchTerm, statusFilter, cityFilter]);
 
-  const stats = useMemo(
-    () => ({
-      total: enquiriesData.length,
-      draft: enquiriesData.filter((i) => i.status === "DRAFT").length,
-      followUps: enquiriesData.filter((i) => i.status === "FOLLOWUP").length,
-      confirmed: enquiriesData.filter((i) => i.status === "CONFIRMED").length,
-    }),
-    [enquiriesData]
-  );
+  const statusCounts = useMemo(() => {
+    const base: Record<EnquiryStatus, number> = { DRAFT: 0, NEW: 0, FOLLOWUP: 0, CONFIRMED: 0, CANCELLED: 0 };
+    enquiriesData.forEach((e) => (base[e.status] += 1));
+    return base;
+  }, [enquiriesData]);
+
+  const total = enquiriesData.length;
+  const conversion = total ? Math.round((statusCounts.CONFIRMED / total) * 100) : 0;
+
+  /* ─── Actions ─── */
 
   const handleRefresh = () => {
     setIsLoading(true);
-
     setTimeout(() => {
       setIsLoading(false);
-      message.success("Enquiries refreshed successfully");
+      message.success("Enquiries refreshed");
     }, 700);
   };
 
@@ -193,12 +442,32 @@ const EnquiryPage = () => {
     setCityFilter("ALL");
   };
 
-  const updateStatus = (record: EnquiryRecord, status: EnquiryStatus) => {
+  const addLog = (id: string, text: string) =>
     setEnquiriesData((prev) =>
-      prev.map((item) => (item.id === record.id ? { ...item, status } : item))
+      prev.map((e) =>
+        e.id === id ? { ...e, timeline: [...e.timeline, { text, at: dayjs().toISOString() }] } : e
+      )
     );
 
-    message.success(`Enquiry marked as ${status}`);
+  const updateStatus = (id: string, status: EnquiryStatus) => {
+    const current = enquiriesData.find((e) => e.id === id);
+    if (!current || current.status === status) return;
+
+    setEnquiriesData((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              status,
+              timeline: [
+                ...item.timeline,
+                { text: `Status changed to ${STATUS_LABEL[status]}`, at: dayjs().toISOString() },
+              ],
+            }
+          : item
+      )
+    );
+    message.success(`Moved to ${STATUS_LABEL[status]}`);
   };
 
   const handleDeleteEnquiry = (record: EnquiryRecord) => {
@@ -212,25 +481,14 @@ const EnquiryPage = () => {
   };
 
   const openEditModal = (record: EnquiryRecord) => {
-    setEditEnquiry(record);
+    setViewId(null);
     setIsCreateOpen(false);
-    form.setFieldsValue({
-      enquiryName: record.enquiryName,
-      customerName: record.customerName,
-      phone: record.phone,
-      eventDate: record.eventDate,
-      status: record.status,
-      city: record.city,
-      image: record.image,
-      notes: record.notes,
-    });
+    setEditEnquiry(record);
   };
 
   const openCreateModal = () => {
     setEditEnquiry(null);
     setIsCreateOpen(true);
-    form.resetFields();
-    form.setFieldsValue({ status: "DRAFT" });
   };
 
   const closeFormModal = () => {
@@ -239,105 +497,124 @@ const EnquiryPage = () => {
     form.resetFields();
   };
 
-  const handleSaveEnquiry = () => {
-    form
-      .validateFields()
-      .then((values) => {
-        if (editEnquiry) {
-          setEnquiriesData((prev) =>
-            prev.map((item) => (item.id === editEnquiry.id ? { ...item, ...values } : item))
-          );
+  const handleSaveEnquiry = async () => {
+    try {
+      const values = await form.validateFields();
+      const payload = { ...values, eventDate: values.eventDate.format("YYYY-MM-DD") };
 
-          message.success("Enquiry updated");
-        } else {
-          const newEnquiry: EnquiryRecord = {
-            ...values,
-            id: Date.now().toString(),
-            createdBy: "super admin",
-            createdAt: "May 08, 2026",
-            timeline: ["Enquiry created"],
-          };
+      if (editEnquiry) {
+        const statusChanged = editEnquiry.status !== payload.status;
+        setEnquiriesData((prev) =>
+          prev.map((item) =>
+            item.id === editEnquiry.id
+              ? {
+                  ...item,
+                  ...payload,
+                  timeline: [
+                    ...item.timeline,
+                    {
+                      text: statusChanged
+                        ? `Edited · status changed to ${STATUS_LABEL[payload.status]}`
+                        : "Enquiry details edited",
+                      at: dayjs().toISOString(),
+                    },
+                  ],
+                }
+              : item
+          )
+        );
+        message.success("Enquiry updated");
+      } else {
+        const newEnquiry: EnquiryRecord = {
+          ...payload,
+          id: Date.now().toString(),
+          createdBy: "super admin",
+          createdAt: dayjs().format("YYYY-MM-DD"),
+          timeline: [{ text: "Enquiry created", at: dayjs().toISOString() }],
+        };
+        setEnquiriesData((prev) => [newEnquiry, ...prev]);
+        message.success("Enquiry created");
+      }
 
-          setEnquiriesData((prev) => [newEnquiry, ...prev]);
-          message.success("Enquiry created successfully");
-        }
-
-        closeFormModal();
-      })
-      .catch(() => {
-      });
+      closeFormModal();
+    } catch {
+      /* validation errors are shown inline */
+    }
   };
 
-  const renderRowActions = (record: EnquiryRecord) => (
-    <div className="enquiry-row-actions-overlay">
-      <Tooltip title="View enquiry">
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          className="enquiry-action-btn view"
-          onClick={(e) => {
-            e.stopPropagation();
-            setViewEnquiry(record);
-          }}
-        />
-      </Tooltip>
+  const handleAddNote = () => {
+    const text = noteDraft.trim();
+    if (!text || !journeyId) return;
+    addLog(journeyId, text);
+    setNoteDraft("");
+  };
 
-      <Tooltip title="Edit enquiry">
-        <Button
-          type="text"
-          icon={<EditOutlined />}
-          className="enquiry-action-btn edit"
-          onClick={(e) => {
-            e.stopPropagation();
-            openEditModal(record);
-          }}
-        />
-      </Tooltip>
+  const handleExport = () => {
+    const rows = filteredData.map((e) =>
+      [e.enquiryName, e.customerName, e.phone, fmtDate(e.eventDate), e.city, STATUS_LABEL[e.status], e.notes ?? ""]
+        .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = ["Enquiry,Customer,Phone,Event date,City,Status,Notes", ...rows].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `enquiries-${dayjs().format("YYYY-MM-DD")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success(`Exported ${rows.length} enquiries`);
+  };
 
-      <Tooltip title="Enquiry journey">
-        <Button
-          type="text"
-          icon={<ClockCircleOutlined />}
-          className="enquiry-action-btn journey"
-          onClick={(e) => {
-            e.stopPropagation();
-            setJourneyEnquiry(record);
-          }}
-        />
-      </Tooltip>
+  /* ─── Board drag & drop ─── */
 
-      <Tooltip title="Mark as confirmed">
-        <Button
-          type="text"
-          icon={<CheckCircleOutlined />}
-          className="enquiry-action-btn confirm"
-          onClick={(e) => {
-            e.stopPropagation();
-            updateStatus(record, "CONFIRMED");
-          }}
-        />
-      </Tooltip>
+  const handleDrop = (column: EnquiryStatus) => {
+    if (dragId) updateStatus(dragId, column);
+    setDragId(null);
+    setDragOver(null);
+  };
 
-      <Tooltip title="Delete enquiry">
-        <DeleteButton
-          itemName={record.enquiryName}
-          onDelete={() => handleDeleteEnquiry(record)}
-          className="enquiry-action-btn delete"
-        />
-      </Tooltip>
-    </div>
+  /* ─── Status pill with dropdown ─── */
+
+  const renderStatusPill = (record: EnquiryRecord) => (
+    <Dropdown
+      trigger={["click"]}
+      menu={{
+        selectedKeys: [record.status],
+        items: STATUS_ORDER.map((s) => ({
+          key: s,
+          label: <span className={`eq-menu-item st-${s}`}>{STATUS_LABEL[s]}</span>,
+        })),
+        onClick: ({ key }) => updateStatus(record.id, key as EnquiryStatus),
+      }}
+    >
+      <button type="button" className={`eq-pill st-${record.status}`} aria-label="Change status">
+        {STATUS_LABEL[record.status]}
+        <DownOutlined />
+      </button>
+    </Dropdown>
   );
 
-  /*  Table columns — text-only, no thumbnails, no Budget/Priority       */
+  /* ─── Table columns ─── */
 
   const columns: ColumnsType<EnquiryRecord> = [
     {
       title: "Enquiry",
       dataIndex: "enquiryName",
       key: "enquiryName",
+      sorter: (a, b) => a.enquiryName.localeCompare(b.enquiryName),
       render: (text: string, record) => (
-        <button type="button" className="enquiry-name-cell" onClick={() => setViewEnquiry(record)}>
-          <strong>{text}</strong>
+        <button type="button" className="eq-name-cell" onClick={() => setViewId(record.id)}>
+          <img
+            src={record.image || imageFallback}
+            alt=""
+            onError={(e) => {
+              e.currentTarget.src = imageFallback;
+            }}
+          />
+          <span>
+            <strong>{text}</strong>
+            <small>Added {fmtDate(record.createdAt)}</small>
+          </span>
         </button>
       ),
     },
@@ -346,8 +623,9 @@ const EnquiryPage = () => {
       dataIndex: "customerName",
       key: "customerName",
       render: (text: string) => (
-        <span className="enquiry-compact-cell">
-          <UserOutlined /> {text}
+        <span className="eq-cell">
+          <NameAvatar name={text} size={28} />
+          {text}
         </span>
       ),
     },
@@ -356,18 +634,20 @@ const EnquiryPage = () => {
       dataIndex: "phone",
       key: "phone",
       render: (text: string) => (
-        <span className="enquiry-soft-cell">
+        <a className="eq-cell eq-link" href={`tel:${text}`}>
           <PhoneOutlined /> {text}
-        </span>
+        </a>
       ),
     },
     {
-      title: "Event Date",
+      title: "Event",
       dataIndex: "eventDate",
       key: "eventDate",
-      render: (text: string) => (
-        <span className="enquiry-soft-cell">
-          <CalendarOutlined /> {text}
+      sorter: (a, b) => a.eventDate.localeCompare(b.eventDate),
+      render: (iso: string) => (
+        <span className="eq-cell">
+          <CalendarOutlined /> {fmtDate(iso)}
+          <CountChip iso={iso} />
         </span>
       ),
     },
@@ -376,7 +656,7 @@ const EnquiryPage = () => {
       dataIndex: "city",
       key: "city",
       render: (text: string) => (
-        <span className="enquiry-soft-cell">
+        <span className="eq-cell">
           <EnvironmentOutlined /> {text}
         </span>
       ),
@@ -385,24 +665,73 @@ const EnquiryPage = () => {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      onCell: () => ({ className: "enquiry-actions-anchor-cell" }),
-      render: (status: EnquiryStatus, record) => (
-        <>
-          <Tag color={statusColors[status]} className="enquiry-status-tag">
-            {status}
-          </Tag>
-          {renderRowActions(record)}
-        </>
+      render: (_: EnquiryStatus, record) => renderStatusPill(record),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 196,
+      align: "right",
+      render: (_: unknown, record) => (
+        <div className="eq-row-actions">
+          <Tooltip title="View">
+            <Button type="text" icon={<EyeOutlined />} className="eq-icon-btn view" onClick={() => setViewId(record.id)} />
+          </Tooltip>
+          <Tooltip title="Edit">
+            <Button type="text" icon={<EditOutlined />} className="eq-icon-btn edit" onClick={() => openEditModal(record)} />
+          </Tooltip>
+          <Tooltip title="Journey">
+            <Button
+              type="text"
+              icon={<ClockCircleOutlined />}
+              className="eq-icon-btn journey"
+              onClick={() => setJourneyId(record.id)}
+            />
+          </Tooltip>
+          <Tooltip title="Mark as confirmed">
+            <Button
+              type="text"
+              icon={<CheckCircleOutlined />}
+              className="eq-icon-btn confirm"
+              disabled={record.status === "CONFIRMED"}
+              onClick={() => updateStatus(record.id, "CONFIRMED")}
+            />
+          </Tooltip>
+          <Tooltip title="Delete">
+            <DeleteButton
+              itemName={record.enquiryName}
+              onDelete={() => handleDeleteEnquiry(record)}
+              className="eq-icon-btn delete"
+            />
+          </Tooltip>
+        </div>
       ),
     },
   ];
 
+  /* ─── Render ─── */
+
   return (
     <ConfigProvider
       theme={{
+        algorithm: theme.darkAlgorithm,
         token: {
           colorPrimary: "#38bdf8",
-          borderRadius: 14,
+          borderRadius: 12,
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          colorBgElevated: "#0d1430",
+          colorBgContainer: "rgba(2, 6, 23, 0.55)",
+          colorBorder: "rgba(56, 189, 248, 0.26)",
+          zIndexPopupBase: 1100,
+        },
+        components: {
+          Table: {
+            colorBgContainer: "transparent",
+            headerBg: "rgba(2, 6, 23, 0.45)",
+            rowHoverBg: "rgba(56, 189, 248, 0.09)",
+            borderColor: "rgba(56, 189, 248, 0.12)",
+            headerSplitColor: "transparent",
+          },
         },
       }}
     >
@@ -412,102 +741,115 @@ const EnquiryPage = () => {
 
           <Layout className="dashboard-shell enquiry-shell">
             <Header className="dashboard-navbar enquiry-navbar">
-              <Title level={3} className="page-title enquiry-title">
-                Enquiries
-              </Title>
+              <h1 className="enquiry-title">Enquiries</h1>
+              <div className="enquiry-hints" aria-hidden="true">
+                <kbd>/</kbd> search <kbd>N</kbd> new
+              </div>
             </Header>
 
             <Content className="content-area enquiry-content">
               <div className="enquiry-page-scroll">
                 <div className="enquiry-page-inner">
-                  <section className="hero-section">
-                    <div className="hero-copy">
-                      <span className="hero-pill">
-                        <CameraOutlined /> Creative Lead Board
+                  {/* ── Hero ── */}
+                  <section className="eq-hero">
+                    <div className="eq-hero-copy">
+                      <span className="eq-hero-pill">
+                        <CameraOutlined /> Lead board
                       </span>
+                      <h2 className="eq-display">Every enquiry, from first call to booked shoot</h2>
+                      <p>
+                        {statusCounts.NEW + statusCounts.FOLLOWUP > 0
+                          ? `${statusCounts.NEW + statusCounts.FOLLOWUP} enquiries are waiting on you. Drag cards on the board to move them along.`
+                          : "You're all caught up. New enquiries will show up here."}
+                      </p>
 
-                      <Title level={2}>Event Enquiries</Title>
+                      <div className="eq-pipebar" role="img" aria-label="Pipeline breakdown by status">
+                        {STATUS_ORDER.map(
+                          (s) =>
+                            statusCounts[s] > 0 && (
+                              <Tooltip key={s} title={`${STATUS_LABEL[s]}: ${statusCounts[s]}`}>
+                                <span className={`eq-pipe-seg st-${s}`} style={{ flexGrow: statusCounts[s] }} />
+                              </Tooltip>
+                            )
+                        )}
+                      </div>
+                      <span className="eq-pipe-caption">{conversion}% of enquiries confirmed</span>
 
-                      <Text>
-                        Track enquiry customers, follow-ups, city and booking status in one clean
-                        workspace.
-                      </Text>
-
-                      <div className="hero-buttons">
-                        <Button
-                          type="primary"
-                          icon={<PlusOutlined />}
-                          size="large"
-                          onClick={openCreateModal}
-                        >
-                          New Enquiry
+                      <div className="eq-hero-buttons">
+                        <Button type="primary" icon={<PlusOutlined />} size="large" onClick={openCreateModal}>
+                          New enquiry
                         </Button>
-
-                        <Tooltip title="Refresh enquiries">
-                          <Button
-                            icon={<ReloadOutlined spin={isLoading} />}
-                            size="large"
-                            onClick={handleRefresh}
-                          />
+                        <Tooltip title="Refresh">
+                          <Button icon={<ReloadOutlined spin={isLoading} />} size="large" onClick={handleRefresh} />
+                        </Tooltip>
+                        <Tooltip title="Export current list as CSV">
+                          <Button icon={<DownloadOutlined />} size="large" onClick={handleExport} />
                         </Tooltip>
                       </div>
                     </div>
 
-                    <div className="hero-image-stack">
-                      {enquiriesData.slice(0, 3).map((item) => (
-                        <Tooltip key={item.id} title={item.enquiryName}>
+                    <div className="eq-aperture" aria-hidden="true">
+                      <span className="eq-ring r1" />
+                      <span className="eq-ring r2" />
+                      <div className="eq-photo-stack">
+                        {enquiriesData.slice(0, 3).map((item) => (
                           <img
+                            key={item.id}
                             src={item.image || imageFallback}
-                            alt={item.enquiryName}
+                            alt=""
                             onError={(e) => {
                               e.currentTarget.src = imageFallback;
                             }}
                           />
-                        </Tooltip>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </section>
 
-                  <section className="stats-row">
-                    <Tooltip title="Total enquiries">
-                      <div className="stat-card">
-                        <FileTextOutlined className="stat-icon blue" />
-                        <strong>{stats.total}</strong>
-                        <span>Total</span>
-                      </div>
-                    </Tooltip>
-
-                    <Tooltip title="Draft enquiries">
-                      <div className="stat-card">
-                        <EditOutlined className="stat-icon slate" />
-                        <strong>{stats.draft}</strong>
-                        <span>Draft</span>
-                      </div>
-                    </Tooltip>
-
-                    <Tooltip title="Follow-up enquiries">
-                      <div className="stat-card">
-                        <ClockCircleOutlined className="stat-icon yellow" />
-                        <strong>{stats.followUps}</strong>
-                        <span>Follow-ups</span>
-                      </div>
-                    </Tooltip>
-
-                    <Tooltip title="Confirmed bookings">
-                      <div className="stat-card">
-                        <CheckCircleOutlined className="stat-icon green" />
-                        <strong>{stats.confirmed}</strong>
-                        <span>Confirmed</span>
-                      </div>
-                    </Tooltip>
+                  {/* ── Stats (click to filter) ── */}
+                  <section className="eq-stats">
+                    <StatCard
+                      icon={<FileTextOutlined />}
+                      label="All enquiries"
+                      value={total}
+                      tone="blue"
+                      active={statusFilter === "ALL"}
+                      onClick={() => setStatusFilter("ALL")}
+                    />
+                    <StatCard
+                      icon={<EditOutlined />}
+                      label="Drafts"
+                      value={statusCounts.DRAFT}
+                      tone="slate"
+                      active={statusFilter === "DRAFT"}
+                      onClick={() => setStatusFilter("DRAFT")}
+                    />
+                    <StatCard
+                      icon={<ClockCircleOutlined />}
+                      label="Follow-ups"
+                      value={statusCounts.FOLLOWUP}
+                      tone="yellow"
+                      active={statusFilter === "FOLLOWUP"}
+                      onClick={() => setStatusFilter("FOLLOWUP")}
+                    />
+                    <StatCard
+                      icon={<CheckCircleOutlined />}
+                      label="Confirmed"
+                      value={statusCounts.CONFIRMED}
+                      tone="green"
+                      active={statusFilter === "CONFIRMED"}
+                      onClick={() => setStatusFilter("CONFIRMED")}
+                    />
                   </section>
 
-                  <section className="table-container">
-                    <div className="toolbar">
-                      <Space wrap>
+                  {/* ── Workspace ── */}
+                  <section className="eq-workspace">
+                    <div className="eq-toolbar">
+                      <div className="eq-toolbar-left">
                         <Input
-                          className="enquiry-search"
-                          placeholder="Search enquiries..."
+                          ref={searchRef}
+                          className="eq-search"
+                          placeholder="Search name, phone, city…"
                           prefix={<SearchOutlined />}
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
@@ -515,71 +857,156 @@ const EnquiryPage = () => {
                         />
 
                         <Select
-                          className="filter-select"
-                          value={statusFilter}
-                          onChange={(val) => setStatusFilter(val)}
-                          classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
-                          options={[
-                            { value: "ALL", label: "All Status" },
-                            { value: "DRAFT", label: "Draft" },
-                            { value: "FOLLOWUP", label: "Follow-up" },
-                            { value: "CONFIRMED", label: "Confirmed" },
-                            { value: "CANCELLED", label: "Cancelled" },
-                          ]}
-                        />
-
-                        <Select
-                          className="filter-select"
+                          className="eq-city-select"
                           value={cityFilter}
                           onChange={setCityFilter}
-                          classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
                           options={cities.map((city) => ({
                             value: city,
-                            label: city === "ALL" ? "All Cities" : city,
+                            label: city === "ALL" ? "All cities" : city,
                           }))}
                         />
 
                         <Button onClick={clearFilters}>Clear</Button>
-                      </Space>
+                      </div>
 
-                      <DeleteButton
-                        itemName={`${selectedRowKeys.length} selected enquir${
-                          selectedRowKeys.length === 1 ? "y" : "ies"
-                        }`}
-                        onDelete={handleBulkDelete}
-                        disabled={!selectedRowKeys.length}
-                      />
+                      <div className="eq-toolbar-right">
+                        <div className="eq-view-toggle" role="tablist" aria-label="View mode">
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === "table"}
+                            className={viewMode === "table" ? "is-on" : ""}
+                            onClick={() => setViewMode("table")}
+                          >
+                            <UnorderedListOutlined /> List
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === "board"}
+                            className={viewMode === "board" ? "is-on" : ""}
+                            onClick={() => setViewMode("board")}
+                          >
+                            <AppstoreOutlined /> Board
+                          </button>
+                        </div>
+
+                        <DeleteButton
+                          itemName={`${selectedRowKeys.length} selected enquir${selectedRowKeys.length === 1 ? "y" : "ies"}`}
+                          onDelete={handleBulkDelete}
+                          disabled={!selectedRowKeys.length}
+                        />
+                      </div>
                     </div>
 
-                    <Table<EnquiryRecord>
-                      className="enquiry-table"
-                      columns={columns}
-                      dataSource={filteredData}
-                      rowKey="id"
-                      loading={isLoading}
-                      rowClassName={(record) => (activeRowId === record.id ? "enquiry-row-active" : "")}
-                      onRow={(record) => ({
-                        onMouseEnter: () => setActiveRowId(record.id),
-                        onMouseLeave: () =>
-                          setActiveRowId((current) => (current === record.id ? null : current)),
-                        onTouchStart: () =>
-                          setActiveRowId((current) => (current === record.id ? null : record.id)),
-                      })}
-                      rowSelection={{
-                        selectedRowKeys,
-                        onChange: (keys) => setSelectedRowKeys(keys as string[]),
-                      }}
-                      pagination={{ pageSize: 10 }}
-                      tableLayout="fixed"
-                      locale={{
-                        emptyText: (
-                          <Empty
-                            image={Empty.PRESENTED_IMAGE_SIMPLE}
-                            description="No matching enquiries"
-                          />
-                        ),
-                      }}
-                    />
+                    <div className="eq-chips" role="group" aria-label="Filter by status">
+                      <button
+                        type="button"
+                        className={`eq-chip ${statusFilter === "ALL" ? "is-on" : ""}`}
+                        onClick={() => setStatusFilter("ALL")}
+                      >
+                        All <b>{total}</b>
+                      </button>
+                      {STATUS_ORDER.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          className={`eq-chip st-${s} ${statusFilter === s ? "is-on" : ""}`}
+                          onClick={() => setStatusFilter(s)}
+                        >
+                          {STATUS_LABEL[s]} <b>{statusCounts[s]}</b>
+                        </button>
+                      ))}
+                    </div>
+
+                    {viewMode === "table" ? (
+                      <Table<EnquiryRecord>
+                        className="eq-table"
+                        columns={columns}
+                        dataSource={filteredData}
+                        rowKey="id"
+                        loading={isLoading}
+                        rowSelection={{
+                          selectedRowKeys,
+                          onChange: (keys) => setSelectedRowKeys(keys as string[]),
+                        }}
+                        pagination={{ pageSize: 8, hideOnSinglePage: true }}
+                        scroll={{ x: 980 }}
+                        locale={{
+                          emptyText: (
+                            <Empty
+                              image={Empty.PRESENTED_IMAGE_SIMPLE}
+                              description="No enquiries match these filters. Clear them or add a new enquiry."
+                            />
+                          ),
+                        }}
+                      />
+                    ) : (
+                      <div className="eq-board" aria-label="Enquiry pipeline board">
+                        {STATUS_ORDER.map((col) => {
+                          const items = filteredData.filter((e) => e.status === col);
+                          return (
+                            <div
+                              key={col}
+                              className={`eq-col st-${col} ${dragOver === col ? "is-over" : ""}`}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                if (dragOver !== col) setDragOver(col);
+                              }}
+                              onDragLeave={(e) => {
+                                if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null);
+                              }}
+                              onDrop={() => handleDrop(col)}
+                            >
+                              <header className="eq-col-head">
+                                <span className="eq-col-dot" />
+                                <strong>{STATUS_LABEL[col]}</strong>
+                                <em>{items.length}</em>
+                              </header>
+
+                              <div className="eq-col-body">
+                                {items.length === 0 && <div className="eq-col-empty">Drop an enquiry here</div>}
+
+                                {items.map((e) => (
+                                  <article
+                                    key={e.id}
+                                    className={`eq-card ${dragId === e.id ? "is-dragging" : ""}`}
+                                    draggable
+                                    onDragStart={() => setDragId(e.id)}
+                                    onDragEnd={() => {
+                                      setDragId(null);
+                                      setDragOver(null);
+                                    }}
+                                    onClick={() => setViewId(e.id)}
+                                  >
+                                    <img
+                                      src={e.image || imageFallback}
+                                      alt=""
+                                      draggable={false}
+                                      onError={(ev) => {
+                                        ev.currentTarget.src = imageFallback;
+                                      }}
+                                    />
+                                    <div className="eq-card-body">
+                                      <strong>{e.enquiryName}</strong>
+                                      <span className="eq-cell">
+                                        <UserOutlined /> {e.customerName}
+                                      </span>
+                                      <div className="eq-card-foot">
+                                        <span className="eq-cell">
+                                          <EnvironmentOutlined /> {e.city}
+                                        </span>
+                                        <CountChip iso={e.eventDate} />
+                                      </div>
+                                    </div>
+                                  </article>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </section>
                 </div>
               </div>
@@ -587,18 +1014,11 @@ const EnquiryPage = () => {
           </Layout>
         </div>
 
-        {/* View enquiry — unchanged antd Modal, closes normally */}
-        <Modal
-          className="enquiry-modal"
-          open={!!viewEnquiry}
-          onCancel={() => setViewEnquiry(null)}
-          footer={null}
-          width={820}
-          centered
-        >
+        {/* ── View enquiry ── */}
+        <GlassModal open={!!viewEnquiry} width={820} onClose={() => setViewId(null)}>
           {viewEnquiry && (
             <>
-              <div className="modal-image-cover">
+              <div className="eq-cover">
                 <img
                   src={viewEnquiry.image || imageFallback}
                   alt={viewEnquiry.enquiryName}
@@ -606,67 +1026,170 @@ const EnquiryPage = () => {
                     e.currentTarget.src = imageFallback;
                   }}
                 />
-
-                <div>
-                  <Title level={3}>{viewEnquiry.enquiryName}</Title>
-                  <Tag color={statusColors[viewEnquiry.status]}>{viewEnquiry.status}</Tag>
+                <button type="button" className="eq-close" onClick={() => setViewId(null)} aria-label="Close">
+                  <CloseOutlined />
+                </button>
+                <div className="eq-cover-text">
+                  <h3 className="eq-display">{viewEnquiry.enquiryName}</h3>
+                  <div className="eq-cover-meta">
+                    <span className={`eq-pill static st-${viewEnquiry.status}`}>{STATUS_LABEL[viewEnquiry.status]}</span>
+                    <CountChip iso={viewEnquiry.eventDate} />
+                  </div>
                 </div>
               </div>
 
-              <Divider />
+              <div className="eq-view-body">
+                {/* Pipeline stepper */}
+                <div className="eq-stepper" role="group" aria-label="Move enquiry through pipeline">
+                  {STATUS_FLOW.map((s, i) => {
+                    const currentIdx = STATUS_FLOW.indexOf(viewEnquiry.status);
+                    const state = viewEnquiry.status === "CANCELLED" ? "idle" : i < currentIdx ? "done" : i === currentIdx ? "now" : "idle";
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`eq-step ${state} st-${s}`}
+                        onClick={() => updateStatus(viewEnquiry.id, s)}
+                      >
+                        <span className="eq-step-dot">{state === "done" ? <CheckCircleOutlined /> : i + 1}</span>
+                        {STATUS_LABEL[s]}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className={`eq-step cancel st-CANCELLED ${viewEnquiry.status === "CANCELLED" ? "now" : "idle"}`}
+                    onClick={() => updateStatus(viewEnquiry.id, "CANCELLED")}
+                  >
+                    Cancelled
+                  </button>
+                </div>
 
-              <Descriptions bordered column={2}>
-                <Descriptions.Item label="Customer">{viewEnquiry.customerName}</Descriptions.Item>
-                <Descriptions.Item label="Phone">{viewEnquiry.phone}</Descriptions.Item>
-                <Descriptions.Item label="Event Date">{viewEnquiry.eventDate}</Descriptions.Item>
-                <Descriptions.Item label="City">{viewEnquiry.city}</Descriptions.Item>
-                <Descriptions.Item label="Notes" span={2}>
-                  {viewEnquiry.notes || "—"}
-                </Descriptions.Item>
-              </Descriptions>
+                <div className="eq-info-grid">
+                  <div className="eq-info">
+                    <span>
+                      <UserOutlined /> Customer
+                    </span>
+                    <strong>{viewEnquiry.customerName}</strong>
+                  </div>
+                  <div className="eq-info">
+                    <span>
+                      <PhoneOutlined /> Phone
+                    </span>
+                    <strong>{viewEnquiry.phone}</strong>
+                  </div>
+                  <div className="eq-info">
+                    <span>
+                      <CalendarOutlined /> Event date
+                    </span>
+                    <strong>{fmtDate(viewEnquiry.eventDate)}</strong>
+                  </div>
+                  <div className="eq-info">
+                    <span>
+                      <EnvironmentOutlined /> City
+                    </span>
+                    <strong>{viewEnquiry.city}</strong>
+                  </div>
+                  <div className="eq-info full">
+                    <span>
+                      <FileTextOutlined /> Notes
+                    </span>
+                    <p>{viewEnquiry.notes || "No notes added yet."}</p>
+                  </div>
+                  <div className="eq-info full subtle">
+                    <span>
+                      Created by {viewEnquiry.createdBy} on {fmtDate(viewEnquiry.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="eq-view-actions">
+                  <Button type="primary" icon={<PhoneOutlined />} href={`tel:${viewEnquiry.phone}`}>
+                    Call
+                  </Button>
+                  <Button
+                    icon={<WhatsAppOutlined />}
+                    href={`https://wa.me/91${viewEnquiry.phone}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    WhatsApp
+                  </Button>
+                  <Button
+                    icon={<ClockCircleOutlined />}
+                    onClick={() => {
+                      setJourneyId(viewEnquiry.id);
+                      setViewId(null);
+                    }}
+                  >
+                    Journey
+                  </Button>
+                  <Button icon={<EditOutlined />} onClick={() => openEditModal(viewEnquiry)}>
+                    Edit
+                  </Button>
+                </div>
+              </div>
             </>
           )}
-        </Modal>
+        </GlassModal>
 
-        {/* Enquiry journey — unchanged antd Modal, closes normally */}
-        <Modal
-          className="enquiry-modal"
-          open={!!journeyEnquiry}
-          onCancel={() => setJourneyEnquiry(null)}
-          footer={null}
-          width={540}
-          centered
-        >
+        {/* ── Journey ── */}
+        <GlassModal open={!!journeyEnquiry} width={560} onClose={() => setJourneyId(null)}>
           {journeyEnquiry && (
-            <>
-              <Title level={5}>{journeyEnquiry.enquiryName} - Journey</Title>
+            <div className="eq-journey">
+              <div className="eq-form-title">
+                <Avatar className="eq-avatar">
+                  <ThunderboltOutlined />
+                </Avatar>
+                <div>
+                  <h3 className="eq-display">{journeyEnquiry.enquiryName}</h3>
+                  <span className="eq-subtle">Journey so far</span>
+                </div>
+                <button type="button" className="eq-close inline" onClick={() => setJourneyId(null)} aria-label="Close">
+                  <CloseOutlined />
+                </button>
+              </div>
 
-              <Timeline
-                items={journeyEnquiry.timeline.map((item) => ({
-                  dot: <ThunderboltOutlined />,
-                  children: item,
-                }))}
-              />
-            </>
+              <ol className="eq-timeline">
+                {[...journeyEnquiry.timeline].reverse().map((entry, i) => (
+                  <li key={`${entry.at}-${i}`}>
+                    <span className="eq-tl-dot" />
+                    <div>
+                      <strong>{entry.text}</strong>
+                      <small>{dayjs(entry.at).format("MMM DD, h:mm A")}</small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="eq-note-row">
+                <Input
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  onPressEnter={handleAddNote}
+                  placeholder="Add a note, e.g. Called, wants a quote by Friday"
+                />
+                <Button type="primary" icon={<SendOutlined />} onClick={handleAddNote} disabled={!noteDraft.trim()}>
+                  Add note
+                </Button>
+              </div>
+            </div>
           )}
-        </Modal>
+        </GlassModal>
 
-        {/* Create / Edit enquiry — Users-page-styled modal. Only Cancel or  */}
-        {/* Create/Save closes it; clicking outside does nothing.           */}
-        <EnquiryFormModal open={!!editEnquiry || isCreateOpen} width={680}>
-          <div className="enquiry-modal-shell">
-            <div className="enquiry-modal-title-row">
-              <Avatar className="enquiry-modal-avatar">
-                {editEnquiry ? <EditOutlined /> : <PlusOutlined />}
-              </Avatar>
-              <Title level={3}>{editEnquiry ? "Edit Enquiry" : "Create New Enquiry"}</Title>
+        {/* ── Create / Edit (only Cancel or Save closes it) ── */}
+        <GlassModal open={formOpen} width={680} dismissible={false}>
+          <div className="eq-form-shell">
+            <div className="eq-form-title">
+              <Avatar className="eq-avatar">{editEnquiry ? <EditOutlined /> : <PlusOutlined />}</Avatar>
+              <h3 className="eq-display">{editEnquiry ? "Edit enquiry" : "Create new enquiry"}</h3>
             </div>
 
-            <Form<EnquiryFormValues> form={form} layout="vertical" className="enquiry-form">
-              <div className="enquiry-form-grid">
+            <Form<EnquiryFormValues> form={form} layout="vertical" className="eq-form" requiredMark>
+              <div className="eq-form-grid">
                 <Form.Item
                   name="enquiryName"
-                  label="Enquiry Name"
+                  label="Enquiry name"
                   rules={[{ required: true, message: "Enquiry name is required" }]}
                 >
                   <Input prefix={<FileTextOutlined />} placeholder="e.g. Priya - Wedding" />
@@ -674,7 +1197,7 @@ const EnquiryPage = () => {
 
                 <Form.Item
                   name="customerName"
-                  label="Customer Name"
+                  label="Customer name"
                   rules={[{ required: true, message: "Customer name is required" }]}
                 >
                   <Input prefix={<UserOutlined />} placeholder="Customer full name" />
@@ -685,7 +1208,7 @@ const EnquiryPage = () => {
                   label="Phone"
                   rules={[
                     { required: true, message: "Phone number is required" },
-                    { pattern: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit phone number" },
+                    { pattern: /^[6-9]\d{9}$/, message: "Enter a valid 10-digit mobile number" },
                   ]}
                 >
                   <Input prefix={<PhoneOutlined />} placeholder="10-digit mobile number" maxLength={10} />
@@ -693,56 +1216,45 @@ const EnquiryPage = () => {
 
                 <Form.Item
                   name="eventDate"
-                  label="Event Date"
+                  label="Event date"
                   rules={[{ required: true, message: "Event date is required" }]}
                 >
-                  <Input prefix={<CalendarOutlined />} placeholder="e.g. May 31, 2026" />
+                  <DatePicker style={{ width: "100%" }} format={DATE_FMT} placeholder="Pick the event date" />
                 </Form.Item>
 
-                <Form.Item
-                  name="city"
-                  label="City"
-                  rules={[{ required: true, message: "City is required" }]}
-                >
+                <Form.Item name="city" label="City" rules={[{ required: true, message: "City is required" }]}>
                   <Input prefix={<EnvironmentOutlined />} placeholder="Event city" />
                 </Form.Item>
 
-                <Form.Item
-                  name="status"
-                  label="Status"
-                  rules={[{ required: true, message: "Status is required" }]}
-                >
-                  <Select
-                    classNames={{ popup: { root: "enquiry-dark-select-dropdown" } }}
-                    options={Object.keys(statusColors).map((k) => ({ value: k, label: k }))}
-                  />
+                <Form.Item name="status" label="Status" rules={[{ required: true, message: "Status is required" }]}>
+                  <Select options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
                 </Form.Item>
 
                 <Form.Item
                   name="image"
-                  label="Image URL"
-                  className="enquiry-form-full"
+                  label="Cover image URL"
+                  className="eq-form-full"
                   rules={[{ type: "url", message: "Enter a valid image URL" }]}
                 >
-                  <Input placeholder="https://..." />
+                  <Input placeholder="https://…" />
                 </Form.Item>
 
-                <Form.Item name="notes" label="Notes" className="enquiry-form-full">
-                  <Input.TextArea rows={4} placeholder="Additional notes about this enquiry" />
+                <Form.Item name="notes" label="Notes" className="eq-form-full">
+                  <Input.TextArea rows={4} placeholder="Anything the team should know about this enquiry" />
                 </Form.Item>
               </div>
             </Form>
 
-            <div className="enquiry-modal-action-row">
-              <Button className="enquiry-modal-cancel-btn" onClick={closeFormModal}>
+            <div className="eq-form-actions">
+              <Button className="eq-btn-cancel" onClick={closeFormModal}>
                 Cancel
               </Button>
-              <Button type="primary" className="enquiry-modal-save-btn" onClick={handleSaveEnquiry}>
-                {editEnquiry ? "Save Changes" : "Create Enquiry"}
+              <Button type="primary" className="eq-btn-save" onClick={handleSaveEnquiry}>
+                {editEnquiry ? "Save changes" : "Create enquiry"}
               </Button>
             </div>
           </div>
-        </EnquiryFormModal>
+        </GlassModal>
       </Layout>
     </ConfigProvider>
   );

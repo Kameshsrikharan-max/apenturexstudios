@@ -1,17 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AimOutlined,
-  BgColorsOutlined,
-  BranchesOutlined,
-  CalendarOutlined,
-  CarOutlined,
-  ClockCircleOutlined,
-  EnvironmentOutlined,
-  ExpandOutlined,
-  FireOutlined,
-  MinusOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import {AimOutlined,BgColorsOutlined,BranchesOutlined,CalendarOutlined,CarOutlined,ClockCircleOutlined,EnvironmentOutlined,ExpandOutlined,FireOutlined,MinusOutlined,PlusOutlined,} from "@ant-design/icons";
 import "./EventMapView.css";
 
 type MapStyle = "dark" | "light" | "satellite";
@@ -87,12 +75,7 @@ const haversineKm = (a: any, b: any) => {
   return 2 * R * Math.asin(Math.sqrt(s));
 };
 
-/* ---------------- tiles (all keyless) ----------------
-   dark      -> Esri World Dark Gray Base + Reference (labels overlay)
-   light     -> OpenStreetMap standard
-   satellite -> Esri World Imagery
-   Each layer has its own max native zoom; beyond it we upscale the
-   last available tile level instead of requesting blank tiles. */
+/* ---------------- tiles (all keyless) ---------------- */
 type Layer = { url: (z: number, x: number, y: number) => string; max: number };
 
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
@@ -167,7 +150,7 @@ const drawTiles = (
         if (t.ok) {
           ctx.drawImage(t.img, sx, sy, ts, ts);
         } else if (tz > MIN_Z) {
-          // blurry parent tile while the sharp one loads
+          
           const p = getTile(layer.url(tz - 1, wx >> 1, y >> 1));
           if (p.ok) {
             const half = TILE / 2;
@@ -352,7 +335,7 @@ export default function EventMapView({ events, starredIds, onOpenEvent, onPinVen
   const unpinned = useMemo(() => events.filter((e) => !hasPin(e)), [events]);
   const selected = useMemo(() => events.find((e) => e.id === selectedId) || null, [events, selectedId]);
 
-  // Route = every pinned event on the selected event's date (or the next upcoming date), in time order.
+  
   const route = useMemo(() => {
     let date: string | null = selected?.date || null;
     if (!date) {
@@ -370,7 +353,7 @@ export default function EventMapView({ events, starredIds, onOpenEvent, onPinVen
     return { date, stops, km };
   }, [pinned, selected]);
 
-  // Live snapshot read by the animation loop (so the loop never needs to restart).
+  
   const S = useRef({ pinned, route, selectedId, heat, routeOn, style, starredIds });
   S.current = { pinned, route, selectedId, heat, routeOn, style, starredIds };
 
@@ -454,12 +437,12 @@ export default function EventMapView({ events, starredIds, onOpenEvent, onPinVen
     ro.observe(el);
     sizeRef.current = { w: el.clientWidth, h: el.clientHeight };
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, []);
 
   useEffect(() => {
     tryInitialFit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [pinned.length]);
 
   /* ---------- wheel (needs a non-passive listener) ---------- */
@@ -473,7 +456,7 @@ export default function EventMapView({ events, starredIds, onOpenEvent, onPinVen
     };
     cv.addEventListener("wheel", onWheel, { passive: false });
     return () => cv.removeEventListener("wheel", onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   /* ---------- render loop ---------- */
