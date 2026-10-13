@@ -15,6 +15,8 @@ import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
 import TemplateEditorPage   from "../features/event/pages/TemplateEditorPage";
+import VideoEditorPage      from "../features/event/pages/VideoEditorPage"; // NEW — put VideoEditorPage.tsx + .css next to TemplateEditorPage
+import VideoLibraryPage     from "../features/event/pages/VideoLibraryPage"; // NEW — put VideoLibraryPage.tsx + .css next to VideoEditorPage
 import AlbumLibraryPage     from "../features/event/pages/AlbumLibraryPage"; // adjust path if placed elsewhere
 import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
@@ -53,6 +55,8 @@ const AttendancePageAny: any = AttendancePage;
 const MediaManagementPageAny: any = MediaManagementPage;
 const AlbumSelectionPageAny: any = AlbumSelectionPage;
 const TemplateEditorPageAny: any = TemplateEditorPage;
+const VideoEditorPageAny: any = VideoEditorPage;
+const VideoLibraryPageAny: any = VideoLibraryPage;
 const AlbumLibraryPageAny: any = AlbumLibraryPage;
 const EventClosurePageAny: any = EventClosurePage;
 const EnquiryPageAny: any = EnquiryPage;
@@ -379,6 +383,8 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
         {/* Shared utility routes — not part of the role matrix, open to any authenticated user */}
         <Route path="/media" element={<MediaLibraryPageAny user={user} />} />
         <Route path="/albums/library" element={<AlbumLibraryPageAny user={user} />} />
+        <Route path="/video-editor" element={<VideoEditorPageAny user={user} />} />
+        <Route path="/video-library" element={<VideoLibraryPageAny user={user} />} />
         <Route path="/profile"     element={<ProfilePageAny user={user} />} />
         <Route path="/calendar" element={<CalendarPageAny />} />
         <Route path="/notification-settings" element={<NotificationSettingsPageAny />} />

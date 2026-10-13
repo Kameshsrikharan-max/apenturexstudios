@@ -1,24 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  PlusOutlined,
-  SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CopyOutlined,
-  CloseOutlined,
-  FileImageOutlined,
-  StarOutlined,
-  StarFilled,
-  BulbOutlined,
-  DownloadOutlined,
-  UploadOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  EyeOutlined,
-  ThunderboltOutlined,
-  FireOutlined,
-  RocketOutlined,
-} from "@ant-design/icons";
+import {PlusOutlined,SearchOutlined,EditOutlined,DeleteOutlined,CopyOutlined,CloseOutlined,FileImageOutlined,StarOutlined,StarFilled,BulbOutlined,DownloadOutlined,UploadOutlined,AppstoreOutlined,BarsOutlined,EyeOutlined,ThunderboltOutlined,FireOutlined,RocketOutlined,} from "@ant-design/icons";
 import "./TemplatesPage.css";
 
 const TEMPLATES_STORAGE_KEY = "axs_templates";

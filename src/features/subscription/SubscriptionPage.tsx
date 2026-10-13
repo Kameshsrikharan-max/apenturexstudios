@@ -1,21 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion, Variants } from "framer-motion";
-import {
-  CheckOutlined,
-  LeftOutlined,
-  PhoneOutlined,
-  CloseOutlined,
-  DownloadOutlined,
-  MailOutlined,
-  LoadingOutlined,
-  RedoOutlined,
-  SyncOutlined,
-  CreditCardOutlined,
-  SafetyCertificateOutlined,
-  CalendarOutlined,
-  ExclamationCircleOutlined,
-  UndoOutlined,
-} from "@ant-design/icons";
+import {CheckOutlined,LeftOutlined,PhoneOutlined,CloseOutlined,DownloadOutlined,MailOutlined,LoadingOutlined,RedoOutlined,SyncOutlined,CreditCardOutlined,SafetyCertificateOutlined,CalendarOutlined,ExclamationCircleOutlined,UndoOutlined,} from "@ant-design/icons";
 import { QRCodeSVG } from "qrcode.react";
 import jsPDF from "jspdf";
 import "./SubscriptionPage.css";

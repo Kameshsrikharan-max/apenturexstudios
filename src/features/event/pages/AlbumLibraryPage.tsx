@@ -10,6 +10,7 @@ import {
   CloudUploadOutlined, ClockCircleOutlined, UndoOutlined, CameraOutlined, HddOutlined, CompressOutlined,
   SafetyCertificateOutlined, BgColorsOutlined, WarningOutlined, BulbOutlined,
   SaveOutlined, TableOutlined, UpOutlined, DownOutlined, CheckCircleFilled, MinusCircleOutlined,
+  VideoCameraOutlined,
 } from "@ant-design/icons";
 import {
   getSavedAlbums, deleteSavedAlbum, deleteSavedAlbums, subscribeToAlbumLibrary, getFavoriteIds, toggleFavorite,
@@ -43,6 +44,7 @@ const RECENT_DAYS = 14;
 const BACKUP_NUDGE_DAYS = 7;
 const WALL_PAGE = 96;
 const MAX_SAVED_VIEWS = 8;
+const VIDEO_EDITOR_PATH = "/video-editor";
 
 const PRESETS: { id: string; label: string; hint: string; opts: OptimizeOptions }[] = [
   { id: "balanced", label: "Balanced", hint: "1600 px · sharp on screens and 8×10 prints", opts: { maxDim: 1600, quality: 0.82 } },
@@ -1673,6 +1675,8 @@ export default function AlbumLibraryPage() {
     navigate("/events/create/album/template-editor");
   };
 
+  const openVideoEditor = () => navigate(VIDEO_EDITOR_PATH);
+
   const removeAlbums = (list: SavedAlbumEntry[]) => {
     if (!list.length) return;
     const favs = list.filter((a) => favoriteIds.has(a.id)).map((a) => a.id);
@@ -1921,6 +1925,7 @@ export default function AlbumLibraryPage() {
   const paletteItems: PaletteItem[] = paletteOpen
     ? [
         { id: "new", label: "New album", icon: <PlusOutlined />, group: "Actions", run: handleNewBlank },
+        { id: "vid", label: "Open Video Editor", hint: "Make a video from photos & clips", icon: <VideoCameraOutlined />, group: "Actions", run: openVideoEditor },
         { id: "stor", label: "Manage storage", hint: "Space, limits, optimize", icon: <HddOutlined />, group: "Actions", run: () => setStorageOpen(true) },
         { id: "opt", label: "Optimize photos", hint: "Free up space", icon: <CompressOutlined />, group: "Actions", run: () => setStorageOpen(true) },
         { id: "rand", label: "Open a random album", hint: "Feeling lucky", icon: <ThunderboltOutlined />, group: "Actions", run: () => { if (albums.length) openAlbum(albums[Math.floor(Math.random() * albums.length)]); } },
@@ -2098,6 +2103,9 @@ export default function AlbumLibraryPage() {
           </div>
           <button className="al-pal-trigger" onClick={() => setPaletteOpen(true)} aria-label="Open command palette">
             <ThunderboltOutlined /> <span>Quick actions</span> <kbd>Ctrl K</kbd>
+          </button>
+          <button className="al-tool-btn" type="button" onClick={openVideoEditor} title="Make a video from photos and clips">
+            <VideoCameraOutlined /> Video Editor
           </button>
           <button className="al-new-btn" onClick={handleNewBlank}><PlusOutlined /> New Album</button>
         </header>

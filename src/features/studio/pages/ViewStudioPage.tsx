@@ -1,19 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import {
-  CameraOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  GlobalOutlined,
-  HomeOutlined,
-  PhoneOutlined,
-  PictureOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  StarOutlined,
-  StopOutlined,
-  TagsOutlined,
-  UploadOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,EditOutlined,EnvironmentOutlined,GlobalOutlined,HomeOutlined,PhoneOutlined,PictureOutlined,ReloadOutlined,SaveOutlined,StarOutlined,StopOutlined,TagsOutlined,UploadOutlined,} from "@ant-design/icons";
 import { Button, Form, Input, Select, Tooltip } from "antd";
 import "./ViewStudioPage.css";
 

@@ -1,53 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  Avatar,
-  Badge,
-  Button,
-  ConfigProvider,
-  Empty,
-  Form,
-  Input,
-  Modal,
-  Pagination,
-  Popover,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-  notification,
-} from "antd";
+import {Avatar,Badge,Button,ConfigProvider,Empty,Form,Input,Modal,Pagination,Popover,Select,Space,Table,Tag,Tooltip,Typography,message,notification,} from "antd";
 import type { InputRef } from "antd";
-import {
-  AppstoreOutlined,
-  BellOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CopyOutlined,
-  EditOutlined,
-  EnvironmentOutlined,
-  FieldTimeOutlined,
-  FilterOutlined,
-  GlobalOutlined,
-  MessageOutlined,
-  PlusOutlined,
-  QrcodeOutlined,
-  RadarChartOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  StarFilled,
-  StarOutlined,
-  TableOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  ToolOutlined,
-  UnorderedListOutlined,
-} from "@ant-design/icons";
+import {AppstoreOutlined,BellOutlined,CalendarOutlined,CheckCircleOutlined,ClockCircleOutlined,CopyOutlined,EditOutlined,EnvironmentOutlined,FieldTimeOutlined,FilterOutlined,GlobalOutlined,MessageOutlined,PlusOutlined,QrcodeOutlined,RadarChartOutlined,ReloadOutlined,SearchOutlined,StarFilled,StarOutlined,TableOutlined,TeamOutlined,ThunderboltOutlined,ToolOutlined,UnorderedListOutlined,} from "@ant-design/icons";
 import "./EventPage.css";
 import TeamAssignmentPage from "./Teamassignmentpage";
 import EventMapView from "./EventMapView";

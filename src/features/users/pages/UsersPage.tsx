@@ -8,26 +8,7 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import {
-  Layout,
-  Typography,
-  Table,
-  Input,
-  Button,
-  Space,
-  ConfigProvider,
-  Tag,
-  Avatar,
-  Tabs,
-  Tooltip,
-  Popover,
-  Form,
-  Select,
-  message,
-  Empty,
-  Badge,
-  Pagination,
-} from "antd";
+import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,Pagination,} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   SearchOutlined,
@@ -55,20 +36,7 @@ import {
   CloseOutlined,
   StarFilled,
   RobotOutlined,
-  LoadingOutlined,
-  BulbOutlined,
-  UserOutlined,
-  CopyOutlined,
-  ArrowLeftOutlined,
-  RedoOutlined,
-  UndoOutlined,
-  CheckOutlined,
-  DownloadOutlined,
-  ThunderboltOutlined,
-  UnorderedListOutlined,
-  IdcardOutlined,
-  ClearOutlined,
-} from "@ant-design/icons";
+  LoadingOutlined,BulbOutlined,UserOutlined,CopyOutlined,ArrowLeftOutlined,RedoOutlined,UndoOutlined,CheckOutlined,DownloadOutlined,ThunderboltOutlined,UnorderedListOutlined,IdcardOutlined,ClearOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
