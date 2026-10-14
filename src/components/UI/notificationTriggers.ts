@@ -1,12 +1,5 @@
 import { pushNotification } from "../../utils/notificationStore";
-import {
-  MediaNotificationPayload,
-  MediaEngagementPayload,
-  UserAccountPayload,
-  PaymentStatusPayload,
-  DeleteRequestPayload,
-  RegistrationRequestPayload,
-} from "../../redux/types/notificationDetailTypes";
+import {MediaNotificationPayload,MediaEngagementPayload,UserAccountPayload,PaymentStatusPayload,DeleteRequestPayload,RegistrationRequestPayload,} from "../../redux/types/notificationDetailTypes";
 
 
 /* Gallery */

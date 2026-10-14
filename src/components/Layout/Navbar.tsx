@@ -1,6 +1,6 @@
 import { JSX, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,FileTextOutlined,BookOutlined,FullscreenOutlined,FullscreenExitOutlined,DisconnectOutlined,ReloadOutlined,ThunderboltOutlined,CheckOutlined,} from "@ant-design/icons";
+import {MenuOutlined,CalendarOutlined,BellOutlined,SunOutlined,MoonOutlined,LeftOutlined,RightOutlined,DownOutlined,LogoutOutlined,SettingOutlined,ProfileOutlined,CloseOutlined,CompassOutlined,SearchOutlined,DashboardOutlined,FileSearchOutlined,TeamOutlined,MailOutlined,ShopOutlined,PictureOutlined,EnterOutlined,WalletOutlined,ClockCircleOutlined,AudioOutlined,AudioMutedOutlined,ExclamationCircleOutlined,UserAddOutlined,FileImageOutlined,ScheduleOutlined,FileTextOutlined,BookOutlined,FullscreenOutlined,FullscreenExitOutlined,DisconnectOutlined,ReloadOutlined,ThunderboltOutlined,CheckOutlined,SafetyCertificateOutlined,} from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStoredNotifications, NOTIFICATIONS_UPDATED_EVENT } from "../../utils/notificationStore";
 import { fetchPendingDeleteRequestsApi } from "../../redux/api/deleteRequestApi";
@@ -216,6 +216,12 @@ function Navbar({
           label: "Registration Requests",
           path: "/admin/registrations",
           icon: <UserAddOutlined />,
+          group: "Workspace",
+        },
+        {
+          label: "Audit Log",
+          path: "/admin/audit-logs",
+          icon: <SafetyCertificateOutlined />,
           group: "Workspace",
         },
       ];

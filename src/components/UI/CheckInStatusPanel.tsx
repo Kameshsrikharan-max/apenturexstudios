@@ -39,7 +39,7 @@ export default function CheckInStatusPanel({ eventId }: Props) {
   }
 
   if (!status || status.totalPhotographers === 0) {
-    return null; // nothing assigned yet — no point showing an empty check-in section
+    return null; 
   }
 
   return (

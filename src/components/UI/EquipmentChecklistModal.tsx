@@ -1,22 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  CheckOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  PlusOutlined,
-  ToolOutlined,
-} from "@ant-design/icons";
+import {CheckOutlined,ClockCircleOutlined,CloseOutlined,PlusOutlined,ToolOutlined,} from "@ant-design/icons";
 import "./EquipmentChecklistModal.css";
-import {
-  fetchChecklistRequest,
-  addChecklistItemRequest,
-  removeChecklistItemRequest,
-  toggleChecklistItemRequest,
-} from "../../redux/actions/equipmentChecklistActions";
+import {fetchChecklistRequest,addChecklistItemRequest,removeChecklistItemRequest,toggleChecklistItemRequest,} from "../../redux/actions/equipmentChecklistActions";
 
-// Reads the same "Jun 16, 2026" / "12:00 AM" strings EventPage's own
-// records use (see CreateEventPage's formatBoardDate/formatBoardTime).
+
 function parseEventDateTime(event: any): Date | null {
   if (!event?.date) return null;
   const combined = `${event.date} ${event.time || ""}`.trim();
@@ -30,9 +18,7 @@ function hoursUntil(event: any): number | null {
   return (eventDate.getTime() - Date.now()) / (1000 * 60 * 60);
 }
 
-// Each category gets a consistent, distinct accent color, derived from its
-// name rather than hardcoded per category — new custom categories the user
-// types in still get a sensible color instead of falling back to gray.
+
 const CATEGORY_PALETTE = [
   { text: "#38d5ff", bg: "rgba(56,213,255,0.14)", border: "rgba(56,213,255,0.4)" },
   { text: "#4ade80", bg: "rgba(74,222,128,0.14)", border: "rgba(74,222,128,0.4)" },
@@ -69,7 +55,7 @@ export default function EquipmentChecklistModal({
     if (event?.id) dispatch(fetchChecklistRequest(event.id));
   }, [event?.id, dispatch]);
 
-  // Escape closes, same as clicking the backdrop.
+  
   useEffect(() => {
     if (!event) return;
     const handler = (e: KeyboardEvent) => {

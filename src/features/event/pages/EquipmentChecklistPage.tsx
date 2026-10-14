@@ -1,31 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  CameraOutlined,
-  CheckCircleOutlined,
-  CheckOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  DollarOutlined,
-  DoubleLeftOutlined,
-  PictureOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SettingOutlined,
-  TeamOutlined,
-  ToolOutlined,
+import {CameraOutlined,CheckCircleOutlined,CheckOutlined,ClockCircleOutlined,CloseOutlined,DeleteOutlined,DollarOutlined,
+  DoubleLeftOutlined,PictureOutlined,PlusOutlined,ReloadOutlined,SettingOutlined,TeamOutlined,ToolOutlined,
 } from "@ant-design/icons";
 import "./EquipmentChecklistPage.css";
-import {
-  fetchChecklistRequest,
-  addChecklistItemRequest,
-  removeChecklistItemRequest,
-  toggleChecklistItemRequest,
-  fetchDefaultListRequest,
-  saveDefaultListRequest,
-} from "../../../redux/actions/equipmentChecklistActions";
+import {fetchChecklistRequest,addChecklistItemRequest,removeChecklistItemRequest,toggleChecklistItemRequest,fetchDefaultListRequest,saveDefaultListRequest,} from "../../../redux/actions/equipmentChecklistActions";
 import type { DefaultListItem } from "../../../redux/types/equipmentChecklistTypes";
 
 interface StepDef {
@@ -33,8 +13,6 @@ interface StepDef {
   icon: React.ReactNode;
 }
 
-// Mirrors CreateEventPage's step rail, with Equipment Checklist inserted
-// as step 3 (right after Team Assignment) — 7 steps become 8.
 const steps: StepDef[] = [
   { label: "Event Details", icon: <PlusOutlined /> },
   { label: "Team Assignment", icon: <TeamOutlined /> },
@@ -146,9 +124,8 @@ export default function EquipmentChecklistPage() {
     setManageOpen(false);
   };
 
-  // NOTE: TeamAssignmentPage.tsx wasn't provided, so its own "Next" handler
-  // still needs to be pointed at this route manually — see integration notes.
-  const goBack = () => navigate("/events/create/team-assignment", { state: { eventId } });
+
+    const goBack = () => navigate("/events/create/team-assignment", { state: { eventId } });
   const goNext = () => navigate("/events/create/payment", { state: { eventId } });
 
   const renderStepButtons = () => (

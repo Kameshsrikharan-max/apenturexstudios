@@ -15,9 +15,9 @@ import AttendancePage       from "../features/event/pages/Attendancepage";
 import MediaManagementPage  from "../features/event/pages/Mediamanagement.js";
 import AlbumSelectionPage   from "../features/event/pages/AlbumSelectionPage";
 import TemplateEditorPage   from "../features/event/pages/TemplateEditorPage";
-import VideoEditorPage      from "../features/event/pages/VideoEditorPage"; // NEW — put VideoEditorPage.tsx + .css next to TemplateEditorPage
-import VideoLibraryPage     from "../features/event/pages/VideoLibraryPage"; // NEW — put VideoLibraryPage.tsx + .css next to VideoEditorPage
-import AlbumLibraryPage     from "../features/event/pages/AlbumLibraryPage"; // adjust path if placed elsewhere
+import VideoEditorPage      from "../features/event/pages/VideoEditorPage"; 
+import VideoLibraryPage     from "../features/event/pages/VideoLibraryPage";
+import AlbumLibraryPage     from "../features/event/pages/AlbumLibraryPage"; 
 import EventClosurePage     from "../features/event/pages/Eventclosurepage";  
 import EnquiryPage          from "../features/enquiry/pages/EnquiryPage";
 import MediaLibraryPage     from "../features/media/pages/MediaLibraryPage.js";
@@ -34,11 +34,12 @@ import EventPublicViewPage  from "../components/UI/EventPublicViewPage";
 import CheckInFormPage      from "../components/UI/CheckInFormPage";
 import DeleteRequestsPage   from "../features/deleteRequest/pages/DeleteRequestsPage";
 import RegistrationRequestsPage from "../features/registrationApproval/pages/RegistrationRequestsPage";
+import AuditLogPage         from "../features/auditLog/pages/AuditLogPage";
 import TemplatesPage        from "../features/templates/pages/TemplatesPage";
 import AvailabilityPage     from "../features/availability/pages/AvailabilityPage";
 import AutoInvoicePage      from "../features/invoice/pages/AutoInvoicePage";
 import TrainingHubPage      from "../features/training/pages/TrainingHubPage";
-import { hasRouteAccess } from "../config/rolePermissions"; // adjust path to match where you saved rolePermissions.ts
+import { hasRouteAccess } from "../config/rolePermissions"; 
 import type { PaidReceipt } from "../features/subscription/SubscriptionPage";
 
 const AuthFlowAny: any = AuthFlow;
@@ -73,6 +74,7 @@ const EventPublicViewPageAny: any = EventPublicViewPage;
 const CheckInFormPageAny: any = CheckInFormPage;
 const DeleteRequestsPageAny: any = DeleteRequestsPage;
 const RegistrationRequestsPageAny: any = RegistrationRequestsPage;
+const AuditLogPageAny: any = AuditLogPage;
 const TemplatesPageAny: any = TemplatesPage;
 const AvailabilityPageAny: any = AvailabilityPage;
 const AutoInvoicePageAny: any = AutoInvoicePage;
@@ -405,6 +407,14 @@ export default function AppRoutes({ isAuthenticated, onLogin, onLogout, user }: 
           element={
             <SuperAdminOnly user={user}>
               <RegistrationRequestsPageAny user={user} />
+            </SuperAdminOnly>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <SuperAdminOnly user={user}>
+              <AuditLogPageAny user={user} />
             </SuperAdminOnly>
           }
         />

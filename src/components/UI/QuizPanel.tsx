@@ -1,19 +1,6 @@
 import { useMemo, useState } from "react";
-import {
-  CheckCircleFilled,
-  CloseCircleFilled,
-  RedoOutlined,
-  HistoryOutlined,
-  TrophyOutlined,
-  ArrowRightOutlined,
-} from "@ant-design/icons";
-import {
-  getModuleQuiz,
-  hasQuiz,
-  getAttempts,
-  recordAttempt,
-  getBestAttempt,
-  PASS_PERCENTAGE,
+import {CheckCircleFilled,CloseCircleFilled,RedoOutlined,HistoryOutlined,TrophyOutlined,ArrowRightOutlined,} from "@ant-design/icons";
+import {getModuleQuiz,hasQuiz,getAttempts,recordAttempt,getBestAttempt,PASS_PERCENTAGE,
   type QuizAttempt,
 } from "../../utils/trainingQuizStore";
 import "./QuizPanel.css";

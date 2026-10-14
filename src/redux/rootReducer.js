@@ -16,6 +16,7 @@ import deleteRequestReducer from "./reducers/deleteRequestReducer";
 import registrationApprovalReducer from "./reducers/registrationApprovalReducer";
 import messageReducer from "./reducers/messageReducer";
 import equipmentChecklistReducer from "./reducers/Equipmentchecklistreducer";
+import auditLogReducer from "./reducers/auditLogReducer";
 
 const rootReducer = combineReducers({
   enquiry: enquiryReducer,
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
   registrationApproval: registrationApprovalReducer,
   message: messageReducer,
   equipmentChecklist: equipmentChecklistReducer,
+  auditLog: auditLogReducer,
 });
 
 export default rootReducer;

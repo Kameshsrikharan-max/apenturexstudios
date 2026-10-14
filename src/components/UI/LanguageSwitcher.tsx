@@ -39,7 +39,7 @@ interface Language {
 
 interface Country {
   name: string;
-  langs: string[]; // language codes — must exist in LANGUAGES
+  langs: string[]; 
 }
 
 interface Continent {

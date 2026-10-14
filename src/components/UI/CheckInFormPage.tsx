@@ -2,19 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Typography, Button, Switch, Spin, Segmented, message } from "antd";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  CameraOutlined,
-  EnvironmentOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  UploadOutlined,
-  InboxOutlined,
-  ReloadOutlined,
-  AimOutlined,
-  CloseCircleOutlined,
-} from "@ant-design/icons";
+import {CameraOutlined,EnvironmentOutlined,CheckCircleOutlined,ClockCircleOutlined,CalendarOutlined,UserOutlined,UploadOutlined,InboxOutlined,ReloadOutlined,AimOutlined,CloseCircleOutlined,} from "@ant-design/icons";
 import "./CheckInFormPage.css";
 
 const { Title, Text } = Typography;

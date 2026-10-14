@@ -13,34 +13,14 @@ import {
 } from "react";
 import { Tooltip } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  DashboardOutlined,
-  StarOutlined,
-  StarFilled,
-  UserOutlined,
-  CalendarOutlined,
-  ScheduleOutlined,
-  MailOutlined,
-  ShopOutlined,
-  CameraOutlined,
-  CreditCardOutlined,
-  ExclamationCircleOutlined,
-  FileImageOutlined,
-  ClockCircleOutlined,
-  BookOutlined,
-  VideoCameraOutlined,
-  DownOutlined,
-  BulbOutlined,
-  LogoutOutlined,
-  IdcardOutlined,
-} from "@ant-design/icons";
+import {DashboardOutlined,StarOutlined,StarFilled,UserOutlined,CalendarOutlined,ScheduleOutlined,MailOutlined,ShopOutlined,CameraOutlined,CreditCardOutlined,ExclamationCircleOutlined,FileImageOutlined,ClockCircleOutlined,BookOutlined,VideoCameraOutlined,DownOutlined,BulbOutlined,LogoutOutlined,IdcardOutlined,} from "@ant-design/icons";
 import { canAccessSection, type SectionKey } from "../../config/rolePermissions";
 
 import "./Sidebar.css";
 
-/* ------------------------------------------------------------------ */
+
 /* Types                                                               */
-/* ------------------------------------------------------------------ */
+
 
 interface SidebarUser {
   role?: string;
@@ -52,7 +32,7 @@ interface SidebarProps {
   dark?: boolean;
   open?: boolean;
   onClose?: () => void;
-  /** Kept for compatibility with the existing layout, not used by the sidebar itself */
+
   onCalendarOpen?: () => void;
   user?: SidebarUser;
   /** Extra live counters by item key, e.g. { enquiry: 3, review: 2 } */
@@ -74,9 +54,9 @@ interface NavItem {
   section?: SectionKey;
 }
 
-/* ------------------------------------------------------------------ */
+
 /* Static config                                                       */
-/* ------------------------------------------------------------------ */
+
 
 const GROUPS: Array<{ key: GroupKey; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -122,15 +102,12 @@ const LS_EXPANDED = "axs_sidebar_expanded";
 const LS_FAVS = "axs_sidebar_favourites";
 const LS_STATUS = "axs_sidebar_status";
 const EVENTS_KEY = "ax.events.v1";
-// The navbar hamburger already controls the sidebar, so there is no extra
-// expand button here. The sidebar listens for that hamburger instead.
 const HAMBURGER_SELECTOR = '[data-tour-id="nav-sidebar"]';
-/** Optional: window.dispatchEvent(new Event("axs:sidebar:toggle-expand")) toggles labels. */
 const SIDEBAR_TOGGLE_EVENT = "axs:sidebar:toggle-expand";
 
-/* ------------------------------------------------------------------ */
+
 /* Helpers                                                             */
-/* ------------------------------------------------------------------ */
+
 
 function readJSON<T>(key: string, fallback: T): T {
   try {

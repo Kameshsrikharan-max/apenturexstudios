@@ -1,27 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  SendOutlined,
-  CloseOutlined,
-  MessageOutlined,
-  LoadingOutlined,
-  SearchOutlined,
-  PaperClipOutlined,
-  SmileOutlined,
-  RollbackOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  ArrowDownOutlined,
-  CheckOutlined,
-  CheckCircleFilled,
-  CloseCircleFilled,
-} from "@ant-design/icons";
+import {SendOutlined,CloseOutlined,MessageOutlined,LoadingOutlined,SearchOutlined,PaperClipOutlined,SmileOutlined,RollbackOutlined,CopyOutlined,DeleteOutlined,ArrowDownOutlined,CheckOutlined,CheckCircleFilled,CloseCircleFilled,} from "@ant-design/icons";
 import dayjs from "dayjs";
-import {
-  fetchEventMessagesRequest,
-  sendEventMessageRequest,
-  deleteEventMessageRequest,
-} from "../../redux/actions/messageActions";
+import {fetchEventMessagesRequest,sendEventMessageRequest,deleteEventMessageRequest,} from "../../redux/actions/messageActions";
 import { Message } from "../../redux/types/messageTypes";
 import "./EventThreadPanel.css";
 
