@@ -705,9 +705,6 @@ const EnquiryPage = () => {
           <Layout className="dashboard-shell enquiry-shell">
             <Header className="dashboard-navbar enquiry-navbar">
               <h1 className="enquiry-title">Enquiries</h1>
-              <div className="enquiry-hints" aria-hidden="true">
-                <kbd>/</kbd> search <kbd>N</kbd> new
-              </div>
             </Header>
 
             <Content className="content-area enquiry-content">

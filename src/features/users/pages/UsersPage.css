@@ -4,6 +4,14 @@
   --panel-glass: rgba(13, 17, 39, 0.2);
   --border-neon: rgba(56, 189, 248, 0.25);
   --accent-cyan: #38bdf8;
+
+  /* shared form-field tokens (invite / edit / filter) */
+  --field-bg: rgba(4, 8, 26, 0.85);
+  --field-border: rgba(56, 189, 248, 0.28);
+  --field-border-hover: #38bdf8;
+  --field-text: #f1f5f9;
+  --field-muted: rgba(203, 213, 225, 0.55);
+  --field-ring: 0 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
 .user-visual-page,
@@ -140,30 +148,8 @@
 .inactive-bulk:hover, .delete-bulk:hover { color: #ff4d4f !important; }
 .invite-bulk:hover { color: #f59e0b !important; }
 
-/* --- Filter popover: solid, high-contrast, always visible --- */
-.filter-popover-panel { width: 160px; }
-.filter-popover-list { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
-.filter-popover-list .ant-btn { height: 40px; padding: 0; display: inline-flex; justify-content: center; align-items: center; font-weight: 700; }
 .ant-tooltip-inner { color: #111827 !important; background: #fff !important; font-weight: 750; }
 .ant-tooltip-arrow::before { background: #fff !important; }
-
-/* --- Advanced filter panel (tab-aware: Role / Status / Invite Status / Date) --- */
-.filter-adv-panel { width: 520px; max-width: 90vw; }
-.filter-adv-title {color: #ffffff;font-size: 18px;font-weight: 900;margin-bottom: 16px;font-family: "Playfair Display", serif;}
-.filter-adv-grid {display: grid;grid-template-columns: 1fr 1fr;gap: 4px 20px;}
-.filter-adv-item { margin-bottom: 14px !important; }
-.filter-adv-item .ant-form-item-label { padding-bottom: 6px !important; }
-.filter-adv-item .ant-form-item-label > label {color: #93c5fd !important;font-weight: 800 !important;text-transform: uppercase;font-size: 11px;letter-spacing: 0.5px;height: auto !important;}
-.filter-adv-panel .ant-select:not(.ant-select-customize-input) .ant-select-selector {background: rgba(2, 6, 23, 0.55) !important;border: 1px solid rgba(96, 165, 250, 0.24) !important;color: #f1f5f9 !important;border-radius: 10px !important;min-height: 40px !important;padding-top: 2px;}
-.filter-adv-panel .ant-select-selection-placeholder,
-.filter-adv-panel .ant-select-selection-item { color: #e2e8f0 !important; }
-.filter-adv-panel .ant-select:hover .ant-select-selector,
-.filter-adv-panel .ant-select-focused .ant-select-selector {border-color: var(--accent-cyan) !important;box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16) !important;}
-.filter-adv-panel .ant-select-arrow,
-.filter-adv-panel .ant-select-clear { color: rgba(226,232,240,0.6) !important; }
-.filter-adv-panel .ant-select-selection-item-remove { color: rgba(226,232,240,0.6) !important; }
-.filter-adv-footer {display: flex;justify-content: flex-end;gap: 10px;padding-top: 10px;margin-top: 6px;border-top: 1px solid rgba(96, 165, 250, 0.14);}
-.filter-adv-apply { padding: 0 22px !important; }
 
 .user-table-custom .ant-pagination {margin: 18px 4px 4px !important;padding: 0 16px;display: flex;justify-content: flex-end;align-items: center;gap: 6px;}
 .user-table-custom .ant-pagination .ant-pagination-item {min-width: 32px;height: 32px;line-height: 30px;border-radius: 9px;background: rgba(255, 255, 255, 0.05) !important;border: 1px solid rgba(96, 165, 250, 0.22) !important;transition: background 0.2s, border-color 0.2s, transform 0.2s;}
@@ -198,39 +184,210 @@
 .creative-modal .ant-form-item-label > label { color: var(--accent-cyan) !important; font-weight: 700; }
 .creative-modal .ant-form-item-label > label.ant-form-item-required::before { color: #ff6b6b !important; }
 
-/* Form controls inside the Invite / Edit modals */
-.creative-modal .ant-input,
-.creative-modal .ant-input-affix-wrapper,
-.creative-modal .ant-input-number,
-.creative-modal textarea.ant-input {background: rgba(2, 6, 23, 0.5) !important;border: 1px solid var(--border-neon) !important;color: #f1f5f9 !important;border-radius: 10px !important;}
-.creative-modal .ant-input::placeholder,
-.creative-modal textarea.ant-input::placeholder { color: rgba(226, 232, 240, 0.4) !important; }
-.creative-modal .ant-input:hover,
-.creative-modal .ant-input:focus,
-.creative-modal .ant-input-affix-wrapper:hover,
-.creative-modal .ant-input-affix-wrapper-focused {border-color: var(--accent-cyan) !important;box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.16) !important;}
-.creative-modal .ant-select:not(.ant-select-customize-input) .ant-select-selector {background: rgba(2, 6, 23, 0.5) !important;border: 1px solid var(--border-neon) !important;border-radius: 10px !important;color: #f1f5f9 !important;}
-.creative-modal .ant-select-selection-item,
-.creative-modal .ant-select-selection-placeholder { color: #f1f5f9 !important; }
-.creative-modal .ant-select-arrow { color: rgba(226,232,240,0.6) !important; }
+/* =====================================================================
+   SHARED FORM FIELDS — Invite modal, Edit modal, Filter panel
+   One box per field: nothing nested, text always readable.
+   ===================================================================== */
 
-/* Select dropdown menu */
-.dark-select-dropdown.ant-select-dropdown {background: rgba(13, 17, 39, 0.98) !important;border: 1px solid var(--border-neon) !important;backdrop-filter: blur(20px);z-index: 2100;}
-.dark-select-dropdown .ant-select-item { color: #e2e8f0 !important; }
-.dark-select-dropdown .ant-select-item-option-active,
-.dark-select-dropdown .ant-select-item-option-selected {background: rgba(56, 189, 248, 0.22) !important;color: #fff !important;}
+/* ---- Plain inputs / textarea (no prefix) ---- */
+.creative-modal .ant-input,
+.creative-modal textarea.ant-input {
+  background: var(--field-bg) !important;
+  border: 1px solid var(--field-border) !important;
+  color: var(--field-text) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.creative-modal input.ant-input { height: 42px; padding: 0 14px; }
+.creative-modal textarea.ant-input { padding: 10px 14px; }
+.creative-modal .ant-input::placeholder,
+.creative-modal textarea.ant-input::placeholder { color: var(--field-muted) !important; }
+.creative-modal .ant-input:hover,
+.creative-modal .ant-input:focus { border-color: var(--field-border-hover) !important; }
+.creative-modal .ant-input:focus { box-shadow: var(--field-ring) !important; }
+
+/* ---- Inputs WITH a prefix icon: the wrapper is the only box ---- */
+.creative-modal .ant-input-affix-wrapper {
+  display: flex;
+  align-items: center;
+  height: 42px;
+  padding: 0 14px !important;
+  background: var(--field-bg) !important;
+  border: 1px solid var(--field-border) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.creative-modal .ant-input-affix-wrapper:hover { border-color: var(--field-border-hover) !important; }
+.creative-modal .ant-input-affix-wrapper-focused,
+.creative-modal .ant-input-affix-wrapper:focus-within {
+  border-color: var(--field-border-hover) !important;
+  box-shadow: var(--field-ring) !important;
+}
+/* the inner <input> becomes invisible chrome — no second box */
+.creative-modal .ant-input-affix-wrapper > input.ant-input,
+.creative-modal .ant-input-affix-wrapper input {
+  height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--field-text) !important;
+}
+.creative-modal .ant-input-prefix {
+  margin-inline-end: 10px !important;
+  color: var(--accent-cyan) !important;
+  font-size: 15px;
+}
+.creative-modal .ant-input-prefix .anticon { color: var(--accent-cyan) !important; }
+.creative-modal .ant-input-clear-icon { color: var(--field-muted) !important; }
+
+/* ---- Number input ---- */
+.creative-modal .ant-input-number {
+  width: 100%;
+  background: var(--field-bg) !important;
+  border: 1px solid var(--field-border) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.creative-modal .ant-input-number .ant-input-number-input {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--field-text) !important;
+}
+
+/* ---- Select (invite / edit / filter): box lives on the root, selector is transparent ---- */
+.uc-select.ant-select {
+  width: 100%;
+  background: var(--field-bg) !important;
+  border: 1px solid var(--field-border) !important;
+  border-radius: 12px !important;
+  color: var(--field-text) !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.uc-select.ant-select:hover,
+.uc-select.ant-select-focused,
+.uc-select.ant-select-open {
+  border-color: var(--field-border-hover) !important;
+}
+.uc-select.ant-select-focused,
+.uc-select.ant-select-open { box-shadow: var(--field-ring) !important; }
+.uc-select.ant-select-multiple { min-height: 42px; }
+
+.uc-select .ant-select-selector,
+.uc-select [class*="selector"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+  padding-inline: 14px !important;
+}
+.uc-select .ant-select-selector::after { color: var(--field-text) !important; }
+
+/* selected value + anything that renders text */
+.uc-select [class*="selection-item"],
+.uc-select [class*="content-value"],
+.uc-select [class*="selection-search"] input,
+.uc-select .ant-select-selection-item,
+.uc-select .ant-select-selection-item * {
+  color: var(--field-text) !important;
+  font-weight: 600;
+}
+/* placeholder — clearly visible on the dark field */
+.uc-select [class*="placeholder"],
+.uc-select .ant-select-selection-placeholder {
+  color: var(--field-muted) !important;
+  opacity: 1 !important;
+}
+/* arrow + clear */
+.uc-select [class*="arrow"],
+.uc-select [class*="clear"],
+.uc-select .anticon {
+  color: rgba(203, 213, 225, 0.75) !important;
+}
+.uc-select [class*="clear"] { background: transparent !important; }
+/* multi-select tags */
+.uc-select.ant-select-multiple [class*="selection-item"] {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  border-radius: 8px !important;
+  color: #e0f2fe !important;
+}
+
+/* ---- Select dropdown menu (rendered in body) ---- */
+.dark-select-dropdown.ant-select-dropdown {
+  padding: 6px !important;
+  background: linear-gradient(180deg, #0d1330, #070b1e) !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 22px rgba(56, 189, 248, 0.15) !important;
+  z-index: 3100;
+}
+.dark-select-dropdown .ant-select-item {
+  color: #e2e8f0 !important;
+  border-radius: 9px !important;
+  font-weight: 600;
+}
+.dark-select-dropdown .ant-select-item-option-content { color: inherit !important; }
+.dark-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #fff !important;
+}
+.dark-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(56, 189, 248, 0.28) !important;
+  color: #fff !important;
+}
+.dark-select-dropdown .ant-select-item-option-state { color: #38bdf8 !important; }
+.dark-select-dropdown [class*="empty"] { color: rgba(226, 232, 240, 0.6) !important; }
+
+/* ---- Buttons in modals ---- */
 .modal-cancel-btn {color: #e2e8f0 !important;background: rgba(255,255,255,0.06) !important;border: 1px solid var(--border-neon) !important;border-radius: 999px !important;font-weight: 700;transition: background 0.2s, border-color 0.2s, color 0.2s;}
 .modal-cancel-btn:hover {color: #fff !important;background: rgba(56, 189, 248, 0.12) !important;border-color: var(--accent-cyan) !important;}
 .creative-modal .invite-btn-styled {background: var(--accent-cyan) !important;box-shadow: 0 4px 15px rgba(56, 189, 248, 0.5);}
 .creative-modal .invite-btn-styled:hover {box-shadow: 0 8px 24px rgba(56, 189, 248, 0.6);}
 
-.filter-popover-overlay {z-index: 3000 !important;}
-.filter-popover-overlay .ant-popover-inner {background: rgba(13, 17, 39, 0.98) !important;border: 1px solid var(--border-neon);box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 24px rgba(56, 189, 248, 0.2);border-radius: 16px;}
-.filter-popover-overlay .ant-popover-inner-content { padding: 16px 18px; }
-.filter-popover-overlay .ant-popover-arrow::before { background: rgba(13, 17, 39, 0.98) !important; }
-.filter-popover-panel .ant-btn {color: #cbd5e1 !important;background: rgba(255,255,255,0.05) !important;border: 1px solid var(--border-neon) !important;}
-.filter-popover-panel .ant-btn:hover {color: #fff !important;background: rgba(56, 189, 248, 0.16) !important;border-color: var(--accent-cyan) !important;}
-.filter-popover-panel .ant-btn-primary {color: #fff !important;background: var(--accent-cyan) !important;border-color: var(--accent-cyan) !important;box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);}
+/* =====================================================================
+   FILTER POPOVER — dark blue theme (popover renders in <body>)
+   ===================================================================== */
+.filter-popover-overlay { z-index: 3000 !important; }
+.filter-popover-overlay,
+.filter-popover-overlay * { font-family: "Times New Roman", Times, serif; }
+
+.filter-popover-overlay .ant-popover-inner,
+.filter-popover-overlay .ant-popover-container {
+  background: linear-gradient(180deg, #0d1330 0%, #070b1e 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.38) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 34px rgba(56, 189, 248, 0.2) !important;
+  color: #f1f5f9 !important;
+}
+.filter-popover-overlay .ant-popover-inner { padding: 0 !important; }
+.filter-popover-overlay .ant-popover-inner-content { padding: 22px 24px 20px !important; color: #f1f5f9 !important; }
+.filter-popover-overlay .ant-popover-container { padding: 22px 24px 20px !important; }
+.filter-popover-overlay .ant-popover-arrow::before,
+.filter-popover-overlay .ant-popover-arrow::after { background: #0d1330 !important; }
+
+.filter-adv-panel { width: 520px; max-width: 86vw; }
+.filter-adv-head { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid rgba(56, 189, 248, 0.18); }
+.filter-adv-head-icon { width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center; border-radius: 14px; font-size: 18px; color: #fff; background: linear-gradient(135deg, #3b82f6, #38bdf8); box-shadow: 0 8px 20px rgba(56, 189, 248, 0.38); }
+.filter-adv-title { color: #ffffff; font-size: 19px; font-weight: 900; line-height: 1.2; font-family: "Playfair Display", serif !important; }
+.filter-adv-sub { margin-top: 3px; color: #93c5fd; font-size: 12px; font-weight: 600; }
+
+.filter-adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.filter-adv-item { margin-bottom: 16px !important; }
+.filter-adv-item .ant-form-item-label { padding-bottom: 6px !important; }
+.filter-adv-item .ant-form-item-label > label { color: #7dd3fc !important; font-weight: 800 !important; text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; height: auto !important; }
+
+.filter-adv-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 16px; margin-top: 4px; border-top: 1px solid rgba(56, 189, 248, 0.18); }
+.filter-adv-footer .ant-btn { height: 42px !important; min-width: 124px; padding: 0 22px !important; border-radius: 999px !important; font-weight: 800 !important; font-size: 14px; transition: transform 0.22s, box-shadow 0.22s, background 0.22s, border-color 0.22s !important; }
+.filter-adv-footer .filter-adv-clear { color: #bae6fd !important; background: rgba(56, 189, 248, 0.07) !important; border: 1px solid rgba(56, 189, 248, 0.4) !important; box-shadow: none !important; }
+.filter-adv-footer .filter-adv-clear:hover { color: #fff !important; background: rgba(56, 189, 248, 0.18) !important; border-color: #38bdf8 !important; transform: translateY(-1px); }
+.filter-adv-footer .filter-adv-apply { color: #fff !important; background: linear-gradient(135deg, #2563eb, #38bdf8) !important; border: 0 !important; box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45) !important; }
+.filter-adv-footer .filter-adv-apply:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(56, 189, 248, 0.6) !important; }
 
 .modal-shell { position: relative; z-index: 1; }
 .modal-small-avatar { background: var(--accent-cyan); color: #fff !important; }
@@ -445,6 +602,7 @@
 
   .filter-adv-panel { width: 100%; }
   .filter-adv-grid { grid-template-columns: 1fr; }
+  .filter-adv-footer .ant-btn { flex: 1; min-width: 0; }
 
   .cm-panel { padding: 20px 18px 22px; border-radius: 20px; }
   .edit-form-grid { grid-template-columns: 1fr; }
@@ -540,6 +698,9 @@
 .invite-field-full { grid-column: span 2; }
 .invite-role-option { display: inline-flex; align-items: center; gap: 8px; color: var(--rc, #e2e8f0); font-weight: 700; }
 .invite-role-option-icon { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; background: color-mix(in srgb, var(--rc, #3b82f6) 18%, transparent); }
+/* selected role inside the field keeps its accent colour but stays readable */
+.creative-modal .uc-select .invite-role-option { color: var(--rc, #f1f5f9) !important; }
+.creative-modal .uc-select .invite-role-option span { color: inherit !important; }
 
 .invite-sent-note { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 10px 14px; border-radius: 12px; color: #93c5fd; font-size: 12.5px; font-weight: 600; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.22); animation: inviteCardIn 0.35s both; }
 
@@ -567,9 +728,9 @@
 
 
 /* =====================================================================
-   UsersPage.extras.css — import AFTER UsersPage.css
-   Spotlight, aurora, live stats, role bar, card view, view toggle,
-   command palette, confetti, profile-completeness ring, row motion.
+   UsersPage.extras.css — Spotlight, aurora, live stats, role bar, card
+   view, view toggle, command palette, confetti, completeness ring,
+   row motion.
    ===================================================================== */
 
 /* ---------- Cursor spotlight + aurora (behind the panel content) ---------- */

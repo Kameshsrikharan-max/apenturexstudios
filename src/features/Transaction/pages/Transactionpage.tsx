@@ -820,11 +820,6 @@ const TransactionPage = () => {
                     </span>
                     <Title level={2}>Transaction Management</Title>
                     <Text>Manage all event payment transactions, balances, and payment history.</Text>
-                    <div className="tx-kbd-hints" aria-hidden="true">
-                      <span><kbd>/</kbd> search</span>
-                      <span><kbd>R</kbd> refresh</span>
-                      <span><kbd>V</kbd> switch view</span>
-                    </div>
                   </div>
 
                   <div className="tx-summary-grid mo-stagger">

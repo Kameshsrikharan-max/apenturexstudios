@@ -10,40 +10,14 @@ import {
 } from "react";
 import {Layout,Typography,Table,Input,Button,Space,ConfigProvider,Tag,Avatar,Tabs,Tooltip,Popover,Form,Select,message,Empty,Badge,Pagination,} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  UserAddOutlined,
-  FilterOutlined,
-  EyeOutlined,
-  EditOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SendOutlined,
-  UserSwitchOutlined,
-  EnvironmentOutlined,
-  CalendarOutlined,
-  SaveOutlined,
-  TeamOutlined,
-  LinkOutlined,
-  CameraOutlined,
-  AppstoreOutlined,
-  GoogleOutlined,
-  ClockCircleOutlined,
-  StarOutlined,
-  CloseOutlined,
-  StarFilled,
-  RobotOutlined,
-  LoadingOutlined,BulbOutlined,UserOutlined,CopyOutlined,ArrowLeftOutlined,RedoOutlined,UndoOutlined,CheckOutlined,DownloadOutlined,ThunderboltOutlined,UnorderedListOutlined,IdcardOutlined,ClearOutlined,} from "@ant-design/icons";
+import {SearchOutlined,ReloadOutlined,UserAddOutlined,FilterOutlined,EyeOutlined,EditOutlined,MailOutlined,PhoneOutlined,CheckCircleOutlined,CloseCircleOutlined,SendOutlined,UserSwitchOutlined,EnvironmentOutlined,CalendarOutlined,SaveOutlined,TeamOutlined,LinkOutlined,CameraOutlined,AppstoreOutlined,GoogleOutlined,ClockCircleOutlined,StarOutlined,CloseOutlined,StarFilled,RobotOutlined,LoadingOutlined,BulbOutlined,UserOutlined,CopyOutlined,ArrowLeftOutlined,RedoOutlined,UndoOutlined,CheckOutlined,DownloadOutlined,ThunderboltOutlined,UnorderedListOutlined,IdcardOutlined,ClearOutlined,} from "@ant-design/icons";
 import Sidebar from "../../../components/UI/Sidebar";
 import DeleteButton from "../../../components/common/DeleteButton";
 import "./UsersPage.css";
 import {
   notifyUserDeactivated,
   notifyUserActivated,
-} from "../../../components/UI/notificationTriggers"; // adjust path to your project structure
+} from "../../../components/UI/notificationTriggers"; 
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -1817,8 +1791,16 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
 
   const advancedFilterPanel = (
     <div className="filter-adv-panel">
-      <div className="filter-adv-title">
-        Filter {activeTab === "photographers" ? "Photographers" : "Users"}
+      <div className="filter-adv-head">
+        <span className="filter-adv-head-icon">
+          <FilterOutlined />
+        </span>
+        <div>
+          <div className="filter-adv-title">
+            Filter {activeTab === "photographers" ? "Photographers" : "Users"}
+          </div>
+          <div className="filter-adv-sub">Narrow the list by role, status, invite or date</div>
+        </div>
       </div>
       <Form<AdvancedFilters>
         form={advFilterForm}
@@ -1830,6 +1812,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
           {roleOptionsByTab.length > 0 && (
             <Form.Item name="roles" label="Role" className="filter-adv-item">
               <Select
+                className="uc-select"
+                size="large"
+                variant="borderless"
                 mode="multiple"
                 allowClear
                 placeholder="Select role(s)"
@@ -1840,6 +1825,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
           )}
           <Form.Item name="status" label="Status" className="filter-adv-item">
             <Select
+              className="uc-select"
+              size="large"
+              variant="borderless"
               allowClear
               placeholder="Select status"
               classNames={{ popup: { root: "dark-select-dropdown" } }}
@@ -1848,6 +1836,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
           </Form.Item>
           <Form.Item name="inviteStatus" label="Invite Status" className="filter-adv-item">
             <Select
+              className="uc-select"
+              size="large"
+              variant="borderless"
               allowClear
               placeholder="Select invite status"
               classNames={{ popup: { root: "dark-select-dropdown" } }}
@@ -1856,6 +1847,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
           </Form.Item>
           <Form.Item name="period" label="Date Filter" className="filter-adv-item">
             <Select
+              className="uc-select"
+              size="large"
+              variant="borderless"
               allowClear
               placeholder="Select period"
               classNames={{ popup: { root: "dark-select-dropdown" } }}
@@ -1869,10 +1863,10 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
           </Form.Item>
         </div>
         <div className="filter-adv-footer">
-          <Button className="modal-cancel-btn" onClick={handleClearAdvancedFilters}>
+          <Button className="filter-adv-clear" onClick={handleClearAdvancedFilters}>
             Clear Filters
           </Button>
-          <Button type="primary" htmlType="submit" className="invite-btn-styled filter-adv-apply">
+          <Button type="primary" htmlType="submit" className="filter-adv-apply">
             Apply Filters
           </Button>
         </div>
@@ -1981,7 +1975,8 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                         content={advancedFilterPanel}
                         trigger="click"
                         placement="bottomLeft"
-                        overlayClassName="filter-popover-overlay"
+                        arrow={false}
+                        rootClassName="filter-popover-overlay"
                       >
                         <Tooltip title="Filter">
                           <Badge dot={activeAdvancedFilterCount > 0} offset={[-4, 4]}>
@@ -2200,6 +2195,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                   </Form.Item>
                   <Form.Item name="role" label="Role">
                     <Select
+                      className="uc-select"
+                      size="large"
+                      variant="borderless"
                       classNames={{ popup: { root: "dark-select-dropdown" } }}
                       options={[
                         { value: "Studio Admin", label: "Studio Admin" },
@@ -2211,6 +2209,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                   </Form.Item>
                   <Form.Item name="status" label="Status">
                     <Select
+                      className="uc-select"
+                      size="large"
+                      variant="borderless"
                       classNames={{ popup: { root: "dark-select-dropdown" } }}
                       options={[
                         { value: "Active", label: "Active" },
@@ -2221,6 +2222,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                   </Form.Item>
                   <Form.Item name="signupType" label="Signup">
                     <Select
+                      className="uc-select"
+                      size="large"
+                      variant="borderless"
                       classNames={{ popup: { root: "dark-select-dropdown" } }}
                       options={[
                         { value: "Registered", label: "Registered" },
@@ -2374,6 +2378,9 @@ const UsersPage = ({ user: _user }: UsersPageProps) => {
                     </Form.Item>
                     <Form.Item name="role" label="Role" rules={[{ required: true, message: "Required" }]}>
                       <Select
+                        className="uc-select"
+                        size="large"
+                        variant="borderless"
                         placeholder="Select a role"
                         popupMatchSelectWidth
                         classNames={{ popup: { root: "dark-select-dropdown invite-role-dropdown" } }}

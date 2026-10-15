@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   AppstoreOutlined, BarsOutlined, BgColorsOutlined, CameraOutlined, CheckCircleOutlined, CloseOutlined,
   DeleteOutlined, DownloadOutlined, EnvironmentOutlined, ExclamationCircleOutlined, EyeOutlined,
-  FolderOutlined, HeartFilled, HeartOutlined, InfoCircleOutlined, MailOutlined, MenuFoldOutlined,
+  FolderOutlined, HeartFilled, HeartOutlined, InfoCircleOutlined, MailOutlined,
   PauseCircleOutlined, PhoneOutlined, PlayCircleOutlined, PlusOutlined, QuestionCircleOutlined,
   SafetyCertificateOutlined, SearchOutlined, ShareAltOutlined, SortAscendingOutlined, StarFilled,
   StarOutlined, TableOutlined, ThunderboltOutlined, UploadOutlined, UserOutlined,
@@ -292,17 +292,6 @@ function useCountUp(target: number, ms = 800) {
 function Stat({ label, value }: { label: string; value: number }) {
   const v = useCountUp(value);
   return <div className="sb-stat"><strong>{v}</strong><span>{label}</span></div>;
-}
-
-function CompletenessRing({ pct }: { pct: number }) {
-  const R = 26, C = 2 * Math.PI * R;
-  return (
-    <svg viewBox="0 0 64 64" className="ring" role="img" aria-label={`Profile ${pct}% complete`}>
-      <circle className="ring-bg" cx="32" cy="32" r={R} />
-      <circle className="ring-fg" cx="32" cy="32" r={R} strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} transform="rotate(-90 32 32)" />
-      <text x="32" y="36" textAnchor="middle">{pct}%</text>
-    </svg>
-  );
 }
 
 // ---------- Command palette ----------
@@ -636,18 +625,6 @@ function ProfilePage() {
   const totalViews=useMemo(()=>Object.values(views).reduce((a,b)=>a+b,0),[views]);
   const mix=useMemo(()=>cats.filter(c=>c!=="All").map(cat=>({cat,n:allPhotos.filter(p=>p.category===cat).length})).filter(m=>m.n>0),[cats,allPhotos]);
 
-  // ---- profile completeness ----
-  const steps=[
-    {ok:!PROFILE_VALIDATORS.fullName(fullName),label:"Add your name",act:()=>handleStartEdit("fullName",fullName)},
-    {ok:!PROFILE_VALIDATORS.email(profile.email),label:"Add a valid email",act:()=>handleStartEdit("email",profile.email||"")},
-    {ok:!PROFILE_VALIDATORS.phone(profile.phone),label:"Add a valid phone number",act:()=>handleStartEdit("phone",profile.phone||"")},
-    {ok:!PROFILE_VALIDATORS.address(profile.address),label:"Add your address",act:()=>handleStartEdit("address",profile.address||"")},
-    {ok:!!profile.profilePhoto,label:"Upload a profile photo",act:()=>fileInputRef.current?.click()},
-    {ok:kycVerified,label:"Verify your KYC",act:()=>kycRef.current?.scrollIntoView({behavior:"smooth",block:"center"})},
-  ];
-  const pct=Math.round(steps.filter(s=>s.ok).length/steps.length*100);
-  const nextStep=steps.find(s=>!s.ok);
-
   const fieldError=useMemo(()=>{
     if(!editingField)return null;
     const validator=PROFILE_VALIDATORS[editingField];
@@ -921,9 +898,6 @@ function ProfilePage() {
 
         <div className="sidebar-topline">
           <span><ThunderboltOutlined /> Creator Mode</span>
-          <button type="button" className="mini-close-btn" onClick={()=>setSidebarOpen(false)} aria-label="Close sidebar">
-            <MenuFoldOutlined/>
-          </button>
         </div>
 
         <div className="sb-avatar-wrap">
@@ -947,16 +921,6 @@ function ProfilePage() {
           <p className="sb-role">{profile.role}</p>
           <h2 className="sb-fullname">{fullName}</h2>
           <p className="sb-subtitle">Capturing Moments, Creating Stories</p>
-        </div>
-
-        <div className="sb-progress">
-          <CompletenessRing pct={pct}/>
-          <div className="sb-progress-body">
-            <strong>{pct===100?"Profile complete":"Finish your profile"}</strong>
-            {nextStep
-              ? <button type="button" className="sb-next" onClick={nextStep.act}>{nextStep.label}</button>
-              : <span>Everything is in place.</span>}
-          </div>
         </div>
 
         <div className="sb-details">
@@ -1089,9 +1053,6 @@ function ProfilePage() {
                 placeholder="Search photos" aria-label="Search photos" />
               {query?<button type="button" className="pp-search-clear" onClick={()=>setQuery("")} aria-label="Clear search"><CloseOutlined/></button>:<kbd>/</kbd>}
             </label>
-            <button type="button" className="pp-cmd-btn" onClick={()=>setPaletteOpen(true)} aria-label="Open command palette" title="Command palette (Ctrl K)">
-              <ThunderboltOutlined/><kbd>Ctrl K</kbd>
-            </button>
           </div>
         </div>
 
